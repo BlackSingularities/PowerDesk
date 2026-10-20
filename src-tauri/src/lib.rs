@@ -759,7 +759,8 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let has_sync = !sync::profiles().0.is_empty();
-                if CLOSE_TO_TRAY.load(Ordering::SeqCst) && has_sync {
+                // Do zasobnika chowa się tylko główne okno – okno podglądu zamyka się normalnie.
+                if window.label() == "main" && CLOSE_TO_TRAY.load(Ordering::SeqCst) && has_sync {
                     api.prevent_close();
                     let _ = window.hide();
                 }

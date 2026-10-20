@@ -3,7 +3,7 @@
   import Thumb from './Thumb.svelte'
   import {
     app, settings, navigate, newTab, addFavorite, removeFavorite, refreshDrives, toast, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
-    toggleHomeDir, isHomeDir, removeRecent, toggleRecentPin, clearRecent, removeNetPlace, startSearch, openSpace, SYNC, HOME, type Tab,
+    toggleHomeDir, isHomeDir, removeRecent, toggleRecentPin, clearRecent, removeNetPlace, startSearch, openSpace, showViewer, SYNC, HOME, type Tab,
   } from '../lib/state.svelte'
   import { size, ago, basename, samePath, collator, isMedia, kindOf, parent, date } from '../lib/util'
   import { api, thumbUrl, type Drive, type Entry } from '../lib/api'
@@ -215,7 +215,7 @@
     if (e.dir) return go(e.path)
     if (isMedia(e)) {
       const media = list.filter(isMedia)
-      app.viewer = { list: media, index: Math.max(0, media.findIndex((x) => x.path === e.path)) }
+      showViewer(media, Math.max(0, media.findIndex((x) => x.path === e.path)))
     } else api.open(e.path).catch((err) => toast(String(err), 'error'))
   }
   function itemMenu(ev: MouseEvent, e: Entry) {

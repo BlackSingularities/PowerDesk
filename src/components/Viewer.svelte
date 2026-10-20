@@ -7,6 +7,7 @@
   import { api, fileUrl, thumbUrl, type Prop, type TextPreview } from '../lib/api'
   import { kindOf, size, date, WEB_IMAGE, WEB_VIDEO, WEB_AUDIO } from '../lib/util'
 
+  let { standalone = false }: { standalone?: boolean } = $props()
   const v = $derived(app.viewer!)
   const e = $derived(v.list[v.index])
   const k = $derived(e ? kindOf(e) : 'other')
@@ -20,7 +21,7 @@
   let stageEl = $state<HTMLDivElement>()
   let videoEl = $state<HTMLVideoElement>()
   let showInfo = $state(false)
-  let props = $state<Prop[]>([])
+  let metaProps = $state<Prop[]>([])
   let text = $state<TextPreview | null>(null)
   let slideshow = $state(false)
   let chrome = $state(true)
@@ -40,11 +41,11 @@
     ty = 0
     rot = 0
     text = null
-    props = []
+    metaProps = []
     hiRes = false
     if (!e) return
     const path = e.path
-    if (showInfo) api.shellProps(path).then((p) => e?.path === path && (props = p))
+    if (showInfo) api.shellProps(path).then((p) => e?.path === path && (metaProps = p))
     if ((k === 'text' || k === 'code') && !e.cloud && !hasDocPreview(e)) api.readText(path, 400_000).then((t) => e?.path === path && (text = t))
     // Sąsiednie zdjęcia ładujemy z wyprzedzeniem – przełączanie jest natychmiastowe.
     for (const d of [1, -1, 2]) {
@@ -53,9 +54,9 @@
     }
   })
   $effect(() => {
-    if (showInfo && e && !props.length) {
+    if (showInfo && e && !metaProps.length) {
       const path = e.path
-      api.shellProps(path).then((p) => e?.path === path && (props = p))
+      api.shellProps(path).then((p) => e?.path === path && (metaProps = p))
     }
   })
 
@@ -86,6 +87,10 @@
 
   function close() {
     slideshow = false
+    if (standalone) {
+      getCurrentWindow().close()
+      return
+    }
     getCurrentWindow().isFullscreen().then((f) => {
       if (f) getCurrentWindow().setFullscreen(false)
     })
@@ -212,8 +217,8 @@
 <svelte:window onkeydown={onKey} />
 
 {#if e}
-  {#if !full}<div class="vback fade-in" role="presentation" onmousedown={close}></div>{/if}
-  <div class="viewer fade-in" class:windowed={!full} class:nochrome={!chrome && !showInfo} onpointermove={poke} role="dialog" tabindex="-1" aria-label="Podgląd">
+  {#if !full && !standalone}<div class="vback fade-in" role="presentation" onmousedown={close}></div>{/if}
+  <div class="viewer fade-in" class:windowed={!full && !standalone} class:nochrome={!chrome && !showInfo} onpointermove={poke} role="dialog" tabindex="-1" aria-label="Podgląd">
     <div class="top">
       <button class="icon-btn" title="Zamknij (Esc)" onclick={close}><Icon name="back" /></button>
       <div class="grow title">
@@ -298,7 +303,7 @@
             <dt>Rozmiar</dt><dd>{size(e.size)}</dd>
             {#if natural.w && (k === 'image')}<dt>Wymiary</dt><dd>{natural.w} × {natural.h}</dd>{/if}
             <dt>Zmodyfikowano</dt><dd>{date(e.modified)}</dd>
-            {#each props as p (p.name)}<dt>{p.name}</dt><dd>{p.value}</dd>{/each}
+            {#each metaProps as p (p.name)}<dt>{p.name}</dt><dd>{p.value}</dd>{/each}
           </dl>
         </aside>
       {/if}

@@ -3,6 +3,9 @@
   import { settings } from '../lib/state.svelte'
   import { kindOf } from '../lib/util'
   import { pdfThumb } from '../lib/pdfthumb'
+  import SlideThumb from './SlideThumb.svelte'
+
+  const SLIDES = new Set(['pptx', 'ppsx', 'pptm'])
 
   let {
     entry,
@@ -42,11 +45,16 @@
       const url = await pdfThumb(entry.path, px, entry.modified)
       if (url) pdfSrc = url
       else stage = 2
+    } else if (stage === 0 && SLIDES.has(entry.ext)) {
+      // Prezentacja bez miniatury od Windows i bez zapisanej w pliku – rysujemy pierwszy slajd sami.
+      stage = 3
     } else if (stage < 2) stage = 2
   }
 </script>
 
-{#if src}
+{#if stage === 3}
+  <SlideThumb path={entry.path} modified={entry.modified} onfail={() => (stage = 2)} />
+{:else if src}
   {#key src}
   <img
     {src}

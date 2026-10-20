@@ -167,7 +167,11 @@ fn render(path: &str, size: u32, icon_only: bool) -> Option<(Vec<u8>, &'static s
         let hbmp = if icon_only {
             factory.GetImage(sz, SIIGBF_ICONONLY | SIIGBF_BIGGERSIZEOK).ok()?
         } else {
-            factory.GetImage(sz, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK).ok()?
+            match factory.GetImage(sz, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK) {
+                Ok(h) => h,
+                // Windows nie ma miniatury (brak handlera, np. Office niezainstalowany) – próbujemy sami.
+                Err(_) => return fallback_thumb(path, size),
+            }
         };
         let res = encode_hbitmap(hbmp);
         let _ = DeleteObject(HGDIOBJ(hbmp.0));
@@ -523,5 +527,42 @@ unsafe fn context_menu(hwnd: HWND, paths: &[String]) -> Result<(windows::Win32::
             free_pidls(&pidls);
             Err(e.to_string())
         }
+    }
+}
+
+/// Miniatura bez pomocy Windows: podgląd zapisany w dokumencie Office (docProps/thumbnail.*)
+/// albo zwykły obraz zdekodowany i pomniejszony w aplikacji.
+fn fallback_thumb(path: &str, size: u32) -> Option<(Vec<u8>, &'static str)> {
+    let ext = std::path::Path::new(path).extension()?.to_string_lossy().to_lowercase();
+    match ext.as_str() {
+        "pptx" | "ppsx" | "pptm" | "docx" | "docm" | "xlsx" | "xlsm" | "odt" | "ods" | "odp" => {
+            let f = std::fs::File::open(path).ok()?;
+            let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).ok()?;
+            for name in ["docProps/thumbnail.jpeg", "docProps/thumbnail.jpg", "docProps/thumbnail.png", "Thumbnails/thumbnail.png"] {
+                if let Ok(mut e) = z.by_name(name) {
+                    let mut buf = Vec::new();
+                    std::io::Read::read_to_end(&mut e, &mut buf).ok()?;
+                    let mime = if name.ends_with(".png") { "image/png" } else { "image/jpeg" };
+                    return Some((buf, mime));
+                }
+            }
+            None
+        }
+        "png" | "jpg" | "jpeg" | "jfif" => {
+            if std::fs::metadata(path).ok()?.len() > 80 * 1024 * 1024 {
+                return None;
+            }
+            let img = image::open(path).ok()?;
+            let t = img.thumbnail(size, size);
+            let mut out = std::io::Cursor::new(Vec::new());
+            if ext == "png" {
+                t.write_to(&mut out, image::ImageFormat::Png).ok()?;
+                Some((out.into_inner(), "image/png"))
+            } else {
+                t.to_rgb8().write_to(&mut out, image::ImageFormat::Jpeg).ok()?;
+                Some((out.into_inner(), "image/jpeg"))
+            }
+        }
+        _ => None,
     }
 }

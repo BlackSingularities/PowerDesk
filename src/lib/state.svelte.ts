@@ -659,7 +659,7 @@ export function openEntry(t: Tab, e: Entry, newTabToo = false) {
   const k = kindOf(e)
   if (k === 'image' || k === 'raw' || k === 'video') {
     const list = t.items.filter((x) => isMedia(x))
-    app.viewer = { list, index: Math.max(0, list.findIndex((x) => x.path === e.path)) }
+    showViewer(list, Math.max(0, list.findIndex((x) => x.path === e.path)))
     return
   }
   api.open(e.path).catch((err) => toast(String(err), 'error'))
@@ -686,9 +686,47 @@ export async function openShortcutTarget(t: Tab, e: Entry, newTabToo = false) {
   setTimeout(() => clearInterval(wait), 5000)
 }
 
+export const VIEWER_KEY = 'ofp:viewer'
+
+/** Podgląd w osobnym oknie (zwykłe okno Windows: minimalizacja, maksymalizacja, zamykanie). */
+export async function showViewer(list: Entry[], index: number) {
+  // Okno dostaje listę przez localStorage – bez limitów rozmiaru zdarzeń.
+  try {
+    localStorage.setItem(VIEWER_KEY, JSON.stringify({ list, index, at: Date.now() }))
+  } catch {
+    app.viewer = { list, index }
+    return
+  }
+  const { WebviewWindow } = await import('@tauri-apps/api/webviewWindow')
+  const existing = await WebviewWindow.getByLabel('viewer')
+  if (existing) {
+    await existing.unminimize().catch(() => {})
+    await existing.setFocus().catch(() => {})
+    return
+  }
+  const w = new WebviewWindow('viewer', {
+    url: 'index.html#viewer',
+    title: `${list[index]?.name ?? 'Podgląd'} – OpenFilePower`,
+    width: 1280,
+    height: 840,
+    minWidth: 480,
+    minHeight: 320,
+    center: true,
+    decorations: true,
+    backgroundColor: '#000000',
+    visible: false,
+    dragDropEnabled: false,
+  })
+  w.once('tauri://error', (e) => {
+    // Gdyby okno się nie utworzyło – podgląd w głównym oknie jak dawniej.
+    console.error(e)
+    app.viewer = { list, index }
+  })
+}
+
 export function openViewer(t: Tab, e: Entry) {
   const list = t.items.filter((x) => !x.dir)
-  app.viewer = { list, index: Math.max(0, list.findIndex((x) => x.path === e.path)) }
+  showViewer(list, Math.max(0, list.findIndex((x) => x.path === e.path)))
 }
 
 // ---------- Sortowanie i grupowanie ----------
