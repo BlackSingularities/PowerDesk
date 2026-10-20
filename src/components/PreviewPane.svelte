@@ -1,7 +1,7 @@
 <script lang="ts">
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
-  import { app, settings, openEntry, openViewer, type Tab } from '../lib/state.svelte'
+  import { app, settings, openEntry, openViewer, toast, type Tab } from '../lib/state.svelte'
   import { api, fileUrl, thumbUrl, type Entry, type Prop, type TextPreview, type ZipItem, type DirSize } from '../lib/api'
   import { kindOf, size, date, typeLabel, WEB_IMAGE, WEB_VIDEO, WEB_AUDIO, OFFICE_TEXT, items as itemsLabel, debounce, volumeOf } from '../lib/util'
 
@@ -103,9 +103,9 @@
       <h3>{e.name}</h3>
       <p class="faint">{typeLabel(e)}{e.dir ? '' : ` · ${size(e.size)}`}</p>
       <div class="actions">
-        <button class="btn primary sm" onclick={() => openEntry(tab, e)}><Icon name="open" size={15} />Otwórz</button>
-        {#if !e.dir}<button class="btn sm" onclick={() => api.openWith(e.path)}>Otwórz za pomocą</button>{/if}
-        <button class="icon-btn" title="Właściwości" onclick={() => (app.dialog = { type: 'props', entries: [e] })}><Icon name="info" /></button>
+        <button class="act main" onclick={() => openEntry(tab, e)}><Icon name="open" size={17} /><span>Otwórz</span></button>
+        {#if !e.dir}<button class="act" onclick={() => api.openWith(e.path)}><Icon name="app" size={17} /><span>Otwórz w…</span></button>{/if}
+        <button class="act" onclick={() => (app.dialog = { type: 'props', entries: [e] })}><Icon name="info" size={17} /><span>Właściwości</span></button>
       </div>
       <dl>
         {#if e.dir}
@@ -121,7 +121,9 @@
       {#if shownProps.length > 8}
         <button class="more" onclick={() => (moreProps = !moreProps)}>{moreProps ? 'Mniej' : `Więcej szczegółów (${shownProps.length - 8})`}</button>
       {/if}
-      <p class="path faint">{e.path}</p>
+      <button class="path" title="Kliknij, aby skopiować ścieżkę" onclick={() => { navigator.clipboard.writeText(e.path); toast('Skopiowano ścieżkę', 'ok') }}>
+        <span class="grow">{e.path}</span><Icon name="copy" size={14} />
+      </button>
     </div>
   {:else if sel.length > 1}
     <div class="multi">
@@ -273,10 +275,39 @@
     margin: 4px 0 0;
   }
   .actions {
-    display: flex;
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
     gap: 6px;
+    margin: 16px 0 6px;
+  }
+  .act {
+    display: flex;
+    flex-direction: column;
     align-items: center;
-    margin: 14px 0 6px;
+    justify-content: center;
+    gap: 6px;
+    height: 58px;
+    border-radius: 14px;
+    background: var(--high);
+    color: var(--dim);
+    font-size: 12px;
+    transition: background 0.12s, color 0.12s, transform 0.12s;
+  }
+  .act:hover {
+    background: var(--higher);
+    color: var(--text);
+  }
+  .act:active {
+    transform: scale(0.96);
+  }
+  .act.main {
+    background: #fff;
+    color: #000;
+    font-weight: 600;
+  }
+  .act.main:hover {
+    background: #e8e8e8;
   }
   .btn.sm {
     height: 30px;
@@ -296,12 +327,14 @@
   }
   dd {
     margin: 0;
+    text-align: right;
     color: var(--dim);
     word-break: break-word;
     user-select: text;
   }
   .more {
-    margin-top: 10px;
+    display: block;
+    margin: 10px 0 0 auto;
     font-size: 12px;
     color: var(--faint);
   }
@@ -309,10 +342,23 @@
     color: var(--text);
   }
   .path {
-    margin-top: 16px !important;
+    width: 100%;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: var(--high);
+    color: var(--faint);
     font-size: 11px;
+    text-align: left;
     word-break: break-all;
-    user-select: text;
+    transition: background 0.12s, color 0.12s;
+  }
+  .path:hover {
+    background: var(--higher);
+    color: var(--text);
   }
   .multi {
     flex: 1;
