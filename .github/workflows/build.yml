@@ -1,0 +1,70 @@
+name: Build & Release
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # Każdy przebieg na main dostaje własny numer wersji: 0.<minor>.<numer przebiegu>.
+      - name: Wersja
+        id: ver
+        shell: pwsh
+        run: |
+          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
+          $parts = $pkg.version.Split('.')
+          $v = "$($parts[0]).$($parts[1]).${{ github.run_number }}"
+          (Get-Content package.json -Raw) -replace '"version": "[^"]+"', "`"version`": `"$v`"" | Set-Content package.json -NoNewline
+          "version=$v" >> $env:GITHUB_OUTPUT
+
+      - run: npm ci
+      - name: Sprawdzenie typów
+        run: npm run check
+      - name: Testy silnika synchronizacji
+        working-directory: src-tauri
+        run: cargo test --test sync_core
+      - name: Build (instalator NSIS)
+        run: npx tauri build
+
+      - name: Pliki wydania
+        shell: pwsh
+        run: |
+          $v = "${{ steps.ver.outputs.version }}"
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item "src-tauri/target/release/bundle/nsis/*.exe" "out/OpenFilePower-$v-setup.exe"
+          Copy-Item "src-tauri/target/release/openfilepower-win.exe" "out/OpenFilePower-$v-portable.exe"
+          Get-FileHash out/*.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Set-Content out/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: OpenFilePower-${{ steps.ver.outputs.version }}
+          path: out/*
+
+      - name: Wydanie
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(github.event.head_commit.message, '[skip release]')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $v = "v${{ steps.ver.outputs.version }}"
+          $notes = "Automatyczne wydanie z commita ${{ github.sha }}.`n`n**Instalator:** OpenFilePower-*-setup.exe (bez uprawnień administratora)`n**Wersja przenośna:** OpenFilePower-*-portable.exe (wymaga WebView2, obecnego w Windows 10/11)"
+          gh release create $v out/* --title "OpenFilePower $v" --notes $notes --target ${{ github.sha }}

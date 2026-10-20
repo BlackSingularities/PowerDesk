@@ -1,0 +1,61 @@
+[package]
+name = "openfilepower-win"
+version = "0.1.0"
+description = "OpenFilePower dla Windows - menedżer plików z galerią i synchronizacją"
+authors = ["adam001d"]
+edition = "2021"
+rust-version = "1.80"
+
+[lib]
+name = "ofp_lib"
+crate-type = ["rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["protocol-asset", "tray-icon", "image-png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+notify = "8"
+trash = "5"
+rfd = { version = "0.15", default-features = false }
+zip = { version = "2", default-features = false, features = ["deflate"] }
+quick-xml = "0.37"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
+parking_lot = "0.12"
+once_cell = "1"
+chrono = { version = "0.4", features = ["serde"] }
+sha2 = "0.10"
+crossbeam-channel = "0.5"
+clipboard-win = "5"
+open = "5"
+dirs = "6"
+ureq = { version = "2", features = ["json"] }
+tauri-plugin-single-instance = "2"
+
+[dependencies.windows]
+version = "0.61"
+features = [
+  "Win32_Foundation",
+  "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Com",
+  "Win32_System_Ole",
+  "Win32_UI_Shell",
+  "Win32_UI_Shell_Common",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_NetworkManagement_WNet",
+  "Win32_System_Registry",
+  "Win32_System_SystemServices",
+  "Win32_UI_Shell_PropertiesSystem",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+]
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "unwind"
+strip = true
