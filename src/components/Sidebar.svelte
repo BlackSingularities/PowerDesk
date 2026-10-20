@@ -5,7 +5,7 @@
     app, settings, activeTab, navigate, newTab, transfer, dropMode, addFavorite, removeFavorite, toast, refreshDrives,
     HOME, SYNC, SETTINGS, confirm,
   } from '../lib/state.svelte'
-  import { api, type Drive } from '../lib/api'
+  import { api, thumbUrl, type Drive } from '../lib/api'
   import { samePath, size, ago } from '../lib/util'
 
   const KNOWN_ICON: Record<string, IconName> = {
@@ -132,7 +132,7 @@
         ondragleave={() => (over = null)}
         ondrop={(e) => drop(e, k.path)}
       >
-        <Icon name={KNOWN_ICON[k.id] ?? 'folder'} /><span class="ellipsis grow">{k.name}</span>
+        <img class="sys" src={thumbUrl(k.path, 18, 'i')} alt="" /><span class="ellipsis grow">{k.name}</span>
       </button>
     {/each}
     {/if}
@@ -159,7 +159,7 @@
         ondrop={(e) => drop(e, f.path)}
         title={f.path}
       >
-        <Icon name="pin" /><span class="ellipsis grow">{f.name}</span>
+        <img class="sys" src={thumbUrl(f.path, 18, 'i')} alt="" /><span class="ellipsis grow">{f.name}</span>
       </button>
     {:else}
       <div class="hint">Przeciągnij tu folder albo wybierz „Przypnij” z menu</div>
@@ -182,7 +182,7 @@
         ondrop={(e) => drop(e, d.path)}
         title="{driveName(d)} ({d.letter}) · {size(d.free)} wolne z {size(d.total)}"
       >
-        <Icon name={driveIcon(d)} />
+        <img class="sys" src={thumbUrl(d.path, 18, 'i')} alt="" />
         <span class="grow">
           <span class="row"><span class="ellipsis grow">{driveName(d)}</span><span class="faint letter">{d.letter}</span></span>
           {#if d.total}<span class="bar" class:warn={used(d) > 0.85} class:full={used(d) > 0.95}><i style:width="{used(d) * 100}%"></i></span>{/if}
@@ -208,7 +208,7 @@
         ondrop={(e) => drop(e, d.path)}
         title="{d.remote ?? ''} {d.online ? '' : '· rozłączony'}"
       >
-        <Icon name="network" />
+        <img class="sys" src={thumbUrl(d.path, 18, 'i')} alt="" />
         <span class="grow">
           <span class="row"><span class="ellipsis grow">{d.label || d.remote?.split('\\').filter(Boolean).pop() || 'Udział'}</span><span class="faint letter">{d.letter}</span></span>
           <span class="sub ellipsis">{d.online ? d.remote : 'rozłączony'}</span>
@@ -336,6 +336,11 @@
   }
   .item.off {
     opacity: 0.5;
+  }
+  .sys {
+    width: 18px;
+    height: 18px;
+    flex: none;
   }
   .drive .bar {
     display: block;

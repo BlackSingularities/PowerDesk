@@ -3,7 +3,7 @@
   import type { IconName } from '../lib/icons'
   import { app, navigate, newTab, SYNC, type Tab } from '../lib/state.svelte'
   import { size, ago, basename } from '../lib/util'
-  import type { Drive } from '../lib/api'
+  import { thumbUrl, type Drive } from '../lib/api'
 
   let { tab }: { tab: Tab } = $props()
 
@@ -26,13 +26,13 @@
     <div class="folders">
       {#each app.known as k (k.id)}
         <button class="folder" onclick={(e) => go(k.path, e)} onauxclick={(e) => go(k.path, e)}>
-          <span class="fi"><Icon name={KNOWN_ICON[k.id] ?? 'folder'} size={22} /></span>
+          <span class="fi"><img class="sys" src={thumbUrl(k.path, 24, 'i')} alt="" onerror={(e) => ((e.currentTarget as HTMLImageElement).style.display = 'none')} /></span>
           <span class="ellipsis">{k.name}</span>
         </button>
       {/each}
       {#each app.favorites as f (f.path)}
         <button class="folder" onclick={(e) => go(f.path, e)} title={f.path}>
-          <span class="fi"><Icon name="pin" size={20} /></span>
+          <span class="fi"><img class="sys" src={thumbUrl(f.path, 24, 'i')} alt="" /></span>
           <span class="ellipsis">{f.name}</span>
         </button>
       {/each}
@@ -51,7 +51,7 @@
         <div class="drives">
           {#each g.list as d (d.letter)}
             <button class="drive" class:off={!d.online} onclick={(e) => d.online && go(d.path, e)} title={d.remote ?? d.path}>
-              <span class="di"><Icon name={d.kind === 'network' ? 'network' : d.kind === 'removable' ? 'usb' : d.kind === 'cdrom' ? 'disc' : 'drive'} size={26} /></span>
+              <span class="di"><img class="sysbig" src={thumbUrl(d.path, 40, 'i')} alt="" /></span>
               <span class="grow">
                 <span class="row"><b class="ellipsis grow">{d.label || (d.kind === 'network' ? d.remote?.split('\\').filter(Boolean).pop() : 'Dysk lokalny')}</b><span class="faint">{d.letter}</span></span>
                 {#if d.online && d.total}
@@ -146,6 +146,14 @@
   .folder:hover {
     background: var(--high);
     color: var(--text);
+  }
+  .sys {
+    width: 24px;
+    height: 24px;
+  }
+  .sysbig {
+    width: 40px;
+    height: 40px;
   }
   .fi {
     display: flex;
