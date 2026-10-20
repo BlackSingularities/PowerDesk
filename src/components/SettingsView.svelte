@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte'
+  import logo from '../../app-icon.svg'
   import type { IconName } from '../lib/icons'
   import { app, settings, toast, updateNow } from '../lib/state.svelte'
   import { api } from '../lib/api'
@@ -106,6 +107,7 @@
     { id: 'dark', label: 'Ciemny', hint: 'Czarne tło, biały akcent' },
     { id: 'light', label: 'Jasny', hint: 'Jasne tło, czarny akcent' },
   ] as const
+  const ACCENTS = ['#4f8cff', '#8b5cf6', '#ec4899', '#ef4444', '#f97316', '#eab308', '#22c55e', '#14b8a6']
   const STARTS = [
     { id: 'restore', icon: 'history', label: 'Ostatnie karty', hint: 'Wszystko tak, jak zostawiłeś' },
     { id: 'home', icon: 'pc', label: 'Komputer', hint: 'Jedna karta z ekranem Komputer' },
@@ -133,7 +135,7 @@
   const shown = $derived(groups.map((g) => ({ ...g, items: g.items.filter((o) => match(o.label, o.hint, g.title)) })).filter((g) => g.items.length))
   const keysShown = $derived(KEYS.filter(([k, l]) => match(k, l, 'skróty klawiszowe')))
   const viewShown = $derived(match('domyślny widok lista siatka galeria'))
-  const lookShown = $derived(match('wygląd motyw jasny ciemny systemowy'))
+  const lookShown = $derived(match('wygląd motyw jasny ciemny systemowy krycie przezroczystość okienka rozmycie'))
   const startShown = $derived(match('po uruchomieniu start karty komputer folder'))
   const onCount = $derived(groups.flatMap((g) => g.items).filter((o) => val(o)).length)
 
@@ -195,7 +197,7 @@
   <nav>
     <div class="me">
       <div class="logo">
-        <svg viewBox="232 272 560 486" width="30" height="26" aria-hidden="true"><path d="M232 330a58 58 0 0 1 58-58h150l62 66h232a58 58 0 0 1 58 58v304a58 58 0 0 1-58 58H290a58 58 0 0 1-58-58z" class="lf" fill="#fff" /><path class="ls" d="M232 420h560" stroke="#000" stroke-width="22" /><circle cx="640" cy="580" r="62" fill="#ff3b47" /></svg>
+        <img src={logo} width="34" height="34" alt="" />
       </div>
       <div><b>Ustawienia</b><span class="faint">{onCount} włączonych opcji</span></div>
     </div>
@@ -221,6 +223,33 @@
               <small class="vh">{th.hint}</small>
             </button>
           {/each}
+        </div>
+        <div class="slider card">
+          <span class="ic"><Icon name="gallery" size={18} /></span>
+          <span class="txt"><b>Tło okna</b><small>Mica i Acrylic przepuszczają kolor tapety (Windows 11)</small></span>
+          <div class="mini-seg" role="radiogroup" aria-label="Tło okna">
+            {#each [['none', 'Pełne'], ['mica', 'Mica'], ['acrylic', 'Acrylic']] as [id, l] (id)}
+              <button role="radio" aria-checked={settings.windowEffect === id} class:on={settings.windowEffect === id} onclick={() => (settings.windowEffect = id as typeof settings.windowEffect)}>{l}</button>
+            {/each}
+          </div>
+        </div>
+        <div class="slider card">
+          <span class="ic"><Icon name="dot" size={18} /></span>
+          <span class="txt"><b>Kolor akcentu</b><small>Przyciski, zaznaczenia, przełączniki</small></span>
+          <div class="swatches" role="radiogroup" aria-label="Kolor akcentu">
+            <button class="sw mono" class:on={settings.accent === 'mono'} role="radio" aria-checked={settings.accent === 'mono'} title="Biały / czarny" aria-label="Biały lub czarny" onclick={() => (settings.accent = 'mono')}></button>
+            <button class="sw sys" class:on={settings.accent === 'system'} role="radio" aria-checked={settings.accent === 'system'} title="Jak w Windows" aria-label="Kolor z Windows" onclick={() => (settings.accent = 'system')}>W</button>
+            {#each ACCENTS as c (c)}
+              <button class="sw" class:on={settings.accent === c} style:background={c} role="radio" aria-checked={settings.accent === c} aria-label={c} onclick={() => (settings.accent = c)}></button>
+            {/each}
+            <label class="sw pick" title="Własny kolor"><input type="color" value={settings.accent.startsWith('#') ? settings.accent : '#4f8cff'} oninput={(e) => (settings.accent = (e.target as HTMLInputElement).value)} aria-label="Własny kolor" />+</label>
+          </div>
+        </div>
+        <div class="slider card">
+          <span class="ic"><Icon name="panel" size={18} /></span>
+          <span class="txt"><b>Krycie okienek</b><small>Menu, okna dialogowe, paleta, podpowiedzi i powiadomienia · poniżej 100% tło jest rozmyte</small></span>
+          <input type="range" min="60" max="100" step="5" bind:value={settings.popupOpacity} aria-label="Krycie okienek" />
+          <span class="pct">{settings.popupOpacity}%</span>
         </div>
       </section>
     {/if}
@@ -305,7 +334,7 @@
       <section id="s-about">
         <div class="about">
           <div class="logo big">
-            <svg viewBox="232 272 560 486" width="44" height="38" aria-hidden="true"><path d="M232 330a58 58 0 0 1 58-58h150l62 66h232a58 58 0 0 1 58 58v304a58 58 0 0 1-58 58H290a58 58 0 0 1-58-58z" class="lf" fill="#fff" /><path class="ls" d="M232 420h560" stroke="#000" stroke-width="22" /><circle cx="640" cy="580" r="62" fill="#ff3b47" /></svg>
+            <img src={logo} width="52" height="52" alt="" />
           </div>
           <div class="grow">
             <b>OpenFilePower dla Windows</b>
@@ -372,8 +401,7 @@
   .logo.big {
     width: 64px;
     height: 64px;
-    border-radius: 18px;
-    background: var(--high);
+    border-radius: var(--r-xl);
   }
   .find {
     display: flex;
@@ -382,7 +410,7 @@
     height: 34px;
     padding: 0 10px;
     margin-bottom: 12px;
-    border-radius: 10px;
+    border-radius: var(--r);
     background: var(--card);
     color: var(--faint);
   }
@@ -410,7 +438,7 @@
     gap: 11px;
     height: 34px;
     padding: 0 10px;
-    border-radius: 10px;
+    border-radius: var(--r);
     color: var(--dim);
     text-align: left;
     transition: background 0.12s, color 0.12s;
@@ -474,7 +502,7 @@
   }
   .mock {
     height: 92px;
-    border-radius: 10px;
+    border-radius: var(--r);
     background: var(--bg);
     padding: 10px;
     display: flex;
@@ -527,7 +555,7 @@
   }
   .tmock {
     height: 92px;
-    border-radius: 10px;
+    border-radius: var(--r);
     overflow: hidden;
     display: flex;
     outline: 1px solid var(--line);
@@ -572,6 +600,80 @@
     padding: 0 4px 2px;
     color: var(--faint);
     font-size: 12px;
+  }
+  .slider {
+    margin-top: 12px;
+    cursor: default;
+  }
+  .slider input {
+    width: 180px;
+    padding: 0;
+    border: 0;
+    background: none;
+    accent-color: var(--accent);
+  }
+  .mini-seg {
+    display: flex;
+    background: var(--high);
+    border-radius: var(--r);
+    padding: 2px;
+  }
+  .mini-seg button {
+    height: 26px;
+    padding: 0 12px;
+    border-radius: var(--r-s);
+    font-size: 12px;
+    color: var(--dim);
+  }
+  .mini-seg button.on {
+    background: var(--accent);
+    color: var(--on-accent);
+  }
+  .swatches {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+  .sw {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    outline: 1px solid var(--line-strong);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--dim);
+    position: relative;
+  }
+  .sw.on {
+    outline: 2px solid var(--text);
+    outline-offset: 2px;
+  }
+  .sw.mono {
+    background: linear-gradient(135deg, #fff 50%, #000 50%);
+  }
+  .sw.sys {
+    background: var(--high);
+  }
+  .sw.pick {
+    background: var(--high);
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .sw.pick input {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .pct {
+    width: 40px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: var(--dim);
   }
   .radio {
     width: 18px;
@@ -637,18 +739,16 @@
   .ic {
     width: 38px;
     height: 38px;
-    border-radius: 11px;
+    border-radius: var(--r);
     display: flex;
     align-items: center;
     justify-content: center;
     flex: none;
-    background: var(--card);
     color: var(--faint);
     transition: background 0.15s, color 0.15s;
   }
   .card.on .ic {
-    background: var(--accent);
-    color: var(--on-accent);
+    color: var(--text);
   }
   .txt {
     flex: 1;
@@ -677,7 +777,7 @@
     min-width: 22px;
     height: 22px;
     padding: 0 6px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     background: var(--high);
     outline: 1px solid var(--line-strong);
     box-shadow: 0 2px 0 var(--line-strong);
@@ -707,7 +807,7 @@
     gap: 14px;
     min-height: 40px;
     padding: 6px 12px;
-    border-radius: 10px;
+    border-radius: var(--r);
   }
   .key:hover {
     background: var(--hover);
@@ -722,7 +822,7 @@
     align-items: center;
     gap: 18px;
     padding: 20px;
-    border-radius: 20px;
+    border-radius: var(--r-xl);
     background: var(--panel);
     outline: 1px solid var(--line);
   }

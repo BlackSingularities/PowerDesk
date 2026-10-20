@@ -13,7 +13,11 @@ const NO_WINDOW: u32 = 0x0800_0000;
 const VERB: &str = "OpenFilePower";
 /// Klucze, pod którymi Windows szuka akcji dla folderów i dysków (tylko bieżący użytkownik).
 const TARGETS: [&str; 2] = [r"HKCU\Software\Classes\Directory\shell", r"HKCU\Software\Classes\Drive\shell"];
-const UNINSTALL: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenFilePower";
+/// Instalacja dla wszystkich (HKLM); starsze wersje instalowały się tylko dla użytkownika (HKCU).
+const UNINSTALL: [&str; 2] = [
+    r"HKLM\Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenFilePower",
+    r"HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\OpenFilePower",
+];
 
 fn reg(args: &[&str]) -> bool {
     std::process::Command::new("reg").args(args).creation_flags(NO_WINDOW).output().map(|o| o.status.success()).unwrap_or(false)
@@ -48,7 +52,9 @@ pub struct Integration {
 
 pub fn integration() -> Integration {
     // Zainstalowana = uruchomiona z folderu instalacji (przenośna kopia obok instalacji nie może jej nadpisywać).
-    let installed = reg_query(UNINSTALL, Some("UninstallString"))
+    let installed = UNINSTALL
+        .iter()
+        .find_map(|k| reg_query(k, Some("UninstallString")))
         .map(|u| u.trim_matches('"').to_lowercase())
         .and_then(|u| std::path::Path::new(&u).parent().map(|p| p.to_path_buf()))
         .map(|dir| std::path::Path::new(&exe().to_lowercase()).parent().map(|p| p == dir).unwrap_or(false))
@@ -94,6 +100,20 @@ pub fn set_default(on: bool) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+/// Kolor akcentu Windows (#rrggbb) z ustawień personalizacji.
+pub fn accent_color() -> Option<String> {
+    let out = std::process::Command::new("reg")
+        .args(["query", r"HKCU\Software\Microsoft\Windows\DWM", "/v", "AccentColor"])
+        .creation_flags(NO_WINDOW)
+        .output()
+        .ok()?;
+    let text = String::from_utf8_lossy(&out.stdout).to_string();
+    let hex = text.lines().find_map(|l| l.split_once("REG_DWORD").map(|(_, v)| v.trim().trim_start_matches("0x").to_string()))?;
+    // Zapis w rejestrze: 0xAABBGGRR.
+    let v = u32::from_str_radix(&hex, 16).ok()?;
+    Some(format!("#{:02x}{:02x}{:02x}", v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff))
 }
 
 // ---------- Aktualizacje ----------

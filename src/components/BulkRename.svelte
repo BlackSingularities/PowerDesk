@@ -232,9 +232,10 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    background: var(--panel);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
-    border-radius: 20px;
+    border-radius: var(--r-xl);
     padding: 20px 22px 16px;
     box-shadow: 0 40px 100px var(--shadow);
   }
@@ -244,12 +245,11 @@
   .hi {
     width: 40px;
     height: 40px;
-    border-radius: 12px;
+    border-radius: var(--r);
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--accent);
-    color: var(--on-accent);
+    color: var(--text);
   }
   h2 {
     margin: 0;
@@ -312,7 +312,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    border-radius: 14px;
+    border-radius: var(--r-l);
     background: var(--bg);
     outline: 1px solid var(--line);
     overflow: hidden;
@@ -336,7 +336,7 @@
     gap: 8px;
     height: 30px;
     padding: 0 8px;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     font-size: 12.5px;
     color: var(--faint);
   }

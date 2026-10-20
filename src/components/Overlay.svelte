@@ -67,9 +67,10 @@
   .op,
   .toast {
     pointer-events: auto;
-    background: var(--high);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
-    border-radius: 14px;
+    border-radius: var(--r-l);
     box-shadow: 0 18px 50px var(--shadow);
   }
   .op {
@@ -118,7 +119,7 @@
   .act {
     font-weight: 600;
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: var(--r-s);
     background: var(--accent);
     color: var(--on-accent);
   }

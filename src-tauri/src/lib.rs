@@ -3,7 +3,9 @@ mod drives;
 mod fsx;
 pub mod ops;
 mod remote;
+mod space;
 mod system;
+mod terminal;
 mod shell;
 mod sync;
 pub mod sync_core;
@@ -111,6 +113,11 @@ fn sshfs_available() -> bool {
 #[tauri::command]
 async fn extract_items(sources: Vec<String>, dest: String) -> R<Vec<String>> {
     blocking(move || archive::extract(&sources, &dest)).await?
+}
+
+#[tauri::command]
+async fn create_zip(sources: Vec<String>, dest: String) -> R<String> {
+    blocking(move || archive::create_zip(&sources, &dest)).await?
 }
 
 #[tauri::command]
@@ -508,6 +515,51 @@ async fn check_update(app: AppHandle) -> R<UpdateInfo> {
 }
 
 #[tauri::command]
+async fn space_scan(app: AppHandle, path: String) -> R<space::Node> {
+    blocking(move || space::scan(&app, &path)).await?
+}
+
+#[tauri::command]
+fn space_cancel() {
+    space::cancel()
+}
+
+#[tauri::command]
+async fn cleanup_scan(path: String, temp: bool) -> R<Vec<space::Junk>> {
+    blocking(move || space::cleanup_scan(&path, temp)).await
+}
+
+#[tauri::command]
+fn term_start(app: AppHandle, cwd: String, cols: u16, rows: u16) -> R<u64> {
+    terminal::start(app, &cwd, cols, rows)
+}
+
+#[tauri::command]
+fn term_write(id: u64, data: String) -> R<()> {
+    terminal::write(id, &data)
+}
+
+#[tauri::command]
+fn term_resize(id: u64, cols: u16, rows: u16) {
+    terminal::resize(id, cols, rows)
+}
+
+#[tauri::command]
+fn term_kill(id: u64) {
+    terminal::kill(id)
+}
+
+#[tauri::command]
+fn term_cd(id: u64, path: String) -> R<()> {
+    terminal::cd(id, &path)
+}
+
+#[tauri::command]
+fn system_accent() -> Option<String> {
+    system::accent_color()
+}
+
+#[tauri::command]
 fn integration() -> system::Integration {
     system::integration()
 }
@@ -716,6 +768,7 @@ pub fn run() {
             remote_open,
             sshfs_available,
             extract_here,
+            create_zip,
             open_archived,
             stat,
             list_drives,
@@ -758,6 +811,15 @@ pub fn run() {
             set_autostart,
             check_update,
             integration,
+            system_accent,
+            term_start,
+            space_scan,
+            space_cancel,
+            cleanup_scan,
+            term_write,
+            term_resize,
+            term_kill,
+            term_cd,
             set_default_fm,
             set_context_menu,
             download_update,

@@ -1,4 +1,5 @@
 import { SvelteSet } from 'svelte/reactivity'
+import { getCurrentWindow, Effect } from '@tauri-apps/api/window'
 import { facetsFor, facetTest, type Facet } from './facets'
 import { parseQuery } from './query'
 import { api, on, type DirSize, type ConflictInfo, type ConflictPolicy, type Drive, type Entry, type Known, type MediaInfo, type OpProgress, type SyncProfile, type SyncStatus } from './api'
@@ -181,11 +182,15 @@ const uid = () => `t${Date.now().toString(36)}${(seq++).toString(36)}`
 export const HOME = 'ofp:home'
 export const SYNC = 'ofp:sync'
 export const SETTINGS = 'ofp:settings'
+/** Zajętość i porządki: „ofp:space|C:\folder”. */
+export const SPACE = 'ofp:space'
+export const openSpace = (t: Tab, path: string) => navigate(t, `${SPACE}|${path}`)
 
 export function specialTitle(p: string) {
   if (p === HOME) return 'Komputer'
   if (p === SYNC) return 'Synchronizacja'
   if (p === SETTINGS) return 'Ustawienia'
+  if (p.startsWith(SPACE + '|')) return `Zajętość: ${basename(p.slice(SPACE.length + 1)) || p.slice(SPACE.length + 1)}`
   return basename(p)
 }
 
@@ -350,6 +355,15 @@ export const settings = $state({
   folderSizes: true,
   showQuickAccess: true,
   theme: 'system' as 'system' | 'dark' | 'light',
+  /** Krycie wyskakujących okienek w procentach (60–100). */
+  popupOpacity: 100,
+  /** Efekt tła okna z Windows 11. */
+  windowEffect: 'none' as 'none' | 'mica' | 'acrylic',
+  /** Kolor akcentu: 'mono' (biel/czerń), 'system' (z Windows) albo kolor #rrggbb. */
+  accent: 'mono' as string,
+  shelfOpen: false,
+  terminalOpen: false,
+  terminalHeight: 260,
   startup: 'restore' as 'restore' | 'home' | 'folder',
   startupFolder: '',
   /** Kolejność sekcji ekranu Komputer (foldery z zawartością mają id „dir:<ścieżka>”). */
@@ -390,7 +404,9 @@ export const app = $state({
   update: null as { latest: string; url: string } | null,
   /** Pobieranie aktualizacji: postęp 0–1, null gdy nic się nie dzieje. */
   updating: null as number | null,
-  dragging: null as { paths: string[] } | null,
+  dragging: null as { paths: string[]; fromShelf?: boolean } | null,
+  /** Schowek plików (półka) – osobny od schowka Windows. */
+  shelf: [] as Entry[],
 })
 
 export type MenuItem =
@@ -649,6 +665,27 @@ export function openEntry(t: Tab, e: Entry, newTabToo = false) {
   api.open(e.path).catch((err) => toast(String(err), 'error'))
 }
 
+/** Skrót (.lnk): przechodzi do folderu, w którym leży cel, i zaznacza go – jak „Otwórz lokalizację pliku” w Windows. */
+export async function openShortcutTarget(t: Tab, e: Entry, newTabToo = false) {
+  const props = await api.shellProps(e.path).catch(() => [])
+  const target = props.find((p) => p.key === 'System.Link.TargetParsingPath')?.value
+  if (!target) return toast('Nie udało się odczytać celu skrótu', 'error')
+  const st = await api.stat(target).catch(() => null)
+  if (!st) return toast(`Cel skrótu nie istnieje: ${target}`, 'error')
+  const dir = parent(st.path)
+  if (!dir) return navigate(t, st.path)
+  const tab = newTabToo ? newTab(dir, true, t.id) : t
+  if (!newTabToo) navigate(tab, dir)
+  // Po wczytaniu folderu zaznaczamy cel.
+  const wait = setInterval(() => {
+    if (!tab.loading && samePath(tab.path, dir)) {
+      clearInterval(wait)
+      selectOnly(tab, st.path)
+    }
+  }, 60)
+  setTimeout(() => clearInterval(wait), 5000)
+}
+
 export function openViewer(t: Tab, e: Entry) {
   const list = t.items.filter((x) => !x.dir)
   app.viewer = { list, index: Math.max(0, list.findIndex((x) => x.path === e.path)) }
@@ -865,10 +902,44 @@ export async function newFolder(t: Tab) {
   }
 }
 
-export async function newFile(t: Tab) {
+/** Nowy folder i przeniesienie do niego zaznaczonych elementów. */
+export async function newFolderWith(t: Tab) {
+  const sel = t.selectedEntries.map((e) => e.path)
+  if (t.special || !sel.length) return
+  const name = await prompt('Nowy folder z zaznaczonych', `Nowy folder (${sel.length} elem.)`, 'Utwórz')
+  if (!name) return
+  try {
+    const p = await api.mkdir(t.path, name)
+    await api.startOp('move', sel, p, 'rename')
+    await load(t)
+    selectOnly(t, p)
+  } catch (e) {
+    toast(String(e), 'error')
+  }
+}
+
+/** Archiwum ZIP z zaznaczonych elementów, obok nich. */
+export async function zipSelection(t: Tab) {
+  const sel = t.selectedEntries
+  if (t.special || !sel.length) return
+  const base = sel.length === 1 ? sel[0].name.replace(/\.[^.]+$/, '') : basename(t.path) || 'Archiwum'
+  const name = await prompt('Nowe archiwum ZIP', `${base}.zip`, 'Spakuj', true)
+  if (!name) return
+  toast(`Pakuję ${sel.length} elem.…`)
+  try {
+    const p = await api.createZip(sel.map((e) => e.path), join(t.path, name.toLowerCase().endsWith('.zip') ? name : name + '.zip'))
+    await load(t)
+    selectOnly(t, p)
+    toast(`Utworzono „${basename(p)}”`, 'ok')
+  } catch (e) {
+    toast(String(e), 'error')
+  }
+}
+
+export async function newFile(t: Tab, def = 'Nowy dokument tekstowy.txt', title = 'Nowy plik') {
   if (t.special) return
   if (inArchive(t.path + '\\')) return toast('Archiwa są tylko do odczytu', 'error')
-  const name = await prompt('Nowy plik', 'Nowy dokument tekstowy.txt', 'Utwórz', true)
+  const name = await prompt(title, def, 'Utwórz', true)
   if (!name) return
   try {
     const p = await api.mkfile(t.path, name)
@@ -975,6 +1046,15 @@ export async function updateNow() {
   }
 }
 
+export function shelfAdd(entries: Entry[]) {
+  const have = new Set(app.shelf.map((e) => e.path.toLowerCase()))
+  const add = entries.filter((e) => !have.has(e.path.toLowerCase()) && !isRemote(e.path) && !inArchive(e.path))
+  if (!add.length) return
+  app.shelf = [...app.shelf, ...add]
+  settings.shelfOpen = true
+  toast(`Dodano do schowka plików: ${add.length === 1 ? add[0].name : add.length + ' elem.'}`, 'ok')
+}
+
 export function removeFavorite(path: string) {
   app.favorites = app.favorites.filter((f) => !samePath(f.path, path))
 }
@@ -1034,6 +1114,7 @@ export function showDriveMenu(ev: MouseEvent, d: Drive, open: (path: string) => 
     { sep: true },
     { label: 'Kopiuj ścieżkę', icon: 'link', run: () => { navigator.clipboard.writeText(d.path); toast('Skopiowano ścieżkę') } },
     { label: 'Terminal tutaj', icon: 'terminal', disabled: !d.online, run: () => api.terminal(d.path) },
+    { label: 'Zajętość i porządki', icon: 'grid', disabled: !d.online, run: () => openSpace(activeTab(), d.path) },
     { label: 'Otwórz w Eksploratorze', icon: 'open', disabled: !d.online, run: () => api.open(d.path) },
   ]
   if (d.kind !== 'network' && d.online) items.push({ label: 'Oczyszczanie dysku…', icon: 'trash', run: () => api.diskCleanup(d.letter).catch((e) => toast(String(e), 'error')) })
@@ -1074,6 +1155,7 @@ const persist = debounce(() => {
     active: Math.max(0, app.tabs.findIndex((t) => t.id === app.panes[app.focusedPane])),
     split: app.split,
     sidebarOpen: app.sidebarOpen,
+    shelf: app.shelf,
   }
   api.saveState(JSON.stringify(data))
 }, 600)
@@ -1090,6 +1172,7 @@ export async function init() {
     app.recent = s.recent ?? []
     app.folderPrefs = s.folderPrefs ?? {}
     app.sidebarOpen = s.sidebarOpen ?? true
+    app.shelf = s.shelf ?? []
     const saved: { path: string; pinned: boolean }[] = (s.tabs ?? []).map((x: string | { path: string; pinned?: boolean }) =>
       typeof x === 'string' ? { path: x, pinned: false } : { path: x.path, pinned: !!x.pinned },
     )
@@ -1173,11 +1256,42 @@ export async function init() {
       app.panes.join('|')
       app.split
       app.sidebarOpen
+      app.shelf.length
       Object.keys(app.folderPrefs).length
       persist()
     })
     $effect(() => {
       api.closeToTray(settings.closeToTray)
+    })
+    $effect(() => {
+      const fx = settings.windowEffect
+      document.documentElement.dataset.effect = fx === 'none' ? '' : fx
+      const w = getCurrentWindow()
+      ;(fx === 'none' ? w.clearEffects() : w.setEffects({ effects: [fx === 'mica' ? Effect.Mica : Effect.Acrylic] })).catch(() => {})
+    })
+    $effect(() => {
+      const want = settings.accent
+      const root = document.documentElement.style
+      const apply = (hex: string | null) => {
+        if (!hex || !/^#[0-9a-f]{6}$/i.test(hex)) {
+          for (const v of ['--accent', '--on-accent', '--accent-hover']) root.removeProperty(v)
+          return
+        }
+        const n = parseInt(hex.slice(1), 16)
+        const lum = (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255
+        root.setProperty('--accent', hex)
+        root.setProperty('--on-accent', lum > 0.6 ? '#000' : '#fff')
+        root.setProperty('--accent-hover', `color-mix(in srgb, ${hex} 85%, ${lum > 0.6 ? '#000' : '#fff'})`)
+      }
+      if (want === 'system') api.systemAccent().then(apply).catch(() => apply(null))
+      else apply(want === 'mono' ? null : want)
+    })
+    $effect(() => {
+      const a = Math.max(50, Math.min(100, settings.popupOpacity)) / 100
+      const root = document.documentElement.style
+      root.setProperty('--popup-alpha', String(a))
+      // Przy przezroczystości rozmywamy to, co jest pod okienkiem – inaczej tekst się zlewa.
+      root.setProperty('--popup-blur', a < 1 ? `blur(${Math.round(8 + (1 - a) * 40)}px) saturate(1.3)` : 'none')
     })
     $effect(() => {
       const mq = matchMedia('(prefers-color-scheme: light)')

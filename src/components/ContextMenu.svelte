@@ -108,7 +108,8 @@
     max-height: calc(100vh - 16px);
     overflow-y: auto;
     padding: 6px;
-    background: var(--high);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
     border-radius: var(--r);
     box-shadow: 0 24px 60px var(--shadow);
@@ -120,7 +121,7 @@
     align-items: center;
     gap: 10px;
     padding: 0 10px;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     color: var(--dim);
     text-align: left;
   }

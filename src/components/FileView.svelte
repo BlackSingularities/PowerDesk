@@ -3,7 +3,7 @@
   import Thumb from './Thumb.svelte'
   import {
     app, settings, openEntry, openViewer, navigate, newTab, transfer, dropMode, copySel, paste, trash, doRename,
-    newFolder, newFile, extractHere, extractTo, addFavorite, toggleHomeDir, isHomeDir, load, savePrefs, toast, activate, closeSearch, LIST_COLS, setSort as setSortOf, sortMenuItems, ensureMedia, mediaInfo, media, ensureDirSizes, dirSizes, dirSizeVer,
+    newFolder, newFile, shelfAdd, back, forward, openSpace, openShortcutTarget, extractHere, extractTo, zipSelection, newFolderWith, addFavorite, toggleHomeDir, isHomeDir, load, savePrefs, toast, activate, closeSearch, LIST_COLS, setSort as setSortOf, sortMenuItems, ensureMedia, mediaInfo, media, ensureDirSizes, dirSizes, dirSizeVer,
     type ListCol, type Tab, type MenuItem, type SortKey, type Group,
   } from '../lib/state.svelte'
   import { api, type Entry } from '../lib/api'
@@ -467,8 +467,27 @@
   }
 
   // Ctrl + kółko zmienia wielkość miniatur.
+  // Przesunięcie dwoma palcami w bok (gładzik): w prawo – wstecz, w lewo – dalej, jak w przeglądarce.
+  let swipe = 0
+  let swipeAt = 0
+  let swipeLock = 0
+  function onSwipe(ev: WheelEvent) {
+    if (Math.abs(ev.deltaX) <= Math.abs(ev.deltaY) * 1.5 || ev.deltaMode !== 0) return
+    const now = performance.now()
+    if (now < swipeLock) return
+    if (now - swipeAt > 300) swipe = 0
+    swipeAt = now
+    swipe += ev.deltaX
+    if (Math.abs(swipe) > 160) {
+      if (swipe < 0) back(tab)
+      else forward(tab)
+      swipe = 0
+      swipeLock = now + 700
+    }
+  }
+
   function onWheel(ev: WheelEvent) {
-    if (!ev.ctrlKey) return
+    if (!ev.ctrlKey) return onSwipe(ev)
     ev.preventDefault()
     const d = ev.deltaY < 0 ? 12 : -12
     if (view === 'list') {
@@ -509,6 +528,10 @@
       items.push({ label: 'Otwórz', icon: 'open', kbd: 'Enter', run: () => openEntry(tab, one) })
       items.push({ label: 'Podgląd', icon: 'eye', kbd: 'Spacja', run: () => openViewer(tab, one) })
       items.push({ label: 'Otwórz za pomocą…', icon: 'app', run: () => api.openWith(one.path) })
+      if (one.ext === 'lnk') {
+        items.push({ label: 'Otwórz lokalizację pliku', icon: 'folder', run: () => openShortcutTarget(tab, one) })
+        items.push({ label: 'Otwórz lokalizację w nowej karcie', icon: 'plus', run: () => openShortcutTarget(tab, one, true) })
+      }
     }
     if (sel.some((x) => inArchive(x.path))) {
       items.push({ label: 'Wypakuj do…', icon: 'download', run: async () => { const d = await api.pickFolder(); if (d) extractTo(sel.map((x) => x.path), d) } })
@@ -532,6 +555,10 @@
     items.push({ sep: true })
     if (one) items.push({ label: 'Zmień nazwę', icon: 'edit', kbd: 'F2', run: () => (tab.renaming = one.path) })
     else items.push({ label: `Zmień nazwy (${sel.length})…`, icon: 'edit', kbd: 'F2', run: () => (app.dialog = { type: 'bulkRename', entries: sel }) })
+    if (!sel.some((x) => inArchive(x.path))) {
+      items.push({ label: 'Spakuj do ZIP…', icon: 'archive', run: () => zipSelection(tab) })
+      if (sel.length > 1) items.push({ label: 'Przenieś do nowego folderu…', icon: 'folderPlus', run: () => newFolderWith(tab) })
+    }
     items.push({ label: 'Do Kosza', icon: 'trash', kbd: 'Del', run: () => trash(tab) })
     items.push({ label: 'Usuń trwale', icon: 'trash', kbd: 'Shift+Del', danger: true, run: () => trash(tab, true) })
     items.push({ sep: true })
@@ -541,6 +568,7 @@
       items.push({ label: 'Synchronizuj z dyskiem…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: one.path }) })
       items.push({ label: 'Terminal tutaj', icon: 'terminal', run: () => api.terminal(one.path) })
     }
+    items.push({ label: 'Dodaj do schowka plików', icon: 'archive', kbd: 'Ctrl+Shift+S', run: () => shelfAdd(sel) })
     items.push({ label: 'Pokaż w Eksploratorze', icon: 'open', run: () => api.reveal(sel[0].path) })
     items.push({ sep: true })
     items.push({ label: 'Właściwości', icon: 'info', kbd: 'Alt+Enter', run: () => (app.dialog = { type: 'props', entries: sel }) })
@@ -574,6 +602,7 @@
         { label: 'Przypnij ten folder', icon: 'pin', run: () => addFavorite(tab.path) },
         { label: 'Synchronizuj ten folder…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: tab.path }) },
         { label: 'Terminal tutaj', icon: 'terminal', run: () => api.terminal(tab.path) },
+        { label: 'Zajętość i porządki', icon: 'grid', run: () => openSpace(tab, tab.path) },
         { label: 'Otwórz w Eksploratorze', icon: 'open', run: () => api.open(tab.path) },
         { sep: true },
         { label: 'Właściwości folderu', icon: 'info', run: () => api.stat(tab.path).then((e) => (app.dialog = { type: 'props', entries: [e] })) },
@@ -603,6 +632,26 @@
         if (nx) tab.renaming = nx.path
       })
     }
+  }
+
+  /** Podpowiedź jak w Eksploratorze: typ, rozmiar, daty i – dla multimediów – wymiary i długość. */
+  function tip(e: Entry) {
+    const m = info(e)
+    const lines = [e.name, `Typ: ${typeLabel(e)}`]
+    if (e.dir) {
+      const d = (dirSizeVer.ver, dirSizes.get(e.path.toLowerCase()))
+      if (d) lines.push(`Rozmiar: ${size(d.size)}`, `Zawiera: ${itemsLabel(d.files)}, folderów: ${d.dirs}`)
+      lines.push(`Data utworzenia: ${date(e.created)}`)
+    } else {
+      if (m?.w) lines.push(`Wymiary: ${m.w} × ${m.h}`)
+      if (m?.dur) lines.push(`Długość: ${duration(m.dur)}`)
+      if (m?.taken && m.taken !== e.modified) lines.push(`Data wykonania: ${date(m.taken)}`)
+      lines.push(`Rozmiar: ${size(e.size)}`, `Data modyfikacji: ${date(e.modified)}`)
+    }
+    if (e.readonly || e.hidden) lines.push(`Atrybuty: ${[e.readonly && 'tylko do odczytu', e.hidden && 'ukryty'].filter(Boolean).join(', ')}`)
+    if (e.cloud) lines.push('Dostępny tylko w chmurze')
+    if (tab.search) lines.push(`Lokalizacja: ${parent(e.path) ?? ''}`)
+    return lines.join('\n')
   }
 
   function cell(e: Entry, k: ListCol) {
@@ -775,7 +824,7 @@
       ondragover={(ev) => itemDragOver(ev, e)}
       ondragleave={() => dropTarget === e.path && (dropTarget = null)}
       ondrop={(ev) => itemDrop(ev, e)}
-      title={view === 'list' ? undefined : `${e.name}\n${e.dir ? 'Folder' : size(e.size)} · ${date(e.modified)}`}
+      title={tip(e)}
     >
       {#if view === 'list'}
         <span class="ic" draggable="true"><Thumb entry={e} px={20} iconOnly pad={false} stamp={tab.stamp} /></span>
@@ -856,7 +905,7 @@
     position: absolute;
     left: 0;
     top: 0;
-    border-radius: 10px;
+    border-radius: var(--r);
     will-change: transform;
     contain: layout style;
   }
@@ -887,7 +936,7 @@
   .gchev {
     width: 24px;
     height: 24px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -908,7 +957,7 @@
     gap: 8px;
     height: 26px;
     padding: 0 8px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     font-weight: 600;
     font-size: 13px;
     color: var(--text);
@@ -945,7 +994,7 @@
   .hc.dragging {
     z-index: 3;
     background: var(--high);
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     opacity: 0.9;
   }
   .grip {
@@ -988,7 +1037,7 @@
   .header .c {
     text-align: left;
     padding: 4px 6px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
   }
   .header button.c:hover {
     background: var(--hover);
@@ -1045,7 +1094,7 @@
     height: 22px;
     position: absolute;
     right: 0;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     color: var(--ghost);
     display: flex;
     align-items: center;
@@ -1094,7 +1143,7 @@
     width: 100%;
     flex: 1;
     min-height: 0;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     overflow: hidden;
   }
   .grid .thumb.media {
@@ -1128,7 +1177,7 @@
   /* Galeria */
   .gallery .item {
     overflow: hidden;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
   }
   .gallery .thumb {
     position: relative;
@@ -1145,7 +1194,7 @@
   }
   .gallery .item.sel .thumb {
     transform: scale(0.9);
-    border-radius: 8px;
+    border-radius: var(--r-s);
     overflow: hidden;
   }
   .gallery .item.sel {

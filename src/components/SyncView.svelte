@@ -175,7 +175,7 @@
   .card {
     max-width: 1000px;
     background: var(--panel);
-    border-radius: 18px;
+    border-radius: var(--r-xl);
     padding: 18px 20px;
     margin-bottom: 12px;
     display: flex;
@@ -226,7 +226,7 @@
     align-items: center;
     gap: 10px;
     background: var(--high);
-    border-radius: 12px;
+    border-radius: var(--r);
     padding: 10px 14px;
     color: var(--dim);
     text-align: left;
@@ -278,7 +278,7 @@
     gap: 14px;
     background: rgba(255, 181, 71, 0.1);
     color: var(--warn);
-    border-radius: 14px;
+    border-radius: var(--r-l);
     padding: 12px 14px;
   }
   .warn b {
@@ -301,7 +301,7 @@
   }
   .hist {
     background: var(--bg);
-    border-radius: 12px;
+    border-radius: var(--r);
     padding: 10px 14px;
     max-height: 240px;
     overflow-y: auto;
@@ -326,7 +326,7 @@
   .big {
     width: 72px;
     height: 72px;
-    border-radius: 22px;
+    border-radius: var(--r-xl);
     background: var(--high);
     display: flex;
     align-items: center;

@@ -332,7 +332,7 @@
     left: -22px;
     display: flex;
     padding: 4px 2px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     color: var(--ghost);
     opacity: 0;
     cursor: grab;
@@ -383,9 +383,8 @@
   }
   .tt {
     aspect-ratio: 1;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     overflow: hidden;
-    background: var(--panel);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -408,7 +407,7 @@
     gap: 6px;
     margin-left: -4px;
     padding: 4px;
-    border-radius: 7px;
+    border-radius: var(--r-s);
     color: inherit;
     font: inherit;
     letter-spacing: inherit;
@@ -503,8 +502,7 @@
   .di {
     width: 48px;
     height: 48px;
-    border-radius: 14px;
-    background: var(--high);
+    border-radius: var(--r-l);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -534,7 +532,7 @@
     display: flex;
     padding: 4px;
     margin-right: 6px;
-    border-radius: 7px;
+    border-radius: var(--r-s);
     color: var(--faint);
   }
   .ej:hover {
@@ -559,7 +557,7 @@
     gap: 2px;
     height: 34px;
     padding-right: 6px;
-    border-radius: 10px;
+    border-radius: var(--r);
     color: var(--dim);
   }
   .rrow:hover {
@@ -582,7 +580,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 7px;
+    border-radius: var(--r-s);
     color: var(--faint);
     opacity: 0;
   }

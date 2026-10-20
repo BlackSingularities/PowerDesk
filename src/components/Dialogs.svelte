@@ -443,7 +443,7 @@
     flex-direction: column;
     gap: 2px;
     padding: 10px;
-    border-radius: 12px;
+    border-radius: var(--r);
     background: var(--high);
     text-align: left;
     outline: 1px solid transparent;
@@ -470,7 +470,7 @@
   }
   .note {
     padding: 10px 12px;
-    border-radius: 10px;
+    border-radius: var(--r);
     background: var(--high);
     font-size: 12.5px;
     color: var(--dim);
@@ -502,9 +502,10 @@
     max-width: 100%;
     max-height: 100%;
     overflow-y: auto;
-    background: var(--panel);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
-    border-radius: 20px;
+    border-radius: var(--r-xl);
     padding: 22px 24px 18px;
     box-shadow: 0 40px 100px var(--shadow);
     display: flex;
@@ -585,7 +586,7 @@
     flex-direction: column;
     gap: 6px;
     padding: 12px 14px;
-    border-radius: 14px;
+    border-radius: var(--r-l);
     background: var(--high);
     text-align: left;
     outline: 1px solid transparent;
@@ -613,7 +614,7 @@
   }
   .conf {
     background: var(--high);
-    border-radius: 12px;
+    border-radius: var(--r);
     padding: 10px 12px;
   }
   .cmp {
@@ -633,7 +634,7 @@
     gap: 12px;
     align-items: flex-start;
     padding: 12px 14px;
-    border-radius: 14px;
+    border-radius: var(--r-l);
     background: var(--high);
     text-align: left;
   }
@@ -722,7 +723,7 @@
     font: 12px/1.7 var(--mono);
     color: var(--dim);
     background: var(--bg);
-    border-radius: 12px;
+    border-radius: var(--r);
     padding: 10px 14px;
   }
 </style>

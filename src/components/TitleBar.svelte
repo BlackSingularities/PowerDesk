@@ -18,6 +18,7 @@
     if (t.path === HOME) return 'pc'
     if (t.path === SYNC) return 'sync'
     if (t.path === SETTINGS) return 'settings'
+    if (t.path.startsWith('ofp:space')) return 'grid'
     if (/^[a-zA-Z]:\\?$/.test(t.path)) return 'drive'
     if (t.path.startsWith('\\\\')) return 'network'
     return 'folder'
@@ -176,7 +177,7 @@
     align-items: center;
     gap: 8px;
     padding: 0 6px 0 12px;
-    border-radius: 10px;
+    border-radius: var(--r);
     color: var(--faint);
     transition: background 0.12s, color 0.12s;
     outline: none;
@@ -227,7 +228,7 @@
   .x {
     width: 22px;
     height: 22px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -250,7 +251,7 @@
     font-size: 12px;
     color: var(--on-accent);
     background: var(--accent);
-    border-radius: 999px;
+    border-radius: var(--r-s);
     padding: 4px 12px;
     text-decoration: none;
     font-weight: 600;

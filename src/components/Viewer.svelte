@@ -2,6 +2,7 @@
   import { getCurrentWindow } from '@tauri-apps/api/window'
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
+  import DocPreview, { hasDocPreview } from './DocPreview.svelte'
   import { app, toast } from '../lib/state.svelte'
   import { api, fileUrl, thumbUrl, type Prop, type TextPreview } from '../lib/api'
   import { kindOf, size, date, WEB_IMAGE, WEB_VIDEO, WEB_AUDIO } from '../lib/util'
@@ -44,7 +45,7 @@
     if (!e) return
     const path = e.path
     if (showInfo) api.shellProps(path).then((p) => e?.path === path && (props = p))
-    if ((k === 'text' || k === 'code') && !e.cloud) api.readText(path, 400_000).then((t) => e?.path === path && (text = t))
+    if ((k === 'text' || k === 'code') && !e.cloud && !hasDocPreview(e)) api.readText(path, 400_000).then((t) => e?.path === path && (text = t))
     // Sąsiednie zdjęcia ładujemy z wyprzedzeniem – przełączanie jest natychmiastowe.
     for (const d of [1, -1, 2]) {
       const n = v.list[v.index + d]
@@ -274,6 +275,8 @@
           {/key}
         {:else if k === 'pdf'}
           {#key e.path}<iframe title={e.name} src={fileUrl(e.path)}></iframe>{/key}
+        {:else if hasDocPreview(e)}
+          <div class="docv">{#key e.path}<DocPreview entry={e} />{/key}</div>
         {:else if text}
           <pre>{text.text}</pre>
         {:else}
@@ -311,6 +314,12 @@
 {/if}
 
 <style>
+  .docv {
+    position: absolute;
+    inset: 0 64px;
+    background: var(--bg);
+    color: var(--text);
+  }
   .viewer {
     position: fixed;
     inset: 0;
@@ -477,7 +486,7 @@
     width: 56px;
     height: 56px;
     flex: none;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     overflow: hidden;
     opacity: 0.45;
     transition: opacity 0.15s, transform 0.15s;

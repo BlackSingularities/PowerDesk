@@ -287,3 +287,36 @@ pub fn extract_temp(path: &str) -> Result<String, String> {
     out.into_iter().next().ok_or_else(|| "Nie znaleziono pliku w archiwum".into())
 }
 
+
+/// Pakuje pliki i foldery do nowego archiwum ZIP (nazwa unikalna, obok źródeł).
+pub fn create_zip(sources: &[String], dest: &str) -> Result<String, String> {
+    let out = crate::ops::unique_path(Path::new(dest));
+    let f = std::fs::File::create(&out).map_err(|e| io_err(&e))?;
+    let mut z = zip::ZipWriter::new(std::io::BufWriter::new(f));
+    let opts = zip::write::SimpleFileOptions::default().compression_method(zip::CompressionMethod::Deflated).large_file(true);
+    fn add(z: &mut zip::ZipWriter<std::io::BufWriter<std::fs::File>>, p: &Path, rel: &str, opts: zip::write::SimpleFileOptions) -> Result<(), String> {
+        if p.is_dir() {
+            z.add_directory(format!("{rel}/"), opts).map_err(|e| e.to_string())?;
+            for de in std::fs::read_dir(p).map_err(|e| io_err(&e))?.flatten() {
+                let name = de.file_name().to_string_lossy().to_string();
+                add(z, &de.path(), &format!("{rel}/{name}"), opts)?;
+            }
+        } else {
+            z.start_file(rel, opts).map_err(|e| e.to_string())?;
+            let mut r = std::fs::File::open(p).map_err(|e| io_err(&e))?;
+            std::io::copy(&mut r, z).map_err(|e| io_err(&e))?;
+        }
+        Ok(())
+    }
+    for s in sources {
+        let p = Path::new(s);
+        let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        if let Err(e) = add(&mut z, p, &name, opts) {
+            drop(z);
+            let _ = std::fs::remove_file(&out);
+            return Err(e);
+        }
+    }
+    z.finish().map_err(|e| e.to_string())?;
+    Ok(out.to_string_lossy().to_string())
+}

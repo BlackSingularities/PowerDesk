@@ -301,7 +301,7 @@
     text-transform: uppercase;
     color: var(--faint);
     padding: 14px 8px 6px;
-    border-radius: 8px;
+    border-radius: var(--r-s);
   }
   button.sec,
   .sec-btn {
@@ -346,7 +346,7 @@
     gap: 11px;
     min-height: 34px;
     padding: 6px 10px;
-    border-radius: 10px;
+    border-radius: var(--r);
     color: var(--dim);
     text-align: left;
     transition: background 0.1s, color 0.1s;
@@ -391,7 +391,7 @@
     display: flex;
     padding: 2px;
     margin-right: 4px;
-    border-radius: 5px;
+    border-radius: var(--r-xs);
     color: var(--faint);
     opacity: 0;
     transition: opacity 0.12s;
@@ -424,7 +424,7 @@
   .mini {
     width: 20px;
     height: 20px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     display: flex;
     align-items: center;
     justify-content: center;

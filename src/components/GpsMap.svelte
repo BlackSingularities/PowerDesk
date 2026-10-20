@@ -66,7 +66,7 @@
   .map {
     position: relative;
     overflow: hidden;
-    border-radius: 12px;
+    border-radius: var(--r);
     background: var(--high);
     outline: 1px solid var(--line);
   }
@@ -96,7 +96,7 @@
     top: 8px;
     display: flex;
     flex-direction: column;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     overflow: hidden;
     background: var(--panel);
     box-shadow: 0 2px 8px var(--shadow);
@@ -147,7 +147,7 @@
     align-items: center;
     height: 22px;
     padding: 0 7px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     font-size: 11.5px;
     color: var(--dim);
   }

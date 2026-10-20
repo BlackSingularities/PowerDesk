@@ -10,9 +10,11 @@
   import Overlay from './components/Overlay.svelte'
   import Palette from './components/Palette.svelte'
   import BulkRename from './components/BulkRename.svelte'
+  import Shelf from './components/Shelf.svelte'
+  import Terminal from './components/Terminal.svelte'
   import {
     app, settings, init, activeTab, tabById, newTab, closeTab, reopenClosed, activate, toggleSplit, back, forward, up, load,
-    newFolder, undo, savePrefs, persistNow,
+    newFolder, undo, savePrefs, persistNow, shelfAdd,
   } from './lib/state.svelte'
   import { api } from './lib/api'
 
@@ -25,6 +27,10 @@
   })
 
   const focusedTab = $derived(app.ready ? activeTab() : null)
+  let termUsed = $state(false)
+  $effect(() => {
+    if (settings.terminalOpen) termUsed = true
+  })
 
   function onKey(ev: KeyboardEvent) {
     if (app.viewer || app.palette) return
@@ -48,6 +54,8 @@
     if (ctrl && k === 'k') return stop(ev, () => { app.paletteMode = 'all'; app.palette = true })
     if (ctrl && ev.shiftKey && k === 'p') return stop(ev, () => { app.paletteMode = 'cmd'; app.palette = true })
     if (ctrl && k === 'p' && !ev.shiftKey) return stop(ev, () => (settings.previewPane = !settings.previewPane))
+    if (ctrl && ev.shiftKey && k === 's') return stop(ev, () => (t.selectedEntries.length ? shelfAdd(t.selectedEntries) : (settings.shelfOpen = !settings.shelfOpen)))
+    if (ctrl && (ev.key === '`' || ev.code === 'Backquote')) return stop(ev, () => (settings.terminalOpen = !settings.terminalOpen))
     if (ctrl && k === 'b') return stop(ev, () => (app.sidebarOpen = !app.sidebarOpen))
     if (ctrl && k === '\\') return stop(ev, toggleSplit)
     // F6 / Shift+F6 przechodzi między obszarami: panel boczny → pasek adresu → pliki (→ drugi panel) → podgląd.
@@ -134,11 +142,15 @@
   {#if app.ready}
     <div class="main">
       {#if app.sidebarOpen}<Sidebar />{/if}
-      <div class="panes">
-        {#each app.panes as id, i (id + ':' + i)}
-          {@const t = tabById(id)}
-          {#if t}<Pane bind:this={panes[i]} tab={t} pane={i} />{/if}
-        {/each}
+      <div class="work">
+        <div class="panes">
+          {#each app.panes as id, i (id + ':' + i)}
+            {@const t = tabById(id)}
+            {#if t}<Pane bind:this={panes[i]} tab={t} pane={i} />{/if}
+          {/each}
+        </div>
+        <!-- Terminal zostaje w tle po ukryciu – sesja i historia nie giną. -->
+        {#if termUsed}<Terminal hidden={!settings.terminalOpen} />{/if}
       </div>
       {#if settings.previewPane && focusedTab && !focusedTab.special}
         <PreviewPane tab={focusedTab} />
@@ -151,6 +163,7 @@
 {#if app.menu}<ContextMenu items={app.menu.items} x={app.menu.x} y={app.menu.y} onclose={() => (app.menu = null)} />{/if}
 {#if app.menu}<div class="menu-catch" role="presentation" onmousedown={() => (app.menu = null)} oncontextmenu={(e) => { e.preventDefault(); app.menu = null }}></div>{/if}
 <Dialogs />
+{#if settings.shelfOpen}<Shelf />{/if}
 {#if app.dialog?.type === 'bulkRename'}<BulkRename entries={app.dialog.entries} />{/if}
 {#if app.palette}<Palette />{/if}
 <Overlay />
@@ -167,7 +180,14 @@
     display: flex;
     gap: 0;
   }
+  .work {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
   .panes {
+    min-height: 0;
     flex: 1;
     min-width: 0;
     display: flex;

@@ -4,7 +4,7 @@
   import {
     app, settings, activeTab, navigate, newTab, activate, closeTab, reopenClosed, togglePin, toggleSplit, newFolder, newFile, paste, copySel, trash,
     back, forward, up, load, savePrefs, setSort, setGroup, startSearch, saveSearch, runSaved, undo, addFavorite, toggleHomeDir, isHomeDir,
-    extractHere, openEntry, refreshSync, toast, SORT_LABEL, GROUP_LABEL, HOME, SYNC, SETTINGS, type SortKey, type GroupKey,
+    extractHere, openEntry, refreshSync, openSpace, shelfAdd, toast, SORT_LABEL, GROUP_LABEL, HOME, SYNC, SETTINGS, type SortKey, type GroupKey,
   } from '../lib/state.svelte'
   import { api, type Entry } from '../lib/api'
   import { basename, fuzzy, kindOf, isBrowsableArchive, type Kind } from '../lib/util'
@@ -66,6 +66,8 @@
       cmd('explorer', 'Otwórz w Eksploratorze', 'open', () => api.open(t.path))
       cmd('fav', 'Przypnij ten folder w panelu bocznym', 'pin', () => addFavorite(t.path))
       cmd('homedir', isHomeDir(t.path) ? 'Usuń ten folder z ekranu Komputer' : 'Pokaż ten folder na ekranie Komputer', 'grid', () => toggleHomeDir(t.path))
+      cmd('space', 'Zajętość i porządki w tym folderze', 'grid', () => openSpace(t, t.path))
+      cmd('shelf', 'Dodaj zaznaczone do schowka plików', 'archive', () => shelfAdd(t.selectedEntries), 'Ctrl+Shift+S')
       cmd('syncnew', 'Synchronizuj ten folder…', 'sync', () => (app.dialog = { type: 'sync', profile: null, source: t.path }))
       if (t.search) cmd('savesearch', 'Zapisz bieżące wyszukiwanie', 'star', () => saveSearch(t))
     }
@@ -105,6 +107,8 @@
       for (const k of Object.keys(SORT_LABEL) as SortKey[]) cmd('sort:' + k, `Sortuj według: ${SORT_LABEL[k].toLowerCase()}`, 'sort', () => setSort(t, k), undefined, 'Widok')
       for (const g of Object.keys(GROUP_LABEL) as GroupKey[]) cmd('group:' + g, g === 'none' ? 'Bez grupowania' : `Grupuj według: ${GROUP_LABEL[g].toLowerCase()}`, 'list', () => setGroup(t, g), undefined, 'Widok')
     }
+    cmd('shelfToggle', settings.shelfOpen ? 'Ukryj schowek plików' : 'Pokaż schowek plików', 'archive', () => (settings.shelfOpen = !settings.shelfOpen), undefined, 'Widok')
+    cmd('terminal', settings.terminalOpen ? 'Ukryj terminal' : 'Pokaż terminal', 'terminal', () => (settings.terminalOpen = !settings.terminalOpen), 'Ctrl+`', 'Widok')
     cmd('preview', settings.previewPane ? 'Ukryj panel podglądu' : 'Pokaż panel podglądu', 'panel', () => (settings.previewPane = !settings.previewPane), 'Ctrl+P', 'Widok')
     cmd('sidebar', app.sidebarOpen ? 'Ukryj panel boczny' : 'Pokaż panel boczny', 'sidebar', () => (app.sidebarOpen = !app.sidebarOpen), 'Ctrl+B', 'Widok')
     cmd('hidden', settings.showHidden ? 'Ukryj ukryte pliki' : 'Pokaż ukryte pliki', 'eye', () => (settings.showHidden = !settings.showHidden), 'Ctrl+H', 'Widok')
@@ -269,9 +273,10 @@
     max-height: 70vh;
     display: flex;
     flex-direction: column;
-    background: var(--high);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
-    border-radius: 18px;
+    border-radius: var(--r-xl);
     box-shadow: 0 40px 100px var(--shadow);
     overflow: hidden;
     align-self: flex-start;
@@ -300,7 +305,7 @@
   .modes button {
     width: auto;
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: var(--r-s);
     font-size: 12px;
     color: var(--faint);
   }
@@ -336,7 +341,7 @@
     align-items: center;
     gap: 12px;
     padding: 8px 12px;
-    border-radius: 10px;
+    border-radius: var(--r);
     color: var(--dim);
     text-align: left;
   }

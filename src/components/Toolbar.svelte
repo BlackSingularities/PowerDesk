@@ -2,7 +2,7 @@
   import type { IconName } from '../lib/icons'
   import Icon from './Icon.svelte'
   import {
-    app, settings, back, forward, up, load, navigate, startSearch, closeSearch, saveSearch, transfer, dropMode, newFolder, newFile,
+    app, settings, newFolderWith, zipSelection, toast, back, forward, up, load, navigate, startSearch, closeSearch, saveSearch, transfer, dropMode, newFolder, newFile,
     copySel, paste, trash, savePrefs, toggleSplit, selectOnly, sortMenuItems, SORT_LABEL, GROUP_LABEL, type Tab, type SortKey, type KindFilter,
   } from '../lib/state.svelte'
   import { api, thumbUrl, type Entry } from '../lib/api'
@@ -158,13 +158,41 @@
     }
   }
 
+  async function newFolderNamed(name: string) {
+    try {
+      const p = await api.mkdir(tab.path, name)
+      await load(tab)
+      selectOnly(tab, p)
+    } catch (err) {
+      toast(String(err), 'error')
+    }
+  }
+
   function newMenu(e: MouseEvent) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
     app.menu = {
       x: r.left, y: r.bottom + 4,
       items: [
         { label: 'Folder', icon: 'folderPlus', kbd: 'Ctrl+Shift+N', run: () => newFolder(tab) },
+        { label: 'Folder z dzisiejszą datą', icon: 'folderPlus', run: () => newFolderNamed(new Date().toLocaleDateString('sv')) },
+        ...(sel.length ? [{ label: `Folder z zaznaczonych (${sel.length})`, icon: 'folderPlus', run: () => newFolderWith(tab) }] : []),
+        { sep: true },
         { label: 'Plik tekstowy', icon: 'filePlus', run: () => newFile(tab) },
+        { label: 'Dokumenty', icon: 'doc', sub: [
+          { label: 'Dokument Word', icon: 'doc', run: () => newFile(tab, 'Nowy dokument.docx', 'Nowy dokument Word') },
+          { label: 'Arkusz Excel', icon: 'sheet', run: () => newFile(tab, 'Nowy arkusz.xlsx', 'Nowy arkusz Excel') },
+          { label: 'Prezentacja PowerPoint', icon: 'doc', run: () => newFile(tab, 'Nowa prezentacja.pptx', 'Nowa prezentacja') },
+          { label: 'Notatka Markdown', icon: 'doc', run: () => newFile(tab, 'Notatka.md', 'Nowa notatka') },
+          { label: 'Plik CSV', icon: 'sheet', run: () => newFile(tab, 'Dane.csv', 'Nowy plik CSV') },
+        ] },
+        { label: 'Pliki programisty', icon: 'code', sub: [
+          { label: 'JSON', icon: 'code', run: () => newFile(tab, 'plik.json', 'Nowy plik JSON') },
+          { label: 'HTML', icon: 'code', run: () => newFile(tab, 'index.html', 'Nowy plik HTML') },
+          { label: 'Skrypt PowerShell', icon: 'terminal', run: () => newFile(tab, 'skrypt.ps1', 'Nowy skrypt') },
+          { label: 'Skrypt wsadowy (.bat)', icon: 'terminal', run: () => newFile(tab, 'skrypt.bat', 'Nowy skrypt') },
+          { label: 'Inny plik…', icon: 'filePlus', run: () => newFile(tab, 'nowy plik', 'Nowy plik (z dowolnym rozszerzeniem)') },
+        ] },
+        ...(sel.length ? [{ sep: true } as const, { label: `Archiwum ZIP z zaznaczonych (${sel.length})`, icon: 'archive', run: () => zipSelection(tab) }] : []),
         { sep: true },
         { label: 'Synchronizację tego folderu…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: tab.path }) },
       ],
@@ -338,6 +366,8 @@
         <button class:on={tab.view === 'gallery'} title="Galeria (Ctrl+3)" onclick={() => setView('gallery')}><Icon name="gallery" size={16} /></button>
       </div>
       <button class="icon-btn" class:on={app.split} title="Podział na dwa panele (Ctrl+\)" onclick={toggleSplit}><Icon name="split" /></button>
+      <button class="icon-btn" class:on={settings.shelfOpen} title="Schowek plików (Ctrl+Shift+S)" aria-label="Schowek plików" onclick={() => (settings.shelfOpen = !settings.shelfOpen)}><Icon name="archive" />{#if app.shelf.length}<span class="bubble">{app.shelf.length}</span>{/if}</button>
+      <button class="icon-btn" class:on={settings.terminalOpen} title="Terminal (Ctrl+`)" aria-label="Terminal" onclick={() => (settings.terminalOpen = !settings.terminalOpen)}><Icon name="terminal" /></button>
       <button class="icon-btn" class:on={settings.previewPane} title="Panel podglądu (Ctrl+P)" onclick={() => (settings.previewPane = !settings.previewPane)}><Icon name="panel" /></button>
     </div>
     {#if facetsShown}
@@ -375,7 +405,7 @@
     height: 36px;
     margin: 0 6px;
     background: var(--high);
-    border-radius: 10px;
+    border-radius: var(--r);
     display: flex;
     align-items: center;
   }
@@ -408,7 +438,7 @@
   .crumb {
     height: 28px;
     padding: 0 8px;
-    border-radius: 7px;
+    border-radius: var(--r-s);
     color: var(--dim);
     white-space: nowrap;
     flex: none;
@@ -434,7 +464,7 @@
   .sep {
     width: 18px;
     height: 26px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -459,7 +489,8 @@
     left: 0;
     right: 0;
     z-index: 50;
-    background: var(--high);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
     border-radius: var(--r);
     padding: 6px;
@@ -471,7 +502,7 @@
     gap: 10px;
     align-items: center;
     padding: 7px 10px;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     color: var(--dim);
     text-align: left;
   }
@@ -488,7 +519,7 @@
     gap: 8px;
     padding: 0 8px 0 12px;
     background: var(--high);
-    border-radius: 10px;
+    border-radius: var(--r);
     color: var(--faint);
     transition: width 0.2s var(--ease);
   }
@@ -511,8 +542,9 @@
     flex-direction: column;
     gap: 8px;
     padding: 12px;
-    border-radius: 14px;
-    background: var(--panel);
+    border-radius: var(--r-l);
+    background: var(--popup-bg);
+    backdrop-filter: var(--popup-blur);
     border: 1px solid var(--line);
     box-shadow: 0 20px 50px var(--shadow);
   }
@@ -546,7 +578,7 @@
   .clear {
     width: 22px;
     height: 22px;
-    border-radius: 6px;
+    border-radius: var(--r-xs);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -579,14 +611,14 @@
   .seg {
     display: flex;
     background: var(--high);
-    border-radius: 999px;
+    border-radius: var(--r);
     padding: 2px;
     margin: 0 4px;
   }
   .seg button {
     width: 32px;
     height: 28px;
-    border-radius: 999px;
+    border-radius: var(--r-s);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -614,7 +646,7 @@
   .fchip {
     width: 30px;
     height: 28px;
-    border-radius: 8px;
+    border-radius: var(--r-s);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -623,6 +655,24 @@
   .fchip:hover {
     background: var(--hover);
     color: var(--text);
+  }
+  .icon-btn {
+    position: relative;
+  }
+  .bubble {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 15px;
+    height: 15px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: var(--accent);
+    color: var(--on-accent);
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 15px;
+    text-align: center;
   }
   .fchip.more {
     position: relative;

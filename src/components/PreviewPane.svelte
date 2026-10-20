@@ -1,8 +1,9 @@
 <script lang="ts">
   import MetaView from './MetaView.svelte'
+  import DocPreview, { hasDocPreview } from './DocPreview.svelte'
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
-  import { app, settings, openEntry, openViewer, toast, type Tab } from '../lib/state.svelte'
+  import { app, settings, openEntry, openViewer, openShortcutTarget, toast, type Tab } from '../lib/state.svelte'
   import { api, fileUrl, thumbUrl, type Entry, type Prop, type TextPreview, type ZipItem, type DirSize } from '../lib/api'
   import { kindOf, size, date, typeLabel, WEB_IMAGE, WEB_VIDEO, WEB_AUDIO, OFFICE_TEXT, items as itemsLabel, debounce, volumeOf } from '../lib/util'
 
@@ -32,7 +33,7 @@
     dsize = null
     dsizeBusy = false
     if (!e) return
-    if (!e.cloud) {
+    if (!e.cloud && !hasDocPreview(e)) {
       if (!e.dir && (k === 'text' || k === 'code' || (k === 'other' && e.size < 2_000_000)))
         api.readText(e.path, 200_000).then((r) => t === token && (text = r)).catch(() => {})
       else if (OFFICE_TEXT.has(e.ext)) api.officeText(e.path).then((r) => t === token && (text = r)).catch(() => {})
@@ -60,7 +61,7 @@
 
   {#if shown && one}
     {@const e = shown}
-    <div class="stage" class:tall={k === 'pdf' || !!text || !!zip}>
+    <div class="stage" class:tall={k === 'pdf' || !!text || !!zip || hasDocPreview(e)}>
       {#if e.cloud}
         <div class="thumbbox"><Thumb entry={e} px={300} /></div>
         <p class="faint center">Plik tylko w chmurze – podgląd pobrałby go z OneDrive.</p>
@@ -82,6 +83,8 @@
         {#key e.path}<audio src={fileUrl(e.path)} controls preload="metadata"></audio>{/key}
       {:else if k === 'pdf'}
         {#key e.path}<iframe title="PDF" src={fileUrl(e.path) + '#toolbar=0&navpanes=0&view=FitH'}></iframe>{/key}
+      {:else if hasDocPreview(e)}
+        <div class="docbox"><DocPreview entry={e} compact /></div>
       {:else if text && text.kind !== 'binary' && text.text}
         {#if OFFICE_TEXT.has(e.ext)}<div class="thumbbox small"><Thumb entry={e} px={200} /></div>{/if}
         <pre class:doc={text.kind === 'document'}>{text.text}{text.truncated ? '\n\n…' : ''}</pre>
@@ -103,6 +106,7 @@
       <div class="actions">
         <button class="act main" onclick={() => openEntry(tab, e)}><Icon name="open" size={17} /><span>Otwórz</span></button>
         {#if !e.dir}<button class="act" onclick={() => api.openWith(e.path)}><Icon name="app" size={17} /><span>Otwórz w…</span></button>{/if}
+        {#if e.ext === 'lnk'}<button class="act" onclick={() => openShortcutTarget(tab, e)}><Icon name="folder" size={17} /><span>Lokalizacja</span></button>{/if}
         <button class="act" onclick={() => (app.dialog = { type: 'props', entries: [e] })}><Icon name="info" size={17} /><span>Właściwości</span></button>
       </div>
       <dl>
@@ -204,6 +208,14 @@
   audio {
     width: 100%;
   }
+  .docbox {
+    flex: 1;
+    min-height: 300px;
+    border-radius: var(--r);
+    background: var(--bg);
+    outline: 1px solid var(--line);
+    overflow: hidden;
+  }
   iframe {
     width: 100%;
     flex: 1;
@@ -281,7 +293,7 @@
     justify-content: center;
     gap: 6px;
     height: 58px;
-    border-radius: 14px;
+    border-radius: var(--r-l);
     background: var(--high);
     color: var(--dim);
     font-size: 12px;
@@ -335,7 +347,7 @@
     gap: 10px;
     margin-top: 16px;
     padding: 10px 12px;
-    border-radius: 12px;
+    border-radius: var(--r);
     background: var(--high);
     color: var(--faint);
     font-size: 11px;
@@ -375,7 +387,7 @@
   .st {
     position: absolute;
     inset: 0;
-    border-radius: 14px;
+    border-radius: var(--r-l);
     overflow: hidden;
     background: var(--high);
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);

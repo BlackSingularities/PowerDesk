@@ -20,7 +20,7 @@
         "minWidth": 720,
         "minHeight": 480,
         "decorations": false,
-        "transparent": false,
+        "transparent": true,
         "backgroundColor": "#000000",
         "center": true,
         "visible": false,
@@ -40,7 +40,12 @@
     "shortDescription": "Menedżer plików z galerią i synchronizacją",
     "copyright": "adam001d",
     "windows": {
-      "nsis": { "installMode": "currentUser", "languages": ["Polish", "English"] },
+      "nsis": {
+        "installMode": "perMachine",
+        "languages": ["Polish", "English"],
+        "displayLanguageSelector": false,
+        "customLanguageFiles": { "Polish": "nsis/Polish.nsh" }
+      },
       "webviewInstallMode": { "type": "downloadBootstrapper" }
     }
   }

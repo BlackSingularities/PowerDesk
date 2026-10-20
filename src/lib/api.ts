@@ -86,6 +86,7 @@ export const api = {
   mkfile: (parent: string, name: string) => invoke<string>('create_file', { parent, name }),
   rename: (path: string, name: string) => invoke<string>('rename', { path, name }),
   extractItems: (sources: string[], dest: string) => invoke<string[]>('extract_items', { sources, dest }),
+  createZip: (sources: string[], dest: string) => invoke<string>('create_zip', { sources, dest }),
   extractHere: (path: string) => invoke<string>('extract_here', { path }),
   openArchived: (path: string) => invoke<string>('open_archived', { path }),
   ftpLogin: (host: string, port: number, user: string, pass: string, remember: boolean, path = '') => invoke<string>('ftp_login', { host, port, user, pass, remember, path }),
@@ -102,6 +103,7 @@ export const api = {
   setContextMenu: (on: boolean) => invoke<void>('set_context_menu', { on }),
   downloadUpdate: () => invoke<string>('download_update'),
   installUpdate: (path: string) => invoke<void>('install_update', { path }),
+  systemAccent: () => invoke<string | null>('system_accent'),
   renameMany: (pairs: [string, string][]) => invoke<{ done: number; errors: string[] }>('rename_many', { pairs }),
   startOp: (kind: 'copy' | 'move' | 'trash' | 'delete', sources: string[], dest = '', conflict: ConflictPolicy = 'rename') =>
     invoke<number>('start_op', { kind, sources, dest, conflict }),

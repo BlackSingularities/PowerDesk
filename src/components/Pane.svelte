@@ -5,7 +5,8 @@
   import SyncView from './SyncView.svelte'
   import SettingsView from './SettingsView.svelte'
   import StatusBar from './StatusBar.svelte'
-  import { app, HOME, SYNC, SETTINGS, type Tab } from '../lib/state.svelte'
+  import { app, HOME, SYNC, SETTINGS, SPACE, type Tab } from '../lib/state.svelte'
+  import SpaceView from './SpaceView.svelte'
 
   let { tab, pane }: { tab: Tab; pane: number } = $props()
   let toolbar = $state<ReturnType<typeof Toolbar>>()
@@ -27,6 +28,8 @@
     <SyncView {tab} />
   {:else if tab.path === SETTINGS}
     <SettingsView />
+  {:else if tab.path.startsWith(SPACE)}
+    {#key tab.path}<SpaceView {tab} />{/key}
   {:else}
     <FileView {tab} {pane} />
   {/if}
