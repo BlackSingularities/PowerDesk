@@ -182,15 +182,17 @@
     display: flex;
     flex-direction: column;
   }
+  /* Jeden odstęp między wszystkimi blokami okna – zaokrąglone narożniki nigdy się nie stykają. */
   .topbar {
     flex: none;
-    padding: 0 6px;
+    padding: 0 8px;
   }
   .main {
     flex: 1;
     min-height: 0;
     display: flex;
-    gap: 0;
+    gap: 8px;
+    padding: 0 8px 8px;
   }
   .work {
     flex: 1;
@@ -203,8 +205,7 @@
     flex: 1;
     min-width: 0;
     display: flex;
-    gap: 6px;
-    padding: 0 6px;
+    gap: 8px;
   }
   .menu-catch {
     position: fixed;

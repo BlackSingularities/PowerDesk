@@ -160,7 +160,7 @@
     display: flex;
     flex-direction: column;
     background: var(--panel);
-    border-radius: var(--r-l) 0 0 0;
+    border-radius: var(--r-l);
     min-height: 0;
     overflow-y: auto;
   }

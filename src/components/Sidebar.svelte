@@ -376,7 +376,8 @@
     display: flex;
     flex-direction: column;
     background: var(--panel);
-    border-radius: 0 var(--r-l) 0 0;
+    border-radius: var(--r-l);
+    overflow: hidden;
     min-height: 0;
   }
   .scroll {
