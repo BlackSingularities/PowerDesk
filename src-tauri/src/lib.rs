@@ -315,6 +315,11 @@ fn cancel_search() {
 }
 
 #[tauri::command]
+async fn recent_files(dirs: Vec<String>, days: u64, limit: usize) -> R<Vec<fsx::Entry>> {
+    blocking(move || fsx::recent_files(&dirs, days, limit)).await
+}
+
+#[tauri::command]
 async fn dir_size(path: String) -> R<fsx::DirSize> {
     blocking(move || fsx::dir_size(&path)).await
 }
@@ -790,6 +795,7 @@ pub fn run() {
             search,
             cancel_search,
             dir_size,
+            recent_files,
             file_hash,
             shell_props,
             media_info,

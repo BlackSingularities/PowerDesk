@@ -3,9 +3,9 @@
   import Thumb from './Thumb.svelte'
   import {
     app, settings, navigate, newTab, addFavorite, removeFavorite, refreshDrives, toast, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
-    toggleHomeDir, isHomeDir, removeRecent, toggleRecentPin, clearRecent, removeNetPlace, SYNC, type Tab,
+    toggleHomeDir, isHomeDir, removeRecent, toggleRecentPin, clearRecent, removeNetPlace, startSearch, openSpace, SYNC, HOME, type Tab,
   } from '../lib/state.svelte'
-  import { size, ago, basename, samePath, collator, isMedia } from '../lib/util'
+  import { size, ago, basename, samePath, collator, isMedia, kindOf, parent, date } from '../lib/util'
   import { api, thumbUrl, type Drive, type Entry } from '../lib/api'
 
   let { tab }: { tab: Tab } = $props()
@@ -60,11 +60,86 @@
     showDriveMenu(e, d, (p) => go(p), (p) => newTab(p, false, tab.id))
   }
 
+  // ---------- Dashboard ----------
+
+  let now = $state(new Date())
+  $effect(() => {
+    const t = setInterval(() => (now = new Date()), 15_000)
+    return () => clearInterval(t)
+  })
+  const greeting = $derived(now.getHours() < 5 ? 'Dobranoc' : now.getHours() < 12 ? 'Dzień dobry' : now.getHours() < 18 ? 'Miłego popołudnia' : 'Dobry wieczór')
+  const userName = $derived(basename(app.known.find((k) => k.id === 'home')?.path ?? '') || '')
+  const today = $derived(now.toLocaleDateString('pl', { weekday: 'long', day: 'numeric', month: 'long' }))
+  const clock = $derived(now.toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }))
+
+  // Pamięć: wszystkie dyski lokalne razem + udział każdego w pierścieniu.
+  const local = $derived(app.drives.filter((d) => d.online && d.total && d.kind !== 'network' && d.kind !== 'cdrom'))
+  const totalAll = $derived(local.reduce((a, d) => a + d.total, 0))
+  const usedAll = $derived(local.reduce((a, d) => a + d.total - d.free, 0))
+  const RING = ['#4f8cff', '#22c55e', '#f59e0b', '#ec4899', '#8b5cf6', '#14b8a6', '#ef4444', '#eab308']
+  const ring = $derived.by(() => {
+    let acc = 0
+    return local.map((d, i) => {
+      const part = (d.total - d.free) / (totalAll || 1)
+      const seg = { d, from: acc, part, color: RING[i % RING.length] }
+      acc += d.total / (totalAll || 1)
+      return seg
+    })
+  })
+  let hoverDrive = $state<string | null>(null)
+  const C = 2 * Math.PI * 52
+
+  // Szukanie wszędzie: domyślnie w folderze domowym, można wybrać dysk.
+  let q = $state('')
+  let qRoot = $state('')
+  $effect(() => {
+    if (!qRoot) qRoot = app.known.find((k) => k.id === 'home')?.path ?? local[0]?.path ?? ''
+  })
+  function searchAll() {
+    if (!q.trim() || !qRoot) return
+    const query = q
+    navigate(tab, qRoot)
+    queueMicrotask(() => startSearch(tab, query))
+  }
+
+  // Ostatnie pliki z Pulpitu, Pobranych, Dokumentów, Obrazów i Wideo.
+  let recentFiles = $state<Entry[] | null>(null)
+  let fileKind = $state<'all' | 'image' | 'doc' | 'video'>('all')
+  async function loadRecentFiles() {
+    const dirs = app.known.filter((k) => ['desktop', 'downloads', 'documents', 'pictures', 'videos'].includes(k.id)).map((k) => k.path)
+    if (!dirs.length) return
+    recentFiles = await api.recentFiles(dirs, 14, 60).catch(() => [])
+  }
+  $effect(() => {
+    if (app.known.length && recentFiles === null) loadRecentFiles()
+  })
+  const shownFiles = $derived(
+    (recentFiles ?? []).filter((e) => {
+      const k = kindOf(e)
+      return fileKind === 'all' || (fileKind === 'image' ? k === 'image' || k === 'raw' : fileKind === 'video' ? k === 'video' : ['pdf', 'doc', 'sheet', 'slides', 'text'].includes(k))
+    }).slice(0, 24),
+  )
+  const downloads = $derived((recentFiles ?? []).filter((e) => samePath(parent(e.path) ?? '', app.known.find((k) => k.id === 'downloads')?.path ?? '')).slice(0, 5))
+  const running = $derived(app.ops.filter((o) => o.state === 'running'))
+  const syncBusy = $derived(app.syncProfiles.filter((p) => ['syncing', 'scanning'].includes(app.syncStatus[p.id]?.state ?? '')).length)
+  const syncOff = $derived(app.syncProfiles.filter((p) => !app.syncStatus[p.id]?.connected).length)
+
+  const ACTIONS: { label: string; icon: import('../lib/icons').IconName; run: () => void; kbd?: string }[] = [
+    { label: 'Paleta poleceń', icon: 'bolt', kbd: 'Ctrl+K', run: () => (app.palette = true) },
+    { label: 'Nowa karta', icon: 'plus', kbd: 'Ctrl+T', run: () => newTab(HOME, true, tab.id) },
+    { label: 'Pobrane', icon: 'download', run: () => { const d = app.known.find((k) => k.id === 'downloads'); if (d) go(d.path) } },
+    { label: 'Zajętość dysku', icon: 'grid', run: () => openSpace(tab, local[0]?.path ?? 'C:\\') },
+    { label: 'Porządki', icon: 'trash', run: () => openSpace(tab, app.known.find((k) => k.id === 'home')?.path ?? 'C:\\') },
+    { label: 'Połącz z siecią', icon: 'network', run: () => (app.dialog = { type: 'network' }) },
+    { label: 'Schowek plików', icon: 'archive', kbd: 'Ctrl+⇧+S', run: () => (settings.shelfOpen = !settings.shelfOpen) },
+    { label: 'Terminal', icon: 'terminal', kbd: 'Ctrl+`', run: () => (settings.terminalOpen = !settings.terminalOpen) },
+  ]
+
   // ---------- Sekcje: kolejność i przeciąganie ----------
 
-  const BASE = ['folders', 'drives', 'removable', 'network', 'sync', 'recent']
+  const BASE = ['overview', 'folders', 'files', 'drives', 'removable', 'network', 'sync', 'recent']
   const TITLES: Record<string, string> = {
-    folders: 'Foldery', drives: 'Dyski', removable: 'Urządzenia wymienne', network: 'Lokalizacje sieciowe', sync: 'Synchronizacja', recent: 'Ostatnio otwierane',
+    overview: 'Przegląd', files: 'Ostatnie pliki', folders: 'Foldery', drives: 'Dyski', removable: 'Urządzenia wymienne', network: 'Lokalizacje sieciowe', sync: 'Synchronizacja', recent: 'Ostatnio otwierane',
   }
   const order = $derived.by(() => {
     const want = [...BASE, ...settings.homeDirs.map((p) => 'dir:' + p)]
@@ -73,7 +148,9 @@
     for (const id of want) {
       if (kept.includes(id)) continue
       const at = id.startsWith('dir:') ? kept.indexOf('recent') : -1
-      if (at >= 0) kept.splice(at, 0, id)
+      if (id === 'overview') kept.unshift(id)
+      else if (id === 'files') kept.splice(Math.max(0, kept.indexOf('folders') + 1), 0, id)
+      else if (at >= 0) kept.splice(at, 0, id)
       else kept.push(id)
     }
     return kept
@@ -84,6 +161,7 @@
     : id === 'removable' ? app.drives.filter((d) => (d.kind === 'removable' || d.kind === 'cdrom') && driveShown(d))
     : app.drives.filter((d) => d.kind === 'network')
   function shown(id: string) {
+    if (id === 'files') return settings.showRecent
     if (id === 'removable') return driveList(id).length > 0
     if (id === 'sync') return app.syncProfiles.length > 0
     if (id === 'recent') return recent.length > 0
@@ -178,7 +256,9 @@
           {/if}
         </h2>
         {#if open(id)}
-          {#if id === 'folders'}{@render folders()}
+          {#if id === 'overview'}{@render overview()}
+          {:else if id === 'files'}{@render files()}
+          {:else if id === 'folders'}{@render folders()}
           {:else if id === 'drives' || id === 'removable' || id === 'network'}{@render drives(id)}
           {:else if id === 'sync'}{@render syncs()}
           {:else if id === 'recent'}{@render recents()}
@@ -188,6 +268,111 @@
     {/if}
   {/each}
 </div>
+
+{#snippet overview()}
+  <div class="dash">
+    <div class="hero card">
+      <div class="hello">
+        <span class="faint cap1">{today}</span>
+        <h1>{greeting}{userName ? `, ${userName}` : ''}</h1>
+        <span class="clock">{clock}</span>
+      </div>
+      <form class="qs" onsubmit={(e) => { e.preventDefault(); searchAll() }}>
+        <Icon name="search" size={17} />
+        <input bind:value={q} placeholder="Szukaj plików…" spellcheck="false" aria-label="Szukaj plików" />
+        <select bind:value={qRoot} aria-label="Gdzie szukać">
+          {#each app.known.filter((k) => k.id === 'home') as k (k.id)}<option value={k.path}>Folder domowy</option>{/each}
+          {#each local as d (d.letter)}<option value={d.path}>{d.label || 'Dysk'} ({d.letter})</option>{/each}
+        </select>
+        <button class="btn primary sm" disabled={!q.trim()}>Szukaj</button>
+      </form>
+      <div class="acts">
+        {#each ACTIONS as a (a.label)}
+          <button class="act" onclick={a.run} title={a.kbd ? `${a.label} (${a.kbd})` : a.label}><Icon name={a.icon} size={18} /><span>{a.label}</span></button>
+        {/each}
+      </div>
+    </div>
+
+    <div class="card storage">
+      <h3>Pamięć</h3>
+      <div class="ringrow">
+        <svg viewBox="0 0 128 128" class="ring" role="img" aria-label="Zajętość wszystkich dysków">
+          <circle cx="64" cy="64" r="52" class="track" />
+          {#each ring as s (s.d.letter)}
+            <circle cx="64" cy="64" r="52" class="seg" class:dim={hoverDrive && hoverDrive !== s.d.letter} stroke={s.color}
+              stroke-dasharray="{Math.max(0, s.part * C - 2)} {C}" stroke-dashoffset={-s.from * C} />
+          {/each}
+          <text x="64" y="60" class="big">{Math.round((usedAll / (totalAll || 1)) * 100)}%</text>
+          <text x="64" y="78" class="sm">zajęte</text>
+        </svg>
+        <div class="legend">
+          <b>{size(totalAll - usedAll)}</b><span class="faint">wolne z {size(totalAll)}</span>
+          {#each ring as s (s.d.letter)}
+            <button class="lg" onmouseenter={() => (hoverDrive = s.d.letter)} onmouseleave={() => (hoverDrive = null)} onclick={() => go(s.d.path)} oncontextmenu={(e) => driveMenu(e, s.d)} title="{s.d.label} – kliknij, aby otworzyć">
+              <span class="sw" style:background={s.color}></span>
+              <span class="ellipsis grow">{s.d.label || 'Dysk'} <span class="faint">{s.d.letter}</span></span>
+              <span class="faint" class:low={lowSpace(s.d)}>{size(s.d.free)}</span>
+            </button>
+          {/each}
+        </div>
+      </div>
+      <button class="btn ghost sm full" onclick={() => openSpace(tab, local[0]?.path ?? 'C:\\')}><Icon name="grid" size={14} />Co zajmuje miejsce?</button>
+    </div>
+
+    <div class="card activity">
+      <h3>Aktywność</h3>
+      {#each running as o (o.id)}
+        <div class="arow"><span class="dot busy"></span><span class="ellipsis grow">{o.title}</span><span class="faint">{Math.round((o.done_bytes / (o.total_bytes || 1)) * 100)}%</span></div>
+        <span class="bar"><i style:width="{(o.done_bytes / (o.total_bytes || 1)) * 100}%"></i></span>
+      {/each}
+      {#if app.syncProfiles.length}
+        <button class="arow lnk" onclick={() => navigate(tab, SYNC)}><span class="dot {syncBusy ? 'busy' : syncOff ? '' : 'ok'}"></span><span class="grow">Synchronizacja</span><span class="faint">{syncBusy ? 'trwa…' : syncOff ? `${syncOff} odłączone` : 'aktualna'}</span></button>
+      {/if}
+      {#if app.shelf.length}
+        <button class="arow lnk" onclick={() => (settings.shelfOpen = true)}><Icon name="archive" size={14} /><span class="grow">Schowek plików</span><span class="faint">{app.shelf.length} elem.</span></button>
+      {/if}
+      {#if app.update}
+        <div class="arow"><Icon name="download" size={14} /><span class="grow">Dostępna wersja {app.update.latest}</span></div>
+      {/if}
+      {#if !running.length && !app.syncProfiles.length && !app.shelf.length && !app.update}
+        <p class="faint calm"><Icon name="check" size={16} />Wszystko spokojnie</p>
+      {/if}
+      {#if downloads.length}
+        <h4 class="faint">Ostatnio pobrane</h4>
+        {#each downloads as e (e.path)}
+          <button class="arow lnk" ondblclick={() => openItem(e, downloads)} onclick={() => (sel = e.path)} class:sel={sel === e.path} oncontextmenu={(ev) => itemMenu(ev, e)} title={e.path}>
+            <span class="mini"><Thumb entry={e} px={24} iconOnly /></span><span class="ellipsis grow">{e.name}</span><span class="faint">{ago(e.modified)}</span>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </div>
+{/snippet}
+
+{#snippet files()}
+  <div class="fbar">
+    {#each [['all', 'Wszystkie'], ['image', 'Zdjęcia'], ['doc', 'Dokumenty'], ['video', 'Wideo']] as [k, l] (k)}
+      <button class="chip" class:on={fileKind === k} onclick={() => (fileKind = k as typeof fileKind)}>{l}</button>
+    {/each}
+    <span class="grow"></span>
+    <button class="icon-btn xs" title="Odśwież" aria-label="Odśwież ostatnie pliki" onclick={loadRecentFiles}><Icon name="refresh" size={14} /></button>
+  </div>
+  {#if recentFiles === null}
+    <p class="faint small pad">Wczytywanie…</p>
+  {:else if !shownFiles.length}
+    <p class="faint small pad">Brak plików zmienionych w ostatnich dwóch tygodniach</p>
+  {:else}
+    <div class="dir">
+      {#each shownFiles as e (e.path)}
+        <button class="tile" class:sel={sel === e.path} onclick={() => (sel = e.path)} ondblclick={() => openItem(e, shownFiles)} onkeydown={(ev) => ev.key === 'Enter' && openItem(e, shownFiles)} oncontextmenu={(ev) => itemMenu(ev, e)} title="{e.name}&#10;{e.path}&#10;Zmieniono: {date(e.modified)}">
+          <span class="tt"><Thumb entry={e} px={110} fit={isMedia(e) ? 'cover' : 'contain'} /></span>
+          <span class="ellipsis tn">{e.name}</span>
+          <span class="faint tn small">{ago(e.modified)}</span>
+        </button>
+      {/each}
+    </div>
+  {/if}
+{/snippet}
 
 {#snippet folders()}
   <div class="folders">
@@ -295,6 +480,242 @@
 {/snippet}
 
 <style>
+  .dash {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr) minmax(280px, 1fr);
+    gap: 12px;
+  }
+  @media (max-width: 1250px) {
+    .dash {
+      grid-template-columns: 1fr 1fr;
+    }
+    .hero {
+      grid-column: 1 / -1;
+    }
+  }
+  .card {
+    background: var(--panel);
+    border-radius: var(--r-l);
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+  }
+  .card h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .card h4 {
+    margin: 6px 0 0;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .hello h1 {
+    margin: 2px 0 0;
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  .cap1::first-letter {
+    text-transform: uppercase;
+  }
+  .hello {
+    position: relative;
+  }
+  .clock {
+    position: absolute;
+    right: 0;
+    top: 0;
+    font-size: 30px;
+    font-weight: 300;
+    font-variant-numeric: tabular-nums;
+    color: var(--dim);
+  }
+  .qs {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 40px;
+    padding: 0 4px 0 12px;
+    border-radius: var(--r);
+    background: var(--high);
+    color: var(--faint);
+  }
+  .qs:focus-within {
+    outline: 1px solid var(--line-strong);
+  }
+  .qs input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    background: none;
+    padding: 0;
+    font-size: 14px;
+  }
+  .qs select {
+    height: 30px;
+    padding: 0 8px;
+    font-size: 12px;
+    background: var(--higher);
+    border: 0;
+    max-width: 160px;
+  }
+  .acts {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+  }
+  .act {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 12px;
+    border-radius: var(--r);
+    background: var(--high);
+    color: var(--dim);
+    font-size: 12.5px;
+    text-align: left;
+    transition: background 0.12s, color 0.12s;
+  }
+  .act:hover {
+    background: var(--higher);
+    color: var(--text);
+  }
+  .act span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ringrow {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .ring {
+    width: 128px;
+    height: 128px;
+    flex: none;
+    transform: rotate(-90deg);
+  }
+  .ring circle {
+    fill: none;
+    stroke-width: 14;
+  }
+  .ring .track {
+    stroke: var(--high);
+  }
+  .ring .seg {
+    transition: opacity 0.15s;
+  }
+  .ring .seg.dim {
+    opacity: 0.25;
+  }
+  .ring text {
+    transform: rotate(90deg);
+    transform-origin: 64px 64px;
+    text-anchor: middle;
+    fill: var(--text);
+  }
+  .ring .big {
+    font-size: 22px;
+    font-weight: 600;
+  }
+  .ring .sm {
+    font-size: 10px;
+    fill: var(--faint);
+  }
+  .legend {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
+  .legend > b {
+    font-size: 18px;
+    font-weight: 600;
+  }
+  .legend > span {
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+  .lg {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 24px;
+    padding: 0 6px;
+    border-radius: var(--r-xs);
+    font-size: 12px;
+    text-align: left;
+  }
+  .lg:hover {
+    background: var(--hover);
+  }
+  .lg .sw {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+    flex: none;
+  }
+  .lg .low {
+    color: var(--rec);
+  }
+  .full {
+    width: 100%;
+    justify-content: center;
+    margin-top: auto;
+  }
+  .arow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 28px;
+    padding: 0 6px;
+    border-radius: var(--r-s);
+    font-size: 12.5px;
+    text-align: left;
+    width: 100%;
+  }
+  .arow.lnk:hover {
+    background: var(--hover);
+  }
+  .arow.sel {
+    background: var(--sel);
+  }
+  .activity .bar {
+    display: block;
+    height: 4px;
+    margin: -4px 6px 4px;
+  }
+  .mini {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    flex: none;
+  }
+  .calm {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0;
+    font-size: 12.5px;
+  }
+  .fbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .btn.sm {
+    height: 30px;
+    padding: 0 12px;
+  }
   .home {
     flex: 1;
     overflow-y: auto;

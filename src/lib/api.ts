@@ -104,6 +104,7 @@ export const api = {
   downloadUpdate: () => invoke<string>('download_update'),
   installUpdate: (path: string) => invoke<void>('install_update', { path }),
   systemAccent: () => invoke<string | null>('system_accent'),
+  recentFiles: (dirs: string[], days: number, limit: number) => invoke<Entry[]>('recent_files', { dirs, days, limit }),
   renameMany: (pairs: [string, string][]) => invoke<{ done: number; errors: string[] }>('rename_many', { pairs }),
   startOp: (kind: 'copy' | 'move' | 'trash' | 'delete', sources: string[], dest = '', conflict: ConflictPolicy = 'rename') =>
     invoke<number>('start_op', { kind, sources, dest, conflict }),

@@ -462,3 +462,37 @@ pub fn watch_dirs(paths: Vec<String>) {
     }
     st.watched = now;
 }
+
+/// Ostatnio zmienione pliki z podanych folderów (bez zagłębiania się dalej niż 2 poziomy).
+pub fn recent_files(dirs: &[String], days: u64, limit: usize) -> Vec<Entry> {
+    let since = SystemTime::now() - Duration::from_secs(days * 86_400);
+    let mut out = Vec::new();
+    fn walk(p: &Path, depth: u32, since: SystemTime, out: &mut Vec<Entry>) {
+        let Ok(rd) = std::fs::read_dir(p) else { return };
+        for de in rd.flatten() {
+            let Ok(md) = de.metadata() else { continue };
+            let attrs = md.file_attributes();
+            if attrs & (ATTR_HIDDEN | ATTR_SYSTEM) != 0 {
+                continue;
+            }
+            if md.is_dir() {
+                if depth > 0 && attrs & ATTR_REPARSE == 0 {
+                    walk(&de.path(), depth - 1, since, out);
+                }
+            } else if md.modified().map(|t| t >= since).unwrap_or(false) {
+                let name = de.file_name().to_string_lossy().to_lowercase();
+                if name == "desktop.ini" || name.ends_with(".lnk") || name.ends_with(".tmp") || name.starts_with("~$") {
+                    continue;
+                }
+                out.push(entry_from(&de.path(), &md));
+            }
+        }
+    }
+    for d in dirs {
+        walk(Path::new(d), 1, since, &mut out);
+    }
+    out.sort_by(|a, b| b.modified.cmp(&a.modified));
+    out.dedup_by(|a, b| a.path == b.path);
+    out.truncate(limit);
+    out
+}
