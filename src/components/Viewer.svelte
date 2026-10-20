@@ -163,7 +163,7 @@
   function onKey(ev: KeyboardEvent) {
     if (!app.viewer || app.dialog) return
     const key = ev.key
-    if (key === 'Escape') close()
+    if (key === 'Escape') full ? fullscreen() : close()
     else if (key === 'ArrowRight' || key === 'PageDown') go(1)
     else if (key === 'ArrowLeft' || key === 'PageUp') go(-1)
     else if (key === 'Home') app.viewer = { list: v.list, index: 0 }
@@ -186,9 +186,11 @@
     ev.stopPropagation()
   }
 
+  // Domyślnie podgląd to okno nad aplikacją; F / przycisk przełącza na prawdziwy pełny ekran.
+  let full = $state(false)
   async function fullscreen() {
-    const w = getCurrentWindow()
-    await w.setFullscreen(!(await w.isFullscreen()))
+    full = !full
+    await getCurrentWindow().setFullscreen(full).catch(() => {})
   }
 
   function poke() {
@@ -210,7 +212,8 @@
 <svelte:window onkeydown={onKey} />
 
 {#if e}
-  <div class="viewer fade-in" class:nochrome={!chrome && !showInfo} onpointermove={poke} role="dialog" tabindex="-1" aria-label="Podgląd">
+  {#if !full}<div class="vback fade-in" role="presentation" onmousedown={close}></div>{/if}
+  <div class="viewer fade-in" class:windowed={!full} class:nochrome={!chrome && !showInfo} onpointermove={poke} role="dialog" tabindex="-1" aria-label="Podgląd">
     <div class="top">
       <button class="icon-btn" title="Zamknij (Esc)" onclick={close}><Icon name="back" /></button>
       <div class="grow title">
@@ -227,7 +230,7 @@
       <button class="icon-btn" title="Otwórz w programie (Enter)" onclick={() => api.open(e.path)}><Icon name="open" /></button>
       <button class="icon-btn" title="Do Kosza (Del)" onclick={del}><Icon name="trash" /></button>
       <button class="icon-btn" class:on={showInfo} title="Informacje (I)" onclick={() => (showInfo = !showInfo)}><Icon name="info" /></button>
-      <button class="icon-btn" title="Pełny ekran (F)" onclick={fullscreen}><Icon name="fullscreen" /></button>
+      <button class="icon-btn" class:on={full} title={full ? 'Zamknij pełny ekran (F)' : 'Pełny ekran (F)'} onclick={fullscreen}><Icon name={full ? 'restore' : 'fullscreen'} /></button>
     </div>
 
     <div class="body">
@@ -327,6 +330,21 @@
     background: #000;
     display: flex;
     flex-direction: column;
+    transition: inset 0.2s var(--ease), border-radius 0.2s var(--ease);
+  }
+  .viewer.windowed {
+    inset: 48px 64px 32px;
+    border-radius: var(--r-xl);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.7);
+  }
+  .vback {
+    position: fixed;
+    inset: 0;
+    z-index: 199;
+    background: rgba(0, 0, 0, 0.55);
+    backdrop-filter: blur(6px);
   }
   .top {
     display: flex;
