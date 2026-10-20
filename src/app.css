@@ -80,6 +80,15 @@
   --bg: rgba(246, 246, 247, 0.55);
   --panel: rgba(255, 255, 255, 0.6);
 }
+/* Acrylic rozmywa mocniej i bardziej przepuszcza – dajemy gęstsze tło niż przy Mice. */
+:root[data-effect='acrylic'] {
+  --bg: rgba(0, 0, 0, 0.66);
+  --panel: rgba(20, 20, 20, 0.74);
+}
+:root[data-theme='light'][data-effect='acrylic'] {
+  --bg: rgba(246, 246, 247, 0.74);
+  --panel: rgba(255, 255, 255, 0.8);
+}
 
 :root[data-effect='mica'] body,
 :root[data-effect='mica'] #app,
