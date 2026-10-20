@@ -3,11 +3,11 @@
   import Thumb from './Thumb.svelte'
   import {
     app, settings, openEntry, openViewer, navigate, newTab, transfer, dropMode, copySel, paste, trash, doRename,
-    newFolder, newFile, addFavorite, load, savePrefs, toast, activate, closeSearch, LIST_COLS, setSort as setSortOf, sortMenuItems, ensureMedia, mediaInfo, media,
+    newFolder, newFile, extractHere, extractTo, addFavorite, toggleHomeDir, isHomeDir, load, savePrefs, toast, activate, closeSearch, LIST_COLS, setSort as setSortOf, sortMenuItems, ensureMedia, mediaInfo, media, ensureDirSizes, dirSizes, dirSizeVer,
     type ListCol, type Tab, type MenuItem, type SortKey, type Group,
   } from '../lib/state.svelte'
   import { api, type Entry } from '../lib/api'
-  import { date, size, typeLabel, kindOf, isMedia, parent, duration, items as itemsLabel } from '../lib/util'
+  import { date, size, typeLabel, kindOf, isMedia, parent, duration, items as itemsLabel, isBrowsableArchive, inArchive } from '../lib/util'
 
   let { tab, pane }: { tab: Tab; pane: number } = $props()
 
@@ -33,6 +33,15 @@
   $effect(() => {
     ensureMedia(list)
   })
+  // Rozmiary folderów – tylko gdy kolumna rozmiaru jest widoczna albo sortujemy po rozmiarze.
+  $effect(() => {
+    if (settings.folderSizes && !tab.search && ((view === 'list' && settings.listCols.includes('size')) || tab.sort === 'size')) ensureDirSizes(list)
+  })
+  const dsize = (e: Entry) => {
+    dirSizeVer.ver
+    const d = dirSizes.get(e.path.toLowerCase())
+    return d ? size(d.size) : settings.folderSizes ? '…' : ''
+  }
   const info = (e: Entry) => (media.ver, mediaInfo.get(e.path))
 
   // ---------- Układ: lista, siatka i galeria (wyjustowane wiersze) z nagłówkami grup ----------
@@ -399,6 +408,7 @@
       case 'F2':
         ev.preventDefault()
         if (tab.selectedEntries.length === 1) tab.renaming = tab.selectedEntries[0].path
+        else if (tab.selectedEntries.length > 1) app.dialog = { type: 'bulkRename', entries: tab.selectedEntries }
         return
       case 'Delete':
         ev.preventDefault()
@@ -489,10 +499,20 @@
         { label: 'Otwórz', icon: 'folder', kbd: 'Enter', run: () => navigate(tab, one.path) },
         { label: 'Otwórz w nowej karcie', icon: 'plus', kbd: 'Ctrl+Enter', run: () => newTab(one.path, false, tab.id) },
       )
+    } else if (one && isBrowsableArchive(one)) {
+      items.push(
+        { label: 'Otwórz jako folder', icon: 'archive', kbd: 'Enter', run: () => navigate(tab, one.path) },
+        { label: 'Wypakuj tutaj', icon: 'download', run: () => extractHere(one.path) },
+        { label: 'Otwórz w programie', icon: 'open', run: () => api.open(one.path) },
+      )
     } else if (one) {
       items.push({ label: 'Otwórz', icon: 'open', kbd: 'Enter', run: () => openEntry(tab, one) })
       items.push({ label: 'Podgląd', icon: 'eye', kbd: 'Spacja', run: () => openViewer(tab, one) })
       items.push({ label: 'Otwórz za pomocą…', icon: 'app', run: () => api.openWith(one.path) })
+    }
+    if (sel.some((x) => inArchive(x.path))) {
+      items.push({ label: 'Wypakuj do…', icon: 'download', run: async () => { const d = await api.pickFolder(); if (d) extractTo(sel.map((x) => x.path), d) } })
+      if (other && !other.special) items.push({ label: `Wypakuj do „${other.title}”`, icon: 'split', run: () => extractTo(sel.map((x) => x.path), other.path) })
     }
     if (tab.search && one) items.push({ label: 'Przejdź do lokalizacji', icon: 'folder', run: () => { const p = parent(one.path); if (p) { navigate(tab, p) } } })
     items.push({ sep: true })
@@ -511,11 +531,13 @@
     }
     items.push({ sep: true })
     if (one) items.push({ label: 'Zmień nazwę', icon: 'edit', kbd: 'F2', run: () => (tab.renaming = one.path) })
+    else items.push({ label: `Zmień nazwy (${sel.length})…`, icon: 'edit', kbd: 'F2', run: () => (app.dialog = { type: 'bulkRename', entries: sel }) })
     items.push({ label: 'Do Kosza', icon: 'trash', kbd: 'Del', run: () => trash(tab) })
     items.push({ label: 'Usuń trwale', icon: 'trash', kbd: 'Shift+Del', danger: true, run: () => trash(tab, true) })
     items.push({ sep: true })
     if (one?.dir) {
       items.push({ label: 'Przypnij w panelu bocznym', icon: 'pin', run: () => addFavorite(one.path) })
+      items.push({ label: isHomeDir(one.path) ? 'Usuń z ekranu Komputer' : 'Pokaż na ekranie Komputer', icon: 'grid', run: () => toggleHomeDir(one.path) })
       items.push({ label: 'Synchronizuj z dyskiem…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: one.path }) })
       items.push({ label: 'Terminal tutaj', icon: 'terminal', run: () => api.terminal(one.path) })
     }
@@ -589,7 +611,7 @@
       case 'created': return date(e.created)
       case 'type': return typeLabel(e)
       case 'ext': return e.dir ? '' : e.ext.toUpperCase()
-      case 'size': return e.dir ? '' : size(e.size)
+      case 'size': return e.dir ? dsize(e) : size(e.size)
       case 'dims': { const m = info(e); return m?.w ? `${m.w} × ${m.h}` : '' }
       case 'taken': { const m = info(e); return m?.taken ? date(m.taken) : '' }
       case 'duration': { const m = info(e); return m?.dur ? duration(m.dur) : '' }
@@ -707,6 +729,8 @@
   tabindex="0"
   role="listbox"
   aria-multiselectable="true"
+  aria-label={tab.search ? `Wyniki wyszukiwania „${tab.search.query}”` : `Zawartość: ${tab.title}`}
+  aria-activedescendant={tab.focus >= 0 && visible.some((v) => v.i === tab.focus) ? `it-${pane}-${tab.focus}` : undefined}
 >
   <div class="spacer" style:height="{totalH}px"></div>
 
@@ -730,8 +754,10 @@
       class:droptarget={dropTarget === e.path}
       style="transform:translate({x}px,{y}px);width:{w}px;height:{h}px"
       role="option"
+      id="it-{pane}-{i}"
       tabindex="-1"
       aria-selected={sel}
+      aria-label={`${e.name}, ${e.dir ? 'folder' : typeLabel(e) + ', ' + size(e.size)}`}
       draggable={tab.renaming !== e.path && view !== 'list'}
       onmousedown={(ev) => {
         ev.stopPropagation()
@@ -791,7 +817,7 @@
       {:else if tab.search}
         {#if tab.search.running}<p class="muted">Szukam… przejrzano {itemsLabel(tab.search.scanned)}</p>
         {:else}<p class="muted">Nic nie znaleziono dla „{tab.search.query}”</p>{/if}
-      {:else if tab.filter || tab.kindFilter !== 'all'}
+      {:else if tab.filter || tab.kindFilter !== 'all' || tab.facets.size}
         <p class="muted">Brak pasujących elementów</p>
       {:else}
         <Icon name="folder" size={30} />
@@ -819,7 +845,7 @@
     contain: strict;
   }
   .view.drop {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--hover);
     box-shadow: inset 0 0 0 2px var(--line-strong);
     border-radius: var(--r);
   }
@@ -987,7 +1013,7 @@
   }
   .list .item.droptarget {
     background: var(--sel-strong);
-    box-shadow: inset 0 0 0 1px #fff;
+    box-shadow: inset 0 0 0 1px var(--accent);
   }
   .ic {
     width: 20px;
@@ -1061,7 +1087,7 @@
   }
   .grid .item.droptarget {
     background: var(--sel-strong);
-    box-shadow: inset 0 0 0 1px #fff;
+    box-shadow: inset 0 0 0 1px var(--accent);
   }
   .grid .thumb {
     position: relative;
@@ -1129,7 +1155,7 @@
     box-shadow: inset 0 0 0 2px var(--line-strong);
   }
   .gallery .item.droptarget {
-    box-shadow: inset 0 0 0 2px #fff;
+    box-shadow: inset 0 0 0 2px var(--accent);
   }
   .gname {
     position: absolute;
@@ -1147,8 +1173,8 @@
     width: 22px;
     height: 22px;
     border-radius: 50%;
-    background: #fff;
-    color: #000;
+    background: var(--accent);
+    color: var(--on-accent);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1178,8 +1204,8 @@
   .marquee {
     position: absolute;
     z-index: 4;
-    background: rgba(255, 255, 255, 0.07);
-    border: 1px solid rgba(255, 255, 255, 0.45);
+    background: var(--hover);
+    border: 1px solid var(--ghost);
     border-radius: 4px;
     pointer-events: none;
   }
@@ -1205,8 +1231,8 @@
     position: fixed;
     top: -100px;
     padding: 6px 12px;
-    background: #fff;
-    color: #000;
+    background: var(--accent);
+    color: var(--on-accent);
     border-radius: 999px;
     font: 600 12px var(--font);
   }

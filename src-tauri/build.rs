@@ -1,3 +1,34 @@
 fn main() {
+    test_manifest();
     tauri_build::build()
+}
+
+/// Testy linkują kod korzystający z Common Controls 6 (okna dialogowe powłoki), więc bez manifestu
+/// nie startują (STATUS_ENTRYPOINT_NOT_FOUND). Aplikacja dostaje manifest od tauri-build, testy – stąd.
+fn test_manifest() {
+    println!("cargo:rerun-if-env-changed=OFP_TEST_MANIFEST");
+    const DEP: &str = "type='win32' name='Microsoft.Windows.Common-Controls' version='6.0.0.0' processorArchitecture='*' publicKeyToken='6595b64144ccf1df' language='*'";
+    match std::env::var("CARGO_CFG_TARGET_ENV").as_deref() {
+        // Argument trafia też do programu (dwa manifesty), więc tylko na życzenie przy testach:
+        // OFP_TEST_MANIFEST=1 cargo test --test fs_ops
+        Ok("gnu") if std::env::var("OFP_TEST_MANIFEST").is_ok() => {
+            // Manifest jako zasób skompilowany przez windres (jeśli jest dostępny).
+            let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
+            let xml = out.join("tests.manifest");
+            let rc = out.join("tests-manifest.rc");
+            let obj = out.join("tests-manifest.o");
+            let manifest = format!(
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<assembly xmlns=\"urn:schemas-microsoft-com:asm.v1\" manifestVersion=\"1.0\"><dependency><dependentAssembly><assemblyIdentity {} /></dependentAssembly></dependency></assembly>\n",
+                DEP.replace('\'', "\"")
+            );
+            if std::fs::write(&xml, manifest).is_err() || std::fs::write(&rc, format!("1 24 \"{}\"\n", xml.display().to_string().replace('\\', "/"))).is_err() {
+                return;
+            }
+            let ok = std::process::Command::new("windres").arg(&rc).arg("-O").arg("coff").arg("-o").arg(&obj).status().map(|s| s.success()).unwrap_or(false);
+            if ok {
+                println!("cargo:rustc-link-arg-tests={}", obj.display());
+            }
+        }
+        _ => {}
+    }
 }

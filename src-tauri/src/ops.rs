@@ -46,6 +46,8 @@ pub enum Undo {
     Moved(Vec<(String, String)>),
     Created(Vec<String>),
     Renamed(String, String),
+    /** Wiele zmian nazw naraz: (obecna, poprzednia). */
+    RenamedMany(Vec<(String, String)>),
 }
 
 static NEXT: AtomicU64 = AtomicU64::new(1);
@@ -504,5 +506,64 @@ pub fn undo_last() -> Result<String, String> {
             std::fs::rename(&now, &was).map_err(|e| io_err(&e))?;
             Ok("Cofnięto zmianę nazwy".into())
         }
+        Undo::RenamedMany(pairs) => {
+            let back: Vec<(String, String)> = pairs.iter().map(|(now, was)| (now.clone(), was.clone())).collect();
+            let n = rename_batch(&back).map_err(|e| e.join("\n"))?.len();
+            Ok(format!("Cofnięto zmianę nazw ({n})"))
+        }
     }
 }
+
+/// Zmienia nazwy wielu elementów naraz. Najpierw wszystko dostaje nazwy tymczasowe,
+/// dzięki czemu działają zamiany (a.jpg ↔ b.jpg) i przesunięcia numeracji.
+/// Zwraca listę (nowa, stara) udanych zmian; przy błędzie cofa to, co już zrobiono.
+pub fn rename_batch(pairs: &[(String, String)]) -> Result<Vec<(String, String)>, Vec<String>> {
+    use std::collections::HashSet;
+    let sources: HashSet<String> = pairs.iter().map(|(s, _)| s.to_lowercase()).collect();
+    let mut errors = Vec::new();
+    let mut seen = HashSet::new();
+    for (src, dst) in pairs {
+        let d = dst.to_lowercase();
+        if !seen.insert(d.clone()) {
+            errors.push(format!("Powtarza się nazwa: {dst}"));
+        } else if std::path::Path::new(dst).exists() && !sources.contains(&d) {
+            errors.push(format!("Już istnieje: {dst}"));
+        }
+        if !std::path::Path::new(src).exists() {
+            errors.push(format!("Nie ma pliku: {src}"));
+        }
+    }
+    if !errors.is_empty() {
+        return Err(errors);
+    }
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    let mut temps: Vec<(String, String, String)> = Vec::new();
+    for (i, (src, dst)) in pairs.iter().enumerate() {
+        let tmp = std::path::Path::new(src).with_file_name(format!(".ofp-rename-{stamp}-{i}")).to_string_lossy().to_string();
+        if let Err(e) = std::fs::rename(src, &tmp) {
+            for (s0, t0, _) in temps.iter().rev() {
+                let _ = std::fs::rename(t0, s0);
+            }
+            return Err(vec![format!("{}: {}", src, io_err(&e))]);
+        }
+        temps.push((src.clone(), tmp, dst.clone()));
+    }
+    let mut done = Vec::new();
+    for (src, tmp, dst) in &temps {
+        match std::fs::rename(tmp, dst) {
+            Ok(()) => {
+                crate::shell::invalidate(src);
+                done.push((dst.clone(), src.clone()));
+            }
+            Err(e) => {
+                errors.push(format!("{}: {}", dst, io_err(&e)));
+                let _ = std::fs::rename(tmp, src);
+            }
+        }
+    }
+    if !errors.is_empty() && done.is_empty() {
+        return Err(errors);
+    }
+    Ok(done)
+}
+

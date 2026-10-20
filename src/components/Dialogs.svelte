@@ -2,7 +2,7 @@
   import MetaView from './MetaView.svelte'
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
-  import { app, activeTab, navigate, refreshDrives, refreshSync, toast } from '../lib/state.svelte'
+  import { app, activeTab, navigate, refreshDrives, refreshSync, toast, addNetPlace, type NetKind } from '../lib/state.svelte'
   import { api, type ConflictPolicy, type Entry, type Prop, type SyncProfile, type SyncMode, type SyncCounts } from '../lib/api'
   import { size, date, dateFull, typeLabel, items as itemsLabel, basename } from '../lib/util'
 
@@ -86,13 +86,75 @@
   let persistent = $state(true)
   let busy = $state(false)
   const freeLetters = $derived('ZYXWVUTSRQPONMLKJIHGFED'.split('').filter((l) => !app.drives.some((x) => x.letter[0].toUpperCase() === l)))
+  let netKind = $state<NetKind>('smb')
+  let host = $state('')
+  let port = $state(21)
+  let user = $state('')
+  let pass = $state('')
+  let remember = $state(true)
+  let netErr = $state('')
+  let sshfs = $state<boolean | null>(null)
+  const NET_KINDS: { id: NetKind; label: string; hint: string }[] = [
+    { id: 'smb', label: 'Windows / NAS', hint: 'Udział SMB, np. \\\\nas\\zdjecia' },
+    { id: 'webdav', label: 'WebDAV', hint: 'Nextcloud, ownCloud, serwery HTTP(S)' },
+    { id: 'ftp', label: 'FTP', hint: 'Serwer FTP przeglądany w aplikacji' },
+    { id: 'sftp', label: 'SFTP', hint: 'SSH – jako dysk przez SSHFS-Win' },
+  ]
   $effect(() => {
     if (d?.type === 'network') {
+      netKind = d.kind ?? 'smb'
       unc = ''
+      host = d.host?.replace(/:21$/, '').replace(/:\d+$/, '') ?? ''
+      port = Number(d.host?.match(/:(\d+)$/)?.[1] ?? (netKind === 'sftp' ? 22 : 21))
+      user = ''
+      pass = ''
+      netErr = d.error ?? ''
       letter = freeLetters[0] ?? ''
       busy = false
+      if (sshfs === null) api.sshfsAvailable().then((v) => (sshfs = v))
     }
   })
+  $effect(() => {
+    if (netKind === 'sftp' && port === 21) port = 22
+    if (netKind === 'ftp' && port === 22) port = 21
+  })
+  /** https://serwer/ścieżka → \\serwer@SSL\DavWWWRoot\ścieżka (klient WebDAV wbudowany w Windows). */
+  function davUnc(url: string) {
+    const m = url.trim().match(/^(https?):\/\/([^/:]+)(?::(\d+))?(\/.*)?$/i)
+    if (!m) return null
+    const ssl = m[1].toLowerCase() === 'https'
+    const at = (ssl ? '@SSL' : '') + (m[3] ? `@${m[3]}` : '')
+    const rest = (m[4] ?? '').split('/').filter(Boolean).map(decodeURIComponent).join('\\')
+    return `\\\\${m[2]}${at}\\DavWWWRoot${rest ? '\\' + rest : ''}`
+  }
+  async function connectNet() {
+    netErr = ''
+    if (netKind === 'smb') return mapIt()
+    busy = true
+    try {
+      if (netKind === 'ftp') {
+        const root = await api.ftpLogin(host, port, user, pass, remember)
+        addNetPlace(root, user ? `${user}@${host}` : host)
+        app.dialog = null
+        toast(`Połączono z ${host}`, 'ok')
+        navigate(activeTab(), root)
+      } else {
+        const remote = netKind === 'webdav' ? davUnc(unc) : `\\\\sshfs.r\\${user ? user + '@' : ''}${host}${port !== 22 ? '!' + port : ''}`
+        if (!remote) throw 'Podaj adres w postaci https://serwer/ścieżka'
+        const path = await api.mapDrive(letter || null, remote, persistent)
+        app.dialog = null
+        toast(`Podłączono ${letter ? letter + ':' : remote}`, 'ok')
+        await refreshDrives()
+        navigate(activeTab(), path)
+      }
+    } catch (err) {
+      netErr = String(err)
+    }
+    busy = false
+  }
+  const netReady = $derived(
+    netKind === 'smb' || netKind === 'webdav' ? !!unc.trim() : netKind === 'sftp' ? !!host.trim() && !!sshfs : !!host.trim(),
+  )
   function normUnc(s: string) {
     s = s.trim().replace(/^smb:\/\//i, '').replace(/^file:\/\//i, '').replace(/\//g, '\\')
     if (!s.startsWith('\\\\')) s = '\\\\' + s.replace(/^\\+/, '')
@@ -177,7 +239,7 @@
 
 <svelte:window onkeydowncapture={onKey} />
 
-{#if d}
+{#if d && d.type !== 'bulkRename'}
   <div class="backdrop fade-in" role="presentation" onmousedown={(e) => e.target === e.currentTarget && close()}>
     {#if d.type === 'prompt'}
       <form class="dlg small" onsubmit={(e) => { e.preventDefault(); promptOk() }}>
@@ -256,13 +318,50 @@
         </div>
       </div>
     {:else if d.type === 'network'}
-      <form class="dlg" onsubmit={(e) => { e.preventDefault(); mapIt() }}>
-        <h2>Podłącz dysk sieciowy</h2>
-        <p class="muted">Udział SMB z NAS-a, routera lub innego komputera. Jeśli potrzebne jest hasło, Windows zapyta o nie w swoim oknie i może je zapamiętać.</p>
-        <label class="field"><span>Adres</span>
-          <!-- svelte-ignore a11y_autofocus -->
-          <input bind:value={unc} placeholder="\\nas\zdjecia  lub  192.168.1.10\dane" spellcheck="false" autofocus />
-        </label>
+      <form class="dlg" onsubmit={(e) => { e.preventDefault(); connectNet() }}>
+        <h2>Połącz z lokalizacją sieciową</h2>
+        <div class="kinds" role="radiogroup" aria-label="Rodzaj połączenia">
+          {#each NET_KINDS as k (k.id)}
+            <button type="button" class="kind" class:on={netKind === k.id} role="radio" aria-checked={netKind === k.id} onclick={() => { netKind = k.id; netErr = '' }}><b>{k.label}</b><span>{k.hint}</span></button>
+          {/each}
+        </div>
+        {#if netKind === 'smb'}
+          <p class="muted">Udział z NAS-a, routera lub innego komputera. Jeśli potrzebne jest hasło, Windows zapyta o nie w swoim oknie i może je zapamiętać.</p>
+          <label class="field"><span>Adres</span>
+            <!-- svelte-ignore a11y_autofocus -->
+            <input bind:value={unc} placeholder="\\nas\zdjecia  lub  192.168.1.10\dane" spellcheck="false" autofocus />
+          </label>
+        {:else if netKind === 'webdav'}
+          <p class="muted">Adres WebDAV (np. z Nextcloud: Ustawienia → WebDAV). Windows podłączy go jako dysk i zapyta o hasło.</p>
+          <label class="field"><span>Adres</span>
+            <!-- svelte-ignore a11y_autofocus -->
+            <input bind:value={unc} placeholder="https://chmura.example.pl/remote.php/dav/files/jan" spellcheck="false" autofocus />
+          </label>
+        {:else}
+          {#if netKind === 'ftp'}
+            <p class="muted">Serwer otworzy się jak zwykły folder. Pliki kopiujesz przeciąganiem, a hasło może zostać w Menedżerze poświadczeń Windows.</p>
+          {:else if sshfs === false}
+            <div class="note"><b>Potrzebny jest darmowy SSHFS-Win.</b> Po instalacji SFTP działa tu jak zwykły dysk sieciowy. <button type="button" class="lnk" onclick={() => api.open('https://github.com/winfsp/sshfs-win/releases')}>Pobierz SSHFS-Win</button></div>
+          {:else}
+            <p class="muted">Połączenie SSH przez SSHFS-Win – serwer będzie widoczny jako dysk. Hasło poda się w oknie Windows.</p>
+          {/if}
+          <div class="row3">
+            <label class="field"><span>Serwer</span>
+              <!-- svelte-ignore a11y_autofocus -->
+              <input bind:value={host} placeholder="192.168.1.10 lub ftp.example.pl" spellcheck="false" autofocus />
+            </label>
+            <label class="field port"><span>Port</span><input type="number" min="1" max="65535" bind:value={port} /></label>
+          </div>
+          <div class="row2">
+            <label class="field"><span>Użytkownik</span><input bind:value={user} placeholder={netKind === 'ftp' ? 'puste = anonimowo' : ''} spellcheck="false" autocomplete="off" /></label>
+            {#if netKind === 'ftp'}<label class="field"><span>Hasło</span><input type="password" bind:value={pass} autocomplete="off" /></label>{/if}
+          </div>
+          {#if netKind === 'ftp'}
+            <label class="check"><button type="button" class="switch" class:on={remember} onclick={() => (remember = !remember)} aria-label="Zapamiętaj hasło"></button>Zapamiętaj hasło w Menedżerze poświadczeń Windows</label>
+          {/if}
+        {/if}
+        {#if netErr}<p class="err">{netErr}</p>{/if}
+        {#if netKind !== 'ftp'}
         <div class="row2">
           <label class="field"><span>Litera dysku</span>
             <select bind:value={letter}>
@@ -272,10 +371,11 @@
           </label>
           <label class="check"><button type="button" class="switch" class:on={persistent} onclick={() => (persistent = !persistent)} aria-label="Przywracaj przy logowaniu"></button>Przywracaj przy logowaniu</label>
         </div>
+        {/if}
         <div class="btns">
           <button type="button" class="btn ghost" onclick={close}>Anuluj</button>
-          <button type="button" class="btn" disabled={!unc.trim()} onclick={openUnc}>Otwórz bez mapowania</button>
-          <button class="btn primary" type="submit" disabled={busy || !unc.trim()}>{busy ? 'Łączę…' : 'Podłącz'}</button>
+          {#if netKind === 'smb'}<button type="button" class="btn" disabled={!unc.trim()} onclick={openUnc}>Otwórz bez mapowania</button>{/if}
+          <button class="btn primary" type="submit" disabled={busy || !netReady}>{busy ? 'Łączę…' : 'Połącz'}</button>
         </div>
       </form>
     {:else if d.type === 'sync'}
@@ -333,6 +433,60 @@
 {/if}
 
 <style>
+  .kinds {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+  }
+  .kind {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 10px;
+    border-radius: 12px;
+    background: var(--high);
+    text-align: left;
+    outline: 1px solid transparent;
+  }
+  .kind:hover {
+    background: var(--higher);
+  }
+  .kind.on {
+    outline: 2px solid var(--accent);
+  }
+  .kind b {
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .kind span {
+    font-size: 11px;
+    color: var(--faint);
+    line-height: 1.3;
+  }
+  .row3 {
+    display: grid;
+    grid-template-columns: 1fr 96px;
+    gap: 10px;
+  }
+  .note {
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--high);
+    font-size: 12.5px;
+    color: var(--dim);
+  }
+  .note b {
+    color: var(--text);
+  }
+  .lnk {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    color: var(--text);
+  }
+  .err {
+    color: var(--rec);
+    font-size: 12.5px;
+  }
   .backdrop {
     position: fixed;
     inset: 0;
@@ -352,7 +506,7 @@
     border: 1px solid var(--line);
     border-radius: 20px;
     padding: 22px 24px 18px;
-    box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+    box-shadow: 0 40px 100px var(--shadow);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -443,7 +597,7 @@
   }
   .mode.on {
     background: var(--higher);
-    outline-color: #fff;
+    outline-color: var(--accent);
   }
   .opts {
     display: grid;
@@ -567,7 +721,7 @@
     overflow-y: auto;
     font: 12px/1.7 var(--mono);
     color: var(--dim);
-    background: #000;
+    background: var(--bg);
     border-radius: 12px;
     padding: 10px 14px;
   }

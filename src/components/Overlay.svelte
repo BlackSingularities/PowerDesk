@@ -42,7 +42,7 @@
   {/each}
 
   {#each app.toasts as t (t.id)}
-    <div class="toast fade-in {t.kind}">
+    <div class="toast fade-in {t.kind}" role={t.kind === 'error' ? 'alert' : 'status'} aria-live={t.kind === 'error' ? 'assertive' : 'polite'}>
       {#if t.kind === 'ok'}<Icon name="check" size={16} />{:else if t.kind === 'error'}<Icon name="info" size={16} />{/if}
       <span class="grow">{t.text}</span>
       {#if t.action}
@@ -70,7 +70,7 @@
     background: var(--high);
     border: 1px solid var(--line);
     border-radius: 14px;
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7);
+    box-shadow: 0 18px 50px var(--shadow);
   }
   .op {
     padding: 12px 14px;
@@ -119,7 +119,7 @@
     font-weight: 600;
     padding: 4px 10px;
     border-radius: 999px;
-    background: #fff;
-    color: #000;
+    background: var(--accent);
+    color: var(--on-accent);
   }
 </style>

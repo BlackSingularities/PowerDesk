@@ -1,5 +1,6 @@
 <script lang="ts">
   import Icon from './Icon.svelte'
+  import GpsMap from './GpsMap.svelte'
   import type { IconName } from '../lib/icons'
   import type { Prop } from '../lib/api'
 
@@ -41,6 +42,24 @@
     return w && h ? { w, h, mp: (w * h) / 1e6 } : null
   })
 
+  // ---------- Lokalizacja ----------
+  /** Stopnie z „52; 13; 45,6” (stopnie; minuty; sekundy) albo z wartości dziesiętnej. */
+  function coord(dec: string, dms: string, ref: string, neg: string) {
+    let v = num(dec)
+    if (v === null) {
+      const parts = val(dms).replace(/,/g, '.').match(/-?\d+(\.\d+)?/g)?.map(Number)
+      if (!parts?.length) return null
+      v = parts[0] + (parts[1] ?? 0) / 60 + (parts[2] ?? 0) / 3600
+      if (val(ref).trim().toUpperCase().startsWith(neg)) v = -v
+    }
+    return Number.isFinite(v) ? v : null
+  }
+  const gps = $derived.by(() => {
+    const lat = coord('System.GPS.LatitudeDecimal', 'System.GPS.Latitude', 'System.GPS.LatitudeRef', 'S')
+    const lon = coord('System.GPS.LongitudeDecimal', 'System.GPS.Longitude', 'System.GPS.LongitudeRef', 'W')
+    return lat !== null && lon !== null && (lat !== 0 || lon !== 0) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 ? { lat, lon } : null
+  })
+
   // ---------- Ekspozycja ----------
   const exp = $derived.by(() => {
     const f = num('System.Photo.FNumber')
@@ -69,7 +88,7 @@
       if (!out.has(s.id)) out.set(s.id, [])
       out.get(s.id)!.push(p)
     }
-    return SECTIONS.filter((s) => out.has(s.id) || (s.id === 'photo' && exp)).map((s) => ({ ...s, items: out.get(s.id) ?? [] }))
+    return SECTIONS.filter((s) => out.has(s.id) || (s.id === 'photo' && exp) || (s.id === 'gps' && gps)).map((s) => ({ ...s, items: out.get(s.id) ?? [] }))
   })
 </script>
 
@@ -131,9 +150,10 @@
   {/if}
 
   {#each sections as s (s.id)}
-    {#if s.items.length}
+    {#if s.items.length || (s.id === 'gps' && gps)}
       <section>
         <h3><Icon name={s.icon} size={13} />{s.title}</h3>
+        {#if s.id === 'gps' && gps}<GpsMap lat={gps.lat} lon={gps.lon} height={compact ? 160 : 220} />{/if}
         <dl>
           {#each s.items as p (p.key + p.name)}
             <dt>{p.name}</dt>

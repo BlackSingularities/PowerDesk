@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getCurrentWindow } from '@tauri-apps/api/window'
   import Icon from './Icon.svelte'
-  import { app, activate, closeTab, newTab, transfer, dropMode, HOME, SYNC, SETTINGS, type Tab, activeTab } from '../lib/state.svelte'
+  import { app, activate, closeTab, newTab, transfer, dropMode, togglePin, updateNow, HOME, SYNC, SETTINGS, type Tab, activeTab } from '../lib/state.svelte'
   import type { IconName } from '../lib/icons'
 
   const win = getCurrentWindow()
@@ -49,12 +49,31 @@
       const to = app.tabs.findIndex((x) => x.id === t.id)
       if (from >= 0 && to >= 0 && from !== to) {
         const [m] = app.tabs.splice(from, 1)
+        // Karta upuszczona między przypiętymi sama się przypina (i odwrotnie).
+        m.pinned = t.pinned
         app.tabs.splice(to, 0, m)
       }
       dragTab = null
       return
     }
     if (app.dragging && !t.special) transfer(app.dragging.paths, t.path, dropMode(app.dragging.paths, t.path, e))
+  }
+
+  function tabMenu(e: MouseEvent, t: Tab) {
+    e.preventDefault()
+    const others = app.tabs.filter((x) => x.id !== t.id && !x.pinned)
+    const right = app.tabs.slice(app.tabs.indexOf(t) + 1).filter((x) => !x.pinned)
+    app.menu = {
+      x: e.clientX, y: e.clientY,
+      items: [
+        { label: t.pinned ? 'Odepnij kartę' : 'Przypnij kartę', icon: 'pin', run: () => togglePin(t) },
+        { label: 'Duplikuj kartę', icon: 'copy', run: () => newTab(t.path, true, t.id) },
+        { sep: true },
+        { label: 'Zamknij kartę', icon: 'close', kbd: 'Ctrl+W', disabled: t.pinned, run: () => closeTab(t.id) },
+        { label: 'Zamknij pozostałe karty', disabled: !others.length, run: () => others.forEach((x) => closeTab(x.id)) },
+        { label: 'Zamknij karty po prawej', disabled: !right.length, run: () => right.forEach((x) => closeTab(x.id)) },
+      ],
+    }
   }
 
   function paneOf(id: string) {
@@ -75,14 +94,16 @@
         class:active={p === app.focusedPane}
         class:visible={p >= 0}
         class:over={overTab === t.id}
+        class:pinned={t.pinned}
         role="tab"
         tabindex="0"
         aria-selected={p === app.focusedPane}
         draggable="true"
-        title={t.path.startsWith('ofp:') ? t.title : t.path}
+        title={(t.pinned ? '📌 ' : '') + (t.path.startsWith('ofp:') ? t.title : t.path)}
         onclick={() => activate(t.id)}
         onkeydown={(e) => e.key === 'Enter' && activate(t.id)}
         onauxclick={(e) => e.button === 1 && closeTab(t.id)}
+        oncontextmenu={(e) => tabMenu(e, t)}
         ondragstart={(e) => onTabDragStart(e, t)}
         ondragover={(e) => onTabDragOver(e, t)}
         ondragleave={() => {
@@ -93,12 +114,14 @@
         ondragend={() => (dragTab = null)}
       >
         <span class="ti"><Icon name={iconFor(t)} size={15} /></span>
-        <span class="ellipsis grow">{t.title}</span>
+        {#if !t.pinned}<span class="ellipsis grow">{t.title}</span>{/if}
         {#if t.loading || t.search?.running}<span class="dot busy"></span>{/if}
         {#if app.split && p >= 0}<span class="pane-tag">{p === 0 ? 'L' : 'P'}</span>{/if}
-        <button class="x" title="Zamknij kartę (Ctrl+W)" onclick={(e) => { e.stopPropagation(); closeTab(t.id) }}>
-          <Icon name="close" size={13} />
-        </button>
+        {#if !t.pinned}
+          <button class="x" title="Zamknij kartę (Ctrl+W)" onclick={(e) => { e.stopPropagation(); closeTab(t.id) }}>
+            <Icon name="close" size={13} />
+          </button>
+        {/if}
       </div>
     {/each}
     <button class="icon-btn add" title="Nowa karta (Ctrl+T)" onclick={() => newTab(activeTab()?.path ?? HOME, true)}>
@@ -107,7 +130,7 @@
   </div>
 
   {#if app.update}
-    <a class="update" href={app.update.url} target="_blank" rel="noreferrer" title="Otwórz stronę wydania">Nowa wersja {app.update.latest}</a>
+    <button class="update" onclick={updateNow} title="Pobierz i zainstaluj aktualizację" disabled={app.updating !== null}>{app.updating !== null ? `Pobieram… ${Math.round(app.updating * 100)}%` : `Aktualizuj do ${app.update.latest}`}</button>
   {/if}
 
   <div class="win">
@@ -158,6 +181,24 @@
     transition: background 0.12s, color 0.12s;
     outline: none;
   }
+  .tab.pinned {
+    flex: none;
+    min-width: 0;
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+    position: relative;
+  }
+  .tab.pinned::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--faint);
+  }
   .tab:hover {
     background: var(--hover);
     color: var(--dim);
@@ -207,8 +248,8 @@
   }
   .update {
     font-size: 12px;
-    color: #000;
-    background: #fff;
+    color: var(--on-accent);
+    background: var(--accent);
     border-radius: 999px;
     padding: 4px 12px;
     text-decoration: none;

@@ -111,7 +111,7 @@
     background: var(--high);
     border: 1px solid var(--line);
     border-radius: var(--r);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+    box-shadow: 0 24px 60px var(--shadow);
   }
   button {
     width: 100%;

@@ -58,7 +58,7 @@
     top: 0;
     height: 2px;
     border-radius: 2px;
-    background: linear-gradient(90deg, transparent, #fff, transparent);
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
     animation: slide 1s ease-in-out infinite;
   }
   @keyframes slide {

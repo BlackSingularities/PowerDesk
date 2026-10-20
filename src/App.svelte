@@ -9,6 +9,7 @@
   import Dialogs from './components/Dialogs.svelte'
   import Overlay from './components/Overlay.svelte'
   import Palette from './components/Palette.svelte'
+  import BulkRename from './components/BulkRename.svelte'
   import {
     app, settings, init, activeTab, tabById, newTab, closeTab, reopenClosed, activate, toggleSplit, back, forward, up, load,
     newFolder, undo, savePrefs, persistNow,
@@ -44,11 +45,13 @@
         activate(app.tabs[(i + (ev.shiftKey ? -1 : 1) + n) % n].id)
       })
     }
-    if (ctrl && k === 'k') return stop(ev, () => (app.palette = true))
+    if (ctrl && k === 'k') return stop(ev, () => { app.paletteMode = 'all'; app.palette = true })
+    if (ctrl && ev.shiftKey && k === 'p') return stop(ev, () => { app.paletteMode = 'cmd'; app.palette = true })
     if (ctrl && k === 'p' && !ev.shiftKey) return stop(ev, () => (settings.previewPane = !settings.previewPane))
     if (ctrl && k === 'b') return stop(ev, () => (app.sidebarOpen = !app.sidebarOpen))
     if (ctrl && k === '\\') return stop(ev, toggleSplit)
-    if (ev.key === 'F6' && app.split) return stop(ev, () => (app.focusedPane = 1 - app.focusedPane))
+    // F6 / Shift+F6 przechodzi między obszarami: panel boczny → pasek adresu → pliki (→ drugi panel) → podgląd.
+    if (ev.key === 'F6') return stop(ev, () => cycleRegion(ev.shiftKey ? -1 : 1))
     if (ctrl && k === 'l') return stop(ev, () => panes[app.focusedPane]?.focusAddress())
     if (ev.altKey && ev.key === 'd') return stop(ev, () => panes[app.focusedPane]?.focusAddress())
     if ((ctrl && k === 'f') || ev.key === 'F3') return stop(ev, () => panes[app.focusedPane]?.focusSearch())
@@ -68,6 +71,34 @@
     if (ev.altKey && ev.key === 'ArrowUp') return stop(ev, () => up(t))
     if (ev.key === 'Backspace') return stop(ev, () => (t.search ? back(t) : up(t)))
     if (ev.altKey && ev.key === 'Enter' && t.selectedEntries.length) return stop(ev, () => (app.dialog = { type: 'props', entries: t.selectedEntries }))
+  }
+
+  function cycleRegion(dir: 1 | -1) {
+    const regions: (() => HTMLElement | null)[] = [
+      () => document.querySelector<HTMLElement>('[data-region="sidebar"] button.item'),
+      () => (panes[app.focusedPane]?.focusAddress(), document.activeElement as HTMLElement),
+      () => { app.focusedPane = 0; return document.querySelectorAll<HTMLElement>('[role="listbox"].view')[0] ?? null },
+      () => { if (!app.split) return null; app.focusedPane = 1; return document.querySelectorAll<HTMLElement>('[role="listbox"].view')[1] ?? null },
+      () => document.querySelector<HTMLElement>('[data-region="preview"]'),
+    ]
+    const act = document.activeElement as HTMLElement | null
+    let cur = 2
+    if (act?.closest('[data-region="sidebar"]')) cur = 0
+    else if (act?.closest('.address')) cur = 1
+    else if (act?.closest('[data-region="preview"]')) cur = 4
+    else if (app.split && app.focusedPane === 1) cur = 3
+    for (let k = 1; k <= regions.length; k++) {
+      const i = (cur + dir * k + regions.length * 2) % regions.length
+      if (i === 1) {
+        regions[1]()
+        return
+      }
+      const el = regions[i]()
+      if (el) {
+        el.focus()
+        return
+      }
+    }
   }
 
   function stop(ev: KeyboardEvent, fn: () => void) {
@@ -120,6 +151,7 @@
 {#if app.menu}<ContextMenu items={app.menu.items} x={app.menu.x} y={app.menu.y} onclose={() => (app.menu = null)} />{/if}
 {#if app.menu}<div class="menu-catch" role="presentation" onmousedown={() => (app.menu = null)} oncontextmenu={(e) => { e.preventDefault(); app.menu = null }}></div>{/if}
 <Dialogs />
+{#if app.dialog?.type === 'bulkRename'}<BulkRename entries={app.dialog.entries} />{/if}
 {#if app.palette}<Palette />{/if}
 <Overlay />
 

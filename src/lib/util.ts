@@ -89,9 +89,13 @@ export function basename(p: string) {
   return i >= 0 ? t.slice(i + 1) : t
 }
 
+/** Serwer FTP przeglądany w aplikacji: ftp:\\serwer\katalog. */
+export const isRemote = (p: string) => /^ftp:\\\\/i.test(p)
+
 export function parent(p: string): string | null {
   if (p.startsWith('ofp:')) return null
   const t = p.replace(/[\\/]+$/, '')
+  if (/^ftp:\\\\[^\\]+$/i.test(t)) return null
   if (/^[a-zA-Z]:$/.test(t)) return null
   if (/^\\\\[^\\]+\\[^\\]+$/.test(t)) return null
   const i = t.lastIndexOf('\\')
@@ -113,14 +117,22 @@ export function crumbs(p: string): { name: string; path: string }[] {
     cur = parent(cur)
   }
   if (p.startsWith('\\\\') && out.length) out[0].name = out[0].path
+  if (isRemote(p) && out.length) out[0].name = 'ftp://' + out[0].path.slice(6)
   return out
 }
+
+/** Archiwa, które da się otworzyć jak folder. */
+export const BROWSABLE_ARCHIVE = new Set(['zip', '7z'])
+export const isBrowsableArchive = (e: Pick<Entry, 'dir' | 'ext'>) => !e.dir && BROWSABLE_ARCHIVE.has(e.ext)
+/** Ścieżka prowadzi do wnętrza archiwum (C:\a\x.zip\folder). */
+export const inArchive = (p: string) => /\.(zip|7z)\\/i.test(p)
 
 export function samePath(a: string, b: string) {
   return a.replace(/[\\/]+$/, '').toLowerCase() === b.replace(/[\\/]+$/, '').toLowerCase()
 }
 
 export function volumeOf(p: string) {
+  if (isRemote(p)) return p.split('\\').slice(0, 3).join('\\').toLowerCase()
   if (p.startsWith('\\\\')) return p.split('\\').slice(0, 4).join('\\').toLowerCase()
   return p.slice(0, 2).toLowerCase()
 }

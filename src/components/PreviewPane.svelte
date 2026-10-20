@@ -55,7 +55,7 @@
   }
 </script>
 
-<aside class="preview" style:width="{settings.previewWidth}px">
+<aside class="preview" style:width="{settings.previewWidth}px" aria-label="Panel podglądu" data-region="preview" tabindex="-1">
   <div class="handle" role="separator" onpointerdown={(e) => { resizing = true; (e.target as HTMLElement).setPointerCapture(e.pointerId) }} onpointermove={onResize} onpointerup={() => (resizing = false)}></div>
 
   {#if shown && one}
@@ -295,8 +295,8 @@
     transform: scale(0.96);
   }
   .act.main {
-    background: #fff;
-    color: #000;
+    background: var(--accent);
+    color: var(--on-accent);
     font-weight: 600;
   }
   .act.main:hover {

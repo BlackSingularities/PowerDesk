@@ -1,6 +1,9 @@
+pub mod archive;
 mod drives;
 mod fsx;
-mod ops;
+pub mod ops;
+mod remote;
+mod system;
 mod shell;
 mod sync;
 pub mod sync_core;
@@ -34,12 +37,108 @@ async fn blocking<T: Send + 'static>(f: impl FnOnce() -> T + Send + 'static) -> 
 
 #[tauri::command]
 async fn list_dir(path: String) -> R<Vec<fsx::Entry>> {
-    blocking(move || fsx::list_dir(&path)).await?
+    blocking(move || {
+        if remote::is_remote(&path) {
+            return remote::list(&path);
+        }
+        match archive::split(&path) {
+            Some((arc, inner)) => archive::list(&arc, &inner),
+            None => fsx::list_dir(&path),
+        }
+    })
+    .await?
+}
+
+/// Szybki test bez dotykania dysku: czy ścieżka może prowadzić do wnętrza archiwum.
+fn maybe_archive(path: &str) -> bool {
+    let l = path.to_lowercase();
+    l.contains(".zip\\") || l.contains(".7z\\")
+}
+
+// ---------- FTP i inne lokalizacje sieciowe ----------
+
+#[tauri::command]
+async fn ftp_login(host: String, port: u16, user: String, pass: String, remember: bool, path: String) -> R<String> {
+    blocking(move || remote::login(&host, port, &user, &pass, remember, &path)).await?
+}
+
+#[tauri::command]
+fn ftp_forget(path: String) {
+    remote::forget(&path)
+}
+
+#[tauri::command]
+async fn remote_download(sources: Vec<(String, bool)>, dest: String) -> R<usize> {
+    blocking(move || remote::download(&sources, &dest)).await?
+}
+
+#[tauri::command]
+async fn remote_upload(sources: Vec<String>, dest: String) -> R<usize> {
+    blocking(move || remote::upload(&sources, &dest)).await?
+}
+
+#[tauri::command]
+async fn remote_delete(items: Vec<(String, bool)>) -> R<usize> {
+    blocking(move || remote::delete(&items)).await?
+}
+
+#[tauri::command]
+async fn remote_mkdir(parent: String, name: String) -> R<String> {
+    blocking(move || remote::mkdir(&parent, &name)).await?
+}
+
+#[tauri::command]
+async fn remote_rename(path: String, name: String) -> R<String> {
+    blocking(move || remote::rename(&path, &name)).await?
+}
+
+#[tauri::command]
+async fn remote_open(path: String) -> R<String> {
+    blocking(move || {
+        let p = remote::fetch_temp(&path)?;
+        open::that_detached(&p).map_err(|e| e.to_string())?;
+        Ok(p)
+    })
+    .await?
+}
+
+/// SSHFS-Win daje SFTP jako zwykły dysk sieciowy (\\sshfs\użytkownik@serwer).
+#[tauri::command]
+fn sshfs_available() -> bool {
+    ["ProgramFiles", "ProgramFiles(x86)"].iter().filter_map(|v| std::env::var(v).ok()).any(|d| Path::new(&d).join("SSHFS-Win").join("bin").join("sshfs.exe").exists())
+}
+
+#[tauri::command]
+async fn extract_items(sources: Vec<String>, dest: String) -> R<Vec<String>> {
+    blocking(move || archive::extract(&sources, &dest)).await?
+}
+
+#[tauri::command]
+async fn extract_here(path: String) -> R<String> {
+    blocking(move || archive::extract_here(&path)).await?
+}
+
+#[tauri::command]
+async fn open_archived(path: String) -> R<String> {
+    blocking(move || {
+        let p = archive::extract_temp(&path)?;
+        open::that_detached(&p).map_err(|e| e.to_string())?;
+        Ok(p)
+    })
+    .await?
 }
 
 #[tauri::command]
 async fn stat(path: String) -> R<fsx::Entry> {
-    blocking(move || fsx::stat(&path)).await?
+    blocking(move || {
+        if maybe_archive(&path) {
+            if let Some(e) = archive::stat(&path) {
+                return Ok(e);
+            }
+        }
+        fsx::stat(&path)
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -147,6 +246,35 @@ fn rename(path: String, name: String) -> R<String> {
     let d = dst.to_string_lossy().to_string();
     ops::push_undo(ops::Undo::Renamed(d.clone(), path));
     Ok(d)
+}
+
+#[derive(Serialize)]
+struct RenameResult {
+    done: usize,
+    errors: Vec<String>,
+}
+
+#[tauri::command]
+async fn rename_many(pairs: Vec<(String, String)>) -> R<RenameResult> {
+    blocking(move || {
+        for (_, dst) in &pairs {
+            let name = Path::new(dst).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            if name.trim().is_empty() || name.contains(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) {
+                return Err(format!("Niedozwolona nazwa: „{name}”"));
+            }
+        }
+        match ops::rename_batch(&pairs) {
+            Ok(done) => {
+                let n = done.len();
+                if n > 0 {
+                    ops::push_undo(ops::Undo::RenamedMany(done));
+                }
+                Ok(RenameResult { done: n, errors: Vec::new() })
+            }
+            Err(errors) => Ok(RenameResult { done: 0, errors }),
+        }
+    })
+    .await?
 }
 
 #[tauri::command]
@@ -379,6 +507,31 @@ async fn check_update(app: AppHandle) -> R<UpdateInfo> {
     .await?
 }
 
+#[tauri::command]
+fn integration() -> system::Integration {
+    system::integration()
+}
+
+#[tauri::command]
+fn set_default_fm(on: bool) -> R<()> {
+    system::set_default(on)
+}
+
+#[tauri::command]
+fn set_context_menu(on: bool) -> R<()> {
+    system::set_context_menu(on)
+}
+
+#[tauri::command]
+async fn download_update(app: AppHandle) -> R<String> {
+    blocking(move || system::download_update(&app, REPO)).await?
+}
+
+#[tauri::command]
+fn install_update(app: AppHandle, path: String) -> R<()> {
+    system::install_update(&app, &path)
+}
+
 // ---------- Dyski sieciowe ----------
 
 #[tauri::command]
@@ -552,6 +705,18 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             list_dir,
+            extract_items,
+            ftp_login,
+            ftp_forget,
+            remote_download,
+            remote_upload,
+            remote_delete,
+            remote_mkdir,
+            remote_rename,
+            remote_open,
+            sshfs_available,
+            extract_here,
+            open_archived,
             stat,
             list_drives,
             known_folders,
@@ -564,6 +729,7 @@ pub fn run() {
             create_folder,
             create_file,
             rename,
+            rename_many,
             start_op,
             cancel_op,
             check_conflicts,
@@ -591,6 +757,11 @@ pub fn run() {
             get_autostart,
             set_autostart,
             check_update,
+            integration,
+            set_default_fm,
+            set_context_menu,
+            download_update,
+            install_update,
             map_drive,
             unmap_drive,
             sync_list,

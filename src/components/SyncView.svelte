@@ -300,7 +300,7 @@
     padding: 0 12px;
   }
   .hist {
-    background: #000;
+    background: var(--bg);
     border-radius: 12px;
     padding: 10px 14px;
     max-height: 240px;

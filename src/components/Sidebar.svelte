@@ -2,8 +2,8 @@
   import Icon from './Icon.svelte'
   import type { IconName } from '../lib/icons'
   import {
-    app, settings, activeTab, navigate, newTab, transfer, dropMode, addFavorite, removeFavorite, toast, refreshDrives,
-    HOME, SYNC, SETTINGS, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
+    app, settings, activeTab, navigate, newTab, transfer, dropMode, addFavorite, removeFavorite, toggleHomeDir, isHomeDir, toast, refreshDrives,
+    HOME, SYNC, SETTINGS, runSaved, removeSaved, renameSaved, removeNetPlace, type SavedSearch, type NetPlace, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
   } from '../lib/state.svelte'
   import { api, thumbUrl, type Drive } from '../lib/api'
   import { samePath, size, ago } from '../lib/util'
@@ -62,9 +62,40 @@
         { label: 'Otwórz w nowej karcie', icon: 'plus', run: () => newTab(path) },
         { label: 'Pokaż w Eksploratorze', icon: 'open', run: () => api.reveal(path) },
         fav ? { label: 'Odepnij', icon: 'pin', run: () => removeFavorite(path) } : { label: 'Przypnij', icon: 'pin', run: () => addFavorite(path) },
+        { label: isHomeDir(path) ? 'Usuń z ekranu Komputer' : 'Pokaż na ekranie Komputer', icon: 'grid', run: () => toggleHomeDir(path) },
       ],
     }
   }
+
+  function placeMenu(e: MouseEvent, p: NetPlace) {
+    e.preventDefault()
+    app.menu = {
+      x: e.clientX, y: e.clientY,
+      items: [
+        { label: 'Otwórz', icon: 'folder', run: () => go(p.path) },
+        { label: 'Otwórz w nowej karcie', icon: 'plus', run: () => newTab(p.path) },
+        { label: 'Kopiuj adres', icon: 'link', run: () => { navigator.clipboard.writeText('ftp://' + p.path.slice(6).replace(/\\/g, '/')); toast('Skopiowano adres') } },
+        { sep: true },
+        { label: 'Usuń z listy', icon: 'unlink', run: () => removeNetPlace(p, false) },
+        { label: 'Usuń i zapomnij hasło', icon: 'unlink', danger: true, run: () => removeNetPlace(p, true) },
+      ],
+    }
+  }
+
+  function savedMenu(e: MouseEvent, s: SavedSearch) {
+    e.preventDefault()
+    app.menu = {
+      x: e.clientX, y: e.clientY,
+      items: [
+        { label: 'Uruchom', icon: 'search', run: () => runSaved(activeTab(), s) },
+        { label: 'Uruchom w nowej karcie', icon: 'plus', run: () => runSaved(newTab(s.root), s) },
+        { sep: true },
+        { label: 'Zmień nazwę', icon: 'edit', run: () => renameSaved(s) },
+        { label: 'Usuń', icon: 'trash', danger: true, run: () => removeSaved(s.id) },
+      ],
+    }
+  }
+  const activeSearch = $derived(activeTab()?.search?.query ?? null)
 
   function syncDot(id: string) {
     const s = app.syncStatus[id]
@@ -85,12 +116,13 @@
   }
 </script>
 
-<nav class="sidebar" style:width="{settings.sidebarWidth}px">
+<nav class="sidebar" style:width="{settings.sidebarWidth}px" aria-label="Panel boczny" data-region="sidebar">
   <div class="scroll">
     <button class="item" class:on={cur === HOME} onclick={() => go(HOME)}>
-      <Icon name="pc" /><span class="ellipsis grow">Ten komputer</span>
+      <Icon name="pc" /><span class="ellipsis grow">Komputer</span>
     </button>
 
+    {#if settings.showQuickAccess}
     <button class="sec" onclick={() => toggle('quick')}><span class="chev" class:shut={!open('quick')}><Icon name="chevronDown" size={13} /></span><span class="grow">Szybki dostęp</span></button>
     {#if open('quick')}
     {#each app.known as k (k.id)}
@@ -108,6 +140,18 @@
         <img class="sys" src={thumbUrl(k.path, 18, 'i')} alt="" /><span class="ellipsis grow">{k.name}</span>
       </button>
     {/each}
+    {/if}
+    {/if}
+
+    {#if settings.savedSearches.length}
+      <button class="sec" onclick={() => toggle('saved')}><span class="chev" class:shut={!open('saved')}><Icon name="chevronDown" size={13} /></span><span class="grow">Zapisane wyszukiwania</span><span class="cnt">{settings.savedSearches.length}</span></button>
+      {#if open('saved')}
+        {#each settings.savedSearches as s (s.id)}
+          <button class="item" class:on={activeSearch === s.query && samePath(cur, s.root)} onclick={(e) => (e.ctrlKey ? runSaved(newTab(s.root), s) : runSaved(activeTab(), s))} oncontextmenu={(e) => savedMenu(e, s)} title={`${s.query}\nw ${s.root}`}>
+            <Icon name="search" size={16} /><span class="ellipsis grow">{s.name}</span>
+          </button>
+        {/each}
+      {/if}
     {/if}
 
     <div
@@ -170,7 +214,7 @@
     {/if}
 
     <div class="sec row"><button class="sec-btn" onclick={() => toggle('net')}><span class="chev" class:shut={!open('net')}><Icon name="chevronDown" size={13} /></span><span class="grow">Sieć</span></button>
-      <button class="mini" title="Podłącz dysk sieciowy" onclick={() => (app.dialog = { type: 'network' })}><Icon name="plus" size={14} /></button>
+      <button class="mini" title="Połącz z lokalizacją sieciową" aria-label="Połącz z lokalizacją sieciową" onclick={() => (app.dialog = { type: 'network' })}><Icon name="plus" size={14} /></button>
     </div>
     {#if open('net')}
     {#each netDrives as d (d.letter)}
@@ -192,9 +236,15 @@
           <span class="sub ellipsis">{d.online ? d.remote : 'rozłączony'}</span>
         </span>
       </button>
-    {:else}
-      <button class="hint link" onclick={() => (app.dialog = { type: 'network' })}>Podłącz dysk sieciowy lub NAS…</button>
     {/each}
+    {#each settings.netPlaces as p (p.id)}
+      <button class="item" class:on={samePath(cur, p.path)} class:over={over === p.path} onclick={(e) => go(p.path, e)} onauxclick={(e) => go(p.path, e)} oncontextmenu={(e) => placeMenu(e, p)} ondragover={(e) => dragOver(e, p.path)} ondragleave={() => (over = null)} ondrop={(e) => drop(e, p.path)} title={'ftp://' + p.path.slice(6).replace(/\\/g, '/')}>
+        <Icon name="network" size={17} /><span class="grow"><span class="ellipsis" style="display:block">{p.name}</span><span class="sub ellipsis">FTP</span></span>
+      </button>
+    {/each}
+    {#if !netDrives.length && !settings.netPlaces.length}
+      <button class="hint link" onclick={() => (app.dialog = { type: 'network' })}>Połącz z lokalizacją sieciową…</button>
+    {/if}
     {/if}
 
     <div class="sec row"><button class="sec-btn" onclick={() => toggle('sync')}><span class="chev" class:shut={!open('sync')}><Icon name="chevronDown" size={13} /></span><span class="grow">Synchronizacja</span></button>
@@ -244,6 +294,7 @@
     padding: 10px 8px 12px;
   }
   .sec {
+    font-family: inherit;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -259,12 +310,13 @@
     gap: 6px;
     width: 100%;
     text-align: left;
-    font: inherit;
-    letter-spacing: inherit;
-    text-transform: inherit;
+    font-family: inherit;
     color: inherit;
   }
   .sec-btn {
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
     padding: 0;
     flex: 1;
   }

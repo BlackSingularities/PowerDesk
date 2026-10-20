@@ -1,6 +1,8 @@
 import { SvelteSet } from 'svelte/reactivity'
-import { api, on, type ConflictInfo, type ConflictPolicy, type Drive, type Entry, type Known, type MediaInfo, type OpProgress, type SyncProfile, type SyncStatus } from './api'
-import { basename, collator, debounce, join, kindOf, isMedia, parent, samePath, typeLabel, volumeOf, type Kind } from './util'
+import { facetsFor, facetTest, type Facet } from './facets'
+import { parseQuery } from './query'
+import { api, on, type DirSize, type ConflictInfo, type ConflictPolicy, type Drive, type Entry, type Known, type MediaInfo, type OpProgress, type SyncProfile, type SyncStatus } from './api'
+import { basename, collator, debounce, join, kindOf, isMedia, parent, samePath, typeLabel, volumeOf, inArchive, isBrowsableArchive, isRemote, type Kind } from './util'
 
 export type View = 'list' | 'grid' | 'gallery'
 export type SortKey = 'name' | 'modified' | 'size' | 'type' | 'created' | 'taken' | 'duration' | 'dims'
@@ -30,7 +32,7 @@ export const media = $state({ ver: 0 })
 const mediaQueue: Entry[] = []
 const mediaQueued = new Set<string>()
 let mediaBusy = false
-const wantsMedia = (e: Entry) => !e.dir && !e.cloud && (isMedia(e) || kindOf(e) === 'audio')
+const wantsMedia = (e: Entry) => !e.dir && !e.cloud && !isRemote(e.path) && !inArchive(e.path) && (isMedia(e) || kindOf(e) === 'audio')
 
 /** Pobiera metadane w kolejności listy – nowsze żądanie (bieżący folder) idzie na początek kolejki. */
 export function ensureMedia(list: Entry[]) {
@@ -55,6 +57,42 @@ async function pumpMedia() {
   }
   mediaBusy = false
 }
+
+// ---------- Rozmiary folderów (liczone w tle) ----------
+
+/** Klucz: ścieżka małymi literami. Liczymy po dwa foldery naraz, żeby nie zatkać dysku. */
+export const dirSizes = new Map<string, DirSize>()
+export const dirSizeVer = $state({ ver: 0 })
+const dsQueue: string[] = []
+const dsQueued = new Set<string>()
+let dsRunning = 0
+const isNetworkPath = (p: string) => p.startsWith('\\\\') || isRemote(p) || inArchive(p) || app.drives.some((d) => d.kind === 'network' && volumeOf(d.path) === volumeOf(p))
+
+export function ensureDirSizes(list: Entry[]) {
+  if (!settings.folderSizes) return
+  const fresh = list.filter((e) => e.dir && !dirSizes.has(e.path.toLowerCase()) && !dsQueued.has(e.path.toLowerCase()) && !isNetworkPath(e.path))
+  if (!fresh.length) return
+  // Nowsze żądanie (bieżący folder) wyprzedza stare.
+  fresh.forEach((e) => dsQueued.add(e.path.toLowerCase()))
+  dsQueue.unshift(...fresh.map((e) => e.path))
+  while (dsRunning < 2 && dsQueue.length) pumpDirSize()
+}
+async function pumpDirSize() {
+  dsRunning++
+  while (dsQueue.length) {
+    const p = dsQueue.shift()!
+    try {
+      dirSizes.set(p.toLowerCase(), await api.dirSize(p))
+    } catch {
+      dirSizes.set(p.toLowerCase(), { size: 0, files: 0, dirs: 0 })
+    }
+    dsQueued.delete(p.toLowerCase())
+    dirSizeVer.ver++
+  }
+  dsRunning--
+}
+/** Rozmiar elementu – dla folderów z tła (0, dopóki nie policzony). */
+export const sizeOf = (e: Entry) => (e.dir ? dirSizes.get(e.path.toLowerCase())?.size ?? -1 : e.size)
 
 // ---------- Grupowanie (jak w Eksploratorze) ----------
 
@@ -130,6 +168,10 @@ const GROUP_DESC: Partial<Record<GroupKey, boolean>> = { size: true }
 
 /** Odłączony czytnik / napęd bez nośnika – można go ukryć w ustawieniach. */
 export const driveShown = (d: Drive) => !settings.hideOfflineDrives || d.online || (d.kind !== 'removable' && d.kind !== 'cdrom')
+export type NetKind = 'smb' | 'webdav' | 'ftp' | 'sftp'
+/** Zapamiętane serwery FTP (bez haseł – te są w Menedżerze poświadczeń Windows). */
+export interface NetPlace { id: string; name: string; path: string }
+export interface SavedSearch { id: string; name: string; root: string; query: string }
 export type KindFilter = 'all' | 'media' | 'image' | 'video' | 'doc' | 'audio' | 'archive'
 export interface FolderPrefs { view?: View; sort?: SortKey; desc?: boolean; group?: GroupKey }
 
@@ -141,7 +183,7 @@ export const SYNC = 'ofp:sync'
 export const SETTINGS = 'ofp:settings'
 
 export function specialTitle(p: string) {
-  if (p === HOME) return 'Ten komputer'
+  if (p === HOME) return 'Komputer'
   if (p === SYNC) return 'Synchronizacja'
   if (p === SETTINGS) return 'Ustawienia'
   return basename(p)
@@ -169,6 +211,8 @@ export class Tab {
   anchor = -1
   filter = $state('')
   kindFilter = $state<KindFilter>('all')
+  /** Wybrane filtry dopasowane do zawartości (format, kadr, data…). */
+  facets = new SvelteSet<string>()
   view = $state<View>('list')
   sort = $state<SortKey>('name')
   desc = $state(false)
@@ -178,36 +222,64 @@ export class Tab {
   /** Zaznaczenie zapamiętane dla każdego folderu – wraca po powrocie do niego. */
   selMemory = new Map<string, { paths: string[]; focus: string | null }>()
   renaming = $state<string | null>(null)
-  search = $state<{ query: string; id: number; running: boolean; scanned: number; results: Entry[] } | null>(null)
+  search = $state<{ query: string; id: number; running: boolean; scanned: number; results: Entry[]; chips: string[]; test: ((e: Entry) => boolean) | null } | null>(null)
   scrollTop = 0
   scrollMemory = new Map<string, number>()
   /** Zmienia się po każdym przeładowaniu, żeby widok mógł odświeżyć miniatury. */
   stamp = $state(0)
+  /** Przypięta karta: zawsze z lewej, wąska, nie zamyka się przypadkiem i wraca po każdym uruchomieniu. */
+  pinned = $state(false)
 
   source = $derived(this.search ? this.search.results : this.entries)
 
-  grouped: { items: Entry[]; groups: Group[] | null } = $derived.by(() => {
-    const hidden = settings.showHidden
-    const f = this.filter.trim().toLowerCase()
+  /** Kategorie obecne w folderze (do pokazania tylko sensownych przycisków filtra). */
+  kindCounts = $derived.by(() => {
+    const c: Partial<Record<KindFilter, number>> = {}
+    for (const e of this.source) {
+      if (e.dir || (!settings.showHidden && (e.hidden || e.system))) continue
+      const k = kindOf(e)
+      for (const [f, ks] of Object.entries(KIND_GROUPS) as [Exclude<KindFilter, 'all'>, Kind[]][]) if (ks.includes(k)) c[f] = (c[f] ?? 0) + 1
+    }
+    return c
+  })
+
+  /** Filtry dopasowane do zawartości bieżącej kategorii. */
+  facetList: Facet[] = $derived.by(() => {
+    media.ver
     const kf = this.kindFilter
     const group = kf === 'all' ? null : KIND_GROUPS[kf]
+    const base = this.source.filter((e) => !e.dir && (settings.showHidden || !(e.hidden || e.system)) && (!group || group.includes(kindOf(e))))
+    return facetsFor(base, (e) => mediaInfo.get(e.path))
+  })
+
+  grouped: { items: Entry[]; groups: Group[] | null } = $derived.by(() => {
+    const hidden = settings.showHidden
+    const pq = parseQuery(this.filter)
+    const f = pq.text.trim().toLowerCase()
+    const kf = this.kindFilter
+    const group = kf === 'all' ? null : KIND_GROUPS[kf]
+    if (this.facets.size) media.ver
+    const ft = facetTest(this.facets, (e) => mediaInfo.get(e.path))
     const arr = this.source.filter(
       (e) =>
         (hidden || !(e.hidden || e.system)) &&
         (!f || e.name.toLowerCase().includes(f)) &&
-        (!group || (!e.dir && group.includes(kindOf(e)))),
+        (!pq.test || pq.test(e)) &&
+        (!group || (!e.dir && group.includes(kindOf(e)))) &&
+        (!ft || ft(e)),
     )
     const dir = this.desc ? -1 : 1
     const key = this.sort
     // Klucze z metadanych przeliczamy, gdy dojdą kolejne partie.
     const g = this.group
     if (key === 'taken' || key === 'duration' || key === 'dims' || g === 'taken') media.ver
+    if (key === 'size' && settings.folderSizes) dirSizeVer.ver
     const mi = (e: Entry) => mediaInfo.get(e.path)
     const cmp = (a: Entry, b: Entry) => {
       let r = 0
       if (key === 'modified') r = a.modified - b.modified
       else if (key === 'created') r = a.created - b.created
-      else if (key === 'size') r = a.size - b.size
+      else if (key === 'size') r = sizeOf(a) - sizeOf(b)
       else if (key === 'type') r = collator.compare(a.ext, b.ext)
       else if (key === 'taken') r = takenOf(a) - takenOf(b)
       else if (key === 'duration') r = (mi(a)?.dur ?? 0) - (mi(b)?.dur ?? 0)
@@ -274,6 +346,19 @@ export const settings = $state({
   checkUpdates: true,
   playVideoPreview: true,
   hideOfflineDrives: false,
+  showRecent: true,
+  folderSizes: true,
+  showQuickAccess: true,
+  theme: 'system' as 'system' | 'dark' | 'light',
+  startup: 'restore' as 'restore' | 'home' | 'folder',
+  startupFolder: '',
+  /** Kolejność sekcji ekranu Komputer (foldery z zawartością mają id „dir:<ścieżka>”). */
+  homeOrder: [] as string[],
+  /** Foldery pokazywane na ekranie Komputer razem z zawartością. */
+  homeDirs: [] as string[],
+  recentPinned: [] as string[],
+  savedSearches: [] as SavedSearch[],
+  netPlaces: [] as NetPlace[],
   listCols: ['modified', 'type', 'size'] as ListCol[],
   listColW: {} as Partial<Record<ListCol, number>>,
   collapsed: {} as Record<string, boolean>,
@@ -298,9 +383,13 @@ export const app = $state({
   dialog: null as Dialog | null,
   menu: null as { x: number; y: number; items: MenuItem[] } | null,
   palette: false,
+  /** Tryb, w którym otwiera się paleta: wszystko albo od razu polecenia (Ctrl+Shift+P). */
+  paletteMode: 'all' as 'all' | 'cmd',
   sidebarOpen: true,
   ready: false,
   update: null as { latest: string; url: string } | null,
+  /** Pobieranie aktualizacji: postęp 0–1, null gdy nic się nie dzieje. */
+  updating: null as number | null,
   dragging: null as { paths: string[] } | null,
 })
 
@@ -314,7 +403,8 @@ export type Dialog =
   | { type: 'confirm'; title: string; text: string; ok: string; danger?: boolean; resolve: (v: boolean) => void }
   | { type: 'conflict'; conflicts: ConflictInfo[]; mode: 'copy' | 'move'; resolve: (v: ConflictPolicy | null) => void }
   | { type: 'props'; entries: Entry[] }
-  | { type: 'network' }
+  | { type: 'bulkRename'; entries: Entry[] }
+  | { type: 'network'; kind?: NetKind; host?: string; error?: string }
   | { type: 'sync'; profile: SyncProfile | null; source?: string }
   | { type: 'syncPreview'; id: string }
 
@@ -360,10 +450,11 @@ export function activate(id: string) {
   app.panes[app.focusedPane] = id
 }
 
-export function closeTab(id: string) {
+export function closeTab(id: string, force = false) {
   const i = app.tabs.findIndex((t) => t.id === id)
   if (i < 0) return
   const t = app.tabs[i]
+  if (t.pinned && !force) return
   if (!t.special) app.closed = [t.path, ...app.closed].slice(0, 20)
   app.tabs.splice(i, 1)
   if (!app.tabs.length) newTab(HOME)
@@ -380,6 +471,14 @@ export function closeTab(id: string) {
       }
     }
   }
+}
+
+export function togglePin(t: Tab) {
+  t.pinned = !t.pinned
+  // Przypięte karty trzymamy razem na początku paska.
+  const i = app.tabs.indexOf(t)
+  app.tabs.splice(i, 1)
+  app.tabs.splice(app.tabs.filter((x) => x.pinned).length, 0, t)
 }
 
 export function reopenClosed() {
@@ -445,7 +544,11 @@ export async function load(t: Tab, keepSelection = false) {
   } catch (e) {
     if (t.path !== path) return
     t.entries = []
-    t.error = String(e)
+    t.error = String(e).replace(/^AUTH: /, '')
+    // Serwer FTP bez zapamiętanego hasła – od razu pytamy o dane logowania.
+    if (isRemote(path) && String(e).startsWith('AUTH') && !app.dialog) {
+      app.dialog = { type: 'network', kind: 'ftp', host: path.slice(6).split('\\')[0], error: t.error }
+    }
   } finally {
     if (t.path === path) t.loading = false
   }
@@ -464,6 +567,7 @@ export function navigate(t: Tab, path: string, push = true) {
   t.search = null
   t.filter = ''
   t.kindFilter = 'all'
+  t.facets.clear()
   t.renaming = null
   t.selected.clear()
   t.focus = -1
@@ -520,9 +624,20 @@ export function up(t: Tab) {
 }
 
 export function openEntry(t: Tab, e: Entry, newTabToo = false) {
-  if (e.dir) {
+  if (e.dir || isBrowsableArchive(e)) {
     if (newTabToo) newTab(e.path, false, t.id)
     else navigate(t, e.path)
+    return
+  }
+  // Plik z serwera FTP: pobieramy do folderu tymczasowego i otwieramy.
+  if (isRemote(e.path)) {
+    toast(`Pobieram „${e.name}”…`)
+    api.remoteOpen(e.path).catch((err) => toast(String(err), 'error'))
+    return
+  }
+  // Plik z archiwum: wypakowujemy do folderu tymczasowego i otwieramy w domyślnym programie.
+  if (inArchive(e.path)) {
+    api.openArchived(e.path).catch((err) => toast(String(err), 'error'))
     return
   }
   const k = kindOf(e)
@@ -573,11 +688,34 @@ let unlistenSearch: (() => void) | null = null
 export async function startSearch(t: Tab, query: string) {
   query = query.trim()
   if (!query || t.special) return
-  const id = await api.search(t.path, query, settings.showHidden)
-  t.search = { query, id, running: true, scanned: 0, results: [] }
+  // Słowa idą do wyszukiwarki, filtry (typ:, rozmiar:, data:…) sprawdzamy przy odbiorze wyników.
+  const pq = parseQuery(query)
+  const id = await api.search(t.path, pq.text, settings.showHidden)
+  t.search = { query, id, running: true, scanned: 0, results: [], chips: pq.chips, test: pq.test }
   t.selected.clear()
   t.focus = -1
 }
+export async function saveSearch(t: Tab) {
+  if (!t.search) return
+  const root = t.path
+  const name = await prompt('Zapisz wyszukiwanie', `${t.search.query} w ${basename(root) || root}`, 'Zapisz', false, 'Pojawi się w panelu bocznym nad przypiętymi folderami.')
+  if (!name) return
+  settings.savedSearches = [...settings.savedSearches, { id: uid(), name, root, query: t.search.query }]
+  toast(`Zapisano „${name}”`, 'ok')
+}
+export function runSaved(t: Tab, s: SavedSearch) {
+  if (!samePath(t.path, s.root)) navigate(t, s.root)
+  // Nawigacja czyści wyszukiwanie – startujemy po niej.
+  queueMicrotask(() => startSearch(t, s.query))
+}
+export function removeSaved(id: string) {
+  settings.savedSearches = settings.savedSearches.filter((s) => s.id !== id)
+}
+export async function renameSaved(s: SavedSearch) {
+  const name = await prompt('Zmień nazwę wyszukiwania', s.name, 'Zapisz')
+  if (name) settings.savedSearches = settings.savedSearches.map((x) => (x.id === s.id ? { ...x, name } : x))
+}
+
 export function closeSearch(t: Tab) {
   api.cancelSearch()
   t.search = null
@@ -586,7 +724,61 @@ export function closeSearch(t: Tab) {
 
 // ---------- Operacje na plikach ----------
 
+/** Wypakowanie elementów archiwum (przeciąganie, kopiowanie, wklejanie z archiwum). */
+export async function extractTo(sources: string[], dest: string) {
+  if (dest.startsWith('ofp:') || inArchive(dest + '\\')) return toast('Archiwa są tylko do odczytu', 'error')
+  toast(`Wypakowuję ${sources.length === 1 ? `„${basename(sources[0])}”` : sources.length + ' elem.'}…`)
+  try {
+    const out = await api.extractItems(sources, dest)
+    toast(`Wypakowano do „${basename(dest)}”`, 'ok')
+    for (const t of app.tabs) if (!t.special && samePath(t.path, dest)) load(t, true)
+    return out
+  } catch (e) {
+    toast(String(e), 'error')
+  }
+}
+
+export async function extractHere(path: string) {
+  try {
+    const out = await api.extractHere(path)
+    toast(`Wypakowano do „${basename(out)}”`, 'ok')
+    for (const t of app.tabs) if (!t.special && samePath(t.path, parent(path) ?? '')) load(t, true)
+  } catch (e) {
+    toast(String(e), 'error')
+  }
+}
+
+/** Kopiowanie z serwera FTP / na serwer FTP (bez przenoszenia – oryginał zostaje). */
+async function remoteTransfer(sources: string[], dest: string) {
+  const what = sources.length === 1 ? `„${basename(sources[0])}”` : `${sources.length} elem.`
+  try {
+    if (isRemote(dest)) {
+      toast(`Wysyłam ${what}…`)
+      await api.remoteUpload(sources, dest)
+      toast(`Wysłano ${what}`, 'ok')
+    } else {
+      toast(`Pobieram ${what}…`)
+      const dirs = new Set(app.tabs.flatMap((t) => t.items.filter((e) => e.dir).map((e) => e.path)))
+      await api.remoteDownload(sources.map((s) => [s, dirs.has(s)] as [string, boolean]), dest)
+      toast(`Pobrano ${what}`, 'ok')
+    }
+    for (const t of app.tabs) if (!t.special && samePath(t.path, dest)) load(t, true)
+  } catch (e) {
+    toast(String(e).replace(/^AUTH: /, ''), 'error')
+  }
+}
+
 export async function transfer(sources: string[], dest: string, mode: 'copy' | 'move') {
+  if (isRemote(dest) || sources.some(isRemote)) {
+    if (isRemote(dest) && sources.some(isRemote)) return toast('Kopiowanie między serwerami FTP nie jest obsługiwane', 'error')
+    return remoteTransfer(sources, dest)
+  }
+  if (sources.some(inArchive)) {
+    await extractTo(sources.filter(inArchive), dest)
+    sources = sources.filter((s) => !inArchive(s))
+    if (!sources.length) return
+  }
+  if (inArchive(dest + '\\')) return toast('Archiwa są tylko do odczytu – nie można do nich kopiować', 'error')
   sources = sources.filter((s) => !samePath(parent(s) ?? '', dest) || mode === 'copy')
   if (!sources.length || dest.startsWith('ofp:')) return
   if (sources.some((s) => samePath(s, dest) || dest.toLowerCase().startsWith(s.toLowerCase() + '\\'))) {
@@ -632,6 +824,19 @@ export async function paste(t: Tab, into?: string) {
 export async function trash(t: Tab, permanent = false) {
   const sel = t.selectedEntries
   if (!sel.length) return
+  if (sel.some((e) => inArchive(e.path))) return toast('Archiwa są tylko do odczytu', 'error')
+  if (sel.some((e) => isRemote(e.path))) {
+    const what = sel.length === 1 ? `„${sel[0].name}”` : `${sel.length} elementów`
+    if (!(await confirm('Usunąć z serwera?', `${what} zostanie usunięte z serwera FTP bez możliwości przywrócenia.`, 'Usuń', true))) return
+    try {
+      await api.remoteDelete(sel.map((e) => [e.path, e.dir] as [string, boolean]))
+      toast('Usunięto z serwera', 'ok')
+    } catch (e) {
+      toast(String(e), 'error')
+    }
+    t.selected.clear()
+    return load(t, true)
+  }
   const what = sel.length === 1 ? `„${sel[0].name}”` : `${sel.length} elementów`
   const network = sel.some((e) => e.path.startsWith('\\\\') || app.drives.find((d) => d.kind === 'network' && volumeOf(d.path) === volumeOf(e.path)))
   const removable = sel.some((e) => app.drives.find((d) => d.kind === 'removable' && volumeOf(d.path) === volumeOf(e.path)))
@@ -648,10 +853,11 @@ export async function trash(t: Tab, permanent = false) {
 
 export async function newFolder(t: Tab) {
   if (t.special) return
+  if (inArchive(t.path + '\\')) return toast('Archiwa są tylko do odczytu', 'error')
   const name = await prompt('Nowy folder', 'Nowy folder', 'Utwórz')
   if (!name) return
   try {
-    const p = await api.mkdir(t.path, name)
+    const p = isRemote(t.path) ? await api.remoteMkdir(t.path, name) : await api.mkdir(t.path, name)
     await load(t)
     selectOnly(t, p)
   } catch (e) {
@@ -661,6 +867,7 @@ export async function newFolder(t: Tab) {
 
 export async function newFile(t: Tab) {
   if (t.special) return
+  if (inArchive(t.path + '\\')) return toast('Archiwa są tylko do odczytu', 'error')
   const name = await prompt('Nowy plik', 'Nowy dokument tekstowy.txt', 'Utwórz', true)
   if (!name) return
   try {
@@ -683,8 +890,9 @@ export function selectOnly(t: Tab, path: string) {
 export async function doRename(t: Tab, e: Entry, name: string) {
   t.renaming = null
   if (!name || name === e.name) return
+  if (inArchive(e.path)) return toast('Archiwa są tylko do odczytu', 'error')
   try {
-    const p = await api.rename(e.path, name)
+    const p = isRemote(e.path) ? await api.remoteRename(e.path, name) : await api.rename(e.path, name)
     await load(t, true)
     selectOnly(t, p)
   } catch (err) {
@@ -711,6 +919,62 @@ export function addFavorite(path: string) {
   app.favorites = [...app.favorites, { name: basename(path), path }]
   toast(`Przypięto „${basename(path)}”`, 'ok')
 }
+export function toggleHomeDir(path: string) {
+  if (isHomeDir(path)) {
+    settings.homeDirs = settings.homeDirs.filter((p) => !samePath(p, path))
+  } else {
+    settings.homeDirs = [...settings.homeDirs, path]
+    toast(`„${basename(path)}” pojawi się na ekranie Komputer`, 'ok')
+  }
+}
+export const isHomeDir = (path: string) => settings.homeDirs.some((p) => samePath(p, path))
+
+export function removeRecent(path: string) {
+  app.recent = app.recent.filter((r) => !samePath(r, path))
+  settings.recentPinned = settings.recentPinned.filter((r) => !samePath(r, path))
+}
+export function toggleRecentPin(path: string) {
+  settings.recentPinned = settings.recentPinned.some((r) => samePath(r, path))
+    ? settings.recentPinned.filter((r) => !samePath(r, path))
+    : [path, ...settings.recentPinned]
+}
+export function clearRecent() {
+  app.recent = []
+}
+
+export function addNetPlace(path: string, name: string) {
+  if (settings.netPlaces.some((p) => samePath(p.path, path))) return
+  settings.netPlaces = [...settings.netPlaces, { id: uid(), name, path }]
+}
+export function removeNetPlace(p: NetPlace, forgetPassword: boolean) {
+  settings.netPlaces = settings.netPlaces.filter((x) => x.id !== p.id)
+  if (forgetPassword) api.ftpForget(p.path)
+}
+
+/** Aktualizacja z aplikacji: wersja zainstalowana pobiera instalator i instaluje się sama, przenośna otwiera stronę wydania. */
+export async function updateNow() {
+  if (app.updating !== null) return
+  const info = await api.integration().catch(() => null)
+  if (!info?.installed) {
+    if (app.update?.url) api.open(app.update.url)
+    else toast('Wersja przenośna – pobierz nową ze strony wydania')
+    return
+  }
+  app.updating = 0
+  const off = await on<{ done: number; total: number }>('update-progress', (p) => (app.updating = p.total ? p.done / p.total : 0))
+  try {
+    const setup = await api.downloadUpdate()
+    toast('Instaluję aktualizację – aplikacja uruchomi się ponownie', 'ok')
+    await new Promise((r) => setTimeout(r, 800))
+    await api.installUpdate(setup)
+  } catch (e) {
+    toast(`Aktualizacja nie powiodła się: ${e}`, 'error')
+  } finally {
+    off()
+    app.updating = null
+  }
+}
+
 export function removeFavorite(path: string) {
   app.favorites = app.favorites.filter((f) => !samePath(f.path, path))
 }
@@ -733,7 +997,7 @@ export const ejectable = (d: Drive) => d.online && (d.kind === 'removable' || d.
 export const lowSpace = (d: Drive) => d.online && d.total > 0 && d.free / d.total < 0.1
 
 export async function ejectDrive(d: Drive) {
-  // Karty otwarte na tym dysku przechodzą do „Ten komputer” – inaczej Windows nie pozwoli wysunąć.
+  // Karty otwarte na tym dysku przechodzą do „Komputer” – inaczej Windows nie pozwoli wysunąć.
   for (const t of app.tabs) if (!t.special && volumeOf(t.path) === volumeOf(d.path)) navigate(t, HOME)
   await new Promise((r) => setTimeout(r, 150))
   try {
@@ -760,7 +1024,7 @@ function nativeMenu(paths: string[], ev: MouseEvent) {
   api.nativeMenu(paths, ev.clientX, ev.clientY, ev.shiftKey).then((done) => done && setTimeout(refreshDrives, 600)).catch((err) => toast(String(err), 'error'))
 }
 
-/** Menu kontekstowe dysku – wspólne dla panelu bocznego i ekranu „Ten komputer”. */
+/** Menu kontekstowe dysku – wspólne dla panelu bocznego i ekranu „Komputer”. */
 export function showDriveMenu(ev: MouseEvent, d: Drive, open: (path: string) => void, openNew: (path: string) => void) {
   ev.preventDefault()
   if (ev.shiftKey) return nativeMenu([d.path], ev)
@@ -806,7 +1070,7 @@ const persist = debounce(() => {
     favorites: app.favorites,
     recent: app.recent,
     folderPrefs: app.folderPrefs,
-    tabs: app.tabs.filter((t) => !t.search).map((t) => t.path),
+    tabs: app.tabs.filter((t) => !t.search).map((t) => ({ path: t.path, pinned: t.pinned })),
     active: Math.max(0, app.tabs.findIndex((t) => t.id === app.panes[app.focusedPane])),
     split: app.split,
     sidebarOpen: app.sidebarOpen,
@@ -826,11 +1090,22 @@ export async function init() {
     app.recent = s.recent ?? []
     app.folderPrefs = s.folderPrefs ?? {}
     app.sidebarOpen = s.sidebarOpen ?? true
-    const paths: string[] = s.tabs?.length ? s.tabs : [HOME]
-    for (const p of paths) newTab(p, false)
-    const act = app.tabs[Math.min(s.active ?? 0, app.tabs.length - 1)]
+    const saved: { path: string; pinned: boolean }[] = (s.tabs ?? []).map((x: string | { path: string; pinned?: boolean }) =>
+      typeof x === 'string' ? { path: x, pinned: false } : { path: x.path, pinned: !!x.pinned },
+    )
+    // Przypięte karty wracają zawsze; resztę ustala ustawienie „Po uruchomieniu”.
+    const pinned = saved.filter((x) => x.pinned)
+    const rest =
+      settings.startup === 'restore' ? saved.filter((x) => !x.pinned)
+      : settings.startup === 'folder' && settings.startupFolder ? [{ path: settings.startupFolder, pinned: false }]
+      : [{ path: HOME, pinned: false }]
+    const list = [...pinned, ...rest]
+    if (!list.length) list.push({ path: HOME, pinned: false })
+    for (const x of list) newTab(x.path, false).pinned = x.pinned
+    const restoring = settings.startup === 'restore'
+    const act = restoring ? app.tabs[Math.min(s.active ?? 0, app.tabs.length - 1)] : app.tabs[pinned.length] ?? app.tabs[0]
     app.panes = [act.id]
-    if (s.split && app.tabs.length > 1) {
+    if (restoring && s.split && app.tabs.length > 1) {
       app.panes = [act.id, app.tabs.find((t) => t.id !== act.id)!.id]
       app.split = true
     }
@@ -843,6 +1118,8 @@ export async function init() {
   refreshSync()
 
   on<string[]>('fs-changed', (dirs) => {
+    // Zmiana w folderze unieważnia policzone rozmiary jego i wszystkich nadrzędnych.
+    for (const d of dirs) for (const k of [...dirSizes.keys()]) if (d.toLowerCase().startsWith(k)) dirSizes.delete(k)
     for (const t of app.tabs) {
       if (!t.special && !t.search && dirs.some((d) => samePath(d, t.path))) load(t, true)
     }
@@ -862,7 +1139,8 @@ export async function init() {
   on<import('./api').SearchBatch>('search', (b) => {
     for (const t of app.tabs) {
       if (t.search && t.search.id === b.id) {
-        t.search.results = [...t.search.results, ...b.items]
+        const test = t.search.test
+        t.search.results = [...t.search.results, ...(test ? b.items.filter(test) : b.items)]
         t.search.running = !b.done
         t.search.scanned = b.scanned
       }
@@ -883,14 +1161,15 @@ export async function init() {
   $effect.root(() => {
     $effect(() => {
       // Obserwujemy foldery wszystkich otwartych kart.
-      const dirs = [...new Set(app.tabs.filter((t) => !t.special).map((t) => t.path))]
+      const dirs = [...new Set(app.tabs.filter((t) => !t.special && !isRemote(t.path) && !inArchive(t.path + '\\')).map((t) => t.path))]
       api.watch(dirs)
     })
     $effect(() => {
       JSON.stringify(settings)
       app.favorites.length
       app.recent[0]
-      app.tabs.map((t) => t.path).join('|')
+      app.recent.length
+      app.tabs.map((t) => t.path + (t.pinned ? '*' : '')).join('|')
       app.panes.join('|')
       app.split
       app.sidebarOpen
@@ -899,6 +1178,13 @@ export async function init() {
     })
     $effect(() => {
       api.closeToTray(settings.closeToTray)
+    })
+    $effect(() => {
+      const mq = matchMedia('(prefers-color-scheme: light)')
+      const apply = () => (document.documentElement.dataset.theme = settings.theme === 'system' ? (mq.matches ? 'light' : 'dark') : settings.theme)
+      apply()
+      mq.addEventListener('change', apply)
+      return () => mq.removeEventListener('change', apply)
     })
   })
 
