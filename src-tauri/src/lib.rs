@@ -5,6 +5,7 @@ pub mod ops;
 mod remote;
 mod library;
 mod space;
+mod sysmon;
 mod system;
 mod terminal;
 mod shell;
@@ -561,6 +562,11 @@ async fn library_remove(lib: String, folder: String) -> R<()> {
 }
 
 #[tauri::command]
+async fn system_info() -> R<sysmon::Info> {
+    blocking(sysmon::info).await
+}
+
+#[tauri::command]
 fn term_start(app: AppHandle, cwd: String, cols: u16, rows: u16) -> R<u64> {
     terminal::start(app, &cwd, cols, rows)
 }
@@ -847,6 +853,7 @@ pub fn run() {
             integration,
             system_accent,
             term_start,
+            system_info,
             libraries,
             library_create,
             library_add,

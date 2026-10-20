@@ -1,3 +1,9 @@
+<script lang="ts" module>
+  import type { DirSize as DS } from '../lib/api'
+  const sizeCache: Record<string, DS> = {}
+  let sizeAt = 0
+</script>
+
 <script lang="ts">
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
@@ -6,7 +12,7 @@
     toggleHomeDir, isHomeDir, removeRecent, toggleRecentPin, clearRecent, removeNetPlace, startSearch, openSpace, showViewer, SYNC, HOME, type Tab,
   } from '../lib/state.svelte'
   import { size, ago, basename, samePath, collator, isMedia, kindOf, parent, date } from '../lib/util'
-  import { api, thumbUrl, type Drive, type Entry } from '../lib/api'
+  import { api, thumbUrl, type Drive, type Entry, type SystemInfo, type DirSize } from '../lib/api'
 
   let { tab }: { tab: Tab } = $props()
 
@@ -68,7 +74,6 @@
     return () => clearInterval(t)
   })
   const greeting = $derived(now.getHours() < 5 ? 'Dobranoc' : now.getHours() < 12 ? 'Dzień dobry' : now.getHours() < 18 ? 'Miłego popołudnia' : 'Dobry wieczór')
-  const userName = $derived(basename(app.known.find((k) => k.id === 'home')?.path ?? '') || '')
   const today = $derived(now.toLocaleDateString('pl', { weekday: 'long', day: 'numeric', month: 'long' }))
   const clock = $derived(now.toLocaleTimeString('pl', { hour: '2-digit', minute: '2-digit' }))
 
@@ -87,7 +92,14 @@
     })
   })
   let hoverDrive = $state<string | null>(null)
-  const C = 2 * Math.PI * 52
+  /** Łuk pierścienia od ułamka `a` do `b` obwodu (0 = góra, zgodnie z ruchem wskazówek). */
+  function arc(a: number, b: number, r = 52) {
+    const gap = 0.004
+    b = Math.max(a + 0.002, b - gap)
+    const p = (t: number) => [64 + r * Math.cos(t * 2 * Math.PI - Math.PI / 2), 64 + r * Math.sin(t * 2 * Math.PI - Math.PI / 2)]
+    const [x0, y0] = p(a), [x1, y1] = p(b)
+    return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 ${b - a > 0.5 ? 1 : 0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`
+  }
 
   // Szukanie wszędzie: domyślnie w folderze domowym, można wybrać dysk.
   let q = $state('')
@@ -108,7 +120,7 @@
   async function loadRecentFiles() {
     const dirs = app.known.filter((k) => ['desktop', 'downloads', 'documents', 'pictures', 'videos'].includes(k.id)).map((k) => k.path)
     if (!dirs.length) return
-    recentFiles = await api.recentFiles(dirs, 14, 60).catch(() => [])
+    recentFiles = await api.recentFiles(dirs, 14, 400).catch(() => [])
   }
   $effect(() => {
     if (app.known.length && recentFiles === null) loadRecentFiles()
@@ -124,6 +136,72 @@
   const syncBusy = $derived(app.syncProfiles.filter((p) => ['syncing', 'scanning'].includes(app.syncStatus[p.id]?.state ?? '')).length)
   const syncOff = $derived(app.syncProfiles.filter((p) => !app.syncStatus[p.id]?.connected).length)
 
+  // ---------- Szczegóły: system, foldery, aktywność ----------
+
+  let sys = $state<SystemInfo | null>(null)
+  // Historia zużycia procesora – mały wykres z ostatnich ~2 minut.
+  let cpuHist = $state<number[]>([])
+  $effect(() => {
+    let alive = true
+    const tick = () => api.systemInfo().then((v) => { if (!alive) return; sys = v; cpuHist = [...cpuHist.slice(-39), v.cpu_usage] }).catch(() => {})
+    tick()
+    const t = setInterval(() => !document.hidden && tick(), 3000)
+    return () => {
+      alive = false
+      clearInterval(t)
+    }
+  })
+  const uptime = (s: number) => {
+    const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60)
+    return d ? `${d} d ${h} h` : h ? `${h} h ${m} min` : `${m} min`
+  }
+  // Historia zużycia procesora – mały wykres z ostatnich ~2 minut.
+  
+  const spark = (vals: number[], w = 160, h = 36) =>
+    vals.length < 2 ? '' : vals.map((v, i) => `${i ? 'L' : 'M'}${((i / (vals.length - 1)) * w).toFixed(1)} ${(h - (Math.min(100, v) / 100) * h).toFixed(1)}`).join(' ')
+
+  // Rozmiary folderów użytkownika – liczone raz w tle i pamiętane między wejściami na ekran.
+  let folderSizes = $state<Record<string, DirSize>>(sizeCache)
+  $effect(() => {
+    if (!app.known.length) return
+    const ids = ['downloads', 'documents', 'pictures', 'videos', 'music', 'desktop']
+    const todo = app.known.filter((k) => ids.includes(k.id) && !sizeCache[k.path])
+    if (!todo.length || Date.now() - sizeAt < 10 * 60_000 && Object.keys(sizeCache).length) return
+    sizeAt = Date.now()
+    todo.reduce((acc, k) => acc.then(() => api.dirSize(k.path).then((d) => { sizeCache[k.path] = d; folderSizes = { ...sizeCache } })), Promise.resolve())
+  })
+  const userFolders = $derived(
+    app.known.filter((k) => folderSizes[k.path]).map((k) => ({ k, s: folderSizes[k.path] })).sort((a, b) => b.s.size - a.s.size),
+  )
+  const maxFolder = $derived(Math.max(1, ...userFolders.map((f) => f.s.size)))
+
+  // Ile plików zmieniono każdego dnia w ostatnich 14 dniach.
+  const days = $derived.by(() => {
+    const out: { d: Date; n: number; bytes: number }[] = []
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    for (let i = 13; i >= 0; i--) out.push({ d: new Date(start.getTime() - i * 86_400_000), n: 0, bytes: 0 })
+    for (const e of recentFiles ?? []) {
+      const i = Math.floor((e.modified - out[0].d.getTime()) / 86_400_000)
+      if (i >= 0 && i < 14) {
+        out[i].n++
+        out[i].bytes += e.size
+      }
+    }
+    return out
+  })
+  const maxDay = $derived(Math.max(1, ...days.map((d) => d.n)))
+  let hoverDay = $state<number | null>(null)
+  const weekTotal = $derived(days.slice(7).reduce((a, d) => a + d.n, 0))
+  const kindsWeek = $derived.by(() => {
+    const m: Record<string, number> = {}
+    for (const e of recentFiles ?? []) {
+      const k = kindOf(e)
+      const g = k === 'image' || k === 'raw' ? 'Zdjęcia' : k === 'video' ? 'Wideo' : ['pdf', 'doc', 'sheet', 'slides', 'text'].includes(k) ? 'Dokumenty' : k === 'archive' ? 'Archiwa' : 'Inne'
+      m[g] = (m[g] ?? 0) + 1
+    }
+    return Object.entries(m).sort((a, b) => b[1] - a[1])
+  })
+
   const ACTIONS: { label: string; icon: import('../lib/icons').IconName; run: () => void; kbd?: string }[] = [
     { label: 'Paleta poleceń', icon: 'bolt', kbd: 'Ctrl+K', run: () => (app.palette = true) },
     { label: 'Nowa karta', icon: 'plus', kbd: 'Ctrl+T', run: () => newTab(HOME, true, tab.id) },
@@ -137,9 +215,9 @@
 
   // ---------- Sekcje: kolejność i przeciąganie ----------
 
-  const BASE = ['overview', 'folders', 'files', 'drives', 'removable', 'network', 'sync', 'recent']
+  const BASE = ['overview', 'insights', 'folders', 'files', 'drives', 'removable', 'network', 'sync', 'recent']
   const TITLES: Record<string, string> = {
-    overview: 'Przegląd', files: 'Ostatnie pliki', folders: 'Foldery', drives: 'Dyski', removable: 'Urządzenia wymienne', network: 'Lokalizacje sieciowe', sync: 'Synchronizacja', recent: 'Ostatnio otwierane',
+    overview: 'Przegląd', insights: 'Szczegóły', files: 'Ostatnie pliki', folders: 'Foldery', drives: 'Dyski', removable: 'Urządzenia wymienne', network: 'Lokalizacje sieciowe', sync: 'Synchronizacja', recent: 'Ostatnio otwierane',
   }
   const order = $derived.by(() => {
     const want = [...BASE, ...settings.homeDirs.map((p) => 'dir:' + p)]
@@ -149,6 +227,7 @@
       if (kept.includes(id)) continue
       const at = id.startsWith('dir:') ? kept.indexOf('recent') : -1
       if (id === 'overview') kept.unshift(id)
+      else if (id === 'insights') kept.splice(kept.indexOf('overview') + 1, 0, id)
       else if (id === 'files') kept.splice(Math.max(0, kept.indexOf('folders') + 1), 0, id)
       else if (at >= 0) kept.splice(at, 0, id)
       else kept.push(id)
@@ -257,6 +336,7 @@
         </h2>
         {#if open(id)}
           {#if id === 'overview'}{@render overview()}
+          {:else if id === 'insights'}{@render insights()}
           {:else if id === 'files'}{@render files()}
           {:else if id === 'folders'}{@render folders()}
           {:else if id === 'drives' || id === 'removable' || id === 'network'}{@render drives(id)}
@@ -274,7 +354,7 @@
     <div class="hero card">
       <div class="hello">
         <span class="faint cap1">{today}</span>
-        <h1>{greeting}{userName ? `, ${userName}` : ''}</h1>
+        <h1>{greeting}</h1>
         <span class="clock">{clock}</span>
       </div>
       <form class="qs" onsubmit={(e) => { e.preventDefault(); searchAll() }}>
@@ -286,6 +366,14 @@
         </select>
         <button class="btn primary sm" disabled={!q.trim()}>Szukaj</button>
       </form>
+      {#if app.favorites.length || app.recent.length}
+        <div class="jump">
+          <span class="faint jl">Skocz do</span>
+          {#each [...app.favorites.map((f) => f.path), ...app.recent].filter((p, i, a) => a.findIndex((x) => samePath(x, p)) === i).slice(0, 8) as p (p)}
+            <button class="jc" onclick={(e) => go(p, e)} onauxclick={(e) => aux(e, p)} oncontextmenu={(e) => folderMenu(e, p)} title={p}><img src={thumbUrl(p, 16, 'i')} alt="" /><span class="ellipsis">{basename(p) || p}</span></button>
+          {/each}
+        </div>
+      {/if}
       <div class="acts">
         {#each ACTIONS as a (a.label)}
           <button class="act" onclick={a.run} title={a.kbd ? `${a.label} (${a.kbd})` : a.label}><Icon name={a.icon} size={18} /><span>{a.label}</span></button>
@@ -299,8 +387,7 @@
         <svg viewBox="0 0 128 128" class="ring" role="img" aria-label="Zajętość wszystkich dysków">
           <circle cx="64" cy="64" r="52" class="track" />
           {#each ring as s (s.d.letter)}
-            <circle cx="64" cy="64" r="52" class="seg" class:dim={hoverDrive && hoverDrive !== s.d.letter} stroke={s.color}
-              stroke-dasharray="{Math.max(0, s.part * C - 2)} {C}" stroke-dashoffset={-s.from * C} />
+            {#if s.part > 0}<path d={arc(s.from, s.from + s.part)} class="seg" class:dim={hoverDrive && hoverDrive !== s.d.letter} stroke={s.color} />{/if}
           {/each}
           <text x="64" y="60" class="big">{Math.round((usedAll / (totalAll || 1)) * 100)}%</text>
           <text x="64" y="78" class="sm">zajęte</text>
@@ -320,7 +407,7 @@
     </div>
 
     <div class="card activity">
-      <h3>Aktywność</h3>
+      <h3 class="row"><span class="grow">Aktywność</span>{#if !running.length && !app.syncProfiles.length && !app.shelf.length && !app.update}<span class="faint calm"><Icon name="check" size={14} />Wszystko spokojnie</span>{/if}</h3>
       {#each running as o (o.id)}
         <div class="arow"><span class="dot busy"></span><span class="ellipsis grow">{o.title}</span><span class="faint">{Math.round((o.done_bytes / (o.total_bytes || 1)) * 100)}%</span></div>
         <span class="bar"><i style:width="{(o.done_bytes / (o.total_bytes || 1)) * 100}%"></i></span>
@@ -334,9 +421,6 @@
       {#if app.update}
         <div class="arow"><Icon name="download" size={14} /><span class="grow">Dostępna wersja {app.update.latest}</span></div>
       {/if}
-      {#if !running.length && !app.syncProfiles.length && !app.shelf.length && !app.update}
-        <p class="faint calm"><Icon name="check" size={16} />Wszystko spokojnie</p>
-      {/if}
       {#if downloads.length}
         <h4 class="faint">Ostatnio pobrane</h4>
         {#each downloads as e (e.path)}
@@ -345,6 +429,59 @@
           </button>
         {/each}
       {/if}
+    </div>
+  </div>
+{/snippet}
+
+{#snippet insights()}
+  <div class="ins">
+    <div class="card sys">
+      <h3 class="row"><span class="grow">Ten komputer</span><span class="faint small">{sys?.host ?? ''}</span></h3>
+      {#if sys}
+        <p class="faint small os">{sys.os}</p>
+        <div class="meter">
+          <div class="mh"><span>Procesor</span><b>{Math.round(sys.cpu_usage)}%</b></div>
+          <svg viewBox="0 0 160 36" preserveAspectRatio="none" class="spark" aria-hidden="true"><path d={spark(cpuHist)} /></svg>
+          <span class="faint small ellipsis" title={sys.cpu}>{sys.cpu} · {sys.cores} rdz. / {sys.threads} wątków</span>
+        </div>
+        <div class="meter">
+          <div class="mh"><span>Pamięć RAM</span><b>{size(sys.mem_used)} / {size(sys.mem_total)}</b></div>
+          <span class="bar" class:warn={sys.mem_used / sys.mem_total > 0.8} class:full={sys.mem_used / sys.mem_total > 0.92}><i style:width="{(sys.mem_used / sys.mem_total) * 100}%"></i></span>
+        </div>
+        <div class="kv"><span class="faint">Działa od</span><b>{uptime(sys.uptime)}</b></div>
+      {:else}
+        <p class="faint small">Wczytywanie…</p>
+      {/if}
+    </div>
+
+    <div class="card uf">
+      <h3>Twoje foldery</h3>
+      {#each userFolders as { k, s } (k.id)}
+        <button class="ufr" onclick={(e) => go(k.path, e)} oncontextmenu={(e) => folderMenu(e, k.path)} title="{k.path} · {s.files.toLocaleString('pl')} plików">
+          <img src={thumbUrl(k.path, 16, 'i')} alt="" />
+          <span class="ufn">{k.name}</span>
+          <span class="ufb"><i style:width="{(s.size / maxFolder) * 100}%"></i></span>
+          <span class="faint ufs">{size(s.size)}</span>
+        </button>
+      {:else}
+        <p class="faint small">Liczę rozmiary…</p>
+      {/each}
+    </div>
+
+    <div class="card chart">
+      <h3 class="row"><span class="grow">Aktywność plików</span><span class="faint small">{weekTotal} zmian w tym tygodniu</span></h3>
+      <div class="bars" role="img" aria-label="Liczba zmienionych plików w ostatnich 14 dniach">
+        {#each days as d, i (i)}
+          <button class="bcol" class:today={i === 13} onmouseenter={() => (hoverDay = i)} onmouseleave={() => (hoverDay = null)} onclick={() => { fileKind = 'all' }} title="{d.d.toLocaleDateString('pl', { weekday: 'short', day: 'numeric', month: 'short' })}: {d.n} plików · {size(d.bytes)}">
+            <i style:height="{Math.max(3, (d.n / maxDay) * 100)}%" class:empty={!d.n}></i>
+            <span>{d.d.toLocaleDateString('pl', { weekday: 'narrow' })}</span>
+          </button>
+        {/each}
+      </div>
+      <p class="faint small hl">
+        {#if hoverDay !== null}{days[hoverDay].d.toLocaleDateString('pl', { weekday: 'long', day: 'numeric', month: 'long' })}: <b>{days[hoverDay].n}</b> plików ({size(days[hoverDay].bytes)})
+        {:else}{#each kindsWeek.slice(0, 4) as [g, n], i (g)}{i ? ' · ' : ''}{g} {n}{/each}{/if}
+      </p>
     </div>
   </div>
 {/snippet}
@@ -480,6 +617,164 @@
 {/snippet}
 
 <style>
+  .ins {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+  @media (max-width: 1100px) {
+    .ins {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  .small {
+    font-size: 12px;
+  }
+  .os {
+    margin: -6px 0 0;
+  }
+  .meter {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .mh {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+  }
+  .mh b {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .spark {
+    width: 100%;
+    height: 36px;
+  }
+  .spark path {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 1.6;
+    vector-effect: non-scaling-stroke;
+  }
+  .meter .bar {
+    display: block;
+    height: 6px;
+  }
+  .kv {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12.5px;
+    margin-top: auto;
+  }
+  .ufr {
+    display: grid;
+    grid-template-columns: 16px 90px 1fr 70px;
+    align-items: center;
+    gap: 10px;
+    height: 28px;
+    padding: 0 6px;
+    border-radius: var(--r-s);
+    font-size: 12.5px;
+    text-align: left;
+  }
+  .ufr:hover {
+    background: var(--hover);
+  }
+  .ufr img {
+    width: 16px;
+    height: 16px;
+  }
+  .ufn {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .ufb {
+    height: 6px;
+    border-radius: 3px;
+    background: var(--high);
+    overflow: hidden;
+  }
+  .ufb i {
+    display: block;
+    height: 100%;
+    border-radius: 3px;
+    background: var(--accent);
+  }
+  .ufs {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .bars {
+    flex: 1;
+    min-height: 110px;
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    gap: 4px;
+    align-items: end;
+  }
+  .bcol {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    color: var(--faint);
+  }
+  .bcol i {
+    width: 100%;
+    border-radius: var(--r-xs) var(--r-xs) 2px 2px;
+    background: var(--press);
+    transition: background 0.12s, height 0.3s var(--ease);
+  }
+  .bcol:hover i,
+  .bcol.today i {
+    background: var(--accent);
+  }
+  .bcol i.empty {
+    background: var(--high);
+  }
+  .hl {
+    margin: 0;
+    min-height: 16px;
+  }
+  .hl b {
+    color: var(--text);
+  }
+  .jump {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+  }
+  .jl {
+    font-size: 12px;
+    margin-right: 2px;
+  }
+  .jc {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 180px;
+    height: 28px;
+    padding: 0 10px;
+    border-radius: var(--r-s);
+    background: var(--card);
+    font-size: 12.5px;
+    color: var(--dim);
+  }
+  .jc:hover {
+    background: var(--press);
+    color: var(--text);
+  }
+  .jc img {
+    width: 16px;
+    height: 16px;
+    flex: none;
+  }
   .dash {
     display: grid;
     grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr) minmax(280px, 1fr);
@@ -600,9 +895,9 @@
     width: 128px;
     height: 128px;
     flex: none;
-    transform: rotate(-90deg);
   }
-  .ring circle {
+  .ring circle,
+  .ring path {
     fill: none;
     stroke-width: 14;
   }
@@ -616,8 +911,6 @@
     opacity: 0.25;
   }
   .ring text {
-    transform: rotate(90deg);
-    transform-origin: 64px 64px;
     text-anchor: middle;
     fill: var(--text);
   }
@@ -702,9 +995,9 @@
   .calm {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin: 0;
-    font-size: 12.5px;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 400;
   }
   .fbar {
     display: flex;

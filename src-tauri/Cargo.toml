@@ -36,6 +36,7 @@ tauri-plugin-single-instance = "2"
 sevenz-rust = "0.6"
 suppaftp = "6"
 portable-pty = "0.8"
+sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 
 [dependencies.windows]
 version = "0.61"
