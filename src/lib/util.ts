@@ -109,6 +109,7 @@ export function join(dir: string, name: string) {
 }
 
 export function crumbs(p: string): { name: string; path: string }[] {
+  if (p.startsWith('ofp:lib|')) return [{ name: 'Biblioteki', path: p }, { name: basename(p.slice(8)).replace(/\.library-ms$/i, ''), path: p }]
   if (p.startsWith('ofp:')) return []
   const out: { name: string; path: string }[] = []
   let cur: string | null = p

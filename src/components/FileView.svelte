@@ -565,7 +565,6 @@
     if (one?.dir) {
       items.push({ label: 'Przypnij w panelu bocznym', icon: 'pin', run: () => addFavorite(one.path) })
       items.push({ label: isHomeDir(one.path) ? 'Usuń z ekranu Komputer' : 'Pokaż na ekranie Komputer', icon: 'grid', run: () => toggleHomeDir(one.path) })
-      items.push({ label: 'Synchronizuj z dyskiem…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: one.path }) })
       items.push({ label: 'Terminal tutaj', icon: 'terminal', run: () => api.terminal(one.path) })
     }
     items.push({ label: 'Dodaj do schowka plików', icon: 'archive', kbd: 'Ctrl+Shift+S', run: () => shelfAdd(sel) })
@@ -600,7 +599,6 @@
         { label: 'Zaznacz wszystko', icon: 'check', kbd: 'Ctrl+A', run: () => list.forEach((e) => tab.selected.add(e.path)) },
         { sep: true },
         { label: 'Przypnij ten folder', icon: 'pin', run: () => addFavorite(tab.path) },
-        { label: 'Synchronizuj ten folder…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: tab.path }) },
         { label: 'Terminal tutaj', icon: 'terminal', run: () => api.terminal(tab.path) },
         { label: 'Zajętość i porządki', icon: 'grid', run: () => openSpace(tab, tab.path) },
         { label: 'Otwórz w Eksploratorze', icon: 'open', run: () => api.open(tab.path) },

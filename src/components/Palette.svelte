@@ -68,7 +68,6 @@
       cmd('homedir', isHomeDir(t.path) ? 'Usuń ten folder z ekranu Komputer' : 'Pokaż ten folder na ekranie Komputer', 'grid', () => toggleHomeDir(t.path))
       cmd('space', 'Zajętość i porządki w tym folderze', 'grid', () => openSpace(t, t.path))
       cmd('shelf', 'Dodaj zaznaczone do schowka plików', 'archive', () => shelfAdd(t.selectedEntries), 'Ctrl+Shift+S')
-      cmd('syncnew', 'Synchronizuj ten folder…', 'sync', () => (app.dialog = { type: 'sync', profile: null, source: t.path }))
       if (t.search) cmd('savesearch', 'Zapisz bieżące wyszukiwanie', 'star', () => saveSearch(t))
     }
     if (t.hIndex > 0) cmd('back', 'Wstecz', 'back', () => back(t), 'Alt+←')

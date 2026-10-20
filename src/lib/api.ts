@@ -30,6 +30,7 @@ export interface Drive {
 }
 
 export interface Known { id: string; name: string; path: string }
+export interface Library { name: string; path: string; folders: string[] }
 export interface Prop { name: string; value: string; key: string; num: number | null }
 export interface MediaInfo { w: number; h: number; dur: number; taken: number }
 export interface TextPreview { text: string; truncated: boolean; kind: string }
@@ -105,6 +106,10 @@ export const api = {
   installUpdate: (path: string) => invoke<void>('install_update', { path }),
   systemAccent: () => invoke<string | null>('system_accent'),
   recentFiles: (dirs: string[], days: number, limit: number) => invoke<Entry[]>('recent_files', { dirs, days, limit }),
+  libraries: () => invoke<Library[]>('libraries'),
+  libraryCreate: (name: string, folder?: string) => invoke<string>('library_create', { name, folder: folder ?? null }),
+  libraryAdd: (lib: string, folder: string) => invoke<void>('library_add', { lib, folder }),
+  libraryRemove: (lib: string, folder: string) => invoke<void>('library_remove', { lib, folder }),
   renameMany: (pairs: [string, string][]) => invoke<{ done: number; errors: string[] }>('rename_many', { pairs }),
   startOp: (kind: 'copy' | 'move' | 'trash' | 'delete', sources: string[], dest = '', conflict: ConflictPolicy = 'rename') =>
     invoke<number>('start_op', { kind, sources, dest, conflict }),

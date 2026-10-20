@@ -3,6 +3,7 @@ mod drives;
 mod fsx;
 pub mod ops;
 mod remote;
+mod library;
 mod space;
 mod system;
 mod terminal;
@@ -540,6 +541,26 @@ async fn cleanup_scan(path: String, temp: bool) -> R<Vec<space::Junk>> {
 }
 
 #[tauri::command]
+async fn libraries() -> R<Vec<library::Library>> {
+    blocking(library::list).await
+}
+
+#[tauri::command]
+async fn library_create(name: String, folder: Option<String>) -> R<String> {
+    blocking(move || library::create(&name, folder.as_deref())).await?
+}
+
+#[tauri::command]
+async fn library_add(lib: String, folder: String) -> R<()> {
+    blocking(move || library::add_folder(&lib, &folder)).await?
+}
+
+#[tauri::command]
+async fn library_remove(lib: String, folder: String) -> R<()> {
+    blocking(move || library::remove_folder(&lib, &folder)).await?
+}
+
+#[tauri::command]
 fn term_start(app: AppHandle, cwd: String, cols: u16, rows: u16) -> R<u64> {
     terminal::start(app, &cwd, cols, rows)
 }
@@ -826,6 +847,10 @@ pub fn run() {
             integration,
             system_accent,
             term_start,
+            libraries,
+            library_create,
+            library_add,
+            library_remove,
             space_scan,
             space_cancel,
             cleanup_scan,

@@ -193,8 +193,6 @@
           { label: 'Inny plik…', icon: 'filePlus', run: () => newFile(tab, 'nowy plik', 'Nowy plik (z dowolnym rozszerzeniem)') },
         ] },
         ...(sel.length ? [{ sep: true } as const, { label: `Archiwum ZIP z zaznaczonych (${sel.length})`, icon: 'archive', run: () => zipSelection(tab) }] : []),
-        { sep: true },
-        { label: 'Synchronizację tego folderu…', icon: 'sync', run: () => (app.dialog = { type: 'sync', profile: null, source: tab.path }) },
       ],
     }
   }

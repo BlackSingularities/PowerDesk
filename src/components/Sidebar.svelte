@@ -3,7 +3,7 @@
   import type { IconName } from '../lib/icons'
   import {
     app, settings, activeTab, navigate, newTab, transfer, dropMode, addFavorite, removeFavorite, toggleHomeDir, isHomeDir, toast, refreshDrives,
-    HOME, SYNC, SETTINGS, runSaved, removeSaved, renameSaved, removeNetPlace, type SavedSearch, type NetPlace, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
+    HOME, SYNC, SETTINGS, runSaved, removeSaved, renameSaved, removeNetPlace, refreshLibraries, prompt, confirm, LIB, type SavedSearch, type NetPlace, type Library, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
   } from '../lib/state.svelte'
   import { api, thumbUrl, type Drive } from '../lib/api'
   import { samePath, size, ago } from '../lib/util'
@@ -82,6 +82,61 @@
     }
   }
 
+  // ---------- Biblioteki Windows ----------
+  const libPath = (l: { path: string }) => `${LIB}|${l.path}`
+  async function newLibrary() {
+    const name = await prompt('Nowa biblioteka', 'Nowa biblioteka', 'Dalej', false, 'Biblioteka zbiera kilka folderów w jednym miejscu – będzie widoczna także w Eksploratorze Windows.')
+    if (!name) return
+    const folder = await api.pickFolder()
+    try {
+      const path = await api.libraryCreate(name, folder ?? undefined)
+      await refreshLibraries()
+      go(`${LIB}|${path}`)
+      toast(`Utworzono bibliotekę „${name}”`, 'ok')
+    } catch (e) {
+      toast(String(e), 'error')
+    }
+  }
+  async function libAdd(l: Library, folder?: string) {
+    const f = folder ?? (await api.pickFolder())
+    if (!f) return
+    try {
+      await api.libraryAdd(l.path, f)
+      await refreshLibraries()
+      toast(`Dodano do biblioteki „${l.name}”`, 'ok')
+    } catch (e) {
+      toast(String(e), 'error')
+    }
+  }
+  function libDrop(e: DragEvent, l: Library) {
+    e.preventDefault()
+    over = null
+    const dirs = app.dragging?.paths.filter((p) => app.tabs.some((t) => t.items.some((x) => x.dir && x.path === p))) ?? []
+    if (!dirs.length) return toast('Do biblioteki można dodawać tylko foldery')
+    dirs.reduce((acc, d) => acc.then(() => libAdd(l, d)), Promise.resolve())
+  }
+  function libMenu(e: MouseEvent, l: Library) {
+    e.preventDefault()
+    app.menu = {
+      x: e.clientX, y: e.clientY,
+      items: [
+        { label: 'Otwórz', icon: 'folder', run: () => go(libPath(l)) },
+        { label: 'Otwórz w nowej karcie', icon: 'plus', run: () => newTab(libPath(l)) },
+        { sep: true },
+        { label: 'Dodaj folder…', icon: 'folderPlus', run: () => libAdd(l) },
+        ...(l.folders.length
+          ? [{ label: 'Usuń folder z biblioteki', icon: 'unlink', sub: l.folders.map((f) => ({ label: f, run: () => api.libraryRemove(l.path, f).then(refreshLibraries).catch((er) => toast(String(er), 'error')) })) }]
+          : []),
+        { sep: true },
+        { label: 'Usuń bibliotekę', icon: 'trash', danger: true, run: async () => {
+          if (!(await confirm('Usunąć bibliotekę?', `„${l.name}” zniknie z OpenFilePower i z Eksploratora. Foldery i pliki zostaną nietknięte.`, 'Usuń', true))) return
+          await api.startOp('trash', [l.path])
+          setTimeout(refreshLibraries, 400)
+        } },
+      ],
+    }
+  }
+
   function savedMenu(e: MouseEvent, s: SavedSearch) {
     e.preventDefault()
     app.menu = {
@@ -143,6 +198,7 @@
     {/if}
     {/if}
 
+    {#if settings.sidebar.showSaved}
     {#if settings.savedSearches.length}
       <button class="sec" onclick={() => toggle('saved')}><span class="chev" class:shut={!open('saved')}><Icon name="chevronDown" size={13} /></span><span class="grow">Zapisane wyszukiwania</span><span class="cnt">{settings.savedSearches.length}</span></button>
       {#if open('saved')}
@@ -153,7 +209,9 @@
         {/each}
       {/if}
     {/if}
+    {/if}
 
+    {#if settings.sidebar.showFav}
     <div
       class="sec"
       class:over={over === '#fav'}
@@ -182,7 +240,35 @@
       <div class="hint">Przeciągnij tu folder albo wybierz „Przypnij” z menu</div>
     {/each}
     {/if}
+    {/if}
 
+    {#if settings.sidebar.showLibs}
+    <div class="sec row"><button class="sec-btn" onclick={() => toggle('libs')}><span class="chev" class:shut={!open('libs')}><Icon name="chevronDown" size={13} /></span><span class="grow">Biblioteki</span></button>
+      <button class="mini" title="Nowa biblioteka" aria-label="Nowa biblioteka" onclick={newLibrary}><Icon name="plus" size={14} /></button>
+    </div>
+    {#if open('libs')}
+    {#each app.libraries as l (l.path)}
+      <button
+        class="item"
+        class:on={cur === libPath(l)}
+        class:over={over === l.path}
+        onclick={(e) => go(libPath(l), e)}
+        onauxclick={(e) => go(libPath(l), e)}
+        oncontextmenu={(e) => libMenu(e, l)}
+        ondragover={(e) => { if (app.dragging) { e.preventDefault(); over = l.path } }}
+        ondragleave={() => (over = null)}
+        ondrop={(e) => libDrop(e, l)}
+        title={l.folders.join('\n') || 'Biblioteka bez folderów – przeciągnij tu folder'}
+      >
+        <img class="sys" src={thumbUrl(l.path, 18, 'i')} alt="" /><span class="ellipsis grow">{l.name}</span>{#if l.folders.length > 1}<span class="cnt">{l.folders.length}</span>{/if}
+      </button>
+    {:else}
+      <button class="hint link" onclick={newLibrary}>Utwórz bibliotekę…</button>
+    {/each}
+    {/if}
+    {/if}
+
+    {#if settings.sidebar.showDrives}
     <button class="sec" onclick={() => toggle('drives')}><span class="chev" class:shut={!open('drives')}><Icon name="chevronDown" size={13} /></span><span class="grow">Dyski</span><span class="cnt">{localDrives.length}</span></button>
     {#if open('drives')}
     {#each localDrives as d (d.path)}
@@ -212,7 +298,9 @@
       </button>
     {/each}
     {/if}
+    {/if}
 
+    {#if settings.sidebar.showNet}
     <div class="sec row"><button class="sec-btn" onclick={() => toggle('net')}><span class="chev" class:shut={!open('net')}><Icon name="chevronDown" size={13} /></span><span class="grow">Sieć</span></button>
       <button class="mini" title="Połącz z lokalizacją sieciową" aria-label="Połącz z lokalizacją sieciową" onclick={() => (app.dialog = { type: 'network' })}><Icon name="plus" size={14} /></button>
     </div>
@@ -246,7 +334,9 @@
       <button class="hint link" onclick={() => (app.dialog = { type: 'network' })}>Połącz z lokalizacją sieciową…</button>
     {/if}
     {/if}
+    {/if}
 
+    {#if settings.sidebar.showSync}
     <div class="sec row"><button class="sec-btn" onclick={() => toggle('sync')}><span class="chev" class:shut={!open('sync')}><Icon name="chevronDown" size={13} /></span><span class="grow">Synchronizacja</span></button>
       <button class="mini" title="Nowa synchronizacja" onclick={() => (app.dialog = { type: 'sync', profile: null, source: activeTab()?.special ? undefined : activeTab()?.path })}><Icon name="plus" size={14} /></button>
     </div>
@@ -269,6 +359,7 @@
     {:else}
       <button class="hint link" onclick={() => go(SYNC)}>Synchronizuj folder z dyskiem…</button>
     {/each}
+    {/if}
     {/if}
   </div>
 

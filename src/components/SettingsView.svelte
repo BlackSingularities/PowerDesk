@@ -19,7 +19,7 @@
   getVersion().then((v) => (version = v))
 
   type Key = { [K in keyof typeof settings]: (typeof settings)[K] extends boolean ? K : never }[keyof typeof settings]
-  type Special = 'autostart' | 'defaultFm' | 'ctxMenu'
+  type Special = 'autostart' | 'defaultFm' | 'ctxMenu' | `sb:${keyof typeof settings.sidebar}`
   type Opt = { key: Key | Special; icon: IconName; label: string; hint?: string; kbd?: string }
   type Group = { id: string; title: string; icon: IconName; lead: string; items: Opt[] }
 
@@ -39,6 +39,12 @@
       id: 'nav', title: 'Panel boczny i Komputer', icon: 'sidebar', lead: 'Co widać w nawigacji',
       items: [
         { key: 'showQuickAccess', icon: 'star', label: 'Szybki dostęp', hint: 'Sekcja w panelu bocznym' },
+        { key: 'sb:showSaved', icon: 'search', label: 'Zapisane wyszukiwania', hint: 'Sekcja w panelu bocznym' },
+        { key: 'sb:showFav', icon: 'pin', label: 'Przypięte', hint: 'Sekcja w panelu bocznym' },
+        { key: 'sb:showLibs', icon: 'archive', label: 'Biblioteki', hint: 'Biblioteki Windows – nowe są widoczne też w Eksploratorze' },
+        { key: 'sb:showDrives', icon: 'drive', label: 'Dyski', hint: 'Sekcja w panelu bocznym' },
+        { key: 'sb:showNet', icon: 'network', label: 'Sieć', hint: 'Dyski sieciowe i serwery FTP' },
+        { key: 'sb:showSync', icon: 'sync', label: 'Synchronizacja', hint: 'Jedyne miejsce, gdzie dodaje się synchronizacje' },
         { key: 'showRecent', icon: 'history', label: 'Ostatnio otwierane', hint: 'Lista na ekranie Komputer' },
         { key: 'hideOfflineDrives', icon: 'usb', label: 'Ukrywaj puste napędy', hint: 'Czytniki kart bez nośnika, CD/DVD bez płyty' },
       ],
@@ -141,8 +147,13 @@
   const onCount = $derived(groups.flatMap((g) => g.items).filter((o) => val(o)).length)
 
   const val = (o: Opt) =>
-    o.key === 'autostart' ? autostart : o.key === 'defaultFm' ? !!integ?.default_fm : o.key === 'ctxMenu' ? !!integ?.context_menu : settings[o.key]
+    o.key.startsWith('sb:') ? settings.sidebar[o.key.slice(3) as keyof typeof settings.sidebar] : o.key === 'autostart' ? autostart : o.key === 'defaultFm' ? !!integ?.default_fm : o.key === 'ctxMenu' ? !!integ?.context_menu : settings[o.key as Key]
   function flip(o: Opt) {
+    if (o.key.startsWith('sb:')) {
+      const k = o.key.slice(3) as keyof typeof settings.sidebar
+      settings.sidebar[k] = !settings.sidebar[k]
+      return
+    }
     if (o.key === 'autostart') return toggleAutostart()
     if (o.key === 'defaultFm' || o.key === 'ctxMenu') {
       const on = !val(o)
@@ -154,7 +165,8 @@
         })
         .catch((e) => toast(String(e), 'error'))
     }
-    settings[o.key] = !settings[o.key]
+    const k = o.key as Key
+    settings[k] = !settings[k]
   }
   const caps = (k: string) => k.split(' / ').map((alt) => (alt === '+' ? ['+'] : alt.split('+')))
 

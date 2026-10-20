@@ -2,7 +2,7 @@ import { SvelteSet } from 'svelte/reactivity'
 import { getCurrentWindow, Effect } from '@tauri-apps/api/window'
 import { facetsFor, facetTest, type Facet } from './facets'
 import { parseQuery } from './query'
-import { api, on, type DirSize, type ConflictInfo, type ConflictPolicy, type Drive, type Entry, type Known, type MediaInfo, type OpProgress, type SyncProfile, type SyncStatus } from './api'
+import { api, on, type Library, type DirSize, type ConflictInfo, type ConflictPolicy, type Drive, type Entry, type Known, type MediaInfo, type OpProgress, type SyncProfile, type SyncStatus } from './api'
 import { basename, collator, debounce, join, kindOf, isMedia, parent, samePath, typeLabel, volumeOf, inArchive, isBrowsableArchive, isRemote, type Kind } from './util'
 
 export type View = 'list' | 'grid' | 'gallery'
@@ -184,12 +184,21 @@ export const SYNC = 'ofp:sync'
 export const SETTINGS = 'ofp:settings'
 /** Zajętość i porządki: „ofp:space|C:\folder”. */
 export const SPACE = 'ofp:space'
+/** Biblioteka Windows: „ofp:lib|C:\...\Libraries\Obrazy.library-ms” – zawartość wszystkich jej folderów. */
+export const LIB = 'ofp:lib'
+export type { Library }
 export const openSpace = (t: Tab, path: string) => navigate(t, `${SPACE}|${path}`)
+
+function libName(p: string) {
+  const file = p.slice(LIB.length + 1)
+  return app.libraries.find((l) => samePath(l.path, file))?.name ?? basename(file).replace(/\.library-ms$/i, '')
+}
 
 export function specialTitle(p: string) {
   if (p === HOME) return 'Komputer'
   if (p === SYNC) return 'Synchronizacja'
   if (p === SETTINGS) return 'Ustawienia'
+  if (p.startsWith(LIB + '|')) return libName(p)
   if (p.startsWith(SPACE + '|')) return `Zajętość: ${basename(p.slice(SPACE.length + 1)) || p.slice(SPACE.length + 1)}`
   return basename(p)
 }
@@ -320,8 +329,12 @@ export class Tab {
   groups = $derived(this.grouped.groups)
 
   selectedEntries = $derived(this.items.filter((e) => this.selected.has(e.path)))
+  /** Widok specjalny (Komputer, Ustawienia…). Biblioteka to zwykła lista plików, więc się nie liczy. */
   get special() {
-    return this.path.startsWith('ofp:')
+    return this.path.startsWith('ofp:') && !this.path.startsWith(LIB + '|')
+  }
+  get isLibrary() {
+    return this.path.startsWith(LIB + '|')
   }
   title = $derived(this.search ? `„${this.search.query}”` : specialTitle(this.path))
 
@@ -354,6 +367,8 @@ export const settings = $state({
   showRecent: true,
   folderSizes: true,
   showQuickAccess: true,
+  /** Które sekcje panelu bocznego są widoczne. */
+  sidebar: { showSaved: true, showFav: true, showLibs: true, showDrives: true, showNet: true, showSync: true },
   theme: 'system' as 'system' | 'dark' | 'light',
   /** Krycie wyskakujących okienek w procentach (60–100). */
   popupOpacity: 100,
@@ -404,6 +419,7 @@ export const app = $state({
   update: null as { latest: string; url: string } | null,
   /** Pobieranie aktualizacji: postęp 0–1, null gdy nic się nie dzieje. */
   updating: null as number | null,
+  libraries: [] as Library[],
   dragging: null as { paths: string[]; fromShelf?: boolean } | null,
   /** Schowek plików (półka) – osobny od schowka Windows. */
   shelf: [] as Entry[],
@@ -542,7 +558,15 @@ export async function load(t: Tab, keepSelection = false) {
   const path = t.path
   t.loading = true
   try {
-    const list = await api.listDir(path)
+    let list: Entry[]
+    if (t.isLibrary) {
+      // Biblioteka: zawartość wszystkich jej folderów razem.
+      if (!app.libraries.length) await refreshLibraries()
+      const lib = app.libraries.find((l) => samePath(l.path, path.slice(LIB.length + 1)))
+      if (!lib) throw 'Nie znaleziono biblioteki'
+      const parts = await Promise.all(lib.folders.map((f) => api.listDir(f).catch(() => [] as Entry[])))
+      list = parts.flat()
+    } else list = await api.listDir(path)
     if (t.path !== path) return
     t.entries = list
     t.error = ''
@@ -855,6 +879,8 @@ export async function transfer(sources: string[], dest: string, mode: 'copy' | '
   }
   if (inArchive(dest + '\\')) return toast('Archiwa są tylko do odczytu – nie można do nich kopiować', 'error')
   sources = sources.filter((s) => !samePath(parent(s) ?? '', dest) || mode === 'copy')
+  // Wrzucenie do biblioteki = do jej pierwszego folderu (jak w Eksploratorze).
+  if (dest.startsWith(LIB + '|')) dest = app.libraries.find((l) => samePath(l.path, dest.slice(LIB.length + 1)))?.folders[0] ?? dest
   if (!sources.length || dest.startsWith('ofp:')) return
   if (sources.some((s) => samePath(s, dest) || dest.toLowerCase().startsWith(s.toLowerCase() + '\\'))) {
     toast('Nie można przenieść folderu do jego własnego wnętrza', 'error')
@@ -928,6 +954,7 @@ export async function trash(t: Tab, permanent = false) {
 
 export async function newFolder(t: Tab) {
   if (t.special) return
+  if (t.isLibrary) return toast('Otwórz jeden z folderów biblioteki, aby coś w nim utworzyć')
   if (inArchive(t.path + '\\')) return toast('Archiwa są tylko do odczytu', 'error')
   const name = await prompt('Nowy folder', 'Nowy folder', 'Utwórz')
   if (!name) return
@@ -976,6 +1003,7 @@ export async function zipSelection(t: Tab) {
 
 export async function newFile(t: Tab, def = 'Nowy dokument tekstowy.txt', title = 'Nowy plik') {
   if (t.special) return
+  if (t.isLibrary) return toast('Otwórz jeden z folderów biblioteki, aby coś w nim utworzyć')
   if (inArchive(t.path + '\\')) return toast('Archiwa są tylko do odczytu', 'error')
   const name = await prompt(title, def, 'Utwórz', true)
   if (!name) return
@@ -1179,6 +1207,11 @@ export function showDriveMenu(ev: MouseEvent, d: Drive, open: (path: string) => 
   app.menu = { x: ev.clientX, y: ev.clientY, items }
 }
 
+export async function refreshLibraries() {
+  app.libraries = await api.libraries().catch(() => [])
+  for (const t of app.tabs) if (t.isLibrary) load(t, true)
+}
+
 export async function refreshSync() {
   const r = await api.syncList()
   app.syncProfiles = r.profiles
@@ -1212,7 +1245,7 @@ export function persistNow() {
 export async function init() {
   try {
     const s = JSON.parse(await api.loadState())
-    if (s.settings) Object.assign(settings, s.settings)
+    if (s.settings) Object.assign(settings, s.settings, { sidebar: { ...settings.sidebar, ...(s.settings.sidebar ?? {}) } })
     app.favorites = s.favorites ?? []
     app.recent = s.recent ?? []
     app.folderPrefs = s.folderPrefs ?? {}
@@ -1242,6 +1275,7 @@ export async function init() {
     app.panes = [t.id]
   }
   api.known().then((k) => (app.known = k))
+  refreshLibraries()
   refreshDrives()
   refreshSync()
 
@@ -1289,7 +1323,7 @@ export async function init() {
   $effect.root(() => {
     $effect(() => {
       // Obserwujemy foldery wszystkich otwartych kart.
-      const dirs = [...new Set(app.tabs.filter((t) => !t.special && !isRemote(t.path) && !inArchive(t.path + '\\')).map((t) => t.path))]
+      const dirs = [...new Set(app.tabs.filter((t) => !t.special && !t.isLibrary && !isRemote(t.path) && !inArchive(t.path + '\\')).map((t) => t.path))]
       api.watch(dirs)
     })
     $effect(() => {
