@@ -111,6 +111,7 @@ export const api = {
   cancelOp: (id: number) => invoke<void>('cancel_op', { id }),
   conflicts: (sources: string[], dest: string) => invoke<ConflictInfo[]>('check_conflicts', { sources, dest }),
   undo: () => invoke<string>('undo'),
+  redo: () => invoke<string>('redo'),
   search: (root: string, query: string, hidden: boolean) => invoke<number>('search', { root, query, hidden }),
   cancelSearch: () => invoke<void>('cancel_search'),
   dirSize: (path: string) => invoke<DirSize>('dir_size', { path }),

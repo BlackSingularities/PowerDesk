@@ -60,6 +60,8 @@ pub fn push_undo(u: Undo) {
     if s.len() > 50 {
         s.remove(0);
     }
+    // Nowa operacja kasuje możliwość ponowienia cofniętych.
+    REDO.lock().clear();
 }
 
 pub fn cancel(id: u64) {
@@ -481,37 +483,59 @@ fn copy_file(ctx: &mut Ctx, src: &Path, dst: &Path, md: &std::fs::Metadata) -> R
     res
 }
 
-pub fn undo_last() -> Result<String, String> {
-    let Some(u) = UNDO.lock().pop() else { return Err("Nie ma nic do cofnięcia".into()) };
+/// Wykonuje odwrotność operacji. Zwraca opis i operację, która to z kolei odwróci (do ponowienia).
+fn reverse(u: Undo, verb: &str) -> Result<(String, Option<Undo>), String> {
     match u {
         Undo::Moved(pairs) => {
-            let mut n = 0;
+            let mut done = Vec::new();
             for (now, was) in pairs.iter().rev() {
                 if std::fs::rename(now, was).is_ok() {
-                    n += 1;
+                    done.push((was.clone(), now.clone()));
                 }
             }
-            Ok(format!("Cofnięto przeniesienie ({n})"))
+            done.reverse();
+            Ok((format!("{verb} przeniesienie ({})", done.len()), (!done.is_empty()).then_some(Undo::Moved(done))))
         }
         Undo::Created(paths) => {
-            let mut n = 0;
-            for p in &paths {
-                if trash::delete(p).is_ok() {
-                    n += 1;
-                }
-            }
-            Ok(format!("Cofnięto utworzenie ({n}) – elementy są w koszu"))
+            let n = paths.iter().filter(|p| trash::delete(p).is_ok()).count();
+            Ok((format!("{verb} utworzenie ({n}) – elementy są w Koszu"), None))
         }
         Undo::Renamed(now, was) => {
             std::fs::rename(&now, &was).map_err(|e| io_err(&e))?;
-            Ok("Cofnięto zmianę nazwy".into())
+            crate::shell::invalidate(&now);
+            Ok((format!("{verb} zmianę nazwy"), Some(Undo::Renamed(was, now))))
         }
         Undo::RenamedMany(pairs) => {
-            let back: Vec<(String, String)> = pairs.iter().map(|(now, was)| (now.clone(), was.clone())).collect();
-            let n = rename_batch(&back).map_err(|e| e.join("\n"))?.len();
-            Ok(format!("Cofnięto zmianę nazw ({n})"))
+            let done = rename_batch(&pairs).map_err(|e| e.join("\n"))?;
+            let n = done.len();
+            Ok((format!("{verb} zmianę nazw ({n})"), Some(Undo::RenamedMany(done))))
         }
     }
+}
+
+static REDO: Lazy<Mutex<Vec<Undo>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+pub fn undo_last() -> Result<String, String> {
+    let Some(u) = UNDO.lock().pop() else { return Err("Nie ma nic do cofnięcia".into()) };
+    let (msg, inv) = reverse(u, "Cofnięto")?;
+    if let Some(inv) = inv {
+        REDO.lock().push(inv);
+    }
+    Ok(msg)
+}
+
+pub fn redo_last() -> Result<String, String> {
+    let Some(u) = REDO.lock().pop() else { return Err("Nie ma nic do ponowienia".into()) };
+    let (msg, inv) = reverse(u, "Ponowiono")?;
+    if let Some(inv) = inv {
+        // Bez czyszczenia REDO – to nie jest nowa operacja.
+        let mut s = UNDO.lock();
+        s.push(inv);
+        if s.len() > 50 {
+            s.remove(0);
+        }
+    }
+    Ok(msg)
 }
 
 /// Zmienia nazwy wielu elementów naraz. Najpierw wszystko dostaje nazwy tymczasowe,

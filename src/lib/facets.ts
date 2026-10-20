@@ -83,16 +83,24 @@ function defsFor(files: Entry[], info: (e: Entry) => MediaInfo | undefined): Def
 const registry = new Map<string, Def>()
 
 /** Dostępne filtry dla listy plików (tylko te, które realnie zawężają wynik). */
-export function facetsFor(list: Entry[], info: (e: Entry) => MediaInfo | undefined): Facet[] {
+export function facetsFor(list: Entry[], info: (e: Entry) => MediaInfo | undefined, selected: Iterable<string> = []): Facet[] {
   const files = list.filter((e) => !e.dir)
   if (files.length < 4 || files.length > 20000) return []
   const defs = defsFor(files, info)
   for (const d of defs) registry.set(d.id, d)
+  const sel = new Set(selected)
   const out: Facet[] = []
   for (const d of defs) {
-    let c = 0
-    for (const e of files) if (d.test(e, info(e))) c++
-    if (c > 0 && c < files.length) out.push({ id: d.id, label: d.label, group: d.group, count: c })
+    // Licznik jak w sklepach: uwzględnia filtry wybrane w innych grupach (w tej samej – „lub”).
+    const others = facetTest([...sel].filter((id) => registry.get(id)?.group !== d.group), info)
+    let all = 0, c = 0
+    for (const e of files) {
+      if (others && !others(e)) continue
+      all++
+      if (d.test(e, info(e))) c++
+    }
+    // Pokazujemy filtry, które coś zawężają, i zawsze te już wybrane (żeby dało się je odznaczyć).
+    if (sel.has(d.id) || (c > 0 && c < all)) out.push({ id: d.id, label: d.label, group: d.group, count: c })
   }
   return out
 }

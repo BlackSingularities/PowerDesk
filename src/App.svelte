@@ -12,9 +12,10 @@
   import BulkRename from './components/BulkRename.svelte'
   import Shelf from './components/Shelf.svelte'
   import Terminal from './components/Terminal.svelte'
+  import Toolbar from './components/Toolbar.svelte'
   import {
     app, settings, init, activeTab, tabById, newTab, closeTab, reopenClosed, activate, toggleSplit, back, forward, up, load,
-    newFolder, undo, savePrefs, persistNow, shelfAdd,
+    newFolder, undo, redo, savePrefs, persistNow, shelfAdd,
   } from './lib/state.svelte'
   import { api } from './lib/api'
 
@@ -28,6 +29,9 @@
 
   const focusedTab = $derived(app.ready ? activeTab() : null)
   let termUsed = $state(false)
+  // Bez podziału pasek adresu i poleceń jest jeden, na całą szerokość okna (jak w Eksploratorze).
+  let topbar = $state<ReturnType<typeof Toolbar>>()
+  const bar = () => (app.split ? panes[app.focusedPane] : topbar)
   $effect(() => {
     if (settings.terminalOpen) termUsed = true
   })
@@ -60,9 +64,9 @@
     if (ctrl && k === '\\') return stop(ev, toggleSplit)
     // F6 / Shift+F6 przechodzi między obszarami: panel boczny → pasek adresu → pliki (→ drugi panel) → podgląd.
     if (ev.key === 'F6') return stop(ev, () => cycleRegion(ev.shiftKey ? -1 : 1))
-    if (ctrl && k === 'l') return stop(ev, () => panes[app.focusedPane]?.focusAddress())
-    if (ev.altKey && ev.key === 'd') return stop(ev, () => panes[app.focusedPane]?.focusAddress())
-    if ((ctrl && k === 'f') || ev.key === 'F3') return stop(ev, () => panes[app.focusedPane]?.focusSearch())
+    if (ctrl && k === 'l') return stop(ev, () => bar()?.focusAddress())
+    if (ev.altKey && ev.key === 'd') return stop(ev, () => bar()?.focusAddress())
+    if ((ctrl && k === 'f') || ev.key === 'F3') return stop(ev, () => bar()?.focusSearch())
     if (ev.key === 'F5') return stop(ev, () => load(t, true))
     if (ctrl && k === 'h') return stop(ev, () => (settings.showHidden = !settings.showHidden))
     if (ctrl && ev.shiftKey && k === 'n') return stop(ev, () => newFolder(t))
@@ -73,7 +77,8 @@
       })
     }
     if (inInput) return
-    if (ctrl && k === 'z') return stop(ev, undo)
+    if (ctrl && k === 'z' && !ev.shiftKey) return stop(ev, undo)
+    if ((ctrl && k === 'y') || (ctrl && ev.shiftKey && k === 'z')) return stop(ev, redo)
     if (ev.altKey && ev.key === 'ArrowLeft') return stop(ev, () => back(t))
     if (ev.altKey && ev.key === 'ArrowRight') return stop(ev, () => forward(t))
     if (ev.altKey && ev.key === 'ArrowUp') return stop(ev, () => up(t))
@@ -84,7 +89,7 @@
   function cycleRegion(dir: 1 | -1) {
     const regions: (() => HTMLElement | null)[] = [
       () => document.querySelector<HTMLElement>('[data-region="sidebar"] button.item'),
-      () => (panes[app.focusedPane]?.focusAddress(), document.activeElement as HTMLElement),
+      () => (bar()?.focusAddress(), document.activeElement as HTMLElement),
       () => { app.focusedPane = 0; return document.querySelectorAll<HTMLElement>('[role="listbox"].view')[0] ?? null },
       () => { if (!app.split) return null; app.focusedPane = 1; return document.querySelectorAll<HTMLElement>('[role="listbox"].view')[1] ?? null },
       () => document.querySelector<HTMLElement>('[data-region="preview"]'),
@@ -140,13 +145,16 @@
 <div class="app">
   <TitleBar />
   {#if app.ready}
+    {#if !app.split && focusedTab}
+      <div class="topbar">{#key focusedTab.id}<Toolbar bind:this={topbar} tab={focusedTab} focused />{/key}</div>
+    {/if}
     <div class="main">
       {#if app.sidebarOpen}<Sidebar />{/if}
       <div class="work">
         <div class="panes">
           {#each app.panes as id, i (id + ':' + i)}
             {@const t = tabById(id)}
-            {#if t}<Pane bind:this={panes[i]} tab={t} pane={i} />{/if}
+            {#if t}<Pane bind:this={panes[i]} tab={t} pane={i} showToolbar={app.split} />{/if}
           {/each}
         </div>
         <!-- Terminal zostaje w tle po ukryciu – sesja i historia nie giną. -->
@@ -173,6 +181,10 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+  }
+  .topbar {
+    flex: none;
+    padding: 0 6px;
   }
   .main {
     flex: 1;

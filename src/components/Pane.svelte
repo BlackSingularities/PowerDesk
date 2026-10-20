@@ -8,7 +8,7 @@
   import { app, HOME, SYNC, SETTINGS, SPACE, type Tab } from '../lib/state.svelte'
   import SpaceView from './SpaceView.svelte'
 
-  let { tab, pane }: { tab: Tab; pane: number } = $props()
+  let { tab, pane, showToolbar = true }: { tab: Tab; pane: number; showToolbar?: boolean } = $props()
   let toolbar = $state<ReturnType<typeof Toolbar>>()
   const focused = $derived(app.focusedPane === pane)
 
@@ -21,7 +21,7 @@
 </script>
 
 <section class="pane" class:focused class:split={app.split} onmousedowncapture={() => (app.focusedPane = pane)} aria-label={tab.title}>
-  <Toolbar bind:this={toolbar} {tab} {focused} />
+  {#if showToolbar}<Toolbar bind:this={toolbar} {tab} {focused} />{/if}
   {#if tab.path === HOME}
     <Home {tab} />
   {:else if tab.path === SYNC}

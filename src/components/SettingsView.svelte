@@ -89,6 +89,7 @@
     ['Ctrl+C / X / V', 'Kopiuj / wytnij / wklej'],
     ['Ctrl+Shift+C', 'Kopiuj ścieżkę'],
     ['Ctrl+Z', 'Cofnij'],
+    ['Ctrl+Y / Ctrl+Shift+Z', 'Ponów'],
     ['Ctrl+Shift+N', 'Nowy folder'],
     ['Ctrl+1 / 2 / 3', 'Lista / siatka / galeria'],
     ['Ctrl+kółko', 'Wielkość miniatur'],

@@ -378,7 +378,7 @@
             <button class="chip" class:on={tab.facets.has(f.id)} aria-pressed={tab.facets.has(f.id)} onclick={() => toggleFacet(f.id)}>{f.label}<span class="fc">{f.count}</span></button>
           {/each}
         {/each}
-        {#if tab.facets.size}<button class="chip clear" onclick={() => tab.facets.clear()}><Icon name="close" size={12} />Wyczyść</button>{/if}
+        {#if tab.facets.size}<span class="fsep"></span><button class="chip clear" title="Wyłącz wszystkie filtry" onclick={() => tab.facets.clear()}><Icon name="close" size={12} />Wyczyść filtry</button><span class="faint fres">{tab.items.length} wyników</span>{/if}
       </div>
     {/if}
   {/if}
@@ -714,6 +714,18 @@
   }
   .chip.clear {
     background: transparent;
+    outline: 1px solid var(--line-strong);
+    outline-offset: -1px;
+  }
+  .fsep {
+    width: 1px;
+    height: 18px;
+    margin: 0 6px;
+    background: var(--line-strong);
+  }
+  .fres {
+    font-size: 12px;
+    margin-left: 4px;
   }
   .fchip.on {
     background: var(--accent);

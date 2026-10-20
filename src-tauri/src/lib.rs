@@ -305,6 +305,11 @@ fn undo() -> R<String> {
 }
 
 #[tauri::command]
+fn redo() -> R<String> {
+    ops::redo_last()
+}
+
+#[tauri::command]
 fn search(app: AppHandle, root: String, query: String, hidden: bool) -> u64 {
     fsx::search(app, root, query, hidden)
 }
@@ -792,6 +797,7 @@ pub fn run() {
             cancel_op,
             check_conflicts,
             undo,
+            redo,
             search,
             cancel_search,
             dir_size,

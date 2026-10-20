@@ -3,7 +3,7 @@
   import type { IconName } from '../lib/icons'
   import {
     app, settings, activeTab, navigate, newTab, activate, closeTab, reopenClosed, togglePin, toggleSplit, newFolder, newFile, paste, copySel, trash,
-    back, forward, up, load, savePrefs, setSort, setGroup, startSearch, saveSearch, runSaved, undo, addFavorite, toggleHomeDir, isHomeDir,
+    back, forward, up, load, savePrefs, setSort, setGroup, startSearch, saveSearch, runSaved, undo, redo, addFavorite, toggleHomeDir, isHomeDir,
     extractHere, openEntry, refreshSync, openSpace, shelfAdd, toast, SORT_LABEL, GROUP_LABEL, HOME, SYNC, SETTINGS, type SortKey, type GroupKey,
   } from '../lib/state.svelte'
   import { api, type Entry } from '../lib/api'
@@ -85,6 +85,7 @@
       if (isBrowsableArchive(one)) cmd('extract', `Wypakuj „${one.name}” tutaj`, 'download', () => extractHere(one.path))
     }
     cmd('undo', 'Cofnij ostatnią operację', 'undo', undo, 'Ctrl+Z')
+    cmd('redo', 'Ponów cofniętą operację', 'undo', redo, 'Ctrl+Y')
     cmd('network', 'Połącz z lokalizacją sieciową…', 'network', () => (app.dialog = { type: 'network' }))
     cmd('syncnow', 'Synchronizuj wszystko teraz', 'sync', () => api.syncNow().then(refreshSync))
     cmd('update', 'Sprawdź aktualizacje', 'download', () => api.checkUpdate().then((u) => toast(u.newer ? `Dostępna wersja ${u.latest}` : 'Masz najnowszą wersję', u.newer ? 'info' : 'ok')))

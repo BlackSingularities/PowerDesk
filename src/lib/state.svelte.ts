@@ -254,7 +254,7 @@ export class Tab {
     const kf = this.kindFilter
     const group = kf === 'all' ? null : KIND_GROUPS[kf]
     const base = this.source.filter((e) => !e.dir && (settings.showHidden || !(e.hidden || e.system)) && (!group || group.includes(kindOf(e))))
-    return facetsFor(base, (e) => mediaInfo.get(e.path))
+    return facetsFor(base, (e) => mediaInfo.get(e.path), [...this.facets])
   })
 
   grouped: { items: Entry[]; groups: Group[] | null } = $derived.by(() => {
@@ -973,7 +973,14 @@ export async function doRename(t: Tab, e: Entry, name: string) {
 
 export async function undo() {
   try {
-    toast(await api.undo(), 'ok')
+    toast(await api.undo(), 'ok', { label: 'Ponów', run: redo })
+  } catch (e) {
+    toast(String(e))
+  }
+}
+export async function redo() {
+  try {
+    toast(await api.redo(), 'ok', { label: 'Cofnij', run: undo })
   } catch (e) {
     toast(String(e))
   }

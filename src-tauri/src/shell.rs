@@ -35,6 +35,8 @@ pub struct ThumbReq {
 
 struct Pool {
     hi: Sender<ThumbReq>,
+    /// Ikony mają pierwszeństwo przed miniaturami – są tanie, a bez nich widok wygląda na pusty.
+    icons: Sender<ThumbReq>,
 }
 
 /// Pamięć podręczna tylko w RAM (zakodowane obrazy), żeby przewijanie było płynne.
@@ -51,16 +53,26 @@ static CACHE: Lazy<Mutex<MemCache>> =
 
 static POOL: Lazy<Pool> = Lazy::new(|| {
     let (tx, rx) = unbounded::<ThumbReq>();
+    let (itx, irx) = unbounded::<ThumbReq>();
     let workers = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 6);
     for _ in 0..workers {
         let rx: Receiver<ThumbReq> = rx.clone();
+        let irx: Receiver<ThumbReq> = irx.clone();
         std::thread::Builder::new()
             .name("thumb".into())
             .spawn(move || {
                 unsafe {
                     let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
                 }
-                while let Ok(req) = rx.recv() {
+                loop {
+                    // Najpierw zaległe ikony, dopiero potem miniatury.
+                    let req = match irx.try_recv() {
+                        Ok(r) => r,
+                        Err(_) => crossbeam_channel::select! {
+                            recv(irx) -> r => match r { Ok(r) => r, Err(_) => break },
+                            recv(rx) -> r => match r { Ok(r) => r, Err(_) => break },
+                        },
+                    };
                     let out = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                         render(&req.path, req.size, req.icon_only)
                     }))
@@ -71,7 +83,7 @@ static POOL: Lazy<Pool> = Lazy::new(|| {
             })
             .ok();
     }
-    Pool { hi: tx }
+    Pool { hi: tx, icons: itx }
 });
 
 fn cache_key(path: &str, size: u32, icon_only: bool) -> String {
@@ -82,6 +94,12 @@ fn cache_key(path: &str, size: u32, icon_only: bool) -> String {
             .extension()
             .map(|e| e.to_string_lossy().to_string())
             .unwrap_or_default();
+        let p = std::path::Path::new(path);
+        // Zwykłe foldery mają tę samą ikonę – jedna dla wszystkich. Własną mają tylko te z desktop.ini
+        // (Pobrane, Dokumenty, foldery z ustawioną ikoną) oraz dyski i udziały sieciowe.
+        if lower.len() > 3 && !lower.starts_with("\\\\") && p.is_dir() {
+            return if p.join("desktop.ini").exists() { format!("i{size}:{path}") } else { format!("i{size}:<folder>") };
+        }
         let per_file = matches!(ext.as_str(), "exe" | "lnk" | "ico" | "url" | "msi" | "appref-ms" | "")
             || lower.len() <= 3;
         if !per_file {
@@ -127,7 +145,7 @@ pub fn request(req: ThumbReq) {
             reply(res)
         }),
     };
-    let _ = POOL.hi.send(wrapped);
+    let _ = if wrapped.icon_only { POOL.icons.send(wrapped) } else { POOL.hi.send(wrapped) };
 }
 
 pub fn invalidate(path: &str) {
