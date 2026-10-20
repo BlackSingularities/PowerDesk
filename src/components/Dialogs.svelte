@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MetaView from './MetaView.svelte'
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
   import { app, activeTab, navigate, refreshDrives, refreshSync, toast } from '../lib/state.svelte'
@@ -230,6 +231,7 @@
           </div>
           <button class="icon-btn" onclick={close}><Icon name="close" /></button>
         </div>
+        <div class="pscroll">
         <dl>
           <dt>Rozmiar</dt>
           <dd>{#if totals}{size(totals.size)} <span class="faint">({totals.size.toLocaleString('pl-PL')} B)</span>{:else}<span class="faint">liczę…</span>{/if}</dd>
@@ -240,13 +242,14 @@
             <dt>Zmodyfikowano</dt><dd>{dateFull(one.modified)}</dd>
             <dt>Atrybuty</dt>
             <dd>{[one.readonly && 'tylko do odczytu', one.hidden && 'ukryty', one.system && 'systemowy', one.link && 'dowiązanie', one.cloud && 'tylko w chmurze'].filter(Boolean).join(', ') || 'brak'}</dd>
-            {#each props as p (p.name)}<dt>{p.name}</dt><dd class="sel">{p.value}</dd>{/each}
             {#if !one.dir}
               <dt>SHA-256</dt>
               <dd>{#if hash}<code class="sel">{hash}</code> <button class="link" onclick={() => { navigator.clipboard.writeText(hash); toast('Skopiowano skrót') }}>kopiuj</button>{:else}<button class="link" disabled={hashing} onclick={() => doHash(one)}>{hashing ? 'liczę…' : 'Oblicz'}</button>{/if}</dd>
             {/if}
           {/if}
         </dl>
+        {#if one && props.length}<div class="pmeta"><MetaView {props} /></div>{/if}
+        </div>
         <div class="btns">
           {#if one}<button class="btn" onclick={() => api.systemProps(one.path)}><Icon name="settings" size={16} />Właściwości systemowe (uprawnienia, wersje)</button>{/if}
           <button class="btn primary" onclick={close}>Zamknij</button>
@@ -506,13 +509,21 @@
     align-items: center;
     justify-content: center;
   }
+  .pscroll {
+    max-height: 62vh;
+    overflow-y: auto;
+    margin-right: -8px;
+    padding-right: 8px;
+  }
+  .pmeta {
+    margin-top: 18px;
+  }
   dl {
     display: grid;
     grid-template-columns: 150px 1fr;
     gap: 8px 16px;
     margin: 6px 0 0;
     font-size: 12.5px;
-    max-height: 52vh;
     overflow-y: auto;
   }
   dt {

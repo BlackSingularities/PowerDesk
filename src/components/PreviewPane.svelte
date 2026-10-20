@@ -1,4 +1,5 @@
 <script lang="ts">
+  import MetaView from './MetaView.svelte'
   import Icon from './Icon.svelte'
   import Thumb from './Thumb.svelte'
   import { app, settings, openEntry, openViewer, toast, type Tab } from '../lib/state.svelte'
@@ -20,7 +21,6 @@
   let meta = $state<Prop[]>([])
   let dsize = $state<DirSize | null>(null)
   let dsizeBusy = $state(false)
-  let moreProps = $state(false)
   let token = 0
 
   $effect(() => {
@@ -45,8 +45,6 @@
     }
   })
 
-  const SKIP = new Set(['Nazwa', 'Name', 'Nazwa pliku', 'Rozmiar', 'Size', 'Typ elementu', 'Item type', 'Folder', 'Ścieżka folderu', 'Folder path', 'Ścieżka', 'Path', 'Data modyfikacji', 'Date modified', 'Data utworzenia', 'Date created', 'Atrybuty', 'Attributes', 'Data dostępu', 'Date accessed', 'Właściciel', 'Owner', 'Komputer', 'Computer', 'Nazwa folderu', 'Folder name', 'Typ pliku', 'File extension', 'Rozszerzenie pliku', 'Typ zawartości', 'Content type', 'Rodzaj', 'Kind', 'Postęp pobierania', 'Stan udostępniania', 'Sharing status', 'Klasyfikacja', 'Perceived type', 'Postrzegany typ'])
-  const shownProps = $derived(meta.filter((p) => !SKIP.has(p.name)))
 
   const curDrive = $derived(app.drives.find((d) => !tab.special && volumeOf(d.path) === volumeOf(tab.path)))
   const selSize = $derived(sel.reduce((a, e) => a + (e.dir ? 0 : e.size), 0))
@@ -114,13 +112,8 @@
         {/if}
         <dt>Zmodyfikowano</dt><dd>{date(e.modified)}</dd>
         <dt>Utworzono</dt><dd>{date(e.created)}</dd>
-        {#each moreProps ? shownProps : shownProps.slice(0, 8) as p (p.name)}
-          <dt>{p.name}</dt><dd>{p.value}</dd>
-        {/each}
       </dl>
-      {#if shownProps.length > 8}
-        <button class="more" onclick={() => (moreProps = !moreProps)}>{moreProps ? 'Mniej' : `Więcej szczegółów (${shownProps.length - 8})`}</button>
-      {/if}
+      {#if meta.length}<div class="pmeta"><MetaView props={meta} compact /></div>{/if}
       <button class="path" title="Kliknij, aby skopiować ścieżkę" onclick={() => { navigator.clipboard.writeText(e.path); toast('Skopiowano ścieżkę', 'ok') }}>
         <span class="grow">{e.path}</span><Icon name="copy" size={14} />
       </button>
@@ -332,14 +325,8 @@
     word-break: break-word;
     user-select: text;
   }
-  .more {
-    display: block;
-    margin: 10px 0 0 auto;
-    font-size: 12px;
-    color: var(--faint);
-  }
-  .more:hover {
-    color: var(--text);
+  .pmeta {
+    margin-top: 16px;
   }
   .path {
     width: 100%;

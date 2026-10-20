@@ -3,10 +3,11 @@
   import Thumb from './Thumb.svelte'
   import {
     app, settings, openEntry, openViewer, navigate, newTab, transfer, dropMode, copySel, paste, trash, doRename,
-    newFolder, newFile, addFavorite, load, savePrefs, toast, activate, closeSearch, type Tab, type MenuItem, type SortKey,
+    newFolder, newFile, addFavorite, load, savePrefs, toast, activate, closeSearch, LIST_COLS, setSort as setSortOf, sortMenuItems, ensureMedia, mediaInfo, media,
+    type ListCol, type Tab, type MenuItem, type SortKey, type Group,
   } from '../lib/state.svelte'
   import { api, type Entry } from '../lib/api'
-  import { date, size, typeLabel, kindOf, isMedia, parent, items as itemsLabel } from '../lib/util'
+  import { date, size, typeLabel, kindOf, isMedia, parent, duration, items as itemsLabel } from '../lib/util'
 
   let { tab, pane }: { tab: Tab; pane: number } = $props()
 
@@ -16,35 +17,150 @@
   let scrollTop = $state(0)
 
   const LIST_H = 32
+  const HEAD_H = 38
   const list = $derived(tab.items)
   const view = $derived(tab.view)
-  const gap = $derived(view === 'gallery' ? 4 : 6)
+  const gap = 6
   const pad = $derived(view === 'list' ? 6 : 12)
-  const cellW = $derived(view === 'grid' ? settings.gridSize : view === 'gallery' ? settings.galleryRow : width)
-  const cols = $derived(view === 'list' ? 1 : Math.max(1, Math.floor((width - pad * 2 + gap) / (cellW + gap))))
-  // Kafelki rozciągamy, żeby wypełniały szerokość bez pustego marginesu po prawej.
-  const tileW = $derived(view === 'list' ? width - pad * 2 : Math.floor((width - pad * 2 - gap * (cols - 1)) / cols))
-  const tileH = $derived(view === 'list' ? LIST_H : view === 'grid' ? tileW + 40 : tileW)
-  const rowH = $derived(tileH + (view === 'list' ? 0 : gap))
   const top0 = $derived(view === 'list' ? 4 : pad)
-  const rows = $derived(Math.ceil(list.length / cols))
-  const totalH = $derived(top0 + rows * rowH + pad)
-  const first = $derived(Math.max(0, Math.floor((scrollTop - top0) / rowH) - 3))
-  const last = $derived(Math.min(rows, Math.ceil((scrollTop - top0 + height) / rowH) + 3))
-  const visible = $derived.by(() => {
-    const out: { e: Entry; i: number; x: number; y: number }[] = []
-    for (let r = first; r < last; r++) {
-      for (let c = 0; c < cols; c++) {
-        const i = r * cols + c
-        if (i >= list.length) break
-        out.push({ e: list[i], i, x: pad + c * (tileW + gap), y: top0 + r * rowH })
+  const avail = $derived(Math.max(100, width - pad * 2))
+  const cols = $derived(view === 'grid' ? Math.max(1, Math.floor((avail + gap) / (settings.gridSize + gap))) : 1)
+  // Kafelki rozciągamy, żeby wypełniały szerokość bez pustego marginesu po prawej.
+  const tileW = $derived(view === 'grid' ? Math.floor((avail - gap * (cols - 1)) / cols) : avail)
+  const tileH = $derived(view === 'list' ? LIST_H : tileW + 40)
+
+  // Metadane (wymiary, czas trwania) dla wszystkich widoków – partiami, od góry listy.
+  $effect(() => {
+    ensureMedia(list)
+  })
+  const info = (e: Entry) => (media.ver, mediaInfo.get(e.path))
+
+  // ---------- Układ: lista, siatka i galeria (wyjustowane wiersze) z nagłówkami grup ----------
+
+  type Box = { x: number; y: number; w: number; h: number }
+  type Row = { y: number; h: number; start: number; end: number }
+  type Head = { y: number; g: Group; shut: boolean }
+
+  function ratioOf(e: Entry) {
+    if (e.dir || !isMedia(e)) return 1
+    const d = mediaInfo.get(e.path)
+    if (!d) return 1.5
+    if (!d.w || !d.h) return 1
+    return Math.max(0.33, Math.min(3.2, d.w / d.h))
+  }
+
+  const layout = $derived.by(() => {
+    if (view === 'gallery') media.ver
+    const boxes: (Box | undefined)[] = new Array(list.length)
+    const rowOf = new Int32Array(list.length).fill(-1)
+    const rows: Row[] = []
+    const heads: Head[] = []
+    const groups = tab.groups ?? [{ key: '', label: '', start: 0, end: list.length }]
+    const H = settings.galleryRow
+    let y = top0
+    const push = (start: number, end: number, h: number) => {
+      for (let i = start; i < end; i++) rowOf[i] = rows.length
+      rows.push({ y, h, start, end })
+    }
+    for (const g of groups) {
+      if (tab.groups) {
+        if (heads.length) y += view === 'list' ? 6 : 10
+        const shut = tab.collapsed.has(g.key)
+        heads.push({ y, g, shut })
+        y += HEAD_H
+        if (shut) continue
+      }
+      if (view === 'list') {
+        for (let i = g.start; i < g.end; i++) {
+          boxes[i] = { x: pad, y, w: avail, h: LIST_H }
+          push(i, i + 1, LIST_H)
+          y += LIST_H
+        }
+      } else if (view === 'grid') {
+        for (let i = g.start; i < g.end; i += cols) {
+          const end = Math.min(i + cols, g.end)
+          for (let j = i; j < end; j++) boxes[j] = { x: pad + (j - i) * (tileW + gap), y, w: tileW, h: tileH }
+          push(i, end, tileH)
+          y += tileH + gap
+        }
+      } else {
+        let start = g.start
+        let sum = 0
+        const flush = (end: number, last: boolean) => {
+          let h = (avail - gap * (end - start - 1)) / sum
+          if (last && h > H) h = H
+          h = Math.round(h)
+          let x = pad
+          for (let i = start; i < end; i++) {
+            // Ostatni w pełnym wierszu domyka krawędź co do piksela.
+            const w = i === end - 1 && !last ? pad + avail - x : Math.round(ratioOf(list[i]) * h)
+            boxes[i] = { x, y, w, h }
+            x += w + gap
+          }
+          push(start, end, h)
+          y += h + gap
+          start = end
+          sum = 0
+        }
+        for (let i = g.start; i < g.end; i++) {
+          sum += ratioOf(list[i])
+          if (sum * H + gap * (i - start) >= avail) flush(i + 1, false)
+        }
+        if (start < g.end) flush(g.end, true)
       }
     }
+    return { boxes, rowOf, rows, heads, total: y + pad }
+  })
+
+  const totalH = $derived(layout.total)
+  const visible = $derived.by(() => {
+    const out: { e: Entry; i: number; x: number; y: number; w: number; h: number }[] = []
+    const lo = scrollTop - 300, hi = scrollTop + height + 300
+    const R = layout.rows
+    let a = 0, b = R.length
+    while (a < b) {
+      const m = (a + b) >> 1
+      if (R[m].y + R[m].h < lo) a = m + 1
+      else b = m
+    }
+    for (let r = a; r < R.length && R[r].y <= hi; r++)
+      for (let i = R[r].start; i < R[r].end; i++) out.push({ e: list[i], i, ...layout.boxes[i]! })
     return out
   })
-  const thumbPx = $derived(view === 'list' ? 20 : tileW)
+  const heads = $derived(layout.heads.filter((h) => h.y + HEAD_H >= scrollTop - 300 && h.y <= scrollTop + height + 300))
 
-  // Pamięć przewinięcia przy powrocie do folderu.
+  /** Element w sąsiednim wierszu najbliższy w poziomie (działa też przez granice grup). */
+  function vertical(f: number, dir: 1 | -1) {
+    const r = layout.rowOf[f]
+    const t = layout.rows[r + dir]
+    if (r < 0 || !t) return f
+    const b = layout.boxes[f]!, cx = b.x + b.w / 2
+    let best = t.start, bd = Infinity
+    for (let i = t.start; i < t.end; i++) {
+      const c = layout.boxes[i]!
+      const d = Math.abs(c.x + c.w / 2 - cx)
+      if (d < bd) {
+        bd = d
+        best = i
+      }
+    }
+    return best
+  }
+
+  function toggleGroup(key: string) {
+    if (tab.collapsed.has(key)) tab.collapsed.delete(key)
+    else tab.collapsed.add(key)
+  }
+  function selectGroup(ev: MouseEvent, g: Group) {
+    activate(tab.id)
+    app.focusedPane = pane
+    if (!ev.ctrlKey) tab.selected.clear()
+    for (let i = g.start; i < g.end; i++) tab.selected.add(list[i].path)
+    tab.focus = g.start
+    tab.anchor = g.start
+  }
+
+  // Pamięć przewinięcia przy powrocie do folderu i po przełączeniu karty.
   $effect(() => {
     tab.path
     tab.search
@@ -64,14 +180,15 @@
   function onScroll() {
     scrollTop = scroller!.scrollTop
     tab.scrollTop = scrollTop
+    if (!tab.search) tab.scrollMemory.set(tab.path.toLowerCase(), scrollTop)
   }
 
   function ensureVisible(i: number) {
-    if (!scroller || i < 0) return
-    const r = Math.floor(i / cols)
-    const y = top0 + r * rowH
-    if (y < scroller.scrollTop) scroller.scrollTop = y - pad
-    else if (y + tileH > scroller.scrollTop + height) scroller.scrollTop = y + tileH - height + pad
+    const b = layout.boxes[i]
+    if (!scroller || !b) return
+    const head = tab.groups && layout.rows[layout.rowOf[i]]?.start === tab.groups.find((g) => i >= g.start && i < g.end)?.start ? HEAD_H : 0
+    if (b.y - head < scroller.scrollTop) scroller.scrollTop = b.y - head - pad
+    else if (b.y + b.h > scroller.scrollTop + height) scroller.scrollTop = b.y + b.h - height + pad
   }
 
   // ---------- Zaznaczanie ----------
@@ -159,15 +276,12 @@
     const x0 = Math.min(marquee.x0, marquee.x1), x1 = Math.max(marquee.x0, marquee.x1)
     const y0 = Math.min(marquee.y0, marquee.y1), y1 = Math.max(marquee.y0, marquee.y1)
     const sel = new Set(marqueeBase)
-    const r0 = Math.max(0, Math.floor((y0 - top0) / rowH))
-    const r1 = Math.min(rows - 1, Math.floor((y1 - top0) / rowH))
-    for (let row = r0; row <= r1; row++) {
-      for (let c = 0; c < cols; c++) {
-        const i = row * cols + c
-        if (i >= list.length) break
-        const ix = pad + c * (tileW + gap), iy = top0 + row * rowH
-        const iw = view === 'list' ? Math.min(tileW, 420) : tileW
-        if (ix < x1 && ix + iw > x0 && iy < y1 && iy + tileH > y0) sel.add(list[i].path)
+    for (const row of layout.rows) {
+      if (row.y > y1 || row.y + row.h < y0) continue
+      for (let i = row.start; i < row.end; i++) {
+        const b = layout.boxes[i]!
+        const bw = view === 'list' ? Math.min(b.w, 420) : b.w
+        if (b.x < x1 && b.x + bw > x0) sel.add(list[i].path)
       }
     }
     tab.selected.clear()
@@ -249,16 +363,28 @@
       ensureVisible(to)
       ev.preventDefault()
     }
-    const pageRows = Math.max(1, Math.floor(height / rowH) - 1)
+    const pageRows = Math.max(1, Math.floor(height / (view === 'list' ? LIST_H : view === 'grid' ? tileH + gap : settings.galleryRow)) - 1)
+    const vert = (d: 1 | -1, times = 1) => {
+      if (f < 0) return layout.rows[0]?.start ?? 0
+      let to = f
+      for (let k = 0; k < times; k++) to = vertical(to, d)
+      return to
+    }
+    // W prawo/lewo omijamy zwinięte grupy.
+    const side = (d: 1 | -1) => {
+      let to = f + d
+      while (to >= 0 && to < n && !layout.boxes[to]) to += d
+      return to < 0 || to >= n ? f : to
+    }
     switch (ev.key) {
-      case 'ArrowDown': return n && move(f < 0 ? 0 : f + cols)
-      case 'ArrowUp': return n && move(f < 0 ? 0 : f - cols)
-      case 'ArrowRight': if (view !== 'list' && !ev.altKey) return n && move(f + 1); break
-      case 'ArrowLeft': if (view !== 'list' && !ev.altKey) return n && move(f - 1); break
-      case 'PageDown': return n && move(f + pageRows * cols)
-      case 'PageUp': return n && move(f - pageRows * cols)
-      case 'Home': return n && move(0)
-      case 'End': return n && move(n - 1)
+      case 'ArrowDown': return n && move(vert(1))
+      case 'ArrowUp': return n && move(vert(-1))
+      case 'ArrowRight': if (view !== 'list' && !ev.altKey) return n && move(side(1)); break
+      case 'ArrowLeft': if (view !== 'list' && !ev.altKey) return n && move(side(-1)); break
+      case 'PageDown': return n && move(vert(1, pageRows))
+      case 'PageUp': return n && move(vert(-1, pageRows))
+      case 'Home': return n && move(layout.rows[0]?.start ?? 0)
+      case 'End': return n && move((layout.rows.at(-1)?.end ?? n) - 1)
       case 'Enter':
         if (ev.altKey) return
         ev.preventDefault()
@@ -340,7 +466,7 @@
     } else if (view === 'grid') {
       settings.gridSize = Math.max(84, Math.min(280, settings.gridSize + d))
       if (settings.gridSize <= 84 && d < 0) tab.view = 'list'
-    } else settings.galleryRow = Math.max(120, Math.min(420, settings.galleryRow + d))
+    } else settings.galleryRow = Math.max(100, Math.min(480, settings.galleryRow + d))
     savePrefs(tab)
   }
 
@@ -407,7 +533,6 @@
     ev.preventDefault()
     tab.selected.clear()
     if (ev.shiftKey && !tab.special) return native([tab.path], ev)
-    const sortItem = (k: SortKey, label: string) => ({ label: (tab.sort === k ? (tab.desc ? '↓ ' : '↑ ') : '   ') + label, run: () => { if (tab.sort === k) tab.desc = !tab.desc; else tab.sort = k; savePrefs(tab) } })
     app.menu = {
       x: ev.clientX, y: ev.clientY,
       items: [
@@ -420,7 +545,7 @@
           { label: 'Siatka', icon: 'grid', kbd: 'Ctrl+2', run: () => { tab.view = 'grid'; savePrefs(tab) } },
           { label: 'Galeria', icon: 'gallery', kbd: 'Ctrl+3', run: () => { tab.view = 'gallery'; savePrefs(tab) } },
         ] },
-        { label: 'Sortuj według', icon: 'sort', sub: [sortItem('name', 'Nazwa'), sortItem('modified', 'Data modyfikacji'), sortItem('size', 'Rozmiar'), sortItem('type', 'Typ'), sortItem('created', 'Data utworzenia')] },
+        ...sortMenuItems(tab),
         { label: 'Odśwież', icon: 'refresh', kbd: 'F5', run: () => load(tab, true) },
         { label: 'Zaznacz wszystko', icon: 'check', kbd: 'Ctrl+A', run: () => list.forEach((e) => tab.selected.add(e.path)) },
         { sep: true },
@@ -458,14 +583,90 @@
     }
   }
 
-  function setSort(k: SortKey) {
-    if (tab.sort === k) tab.desc = !tab.desc
-    else {
-      tab.sort = k
-      tab.desc = k !== 'name' && k !== 'type'
+  function cell(e: Entry, k: ListCol) {
+    switch (k) {
+      case 'modified': return date(e.modified)
+      case 'created': return date(e.created)
+      case 'type': return typeLabel(e)
+      case 'ext': return e.dir ? '' : e.ext.toUpperCase()
+      case 'size': return e.dir ? '' : size(e.size)
+      case 'dims': { const m = info(e); return m?.w ? `${m.w} × ${m.h}` : '' }
+      case 'taken': { const m = info(e); return m?.taken ? date(m.taken) : '' }
+      case 'duration': { const m = info(e); return m?.dur ? duration(m.dur) : '' }
+      case 'attrs': return [e.readonly && 'R', e.hidden && 'H', e.system && 'S', e.link && 'L', e.cloud && 'C'].filter(Boolean).join(' ')
     }
-    savePrefs(tab)
   }
+
+  function colMenu(ev: MouseEvent) {
+    ev.preventDefault()
+    ev.stopPropagation()
+    const all = Object.keys(LIST_COLS) as ListCol[]
+    app.menu = {
+      x: ev.clientX, y: ev.clientY,
+      items: [
+        ...all.map((k) => ({
+          label: (settings.listCols.includes(k) ? '✓ ' : '   ') + LIST_COLS[k].label,
+          run: () => {
+            const on = settings.listCols.includes(k)
+            settings.listCols = on ? settings.listCols.filter((x) => x !== k) : [...settings.listCols, k]
+            if (!on && (k === 'dims' || k === 'taken' || k === 'duration')) ensureMedia(list)
+          },
+        })),
+        { sep: true },
+        { label: 'Przywróć domyślne kolumny', icon: 'undo', run: () => { settings.listCols = ['modified', 'type', 'size']; settings.listColW = {} } },
+      ],
+    }
+  }
+
+  // Nagłówki kolumn: klik sortuje, przeciągnięcie zmienia kolejność, krawędź – szerokość.
+  const colW = (k: ListCol) => settings.listColW[k] ?? LIST_COLS[k].width
+  let headerEl = $state<HTMLDivElement>()
+  let colDrag = $state<{ k: ListCol; x0: number; dx: number; moved: boolean } | null>(null)
+
+  function colDown(ev: PointerEvent, k: ListCol) {
+    if (ev.button !== 0) return
+    ;(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId)
+    colDrag = { k, x0: ev.clientX, dx: 0, moved: false }
+  }
+  function colMove(ev: PointerEvent) {
+    if (!colDrag) return
+    colDrag.dx = ev.clientX - colDrag.x0
+    if (Math.abs(colDrag.dx) > 5) colDrag.moved = true
+  }
+  function colUp(ev: PointerEvent, k: ListCol) {
+    const d = colDrag
+    colDrag = null
+    if (!d) return
+    if (!d.moved) {
+      const c = LIST_COLS[k]
+      if (c.sort) setSort(c.sort)
+      return
+    }
+    const order = settings.listCols.filter((x) => x !== k)
+    let idx = order.length
+    for (const cell of headerEl?.querySelectorAll<HTMLElement>('[data-col]') ?? []) {
+      const ck = cell.dataset.col as ListCol
+      if (ck === k) continue
+      const r = cell.getBoundingClientRect()
+      if (ev.clientX < r.left + r.width / 2) {
+        idx = order.indexOf(ck)
+        break
+      }
+    }
+    order.splice(idx, 0, k)
+    settings.listCols = order
+  }
+  function gripDown(ev: PointerEvent, k: ListCol) {
+    ev.stopPropagation()
+    ev.preventDefault()
+    const w0 = colW(k), x0 = ev.clientX
+    const move = (e: PointerEvent) => (settings.listColW[k] = Math.max(48, Math.min(600, Math.round(w0 + e.clientX - x0))))
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', () => window.removeEventListener('pointermove', move), { once: true })
+  }
+
+  const setSort = (k: SortKey) => setSortOf(tab, k)
+
 
   const marqueeStyle = $derived(
     marquee
@@ -476,12 +677,17 @@
 
 <div class="wrap">
   {#if view === 'list'}
-    <div class="header">
+    <div class="header" role="row" tabindex="-1" oncontextmenu={colMenu} bind:this={headerEl}>
       <button class="c name" onclick={() => setSort('name')}>Nazwa {tab.sort === 'name' ? (tab.desc ? '↓' : '↑') : ''}</button>
       {#if tab.search}<span class="c loc">Lokalizacja</span>{/if}
-      <button class="c mod" onclick={() => setSort('modified')}>Zmodyfikowano {tab.sort === 'modified' ? (tab.desc ? '↓' : '↑') : ''}</button>
-      <button class="c type" onclick={() => setSort('type')}>Typ {tab.sort === 'type' ? (tab.desc ? '↓' : '↑') : ''}</button>
-      <button class="c size" onclick={() => setSort('size')}>Rozmiar {tab.sort === 'size' ? (tab.desc ? '↓' : '↑') : ''}</button>
+      {#each settings.listCols as k (k)}
+        {@const c = LIST_COLS[k]}
+        <span class="hc" data-col={k} class:dragging={colDrag?.k === k && colDrag.moved} style:width="{colW(k)}px" style:transform={colDrag?.k === k && colDrag.moved ? `translateX(${colDrag.dx}px)` : undefined}>
+          <button class="c" class:right={c.right} title={c.sort ? 'Sortuj · przeciągnij, aby przenieść' : 'Przeciągnij, aby przenieść'} onpointerdown={(e) => colDown(e, k)} onpointermove={colMove} onpointerup={(e) => colUp(e, k)} oncontextmenu={colMenu}>{c.label} {c.sort && tab.sort === c.sort && (k !== 'ext' || !settings.listCols.includes('type')) ? (tab.desc ? '↓' : '↑') : ''}</button>
+          <span class="grip" role="separator" aria-orientation="vertical" onpointerdown={(e) => gripDown(e, k)} ondblclick={() => delete settings.listColW[k]}></span>
+        </span>
+      {/each}
+      <button class="colbtn" title="Kolumny" onclick={colMenu}><Icon name="more" size={14} /></button>
     </div>
   {/if}
 <div
@@ -504,8 +710,16 @@
 >
   <div class="spacer" style:height="{totalH}px"></div>
 
+  {#each heads as h (h.g.key)}
+    <div class="ghead" class:list={view === 'list'} style="transform:translate({pad}px,{h.y}px);width:{avail}px">
+      <button class="gchev" class:shut={h.shut} title={h.shut ? 'Rozwiń grupę' : 'Zwiń grupę'} onclick={() => toggleGroup(h.g.key)}><Icon name="chevronDown" size={14} /></button>
+      <button class="glabel" title="Zaznacz elementy grupy (Ctrl – dodaj)" onclick={(ev) => selectGroup(ev, h.g)}>{h.g.label}<span class="gcount">{h.g.end - h.g.start}</span></button>
+      <span class="gline"></span>
+    </div>
+  {/each}
 
-  {#each visible as { e, i, x, y } (e.path)}
+
+  {#each visible as { e, i, x, y, w, h } (e.path)}
     {@const sel = tab.selected.has(e.path)}
     <div
       class="item"
@@ -514,7 +728,7 @@
       class:hidden={e.hidden}
       class:cut={false}
       class:droptarget={dropTarget === e.path}
-      style="transform:translate({x}px,{y}px);width:{tileW}px;height:{tileH}px"
+      style="transform:translate({x}px,{y}px);width:{w}px;height:{h}px"
       role="option"
       tabindex="-1"
       aria-selected={sel}
@@ -542,16 +756,16 @@
         {#if tab.renaming === e.path}
           <input class="rename" value={e.name} use:renameMount={e} onkeydown={(ev) => renameKey(ev, e)} onblur={(ev) => doRename(tab, e, ev.currentTarget.value)} onmousedown={(ev) => ev.stopPropagation()} />
         {:else}
-          <span class="c name ellipsis" draggable="true">{e.name}{#if e.cloud}<span class="cloud" title="Tylko w chmurze"><Icon name="cloud" size={13} /></span>{/if}</span>
+          <span class="c name ellipsis" draggable="true"><span class="ellipsis">{e.name}</span>{#if kindOf(e) === 'video' && !settings.listCols.includes('duration') && info(e)?.dur}<span class="durpill">{duration(info(e)!.dur)}</span>{/if}{#if e.cloud}<span class="cloud" title="Tylko w chmurze"><Icon name="cloud" size={13} /></span>{/if}</span>
         {/if}
         {#if tab.search}<span class="c loc ellipsis faint">{parent(e.path)}</span>{/if}
-        <span class="c mod">{date(e.modified)}</span>
-        <span class="c type ellipsis">{typeLabel(e)}</span>
-        <span class="c size">{e.dir ? '' : size(e.size)}</span>
+        {#each settings.listCols as k (k)}
+          <span class="c ellipsis" class:right={LIST_COLS[k].right} style:width="{colW(k)}px">{cell(e, k)}</span>
+        {/each}
       {:else}
         <div class="thumb" class:media={isMedia(e)} class:folder={e.dir}>
-          <Thumb entry={e} px={thumbPx} fit={view === 'gallery' ? 'cover' : 'contain'} iconOnly={e.dir} stamp={tab.stamp} />
-          {#if kindOf(e) === 'video'}<span class="badge"><Icon name="play" size={11} fill /></span>{/if}
+          <Thumb entry={e} px={view === 'gallery' ? Math.max(w, h) : tileW} fit={view === 'gallery' ? 'cover' : 'contain'} iconOnly={e.dir} stamp={tab.stamp} />
+          {#if kindOf(e) === 'video'}{@const m = info(e)}<span class="badge" class:dur={!!m?.dur}><Icon name="play" size={10} fill />{#if m?.dur}<span>{duration(m.dur)}</span>{/if}</span>{/if}
           {#if view === 'gallery' && (e.dir || !isMedia(e))}<span class="gname ellipsis">{e.name}</span>{/if}
           {#if sel && view === 'gallery'}<span class="check"><Icon name="check" size={13} /></span>{/if}
         </div>
@@ -620,6 +834,115 @@
     will-change: transform;
     contain: layout style;
   }
+  /* Płynne przejścia przy zmianie rozmiaru, widoku, sortowania i grup. */
+  .item,
+  .ghead {
+    transition:
+      transform 0.22s var(--ease),
+      width 0.22s var(--ease),
+      height 0.22s var(--ease);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .item,
+    .ghead {
+      transition: none;
+    }
+  }
+  .ghead {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 1;
+  }
+  .gchev {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--faint);
+    transition: transform 0.15s var(--ease);
+  }
+  .gchev.shut {
+    transform: rotate(-90deg);
+  }
+  .gchev:hover,
+  .glabel:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  .glabel {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    height: 26px;
+    padding: 0 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .gcount {
+    font-weight: 500;
+    font-size: 11px;
+    color: var(--ghost);
+  }
+  .gline {
+    flex: 1;
+    height: 1px;
+    background: var(--line);
+    margin-left: 6px;
+  }
+  .durpill {
+    flex: none;
+    font-size: 11px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    background: var(--high);
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .hc {
+    position: relative;
+    flex: none;
+    display: flex;
+  }
+  .hc .c {
+    width: 100%;
+    cursor: default;
+  }
+  .hc.dragging {
+    z-index: 3;
+    background: var(--high);
+    border-radius: 6px;
+    opacity: 0.9;
+  }
+  .grip {
+    position: absolute;
+    right: -3px;
+    top: 4px;
+    bottom: 4px;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 2;
+  }
+  .grip::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    top: 3px;
+    bottom: 3px;
+    width: 1px;
+    background: var(--line);
+  }
+  .header:hover .grip::after {
+    background: var(--line-strong);
+  }
   .item.hidden {
     opacity: 0.55;
   }
@@ -631,6 +954,7 @@
     display: flex;
     align-items: center;
     padding: 0 18px 0 46px;
+    position: relative;
     background: var(--bg);
     color: var(--faint);
     font-size: 12px;
@@ -687,18 +1011,24 @@
     width: 26%;
     font-size: 12px;
   }
-  .c.mod {
-    width: 140px;
-  }
-  .c.type {
-    width: 130px;
-  }
-  .c.size {
-    width: 86px;
+  .c.right {
     text-align: right;
   }
-  .header .c.size {
-    text-align: right;
+  .colbtn {
+    width: 22px;
+    height: 22px;
+    position: absolute;
+    right: 0;
+    border-radius: 6px;
+    color: var(--ghost);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .colbtn:hover {
+    background: var(--hover);
+    color: var(--text);
   }
   .cloud {
     color: var(--info);
@@ -827,15 +1157,22 @@
     position: absolute;
     right: 6px;
     bottom: 6px;
-    width: 22px;
+    min-width: 22px;
     height: 22px;
-    border-radius: 50%;
+    gap: 4px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
     background: rgba(0, 0, 0, 0.6);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
     padding-left: 2px;
+  }
+  .badge.dur {
+    padding: 0 8px 0 7px;
   }
 
   .marquee {

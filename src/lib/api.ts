@@ -30,7 +30,8 @@ export interface Drive {
 }
 
 export interface Known { id: string; name: string; path: string }
-export interface Prop { name: string; value: string }
+export interface Prop { name: string; value: string; key: string; num: number | null }
+export interface MediaInfo { w: number; h: number; dur: number; taken: number }
 export interface TextPreview { text: string; truncated: boolean; kind: string }
 export interface ZipItem { name: string; size: number; packed: number; dir: boolean }
 export interface DirSize { size: number; files: number; dirs: number }
@@ -93,6 +94,9 @@ export const api = {
   cancelSearch: () => invoke<void>('cancel_search'),
   dirSize: (path: string) => invoke<DirSize>('dir_size', { path }),
   hash: (path: string) => invoke<string>('file_hash', { path }),
+  mediaInfo: (items: [string, number][]) => invoke<MediaInfo[]>('media_info', { items }),
+  eject: (path: string) => invoke<void>('eject', { path }),
+  diskCleanup: (letter: string) => invoke<void>('disk_cleanup', { letter }),
   shellProps: (path: string) => invoke<Prop[]>('shell_props', { path }),
   readText: (path: string, limit?: number) => invoke<TextPreview>('read_text', { path, limit }),
   officeText: (path: string) => invoke<TextPreview>('office_text', { path }),

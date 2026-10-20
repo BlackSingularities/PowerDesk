@@ -17,7 +17,7 @@ use windows::Win32::Graphics::Gdi::{
 };
 use windows::Win32::System::Com::{CoInitializeEx, CoTaskMemFree, COINIT_APARTMENTTHREADED};
 use windows::Win32::UI::Shell::PropertiesSystem::{
-    IPropertyStore, PSFormatForDisplayAlloc, PSGetPropertyDescription, IPropertyDescription,
+    IPropertyStore, PSFormatForDisplayAlloc, PSGetNameFromPropertyKey, PSGetPropertyDescription, IPropertyDescription,
     SHGetPropertyStoreFromParsingName, GPS_BESTEFFORT, PDFF_DEFAULT,
 };
 use windows::Win32::UI::Shell::{
@@ -231,6 +231,10 @@ unsafe fn encode_hbitmap(hbmp: HBITMAP) -> Option<(Vec<u8>, &'static str)> {
 pub struct Prop {
     pub name: String,
     pub value: String,
+    /// Nazwa kanoniczna, np. „System.Photo.FNumber” – do ładnej prezentacji.
+    pub key: String,
+    /// Wartość liczbowa, gdy właściwość jest liczbą.
+    pub num: Option<f64>,
 }
 
 /// Wszystkie metadane, które zna system (wymiary, aparat, czas trwania, autor, strony…),
@@ -269,7 +273,16 @@ pub fn properties(path: &str) -> Vec<Prop> {
             if value.is_empty() {
                 continue;
             }
-            out.push(Prop { name, value });
+            let canon = PSGetNameFromPropertyKey(&key)
+                .ok()
+                .map(|p| {
+                    let s = p.to_string().unwrap_or_default();
+                    CoTaskMemFree(Some(p.0 as *const _));
+                    s
+                })
+                .unwrap_or_default();
+            let num = windows::Win32::System::Com::StructuredStorage::PropVariantToDouble(&val).ok().filter(|n| n.is_finite());
+            out.push(Prop { name, value, key: canon, num });
         }
     }
     out.dedup_by(|a, b| a.name == b.name);
@@ -300,42 +313,12 @@ pub fn open_with(hwnd: isize, path: &str) -> bool {
 pub fn native_menu(hwnd: isize, paths: &[String], x: i32, y: i32, extended: bool) -> Result<bool, String> {
     use windows::Win32::Foundation::POINT;
     use windows::Win32::Graphics::Gdi::ClientToScreen;
-    use windows::Win32::UI::Shell::Common::ITEMIDLIST;
-    use windows::Win32::UI::Shell::{
-        ILFindLastID, ILFree, IContextMenu, IShellFolder, SHBindToParent, SHParseDisplayName, CMF_EXPLORE, CMF_EXTENDEDVERBS,
-        CMF_NORMAL, CMINVOKECOMMANDINFOEX,
-    };
+    use windows::Win32::UI::Shell::{CMF_EXPLORE, CMF_EXTENDEDVERBS, CMF_NORMAL, CMINVOKECOMMANDINFOEX};
     use windows::Win32::UI::WindowsAndMessaging::{CreatePopupMenu, DestroyMenu, TrackPopupMenuEx, SW_SHOWNORMAL, TPM_RETURNCMD, TPM_RIGHTBUTTON};
     unsafe {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let hwnd = HWND(hwnd as *mut _);
-        let mut pidls: Vec<*mut ITEMIDLIST> = Vec::new();
-        let free = |v: &Vec<*mut ITEMIDLIST>| v.iter().for_each(|p| ILFree(Some(*p)));
-        for p in paths {
-            let mut pidl: *mut ITEMIDLIST = std::ptr::null_mut();
-            if SHParseDisplayName(&HSTRING::from(p.as_str()), None, &mut pidl, 0, None).is_ok() && !pidl.is_null() {
-                pidls.push(pidl);
-            }
-        }
-        if pidls.is_empty() {
-            return Err("Nie można odczytać elementów".into());
-        }
-        let mut child: *mut ITEMIDLIST = std::ptr::null_mut();
-        let folder: IShellFolder = match SHBindToParent(pidls[0], Some(&mut child as *mut _ as *mut _)) {
-            Ok(f) => f,
-            Err(e) => {
-                free(&pidls);
-                return Err(e.to_string());
-            }
-        };
-        let children: Vec<*const ITEMIDLIST> = pidls.iter().map(|p| ILFindLastID(*p) as *const _).collect();
-        let cm: IContextMenu = match folder.GetUIObjectOf(hwnd, &children, None) {
-            Ok(c) => c,
-            Err(e) => {
-                free(&pidls);
-                return Err(e.to_string());
-            }
-        };
+        let (cm, pidls) = context_menu(hwnd, paths)?;
         let menu = CreatePopupMenu().map_err(|e| e.to_string())?;
         let mut flags = CMF_NORMAL | CMF_EXPLORE;
         if extended {
@@ -361,7 +344,166 @@ pub fn native_menu(hwnd: isize, paths: &[String], x: i32, y: i32, extended: bool
             chosen = true;
         }
         let _ = DestroyMenu(menu);
-        free(&pidls);
+        free_pidls(&pidls);
         Ok(chosen)
+    }
+}
+
+#[derive(Serialize, Clone, Copy, Default)]
+pub struct MediaInfo {
+    pub w: u32,
+    pub h: u32,
+    /// Czas trwania w ms (wideo, audio).
+    pub dur: u64,
+    /// Data wykonania zdjęcia / nagrania (ms od 1970, UTC); 0 – brak.
+    pub taken: i64,
+}
+
+static MEDIA: Lazy<Mutex<HashMap<String, MediaInfo>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+
+fn filetime_ms(ft: windows::Win32::Foundation::FILETIME) -> i64 {
+    let t = ((ft.dwHighDateTime as u64) << 32) | ft.dwLowDateTime as u64;
+    if t == 0 {
+        0
+    } else {
+        (t / 10_000) as i64 - 11_644_473_600_000
+    }
+}
+
+/// Wymiary (z obrotem z EXIF), czas trwania i data wykonania – z systemu właściwości Windows.
+/// Wynik trzymany w RAM, klucz zawiera datę modyfikacji.
+pub fn media_info(items: Vec<(String, i64)>) -> Vec<MediaInfo> {
+    use windows::core::GUID;
+    use windows::Win32::System::Com::StructuredStorage::{PropVariantToFileTime, PropVariantToUInt32, PropVariantToUInt64};
+    use windows::Win32::System::Variant::PSTF_UTC;
+    const IMG: GUID = GUID::from_u128(0x6444048F_4C8B_11D1_8B70_080036B11A03);
+    const VID: GUID = GUID::from_u128(0x64440491_4C8B_11D1_8B70_080036B11A03);
+    const MED: GUID = GUID::from_u128(0x64440490_4C8B_11D1_8B70_080036B11A03);
+    const PHO: GUID = GUID::from_u128(0x14B81DA1_0135_4D31_96D9_6CBFC9671A99);
+    const MEDIA_CREATED: GUID = GUID::from_u128(0x2E4B640D_5019_46D8_8881_55414CC5CAA0);
+    let one = |path: &str| -> MediaInfo {
+        unsafe {
+            let Ok(store): windows::core::Result<IPropertyStore> = SHGetPropertyStoreFromParsingName(&HSTRING::from(path), None, GPS_BESTEFFORT) else {
+                return MediaInfo::default();
+            };
+            let val = |fmtid: GUID, pid: u32| store.GetValue(&PROPERTYKEY { fmtid, pid }).ok();
+            let u32v = |fmtid: GUID, pid: u32| val(fmtid, pid).and_then(|v| PropVariantToUInt32(&v).ok()).unwrap_or(0);
+            let ft = |fmtid: GUID, pid: u32| val(fmtid, pid).and_then(|v| PropVariantToFileTime(&v, PSTF_UTC).ok()).map(filetime_ms).unwrap_or(0);
+            let (mut w, mut h) = (u32v(IMG, 3), u32v(IMG, 4));
+            if w == 0 || h == 0 {
+                (w, h) = (u32v(VID, 3), u32v(VID, 4));
+            } else if matches!(u32v(PHO, 274), 5..=8) {
+                std::mem::swap(&mut w, &mut h);
+            }
+            let dur = val(MED, 3).and_then(|v| PropVariantToUInt64(&v).ok()).unwrap_or(0) / 10_000;
+            let mut taken = ft(PHO, 36867);
+            if taken == 0 {
+                taken = ft(MEDIA_CREATED, 100);
+            }
+            MediaInfo { w, h, dur, taken }
+        }
+    };
+    let mut out = vec![MediaInfo::default(); items.len()];
+    let mut todo = Vec::new();
+    {
+        let c = MEDIA.lock();
+        for (i, (p, m)) in items.iter().enumerate() {
+            match c.get(&format!("{m}:{p}")) {
+                Some(d) => out[i] = *d,
+                None => todo.push(i),
+            }
+        }
+    }
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4).clamp(2, 8);
+    let chunk = todo.len().div_ceil(threads).max(1);
+    let found: Vec<(usize, MediaInfo)> = std::thread::scope(|s| {
+        let hs: Vec<_> = todo
+            .chunks(chunk)
+            .map(|part| {
+                let items = &items;
+                s.spawn(move || {
+                    unsafe {
+                        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+                    }
+                    part.iter().map(|&i| (i, one(&items[i].0))).collect::<Vec<_>>()
+                })
+            })
+            .collect();
+        hs.into_iter().flat_map(|h| h.join().unwrap_or_default()).collect()
+    });
+    let mut c = MEDIA.lock();
+    if c.len() > 200_000 {
+        c.clear();
+    }
+    for (i, d) in found {
+        out[i] = d;
+        c.insert(format!("{}:{}", items[i].1, items[i].0), d);
+    }
+    out
+}
+
+/// Polecenie z menu kontekstowego Shella po nazwie kanonicznej (np. „eject”).
+pub fn invoke_verb(hwnd: isize, path: &str, verb: &str) -> Result<(), String> {
+    use windows::Win32::UI::Shell::{CMF_NORMAL, CMINVOKECOMMANDINFOEX};
+    use windows::Win32::UI::WindowsAndMessaging::{CreatePopupMenu, DestroyMenu, SW_SHOWNORMAL};
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let hwnd = HWND(hwnd as *mut _);
+        let (cm, pidls) = context_menu(hwnd, &[path.to_string()])?;
+        let menu = CreatePopupMenu().map_err(|e| e.to_string())?;
+        let _ = cm.QueryContextMenu(menu, 0, 1, 0x7FFF, CMF_NORMAL);
+        let verb_a = std::ffi::CString::new(verb).unwrap_or_default();
+        let verb_w = HSTRING::from(verb);
+        let mut info = CMINVOKECOMMANDINFOEX {
+            cbSize: std::mem::size_of::<CMINVOKECOMMANDINFOEX>() as u32,
+            fMask: 0x4000,
+            hwnd,
+            lpVerb: windows::core::PCSTR(verb_a.as_ptr() as *const u8),
+            lpVerbW: PCWSTR(verb_w.as_ptr()),
+            nShow: SW_SHOWNORMAL.0,
+            ..Default::default()
+        };
+        let res = cm.InvokeCommand(&mut info as *mut _ as *mut _);
+        let _ = DestroyMenu(menu);
+        free_pidls(&pidls);
+        res.map_err(|e| e.message().to_string())
+    }
+}
+
+unsafe fn free_pidls(v: &[*mut windows::Win32::UI::Shell::Common::ITEMIDLIST]) {
+    v.iter().for_each(|p| windows::Win32::UI::Shell::ILFree(Some(*p)));
+}
+
+type Pidls = Vec<*mut windows::Win32::UI::Shell::Common::ITEMIDLIST>;
+
+/// IContextMenu dla elementów z jednego folderu (zwraca też PIDL-e do zwolnienia).
+unsafe fn context_menu(hwnd: HWND, paths: &[String]) -> Result<(windows::Win32::UI::Shell::IContextMenu, Pidls), String> {
+    use windows::Win32::UI::Shell::Common::ITEMIDLIST;
+    use windows::Win32::UI::Shell::{ILFindLastID, IContextMenu, IShellFolder, SHBindToParent, SHParseDisplayName};
+    let mut pidls: Pidls = Vec::new();
+    for p in paths {
+        let mut pidl: *mut ITEMIDLIST = std::ptr::null_mut();
+        if SHParseDisplayName(&HSTRING::from(p.as_str()), None, &mut pidl, 0, None).is_ok() && !pidl.is_null() {
+            pidls.push(pidl);
+        }
+    }
+    if pidls.is_empty() {
+        return Err("Nie można odczytać elementów".into());
+    }
+    let mut child: *mut ITEMIDLIST = std::ptr::null_mut();
+    let folder: IShellFolder = match SHBindToParent(pidls[0], Some(&mut child as *mut _ as *mut _)) {
+        Ok(f) => f,
+        Err(e) => {
+            free_pidls(&pidls);
+            return Err(e.to_string());
+        }
+    };
+    let children: Vec<*const ITEMIDLIST> = pidls.iter().map(|p| ILFindLastID(*p) as *const _).collect();
+    match folder.GetUIObjectOf::<IContextMenu>(hwnd, &children, None) {
+        Ok(c) => Ok((c, pidls)),
+        Err(e) => {
+            free_pidls(&pidls);
+            Err(e.to_string())
+        }
     }
 }

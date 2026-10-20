@@ -3,7 +3,7 @@
   import type { IconName } from '../lib/icons'
   import {
     app, settings, activeTab, navigate, newTab, transfer, dropMode, addFavorite, removeFavorite, toast, refreshDrives,
-    HOME, SYNC, SETTINGS, confirm,
+    HOME, SYNC, SETTINGS, driveShown, showDriveMenu, ejectable, ejectDrive, lowSpace,
   } from '../lib/state.svelte'
   import { api, thumbUrl, type Drive } from '../lib/api'
   import { samePath, size, ago } from '../lib/util'
@@ -16,7 +16,7 @@
   const open = (k: string) => !settings.collapsed[k]
   const toggle = (k: string) => (settings.collapsed[k] = !settings.collapsed[k])
   const cur = $derived(activeTab()?.path ?? '')
-  const localDrives = $derived(app.drives.filter((d) => d.kind !== 'network'))
+  const localDrives = $derived(app.drives.filter((d) => d.kind !== 'network' && driveShown(d)))
   const netDrives = $derived(app.drives.filter((d) => d.kind === 'network'))
 
   function go(path: string, e?: MouseEvent) {
@@ -52,34 +52,7 @@
   const used = (d: Drive) => (d.total ? 1 - d.free / d.total : 0)
   const driveName = (d: Drive) => d.label || (!d.online && d.kind === 'removable' ? 'Czytnik – brak nośnika' : d.kind === 'removable' ? 'Dysk wymienny' : d.kind === 'network' ? (d.remote ?? 'Dysk sieciowy') : 'Dysk lokalny')
 
-  function driveMenu(e: MouseEvent, d: Drive) {
-    e.preventDefault()
-    app.menu = {
-      x: e.clientX, y: e.clientY,
-      items: [
-        { label: 'Otwórz w nowej karcie', icon: 'plus', run: () => newTab(d.path) },
-        { label: 'Właściwości systemowe', icon: 'info', run: () => api.systemProps(d.path) },
-        ...(d.kind === 'network'
-          ? [
-              { sep: true as const },
-              { label: 'Rozłącz', icon: 'unlink' as IconName, run: () => unmap(d, false) },
-              { label: 'Rozłącz i zapomnij', icon: 'unlink' as IconName, danger: true, run: () => unmap(d, true) },
-            ]
-          : []),
-      ],
-    }
-  }
-
-  async function unmap(d: Drive, forget: boolean) {
-    if (forget && !(await confirm('Zapomnieć dysk?', `${d.letter} (${d.remote}) nie będzie przywracany przy logowaniu.`, 'Rozłącz', true))) return
-    try {
-      await api.unmapDrive(d.letter, forget)
-      toast(`Rozłączono ${d.letter}`, 'ok')
-      refreshDrives()
-    } catch (err) {
-      toast(String(err), 'error')
-    }
-  }
+  const driveMenu = (e: MouseEvent, d: Drive) => showDriveMenu(e, d, (p) => go(p), (p) => newTab(p, false, activeTab().id))
 
   function folderMenu(e: MouseEvent, path: string, fav: boolean) {
     e.preventDefault()
@@ -184,8 +157,13 @@
       >
         <img class="sys" src={thumbUrl(d.path, 18, 'i')} alt="" />
         <span class="grow">
-          <span class="row"><span class="ellipsis grow">{driveName(d)}</span><span class="faint letter">{d.letter}</span></span>
-          {#if d.total}<span class="bar" class:warn={used(d) > 0.85} class:full={used(d) > 0.95}><i style:width="{used(d) * 100}%"></i></span>{/if}
+          <span class="row"><span class="ellipsis grow">{driveName(d)}</span>{#if ejectable(d)}<span class="ej" role="button" tabindex="-1" title="Wysuń bezpiecznie" onclick={(e) => { e.stopPropagation(); ejectDrive(d) }} onkeydown={() => {}}><Icon name="eject" size={13} /></span>{/if}<span class="faint letter">{d.letter}</span></span>
+          {#if d.online && d.total}
+            <span class="bar" class:warn={used(d) > 0.8} class:full={used(d) > 0.9}><i style:width="{used(d) * 100}%"></i></span>
+            <span class="sub cap" class:low={lowSpace(d)}><span>{size(d.free)} wolne</span><span>z {size(d.total)}</span></span>
+          {:else if !d.online}
+            <span class="sub">brak nośnika</span>
+          {/if}
         </span>
       </button>
     {/each}
@@ -346,6 +324,32 @@
     display: block;
     margin-top: 5px;
     height: 3px;
+  }
+  .cap {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    margin-top: 3px;
+    font-variant-numeric: tabular-nums;
+  }
+  .cap.low span:first-child {
+    color: var(--rec);
+  }
+  .ej {
+    display: flex;
+    padding: 2px;
+    margin-right: 4px;
+    border-radius: 5px;
+    color: var(--faint);
+    opacity: 0;
+    transition: opacity 0.12s;
+  }
+  .drive:hover .ej {
+    opacity: 1;
+  }
+  .ej:hover {
+    background: var(--press);
+    color: var(--text);
   }
   .letter {
     font-size: 11px;

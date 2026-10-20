@@ -20,6 +20,7 @@
         { key: 'singleClickOpen', label: 'Otwieraj jednym kliknięciem' },
         { key: 'rememberViewPerFolder', label: 'Zapamiętuj widok i sortowanie dla każdego folderu' },
         { key: 'autoGallery', label: 'Foldery ze zdjęciami i filmami otwieraj w galerii' },
+        { key: 'hideOfflineDrives', label: 'Ukrywaj odłączone dyski wymienne i puste napędy', hint: 'Czytniki kart bez nośnika, napędy CD/DVD bez płyty' },
       ],
     },
     {

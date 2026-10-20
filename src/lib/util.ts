@@ -152,3 +152,10 @@ export function fuzzy(q: string, s: string): number {
   }
   return qi === q.length ? score : -1
 }
+
+/** Czas trwania „1:05”, „1:02:03”. */
+export function duration(ms: number) {
+  const t = Math.round(ms / 1000)
+  const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = t % 60
+  return (h ? `${h}:${String(m).padStart(2, '0')}` : `${m}`) + `:${String(sec).padStart(2, '0')}`
+}

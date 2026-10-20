@@ -71,6 +71,18 @@
     app.viewer = { list: v.list, index: i }
   }
 
+  // Kółko nad taśmą przewija zdjęcia (w dół / w prawo – następne). Gładzik daje drobne kroki, więc je sumujemy.
+  let stripAcc = 0
+  function stripWheel(e: WheelEvent) {
+    e.preventDefault()
+    e.stopPropagation()
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY
+    stripAcc += e.deltaMode === 1 ? d * 40 : d
+    if (Math.abs(stripAcc) < 40) return
+    go(stripAcc > 0 ? 1 : -1)
+    stripAcc = 0
+  }
+
   function close() {
     slideshow = false
     getCurrentWindow().isFullscreen().then((f) => {
@@ -287,7 +299,7 @@
     </div>
 
     {#if v.list.length > 1}
-      <div class="strip" bind:this={stripEl}>
+      <div class="strip" bind:this={stripEl} onwheel={stripWheel}>
         {#each strip as s, j (s.path)}
           <button class="st" class:cur={stripFrom + j === v.index} onclick={() => (app.viewer = { list: v.list, index: stripFrom + j })}>
             <Thumb entry={s} px={64} fit="cover" />

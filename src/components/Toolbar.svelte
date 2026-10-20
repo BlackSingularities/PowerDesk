@@ -1,8 +1,9 @@
 <script lang="ts">
+  import type { IconName } from '../lib/icons'
   import Icon from './Icon.svelte'
   import {
     app, settings, back, forward, up, load, navigate, startSearch, closeSearch, transfer, dropMode, newFolder, newFile,
-    copySel, paste, trash, savePrefs, toggleSplit, selectOnly, type Tab, type SortKey, type KindFilter,
+    copySel, paste, trash, savePrefs, toggleSplit, selectOnly, sortMenuItems, SORT_LABEL, GROUP_LABEL, type Tab, type SortKey, type KindFilter,
   } from '../lib/state.svelte'
   import { api, type Entry } from '../lib/api'
   import { crumbs, collator, parent, samePath } from '../lib/util'
@@ -134,22 +135,13 @@
     q = ''
   })
 
-  function setSort(k: SortKey) {
-    if (tab.sort === k) tab.desc = !tab.desc
-    else {
-      tab.sort = k
-      tab.desc = k === 'modified' || k === 'size' || k === 'created'
-    }
-    savePrefs(tab)
-  }
 
   function sortMenu(e: MouseEvent) {
     const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const opt = (k: SortKey, label: string) => ({ label: (tab.sort === k ? (tab.desc ? '↓ ' : '↑ ') : '   ') + label, run: () => setSort(k) })
     app.menu = {
       x: r.left, y: r.bottom + 4,
       items: [
-        opt('name', 'Nazwa'), opt('modified', 'Data modyfikacji'), opt('created', 'Data utworzenia'), opt('size', 'Rozmiar'), opt('type', 'Typ'),
+        ...sortMenuItems(tab),
         { sep: true },
         { label: (settings.foldersFirst ? '✓ ' : '   ') + 'Foldery na początku', run: () => (settings.foldersFirst = !settings.foldersFirst) },
         { label: (settings.showHidden ? '✓ ' : '   ') + 'Ukryte pliki', kbd: 'Ctrl+H', run: () => (settings.showHidden = !settings.showHidden) },
@@ -175,7 +167,7 @@
     savePrefs(tab)
   }
 
-  const FILTERS: [KindFilter, string][] = [['all', 'Wszystko'], ['media', 'Media'], ['image', 'Zdjęcia'], ['video', 'Wideo'], ['doc', 'Dokumenty'], ['audio', 'Audio'], ['archive', 'Archiwa']]
+  const FILTERS: [KindFilter, string, IconName][] = [['all', 'Wszystko', 'filter'], ['media', 'Media (zdjęcia i wideo)', 'gallery'], ['image', 'Zdjęcia', 'image'], ['video', 'Wideo', 'video'], ['doc', 'Dokumenty', 'doc'], ['audio', 'Audio', 'music'], ['archive', 'Archiwa', 'archive']]
 
   function crumbDrop(e: DragEvent, path: string) {
     e.preventDefault()
@@ -263,12 +255,12 @@
       <button class="icon-btn" title="Właściwości (Alt+Enter)" disabled={!sel.length} onclick={() => (app.dialog = { type: 'props', entries: sel })}><Icon name="info" /></button>
       <span class="vsep"></span>
       <div class="filters">
-        {#each FILTERS as [k, label] (k)}
-          <button class="chip" class:on={tab.kindFilter === k} onclick={() => (tab.kindFilter = k)}>{label}</button>
+        {#each FILTERS as [k, label, icon] (k)}
+          <button class="fchip" class:on={tab.kindFilter === k} title={label} aria-label={label} onclick={() => (tab.kindFilter = k)}><Icon name={icon} size={15} /></button>
         {/each}
       </div>
       <span class="grow"></span>
-      <button class="btn ghost sm" onclick={sortMenu} title="Sortowanie"><Icon name="sort" size={16} />{({ name: 'Nazwa', modified: 'Data', created: 'Utworzono', size: 'Rozmiar', type: 'Typ' })[tab.sort]}</button>
+      <button class="btn ghost sm" onclick={sortMenu} title="Sortowanie"><Icon name="sort" size={16} />{SORT_LABEL[tab.sort]}{#if tab.group !== 'none'}<span class="faint"> · {GROUP_LABEL[tab.group]}</span>{/if}</button>
       {#if tab.view !== 'list'}
         <input
           class="zoom"
@@ -508,5 +500,22 @@
     .filters {
       display: none;
     }
+  }
+  .fchip {
+    width: 30px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--faint);
+  }
+  .fchip:hover {
+    background: var(--hover);
+    color: var(--text);
+  }
+  .fchip.on {
+    background: #fff;
+    color: #000;
   }
 </style>

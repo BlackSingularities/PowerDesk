@@ -253,3 +253,34 @@ pub fn win_err(code: u32) -> String {
         _ => std::io::Error::from_raw_os_error(code as i32).to_string(),
     }
 }
+
+/// Podłączenie/odłączenie dysku lub włożenie karty do czytnika – zdarzenie „drives-changed”
+/// od razu, bez czekania na okresowe odświeżenie.
+pub fn init_watch(app: tauri::AppHandle) {
+    use tauri::Emitter;
+    std::thread::Builder::new()
+        .name("drives".into())
+        .spawn(move || {
+            let mut last = String::new();
+            loop {
+                let mask = unsafe { GetLogicalDrives() };
+                let mut sig = format!("{mask:x}");
+                for i in 0..26u32 {
+                    if mask & (1 << i) == 0 {
+                        continue;
+                    }
+                    let root = format!("{}:\\", (b'A' + i as u8) as char);
+                    if unsafe { GetDriveTypeW(&HSTRING::from(root.as_str())) } == DRIVE_REMOVABLE {
+                        let ready = volume_info(&root, Duration::from_millis(400)).is_some();
+                        sig.push(if ready { '1' } else { '0' });
+                    }
+                }
+                if !last.is_empty() && sig != last {
+                    let _ = app.emit("drives-changed", ());
+                }
+                last = sig;
+                std::thread::sleep(Duration::from_millis(1200));
+            }
+        })
+        .ok();
+}

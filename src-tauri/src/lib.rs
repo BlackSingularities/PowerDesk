@@ -195,6 +195,23 @@ async fn shell_props(path: String) -> R<Vec<shell::Prop>> {
 }
 
 #[tauri::command]
+async fn media_info(items: Vec<(String, i64)>) -> R<Vec<shell::MediaInfo>> {
+    blocking(move || shell::media_info(items)).await
+}
+
+#[tauri::command]
+async fn eject(window: WebviewWindow, path: String) -> R<()> {
+    let h = hwnd(&window);
+    blocking(move || shell::invoke_verb(h, &path, "eject")).await?
+}
+
+#[tauri::command]
+fn disk_cleanup(letter: String) -> R<()> {
+    let l: String = letter.chars().take(1).collect();
+    std::process::Command::new("cleanmgr.exe").args(["/d", &l]).spawn().map(|_| ()).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn read_text(path: String, limit: Option<usize>) -> R<fsx::TextPreview> {
     blocking(move || fsx::read_text(&path, limit.unwrap_or(512 * 1024))).await?
 }
@@ -489,6 +506,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             fsx::init_watcher(handle.clone());
+            drives::init_watch(handle.clone());
             sync::init(handle.clone());
 
             let show = MenuItem::with_id(app, "show", "Pokaż OpenFilePower", true, None::<&str>)?;
@@ -555,6 +573,9 @@ pub fn run() {
             dir_size,
             file_hash,
             shell_props,
+            media_info,
+            eject,
+            disk_cleanup,
             read_text,
             office_text,
             zip_list,
