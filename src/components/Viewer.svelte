@@ -130,15 +130,128 @@
 
   let drag: { x: number; y: number; tx: number; ty: number } | null = null
   function down(ev: PointerEvent) {
+    if (ev.pointerType === 'touch') return touchDown(ev)
     if (ev.button !== 0 || fit) return
     drag = { x: ev.clientX, y: ev.clientY, tx, ty }
     ;(ev.currentTarget as HTMLElement).setPointerCapture(ev.pointerId)
   }
   function move(ev: PointerEvent) {
+    if (ev.pointerType === 'touch') return touchMove(ev)
     poke()
     if (!drag) return
     tx = drag.tx + ev.clientX - drag.x
     ty = drag.ty + ev.clientY - drag.y
+  }
+  function up(ev: PointerEvent) {
+    if (ev.pointerType === 'touch') return touchUp(ev)
+    drag = null
+  }
+
+  // Dotyk: przesunięcie palcem (przewijanie zdjęć / przesuwanie powiększenia), szczypanie, podwójne stuknięcie,
+  // przeciągnięcie w dół zamyka podgląd, pojedyncze stuknięcie pokazuje / chowa pasek narzędzi.
+  const touches = new Map<number, { x: number; y: number }>()
+  let gesture: { x: number; y: number; t: number; tx: number; ty: number; moved: boolean; multi: boolean } | null = null
+  let pinch: { d: number; cx: number; cy: number; s: number; tx: number; ty: number } | null = null
+  let swipe = $state({ x: 0, y: 0 })
+  let lastTap = { t: 0, x: 0, y: 0 }
+  let tapTimer: ReturnType<typeof setTimeout> | undefined
+  let lastTouch = 0
+  const zoomable = $derived(k === 'image' || k === 'raw')
+  const touchable = $derived(zoomable || k === 'video')
+
+  function stageCenter() {
+    const r = stageEl!.getBoundingClientRect()
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 }
+  }
+  function startPinch() {
+    const [a, b] = [...touches.values()]
+    const c = stageCenter()
+    pinch = { d: Math.hypot(a.x - b.x, a.y - b.y) || 1, cx: (a.x + b.x) / 2 - c.x, cy: (a.y + b.y) / 2 - c.y, s: effScale, tx, ty }
+  }
+  function touchDown(ev: PointerEvent) {
+    lastTouch = Date.now()
+    if (!touchable || !stageEl) return
+    // Nie przechwytujemy dotyku na pasku sterowania wideo.
+    if (k === 'video' && videoEl) {
+      const r = videoEl.getBoundingClientRect()
+      if (ev.clientY > r.bottom - 64 && ev.clientY < r.bottom && ev.clientX > r.left && ev.clientX < r.right) return
+    }
+    stageEl.setPointerCapture(ev.pointerId)
+    touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+    if (touches.size === 1) gesture = { x: ev.clientX, y: ev.clientY, t: Date.now(), tx, ty, moved: false, multi: false }
+    else if (touches.size === 2 && zoomable) {
+      if (gesture) gesture.multi = true
+      swipe = { x: 0, y: 0 }
+      startPinch()
+    }
+  }
+  function touchMove(ev: PointerEvent) {
+    if (!touches.has(ev.pointerId) || !gesture) return
+    touches.set(ev.pointerId, { x: ev.clientX, y: ev.clientY })
+    const dx = ev.clientX - gesture.x
+    const dy = ev.clientY - gesture.y
+    if (Math.hypot(dx, dy) > 10) gesture.moved = true
+    if (pinch && touches.size >= 2) {
+      const [a, b] = [...touches.values()]
+      const c = stageCenter()
+      const cx = (a.x + b.x) / 2 - c.x
+      const cy = (a.y + b.y) / 2 - c.y
+      const next = Math.max(0.05, Math.min(20, (pinch.s * Math.hypot(a.x - b.x, a.y - b.y)) / pinch.d))
+      // Punkt pod środkiem palców podąża za palcami.
+      tx = cx - ((pinch.cx - pinch.tx) * next) / pinch.s
+      ty = cy - ((pinch.cy - pinch.ty) * next) / pinch.s
+      scale = next
+      fit = false
+      if (next > 1.5) hiRes = true
+    } else if (gesture.multi) return
+    else if (!fit && zoomable) {
+      tx = gesture.tx + dx
+      ty = gesture.ty + dy
+    } else if (gesture.moved) swipe = Math.abs(dx) > Math.abs(dy) ? { x: dx, y: 0 } : { x: 0, y: Math.max(0, dy) }
+  }
+  function touchUp(ev: PointerEvent) {
+    if (!touches.delete(ev.pointerId) || !gesture) return
+    if (touches.size === 1 && pinch) {
+      // Po szczypaniu jeden palec zostaje – kontynuujemy jako przesuwanie od bieżącej pozycji.
+      pinch = null
+      const [a] = [...touches.values()]
+      gesture = { ...gesture, x: a.x, y: a.y, tx, ty }
+      if (effScale <= fitScale() * 1.02) { fit = true; tx = ty = 0 }
+      return
+    }
+    if (touches.size) return
+    const g = gesture
+    gesture = null
+    pinch = null
+    const sw = swipe
+    swipe = { x: 0, y: 0 }
+    if (g.multi) {
+      if (effScale <= fitScale() * 1.02) { fit = true; tx = ty = 0 }
+      return
+    }
+    const w = stageEl?.clientWidth ?? 800
+    if (sw.x && Math.abs(sw.x) > Math.min(80, w / 5)) return go(sw.x < 0 ? 1 : -1)
+    if (sw.y > 120) return close()
+    if (g.moved || ev.type === 'pointercancel' || Date.now() - g.t > 400) return
+    // Stuknięcie: podwójne powiększa / dopasowuje, pojedyncze przełącza pasek narzędzi.
+    const now = Date.now()
+    if (now - lastTap.t < 300 && Math.hypot(ev.clientX - lastTap.x, ev.clientY - lastTap.y) < 40) {
+      clearTimeout(tapTimer)
+      lastTap.t = 0
+      if (zoomable) {
+        if (fit) zoomAt(Math.max(2.5 / effScale, 1 / effScale), ev.clientX, ev.clientY)
+        else { fit = true; tx = ty = 0 }
+        hiRes = true
+      } else if (videoEl) videoEl.paused ? videoEl.play() : videoEl.pause()
+      return
+    }
+    lastTap = { t: now, x: ev.clientX, y: ev.clientY }
+    clearTimeout(tapTimer)
+    tapTimer = setTimeout(() => {
+      clearTimeout(hideTimer)
+      chrome = !chrome
+      if (chrome) hideTimer = setTimeout(() => (chrome = false), 4000)
+    }, 300)
   }
 
   function toggleFit(ev?: MouseEvent) {
@@ -198,7 +311,8 @@
     await getCurrentWindow().setFullscreen(full).catch(() => {})
   }
 
-  function poke() {
+  function poke(ev?: PointerEvent) {
+    if (ev?.pointerType === 'touch') return
     chrome = true
     clearTimeout(hideTimer)
     hideTimer = setTimeout(() => (chrome = false), 2600)
@@ -245,10 +359,12 @@
         onwheel={onWheel}
         onpointerdown={down}
         onpointermove={move}
-        onpointerup={() => (drag = null)}
-        ondblclick={(ev) => (k === 'image' || k === 'raw') && toggleFit(ev)}
+        onpointerup={up}
+        onpointercancel={up}
+        ondblclick={(ev) => zoomable && Date.now() - lastTouch > 600 && toggleFit(ev)}
         role="presentation"
         class:grab={!fit}
+        class:touch={touchable}
       >
         {#if k === 'image' || k === 'raw'}
           {#key src}
@@ -257,7 +373,8 @@
               alt={e.name}
               draggable="false"
               class:loaded={loadedSrc === src}
-              style="transform: translate({tx}px, {ty}px) scale({effScale}) rotate({rot}deg)"
+              style="transform: translate({tx + swipe.x}px, {ty + swipe.y}px) scale({effScale}) rotate({rot}deg)"
+              style:opacity={swipe.y ? Math.max(0.3, 1 - swipe.y / 400) : null}
               style:image-rendering={effScale > 2 ? 'pixelated' : 'auto'}
               onload={(ev) => {
                 const im = ev.currentTarget as HTMLImageElement
@@ -271,7 +388,7 @@
           {#key e.path}
             {#if WEB_VIDEO.has(e.ext)}
               <!-- svelte-ignore a11y_media_has_caption -->
-              <video bind:this={videoEl} src={fileUrl(e.path)} controls autoplay onended={() => slideshow && go(1, true)}
+              <video bind:this={videoEl} style:transform={swipe.x || swipe.y ? `translate(${swipe.x}px, ${swipe.y}px)` : null} src={fileUrl(e.path)} controls autoplay onended={() => slideshow && go(1, true)}
                 onerror={() => toast('Tego formatu wideo nie da się odtworzyć w aplikacji – Enter otworzy go w systemowym odtwarzaczu')}></video>
             {:else}
               <div class="nopreview"><div class="big"><Thumb entry={e} px={512} /></div><p class="muted">Format {e.ext.toUpperCase()} – otwórz w odtwarzaczu systemowym</p><button class="btn primary" onclick={() => api.open(e.path)}>Odtwórz</button></div>
@@ -395,6 +512,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+  .stage.touch {
+    touch-action: none;
   }
   .stage.grab {
     cursor: grab;
@@ -523,5 +643,15 @@
     transform: scale(1.08);
     outline: 2px solid #fff;
     outline-offset: -2px;
+  }
+  @media (pointer: coarse) {
+    .nav {
+      width: 56px;
+      height: 56px;
+    }
+    .st {
+      width: 64px;
+      height: 64px;
+    }
   }
 </style>
