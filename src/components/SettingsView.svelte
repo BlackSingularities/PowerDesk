@@ -359,6 +359,10 @@
             <button class="btn" onclick={check} disabled={checking}><Icon name="refresh" size={15} />{checking ? 'Sprawdzam…' : 'Sprawdź aktualizacje'}</button>
           {/if}
         </div>
+        <div class="credit">
+          <button class="link" onclick={() => api.open('https://redzikowski.com')}>Projekt i wykonanie: <b>redzikowski.com</b></button>
+          <button class="btn coffee" onclick={() => api.open('https://buycoffee.to/adamredzikowski')}>☕ Postaw kawę</button>
+        </div>
       </section>
     {/if}
 
@@ -849,6 +853,29 @@
   }
   .about .btn {
     gap: 8px;
+  }
+  .credit {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 20px 0;
+  }
+  .credit .link {
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    font-size: 12px;
+    color: var(--faint);
+    cursor: pointer;
+  }
+  .credit .link:hover b {
+    text-decoration: underline;
+  }
+  .credit .coffee {
+    border-radius: 999px;
+    font-weight: 600;
   }
   .empty {
     display: flex;
