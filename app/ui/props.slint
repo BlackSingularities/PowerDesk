@@ -1,0 +1,298 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label, TipArea } from "components.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export struct PropRow {
+    label: string,
+    value: string,
+}
+
+/// Sekcja metadanych (Aparat, Obraz, Dokument…); `icon` – polecenia ścieżki ikony.
+export struct PropSection {
+    title: string,
+    icon: string,
+    rows: [PropRow],
+}
+
+/// Stan okna właściwości – dane podaje props.rs, część dochodzi w tle.
+export global Props {
+    in-out property <bool> open;
+    in-out property <string> title;
+    in-out property <string> subtitle;
+    in-out property <image> img;
+    in-out property <bool> has-img;
+    /// Ścieżka jednego elementu (pusta przy wielu).
+    in-out property <string> path;
+    in-out property <[PropRow]> basic;
+    in-out property <[PropSection]> sections;
+    in-out property <bool> can-hash;
+    in-out property <bool> hashing;
+    in-out property <string> hash;
+    in-out property <bool> can-system;
+    callback close;
+    callback compute-hash;
+    callback copy(string);
+    callback system;
+}
+
+/// Wiersz „etykieta – wartość”; klik w wartość kopiuje ją do schowka.
+component Row inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <bool> mono;
+    spacing: 14px;
+    Text {
+        width: 130px;
+        text: root.label;
+        wrap: word-wrap;
+        font-family: Theme.font;
+        font-size: 12.5px;
+        color: Theme.dim;
+    }
+    Rectangle {
+        horizontal-stretch: 1;
+        border-radius: Theme.r-xs;
+        background: v-ta.has-hover ? Theme.hover : transparent;
+        v-text := Text {
+            x: 4px;
+            width: parent.width - 8px;
+            text: root.value;
+            wrap: word-wrap;
+            font-family: root.mono ? Theme.mono : Theme.font;
+            font-size: 12.5px;
+            color: Theme.text;
+        }
+        height: v-text.preferred-height + 2px;
+        v-ta := TipArea {
+            tip: "Kliknij, aby skopiować";
+            clicked => {
+                Props.copy(root.value);
+            }
+        }
+    }
+}
+
+/// Właściwości (Dialogs.svelte → props): nagłówek z ikoną, podstawowe dane, SHA-256, metadane w sekcjach.
+export component PropsDialog inherits Rectangle {
+    background: #00000099;
+    TouchArea {
+        clicked => {
+            Props.close();
+        }
+    }
+    FocusScope {
+        init => {
+            self.focus();
+        }
+        key-pressed(e) => {
+            if (e.text == Key.Escape || e.text == Key.Return) {
+                Props.close();
+                return accept;
+            }
+            reject
+        }
+        Rectangle {
+            width: min(560px, root.width - 48px);
+            height: min(box.preferred-height, root.height - 48px);
+            border-radius: Theme.r-xl;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line;
+            drop-shadow-blur: 80px;
+            drop-shadow-offset-y: 30px;
+            drop-shadow-color: Theme.shadow;
+            clip: true;
+            TouchArea { }
+            box := VerticalLayout {
+                padding: 20px;
+                padding-bottom: 16px;
+                spacing: 14px;
+                // Nagłówek.
+                HorizontalLayout {
+                    spacing: 14px;
+                    Rectangle {
+                        width: 48px;
+                        height: 48px;
+                        if Props.has-img: Image {
+                            width: 48px;
+                            height: 48px;
+                            source: Props.img;
+                        }
+                        if !Props.has-img: Icon {
+                            commands: Icons.copy;
+                            size: 36px;
+                            color: Theme.dim;
+                        }
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        spacing: 2px;
+                        Text {
+                            text: Props.title;
+                            wrap: word-wrap;
+                            font-family: Theme.font;
+                            font-size: 17px;
+                            font-weight: 600;
+                            color: Theme.text;
+                        }
+                        Label {
+                            text: Props.subtitle;
+                            font-size: 12px;
+                            color: Theme.dim;
+                        }
+                    }
+                    IconButton {
+                        y: 0;
+                        icon: Icons.close;
+                        tooltip: "Zamknij (Esc)";
+                        clicked => {
+                            Props.close();
+                        }
+                    }
+                }
+                ScrollView {
+                    vertical-stretch: 1;
+                    min-height: min(content.preferred-height, 120px);
+                    preferred-height: content.preferred-height;
+                    content := VerticalLayout {
+                        spacing: 8px;
+                        padding-right: 10px;
+                        for r in Props.basic: Row {
+                            label: r.label;
+                            value: r.value;
+                        }
+                        if Props.can-hash: HorizontalLayout {
+                            spacing: 14px;
+                            Label {
+                                width: 130px;
+                                text: "SHA-256";
+                                font-size: 12.5px;
+                                color: Theme.dim;
+                            }
+                            if Props.hash != "": Rectangle {
+                                horizontal-stretch: 1;
+                                border-radius: Theme.r-xs;
+                                background: h-ta.has-hover ? Theme.hover : transparent;
+                                h-text := Text {
+                                    x: 4px;
+                                    width: parent.width - 8px;
+                                    text: Props.hash;
+                                    wrap: char-wrap;
+                                    font-family: Theme.mono;
+                                    font-size: 12px;
+                                    color: Theme.text;
+                                }
+                                height: h-text.preferred-height + 2px;
+                                h-ta := TipArea {
+                                    tip: "Kliknij, aby skopiować";
+                                    clicked => {
+                                        Props.copy(Props.hash);
+                                    }
+                                }
+                            }
+                            if Props.hash == "": HorizontalLayout {
+                                alignment: start;
+                                Rectangle {
+                                    height: 24px;
+                                    width: hb-l.preferred-width + 18px;
+                                    border-radius: Theme.r-s;
+                                    background: hb-ta.has-hover && !Props.hashing ? Theme.press : Theme.card;
+                                    hb-l := Label {
+                                        text: Props.hashing ? "Liczę…" : "Oblicz";
+                                        font-size: 12px;
+                                        color: Props.hashing ? Theme.dim : Theme.text;
+                                    }
+                                    hb-ta := TipArea {
+                                        enabled: !Props.hashing;
+                                        tip: "Suma kontrolna pliku – do porównania z podaną przez autora";
+                                        clicked => {
+                                            Props.compute-hash();
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        for sec in Props.sections: VerticalLayout {
+                            spacing: 8px;
+                            padding-top: 10px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Icon {
+                                    y: (parent.height - self.height) / 2;
+                                    commands: sec.icon;
+                                    size: 15px;
+                                    color: Theme.dim;
+                                }
+                                Label {
+                                    text: sec.title;
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: Theme.text;
+                                }
+                                Rectangle {
+                                    horizontal-stretch: 1;
+                                    Rectangle {
+                                        y: parent.height / 2;
+                                        height: 1px;
+                                        background: Theme.line;
+                                    }
+                                }
+                            }
+                            for r in sec.rows: Row {
+                                label: r.label;
+                                value: r.value;
+                            }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    if Props.can-system: Rectangle {
+                        height: 32px;
+                        width: sys-row.preferred-width;
+                        border-radius: Theme.r-s;
+                        background: sys-ta.has-hover ? Theme.press : Theme.card;
+                        sys-row := HorizontalLayout {
+                            padding-left: 12px;
+                            padding-right: 12px;
+                            spacing: 8px;
+                            Icon {
+                                y: (parent.height - self.height) / 2;
+                                commands: Icons.settings;
+                                size: 15px;
+                                color: Theme.dim;
+                            }
+                            Label {
+                                text: "Właściwości systemowe";
+                            }
+                        }
+                        sys-ta := TipArea {
+                            tip: "Okno Windows: uprawnienia, wersje, udostępnianie";
+                            clicked => {
+                                Props.system();
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: 32px;
+                        width: max(90px, ok-l.preferred-width + 24px);
+                        border-radius: Theme.r-s;
+                        background: ok-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
+                        ok-l := Label {
+                            text: "Zamknij";
+                            font-weight: 600;
+                            color: Theme.on-accent;
+                        }
+                        ok-ta := TouchArea {
+                            clicked => {
+                                Props.close();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -83,7 +83,8 @@ Zasady:
 - [x] Masowa zmiana nazwy (wzorzec, numeracja, znajdź i zamień, podgląd, cofanie)
 - [x] Archiwa ZIP/7z/RAR: przeglądanie jak folderu, otwieranie plików ze środka, wypakowanie (tutaj, obok, przez kopiowanie i wklejanie), tworzenie ZIP
 - [ ] „Wypakuj do…” z wyborem folderu i przeciąganie z archiwum do innych programów
-- [ ] Właściwości: metadane systemowe, rozmiar folderu, SHA-256, systemowe okno właściwości
+- [x] Właściwości: metadane systemowe w sekcjach, rozmiar folderu, SHA-256, systemowe okno właściwości
+- [ ] Właściwości: mapa GPS i graficzne skale ekspozycji (z podglądem – etap 3)
 - [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)
 - [ ] Półka (Shelf), pozostałe okna dialogowe (właściwości, masowa zmiana nazw, nazwa zapisanego wyszukiwania)
 

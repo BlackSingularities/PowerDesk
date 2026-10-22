@@ -8,6 +8,7 @@ mod facets;
 mod fmt;
 mod menus;
 mod model;
+mod props;
 mod query;
 mod thumbs;
 mod transfers;
@@ -378,6 +379,15 @@ fn wire(ui: &MainWindow, st: &Shared) {
     g.on_apply(move || bulk::apply(&s));
     let s = st.clone();
     g.on_cancel(move || bulk::close(&s));
+    let g = ui.global::<Props>();
+    let s = st.clone();
+    g.on_close(move || props::close(&s));
+    let s = st.clone();
+    g.on_compute_hash(move || props::compute_hash(&s));
+    let s = st.clone();
+    g.on_copy(move |t| props::copy(&s, t.as_str()));
+    let s = st.clone();
+    g.on_system(move || props::system(&s));
     let s = st.clone();
     ui.on_toggle_section(move |n| toggle_section(&s, n.as_str()));
     let s = st.clone();
@@ -1434,10 +1444,7 @@ fn command(s: &Shared, c: &str) {
         "copy" => menus::copy(&sel, false),
         "paste" => menus::paste(s, None),
         "trash" => menus::trash(s, &sel),
-        "props" => {
-            let p = sel.first().cloned().unwrap_or_else(|| tab_mut(s, |t| t.path.clone()));
-            shell::show_properties(hwnd(s), &p);
-        }
+        "props" => props::open(s),
         "rename" if archives::read_only(s, &sel) => {}
         "rename" if sel.len() == 1 => start_rename(s),
         "rename" if sel.len() > 1 => bulk::open(s),

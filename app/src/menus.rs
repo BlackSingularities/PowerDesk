@@ -229,13 +229,7 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     let first = ps[0].clone();
     v.push(it("Pokaż w Eksploratorze", "open", move |_| reveal(&first)));
     v.push(sep());
-    let first = ps[0].clone();
-    v.push(
-        it("Właściwości", "info", move |s| {
-            shell::show_properties(crate::hwnd(s), &first);
-        })
-        .kbd("Alt+Enter"),
-    );
+    v.push(it("Właściwości", "info", crate::props::open).kbd("Alt+Enter"));
     v.push(sep());
     let p2 = ps.clone();
     v.push(it("Pokaż więcej opcji (menu Windows)", "more", move |s| crate::native_menu(s, &p2, x, y)).kbd("Shift+PPM"));
@@ -280,10 +274,7 @@ pub fn background_menu(s: &Shared, x: f32, y: f32) {
         let _ = open::that_detached(&p);
     }));
     v.push(sep());
-    let p = path.clone();
-    v.push(it("Właściwości folderu", "info", move |s| {
-        shell::show_properties(crate::hwnd(s), &p);
-    }));
+    v.push(it("Właściwości folderu", "info", crate::props::open_folder));
     v.push(sep());
     v.push(it("Pokaż więcej opcji (menu Windows)", "more", move |s| crate::native_menu(s, &[path.clone()], x, y)));
     show(s, v, x, y);

@@ -8,8 +8,9 @@ import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog } from "overlays.slint";
 import { BulkDialog, Bulk, BulkRow } from "bulk.slint";
+import { PropsDialog, Props, PropRow, PropSection } from "props.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -507,6 +508,7 @@ export component MainWindow inherits Window {
         }
     }
     if Bulk.open: BulkDialog { }
+    if Props.open: PropsDialog { }
 
     // Fasety: panel nad listą; klik obok zamyka.
     if root.facets-open && !root.special: TouchArea {
