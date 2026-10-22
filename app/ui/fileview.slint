@@ -3,6 +3,63 @@ import { Icons } from "icons.slint";
 import { Icon, Label } from "components.slint";
 import { ScrollView } from "std-widgets.slint";
 
+/// Pole zmiany nazwy w miejscu: Enter zatwierdza, Esc anuluje, Tab / Shift+Tab przechodzi do sąsiada,
+/// utrata fokusu zatwierdza. Na starcie zaznaczona jest nazwa bez rozszerzenia (`sel` – bajt końca).
+component RenameBox inherits Rectangle {
+    in property <string> text0;
+    in property <int> sel;
+    in property <length> font-size: Theme.font-size;
+    callback commit(string);
+    callback cancel;
+    callback next(string, bool);
+    property <bool> done;
+    background: Theme.panel;
+    border-radius: Theme.r-xs;
+    border-width: 1px;
+    border-color: Theme.line-strong;
+    FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                root.done = true;
+                root.cancel();
+                return accept;
+            }
+            if (e.text == Key.Tab) {
+                root.done = true;
+                root.next(input.text, e.modifiers.shift);
+                return accept;
+            }
+            reject
+        }
+        input := TextInput {
+            x: 8px;
+            width: parent.width - 16px;
+            text: root.text0;
+            single-line: true;
+            vertical-alignment: center;
+            font-family: Theme.font;
+            font-size: root.font-size;
+            color: Theme.text;
+            selection-background-color: Theme.sel-strong;
+            selection-foreground-color: Theme.text;
+            init => {
+                self.focus();
+                self.set-selection-offsets(0, root.sel);
+            }
+            accepted => {
+                root.done = true;
+                root.commit(self.text);
+            }
+            changed has-focus => {
+                if (!self.has-focus && !root.done) {
+                    root.done = true;
+                    root.commit(self.text);
+                }
+            }
+        }
+    }
+}
+
 /// Kolumna listy: `id` to indeks w Col::ALL.
 export struct Column {
     id: int,
@@ -27,6 +84,7 @@ export struct VisItem {
     media: bool,
     selected: bool,
     focused: bool,
+    renaming: bool,
     icon: image,
     has-icon: bool,
     thumb: image,
@@ -41,6 +99,7 @@ export component FileView inherits Rectangle {
     in property <string> empty-text;
     in property <[Column]> columns;
     in property <bool> sort-name;
+    in property <int> rename-sel;
     in property <bool> desc;
     in-out property <length> scroll-y;
 
@@ -58,6 +117,9 @@ export component FileView inherits Rectangle {
     callback col-resize-end;
     callback col-reset(int);
     callback col-menu(length, length);
+    callback rename-commit(string);
+    callback rename-cancel;
+    callback rename-next(string, bool);
     callback zoom(int);
 
     // Przeciągany nagłówek kolumny i jego przesunięcie.
@@ -361,9 +423,25 @@ export component FileView inherits Rectangle {
                             commands: it.dir ? Icons.folder : Icons.file;
                             color: Theme.dim;
                         }
-                        Label {
+                        if !it.renaming: Label {
                             text: it.name;
                             opacity: it.hidden ? 0.55 : 1;
+                        }
+                        if it.renaming: RenameBox {
+                            y: 3px;
+                            height: parent.height - 6px;
+                            horizontal-stretch: 1;
+                            text0: it.name;
+                            sel: root.rename-sel;
+                            commit(t) => {
+                                root.rename-commit(t);
+                            }
+                            cancel => {
+                                root.rename-cancel();
+                            }
+                            next(t, back) => {
+                                root.rename-next(t, back);
+                            }
                         }
                     }
                     for cell[ci] in it.cells: Label {
@@ -443,6 +521,25 @@ export component FileView inherits Rectangle {
                             font-size: 12px;
                             color: #ffffff;
                         }
+                    }
+                }
+                // Siatka i galeria: pole nazwy na dole kafelka.
+                if it.renaming && root.view != 0: RenameBox {
+                    x: 4px;
+                    y: parent.height - 32px;
+                    width: parent.width - 8px;
+                    height: 28px;
+                    font-size: 12px;
+                    text0: it.name;
+                    sel: root.rename-sel;
+                    commit(t) => {
+                        root.rename-commit(t);
+                    }
+                    cancel => {
+                        root.rename-cancel();
+                    }
+                    next(t, back) => {
+                        root.rename-next(t, back);
                     }
                 }
                 if root.view == 2 && it.selected: Rectangle {

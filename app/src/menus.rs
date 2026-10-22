@@ -186,7 +186,7 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     );
     v.push(sep());
     if one.is_some() {
-        v.push(it("Zmień nazwę", "edit", |_| {}).kbd("F2").later());
+        v.push(it("Zmień nazwę", "edit", crate::start_rename).kbd("F2"));
     } else {
         v.push(it(format!("Zmień nazwy ({})…", sel.len()), "edit", |_| {}).kbd("F2").later());
     }

@@ -541,6 +541,28 @@ pub fn redo_last() -> Result<String, String> {
 /// Zmienia nazwy wielu elementów naraz. Najpierw wszystko dostaje nazwy tymczasowe,
 /// dzięki czemu działają zamiany (a.jpg ↔ b.jpg) i przesunięcia numeracji.
 /// Zwraca listę (nowa, stara) udanych zmian; przy błędzie cofa to, co już zrobiono.
+/// Zmiana nazwy jednego elementu (z cofaniem); zwraca nową ścieżkę.
+pub fn rename_one(path: &str, name: &str) -> Result<String, String> {
+    let name = name.trim();
+    if name.is_empty() || name.contains(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) {
+        return Err("Nazwa nie może zawierać znaków \\ / : * ? \" < > |".into());
+    }
+    let src = PathBuf::from(path);
+    let dst = src.with_file_name(name);
+    if dst == src {
+        return Ok(path.to_string());
+    }
+    let case_only = dst.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
+    if dst.exists() && !case_only {
+        return Err("Element o tej nazwie już istnieje".into());
+    }
+    std::fs::rename(&src, &dst).map_err(|e| crate::fsx::io_err(&e))?;
+    crate::shell::invalidate(path);
+    let d = dst.to_string_lossy().to_string();
+    push_undo(Undo::Renamed(d.clone(), path.to_string()));
+    Ok(d)
+}
+
 pub fn rename_batch(pairs: &[(String, String)]) -> Result<Vec<(String, String)>, Vec<String>> {
     use std::collections::HashSet;
     let sources: HashSet<String> = pairs.iter().map(|(s, _)| s.to_lowercase()).collect();

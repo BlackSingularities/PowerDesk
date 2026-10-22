@@ -5,6 +5,7 @@ use std::path::Path;
 
 use crate::fmt::{kind_of, Kind};
 use powerdesk_core::fsx::Entry;
+use powerdesk_core::shell::MediaInfo;
 use serde::{Deserialize, Serialize};
 
 pub const HOME: &str = "ofp:home";
@@ -40,10 +41,13 @@ pub enum SortKey {
     Created,
     Size,
     Type,
+    Taken,
+    Duration,
+    Dims,
 }
 
 impl SortKey {
-    pub const ALL: [SortKey; 5] = [SortKey::Name, SortKey::Modified, SortKey::Created, SortKey::Size, SortKey::Type];
+    pub const ALL: [SortKey; 8] = [SortKey::Name, SortKey::Modified, SortKey::Created, SortKey::Size, SortKey::Type, SortKey::Taken, SortKey::Duration, SortKey::Dims];
     pub fn label(self) -> &'static str {
         match self {
             SortKey::Name => "Nazwa",
@@ -51,7 +55,14 @@ impl SortKey {
             SortKey::Created => "Data utworzenia",
             SortKey::Size => "Rozmiar",
             SortKey::Type => "Typ",
+            SortKey::Taken => "Data wykonania",
+            SortKey::Duration => "Czas trwania",
+            SortKey::Dims => "Wymiary",
         }
+    }
+    /// Klucze, które potrzebują metadanych zdjęć i filmów.
+    pub fn media(self) -> bool {
+        matches!(self, SortKey::Taken | SortKey::Duration | SortKey::Dims)
     }
 }
 
@@ -96,14 +107,17 @@ impl Col {
             Col::Attrs => 74.0,
         }
     }
-    /// Klucz sortowania po kliknięciu nagłówka (kolumny z metadanych mediów jeszcze bez sortowania).
+    /// Klucz sortowania po kliknięciu nagłówka.
     pub fn sort(self) -> Option<SortKey> {
         match self {
             Col::Modified => Some(SortKey::Modified),
             Col::Created => Some(SortKey::Created),
             Col::Type | Col::Ext => Some(SortKey::Type),
             Col::Size => Some(SortKey::Size),
-            _ => None,
+            Col::Taken => Some(SortKey::Taken),
+            Col::Duration => Some(SortKey::Duration),
+            Col::Dims => Some(SortKey::Dims),
+            Col::Attrs => None,
         }
     }
     pub fn right(self) -> bool {
@@ -184,6 +198,10 @@ pub struct Tab {
     pub total_h: f32,
     /// Rośnie przy każdym wczytaniu – spóźnione wyniki starego folderu są odrzucane.
     pub generation: u64,
+    /// Zaznaczenie zapamiętane dla każdego folderu (ścieżki i element z fokusem) – wraca po powrocie.
+    pub sel_memory: HashMap<String, (Vec<String>, Option<String>)>,
+    /// Element, któremu właśnie zmieniamy nazwę.
+    pub renaming: Option<String>,
 }
 
 impl Tab {
@@ -208,6 +226,8 @@ impl Tab {
             boxes: Vec::new(),
             total_h: 0.0,
             generation: 0,
+            sel_memory: HashMap::new(),
+            renaming: None,
         }
     }
 
@@ -226,8 +246,9 @@ impl Tab {
     }
 
     /// Filtr i sortowanie jak w `Tab.grouped` (state.svelte.ts).
-    /// `size_of` zwraca rozmiar elementu – dla folderów policzony w tle albo -1, dopóki go nie ma.
-    pub fn rebuild(&mut self, show_hidden: bool, folders_first: bool, size_of: impl Fn(&Entry) -> i64) {
+    /// `size_of` zwraca rozmiar elementu – dla folderów policzony w tle albo -1, dopóki go nie ma;
+    /// `media` – metadane zdjęć i filmów (do sortowania po dacie wykonania, czasie i wymiarach).
+    pub fn rebuild(&mut self, show_hidden: bool, folders_first: bool, size_of: impl Fn(&Entry) -> i64, media: impl Fn(&Entry) -> Option<MediaInfo>) {
         let source = match &self.search {
             Some(s) => &s.results,
             None => &self.entries,
@@ -252,6 +273,19 @@ impl Tab {
                 SortKey::Created => a.created.cmp(&b.created),
                 SortKey::Size => size_of(a).cmp(&size_of(b)),
                 SortKey::Type => a.ext.to_lowercase().cmp(&b.ext.to_lowercase()),
+                // Jak takenOf: bez daty wykonania liczy się data modyfikacji.
+                SortKey::Taken => {
+                    let t = |e: &Entry| media(e).map(|m| m.taken).filter(|t| *t > 0).unwrap_or(e.modified);
+                    t(a).cmp(&t(b))
+                }
+                SortKey::Duration => {
+                    let d = |e: &Entry| media(e).map(|m| m.dur).unwrap_or(0);
+                    d(a).cmp(&d(b))
+                }
+                SortKey::Dims => {
+                    let px = |e: &Entry| media(e).map(|m| m.w as u64 * m.h as u64).unwrap_or(0);
+                    px(a).cmp(&px(b))
+                }
                 SortKey::Name => std::cmp::Ordering::Equal,
             };
             let r = r.then_with(|| natural(&a.name, &b.name));
@@ -264,6 +298,26 @@ impl Tab {
         self.items = v;
         let alive: std::collections::HashSet<&str> = self.items.iter().map(|e| e.path.as_str()).collect();
         self.selected.retain(|p| alive.contains(p.as_str()));
+    }
+
+    /// Zapamiętuje zaznaczenie bieżącego folderu przed wyjściem z niego.
+    pub fn remember_selection(&mut self) {
+        if self.search.is_some() || self.special() {
+            return;
+        }
+        let focus = self.focus.and_then(|i| self.items.get(i)).filter(|e| self.selected.contains(&e.path)).map(|e| e.path.clone());
+        self.sel_memory.insert(self.path.to_lowercase(), (self.selected.iter().cloned().collect(), focus));
+    }
+
+    /// Przywraca zapamiętane zaznaczenie (po wczytaniu folderu); zwraca indeks elementu z fokusem.
+    pub fn restore_selection(&mut self) -> Option<usize> {
+        let (paths, focus) = self.sel_memory.get(&self.path.to_lowercase())?.clone();
+        let alive: std::collections::HashSet<&str> = self.items.iter().map(|e| e.path.as_str()).collect();
+        self.selected = paths.into_iter().filter(|p| alive.contains(p.as_str())).collect();
+        let i = focus.and_then(|f| self.items.iter().position(|e| e.path == f));
+        self.focus = i;
+        self.anchor = i;
+        i
     }
 
     /// Kategorie, które mają sens w tym folderze – „Wszystko” zawsze, „Media” tylko gdy są i zdjęcia, i filmy.
@@ -549,7 +603,7 @@ mod tests {
         t.entries = vec![entry("a.jpg", false), entry("b.mp4", false), entry("c.pdf", false), entry("Folder", true)];
         assert_eq!(t.shown_filters(false), vec![KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc]);
         t.kind_filter = KindFilter::Media;
-        t.rebuild(false, true, |e| e.size as i64);
+        t.rebuild(false, true, |e| e.size as i64, |_| None);
         assert_eq!(t.items.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), ["a.jpg", "b.mp4"]);
     }
 
@@ -557,7 +611,7 @@ mod tests {
     fn marquee_hits() {
         let mut t = Tab::new("C:/t");
         t.entries = (0..10).map(|i| entry(&format!("p{i}.txt"), false)).collect();
-        t.rebuild(false, true, |e| e.size as i64);
+        t.rebuild(false, true, |e| e.size as i64, |_| None);
         t.layout(800.0, 132.0, 210.0, |_| 1.0);
         // Wiersze po 32 px od y=4: ramka 40..100 łapie wiersze 1–3; na prawo od 420 px nic.
         assert_eq!(t.in_rect(10.0, 40.0, 50.0, 100.0), vec![1, 2, 3]);
@@ -572,6 +626,20 @@ mod tests {
         assert_eq!(p.list_cols, [Col::Type, Col::Modified, Col::Size]);
         p.move_col(Col::Size, -1000.0);
         assert_eq!(p.list_cols, [Col::Size, Col::Type, Col::Modified]);
+    }
+
+    #[test]
+    fn selection_memory() {
+        let mut t = Tab::new("C:/t");
+        t.entries = vec![entry("a.txt", false), entry("b.txt", false)];
+        t.rebuild(false, true, |e| e.size as i64, |_| None);
+        t.selected.insert("C:/t/b.txt".into());
+        t.focus = Some(1);
+        t.remember_selection();
+        t.selected.clear();
+        t.focus = None;
+        assert_eq!(t.restore_selection(), Some(1));
+        assert!(t.selected.contains("C:/t/b.txt"));
     }
 
     #[test]

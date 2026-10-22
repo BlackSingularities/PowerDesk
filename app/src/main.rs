@@ -42,6 +42,8 @@ pub struct State {
     drives: Vec<drives::Drive>,
     /// Zaznaczenie sprzed ramki (z Ctrl/Shift ramka je rozszerza); Some, dopóki trwa przeciąganie.
     marquee: Option<HashSet<String>>,
+    /// Komunikat (np. błąd zmiany nazwy) pokazywany chwilowo w pasku stanu.
+    notice: Option<String>,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -75,6 +77,7 @@ fn main() -> Result<(), slint::PlatformError> {
         dir_pending: HashSet::new(),
         menu: None,
         marquee: None,
+        notice: None,
         drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
@@ -264,6 +267,19 @@ fn wire(ui: &MainWindow, st: &Shared) {
     });
     let s = st.clone();
     ui.on_col_menu(move |x, y| menus::column_menu(&s, x, y));
+
+    // Zmiana nazwy w miejscu.
+    let s = st.clone();
+    ui.on_rename_commit(move |t| {
+        rename_commit(&s, t.as_str());
+    });
+    let s = st.clone();
+    ui.on_rename_cancel(move || {
+        tab_mut(&s, |t| t.renaming = None);
+        render_items(&s);
+    });
+    let s = st.clone();
+    ui.on_rename_next(move |t, back| rename_next(&s, t.as_str(), back));
     let s = st.clone();
     ui.on_set_view(move |v| set_view(&s, View::from_index(v)));
     let s = st.clone();
@@ -392,6 +408,8 @@ fn navigate(s: &Shared, path: &str, push: bool) {
             t.history.push(path.clone());
             t.h_index = t.history.len() - 1;
         }
+        t.remember_selection();
+        t.renaming = None;
         let prev = std::mem::replace(&mut t.path, path.clone());
         t.search = None;
         t.filter.clear();
@@ -421,6 +439,10 @@ fn navigate(s: &Shared, path: &str, push: bool) {
         if let Some(i) = i {
             reveal(s, i);
         }
+        render_items(s);
+    } else if let Some(i) = tab_mut(s, |t| t.restore_selection()) {
+        // Powrót do folderu przywraca poprzednie zaznaczenie.
+        reveal(s, i);
         render_items(s);
     }
 }
@@ -541,8 +563,8 @@ fn refresh(s: &Shared) {
         let mut b = s.borrow_mut();
         let b = &mut *b;
         let (hidden, ff) = (b.prefs.show_hidden, b.prefs.folders_first);
-        let sizes = &b.dir_sizes;
-        b.tabs[b.active].rebuild(hidden, ff, |e| size_of(sizes, e));
+        let (sizes, media) = (&b.dir_sizes, &b.media);
+        b.tabs[b.active].rebuild(hidden, ff, |e| size_of(sizes, e), |e| media.get(&e.path).copied());
     }
     request_media(s);
     request_dir_sizes(s);
@@ -587,7 +609,7 @@ fn request_media(s: &Shared) {
         let b = &mut *b;
         let t = &b.tabs[b.active];
         let cols = t.view == View::List && b.prefs.list_cols.iter().any(|c| c.media());
-        if t.view != View::Gallery && !cols {
+        if t.view != View::Gallery && !cols && !t.sort.media() {
             return;
         }
         let v: Vec<(String, i64)> = t
@@ -617,8 +639,13 @@ fn request_media(s: &Shared) {
                             b.media.insert(p, m);
                         }
                     }
-                    layout(s);
-                    render_all(s);
+                    // Sortowanie po metadanych – kolejność zmienia się wraz z kolejnymi partiami.
+                    if tab_mut(s, |t| t.sort.media()) {
+                        refresh(s);
+                    } else {
+                        layout(s);
+                        render_all(s);
+                    }
                 })
             });
         }
@@ -705,16 +732,7 @@ fn render_chrome(s: &Shared) {
     ui.set_can_forward(t.h_index + 1 < t.history.len());
     ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path, &b.drives))));
     ui.set_view(t.view.index());
-    ui.set_sort_id(
-        match t.sort {
-            SortKey::Name => "name",
-            SortKey::Modified => "modified",
-            SortKey::Created => "created",
-            SortKey::Size => "size",
-            SortKey::Type => "type",
-        }
-        .into(),
-    );
+    ui.set_sort_name(t.sort == SortKey::Name);
     ui.set_desc(t.desc);
     let has_type = b.prefs.list_cols.contains(&Col::Type);
     ui.set_columns(ModelRc::new(VecModel::from(
@@ -796,6 +814,10 @@ fn render_status(s: &Shared) {
     let b = s.borrow();
     let Some(ui) = b.ui.upgrade() else { return };
     let t = &b.tabs[b.active];
+    if let Some(n) = &b.notice {
+        ui.set_status(n.clone().into());
+        return;
+    }
     let mut text = fmt::items(t.items.len());
     if let Some(x) = &t.search {
         text = format!("{text} · przeszukano {}", x.scanned);
@@ -842,6 +864,7 @@ pub fn render_items(s: &Shared) {
             media,
             selected: t.selected.contains(&e.path),
             focused: t.focus == Some(i),
+            renaming: t.renaming.as_deref() == Some(e.path.as_str()),
             has_icon: icon.is_some(),
             icon: icon.unwrap_or_default(),
             has_thumb: thumb.is_some(),
@@ -1024,7 +1047,8 @@ fn command(s: &Shared, c: &str) {
             let p = sel.first().cloned().unwrap_or_else(|| tab_mut(s, |t| t.path.clone()));
             shell::show_properties(hwnd(s), &p);
         }
-        // Zmiana nazwy w miejscu – etap 2.
+        "rename" if sel.len() == 1 => start_rename(s),
+        // Masowa zmiana nazw – etap 2.
         _ => {}
     }
 }
@@ -1078,7 +1102,77 @@ fn create(s: &Shared, folder: bool) {
     if let Some(i) = i {
         reveal(s, i);
     }
+    // Jak w Eksploratorze: nowy element od razu czeka na nazwę.
+    start_rename(s);
+}
+
+// ---------- Zmiana nazwy w miejscu ----------
+
+/// Pole nazwy nad zaznaczonym elementem; zaznaczona jest nazwa bez rozszerzenia.
+pub fn start_rename(s: &Shared) {
+    let sel = tab_mut(s, |t| {
+        let e = t.items.iter().find(|e| t.selected.contains(&e.path))?.clone();
+        t.renaming = Some(e.path.clone());
+        let i = t.items.iter().position(|x| x.path == e.path);
+        t.focus = i;
+        Some((e, i))
+    });
+    let Some((e, i)) = sel else { return };
+    let dot = if e.dir { None } else { e.name.rfind('.').filter(|d| *d > 0) };
+    if let Some(ui) = s.borrow().ui.upgrade() {
+        ui.set_rename_sel(dot.unwrap_or(e.name.len()) as i32);
+    }
+    if let Some(i) = i {
+        reveal(s, i);
+    }
     render_items(s);
+}
+
+/// Zatwierdza nazwę; zwraca nową ścieżkę (albo starą, gdy nic się nie zmieniło).
+fn rename_commit(s: &Shared, name: &str) -> Option<String> {
+    let path = tab_mut(s, |t| t.renaming.take())?;
+    let old = Path::new(&path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    if name.trim().is_empty() || name == old {
+        render_items(s);
+        return Some(path);
+    }
+    match powerdesk_core::ops::rename_one(&path, name) {
+        Ok(p) => {
+            load(s, true);
+            select_path(s, &p);
+            Some(p)
+        }
+        Err(e) => {
+            notice(s, e);
+            render_items(s);
+            None
+        }
+    }
+}
+
+/// Tab / Shift+Tab: zatwierdza i przechodzi do zmiany nazwy sąsiada.
+fn rename_next(s: &Shared, name: &str, back: bool) {
+    let Some(p) = rename_commit(s, name) else { return };
+    let next = tab_mut(s, |t| {
+        let i = t.items.iter().position(|e| e.path == p)?;
+        let j = if back { i.checked_sub(1)? } else { i + 1 };
+        t.items.get(j).map(|e| e.path.clone())
+    });
+    if let Some(n) = next {
+        select_path(s, &n);
+        start_rename(s);
+    }
+}
+
+/// Komunikat w pasku stanu na kilka sekund (do czasu własnych toastów).
+fn notice(s: &Shared, text: String) {
+    s.borrow_mut().notice = Some(text);
+    render_status(s);
+    let s2 = s.clone();
+    slint::Timer::single_shot(std::time::Duration::from_secs(5), move || {
+        s2.borrow_mut().notice = None;
+        render_status(&s2);
+    });
 }
 
 // ---------- Sortowanie, widoki, wyszukiwanie ----------
@@ -1276,6 +1370,9 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     }
     if is(Key::F5) {
         return load(s, true);
+    }
+    if is(Key::F2) {
+        return command(s, "rename");
     }
     if is(Key::Backspace) {
         return if tab_mut(s, |t| t.search.is_some()) { back(s) } else { up(s) };

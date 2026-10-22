@@ -58,13 +58,14 @@ Zasady:
 - [ ] Miniatury PDF renderowane, gdy Windows ich nie ma
 - [x] Sortowanie (menu i nagłówki kolumn), foldery na górze, sortowanie naturalne
 - [x] Kolumny konfigurowalne (menu nagłówka i przycisk), szerokości (uchwyt, dwuklik przywraca), przenoszenie przeciąganiem
-- [ ] Sortowanie po wymiarach, dacie wykonania i czasie trwania; grupowanie
+- [x] Sortowanie po wymiarach, dacie wykonania i czasie trwania
+- [ ] Grupowanie
 - [x] Widok i sortowanie zapamiętywane per folder, auto-galeria, wielkość miniatur (suwak, Ctrl+kółko)
 - [x] Filtrowanie na żywo (z `*` i `?`), wyszukiwanie w podfolderach (Enter)
 - [x] Filtry kategorii (Wszystko, Media, Zdjęcia, Wideo, Dokumenty, Audio, Archiwa) – tylko obecne w folderze
 - [ ] Fasety (format, kadr, data…), składnia zapytań (typ:, rozmiar…), zapisane wyszukiwania
 - [x] Zaznaczanie ramką (z tła, na liście poza nazwą, w siatce/galerii z Altem; Ctrl/Shift rozszerza; samoczynne przewijanie)
-- [ ] Zmiana nazwy w miejscu, zaznaczenie zapamiętane per folder
+- [x] Zmiana nazwy w miejscu (F2, menu, nowy folder/plik; Enter/Esc/Tab), zaznaczenie zapamiętane per folder
 - [x] Rozmiary folderów w tle (2 wątki, bez dysków sieciowych, unieważniane po zmianach), metadane mediów w kolumnach
 
 ### Panel boczny

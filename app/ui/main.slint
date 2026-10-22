@@ -48,7 +48,8 @@ export component MainWindow inherits Window {
     in property <int> view;
     in property <length> total-height;
     in property <string> empty-text;
-    in property <string> sort-id;
+    in property <bool> sort-name;
+    in property <int> rename-sel;
     in property <[Column]> columns;
     in property <bool> desc;
     in-out property <length> scroll-y;
@@ -96,6 +97,9 @@ export component MainWindow inherits Window {
     callback col-resize-end;
     callback col-reset(int);
     callback col-menu(length, length);
+    callback rename-commit(string);
+    callback rename-cancel;
+    callback rename-next(string, bool);
     callback zoom-step(int);
     callback menu-chosen(int);
     callback key(string, bool, bool, bool);
@@ -257,7 +261,19 @@ export component MainWindow inherits Window {
                             view: root.view;
                             total-height: root.total-height;
                             empty-text: root.empty-text;
-                            sort-name: root.sort-id == "name";
+                            sort-name: root.sort-name;
+                            rename-sel: root.rename-sel;
+                            rename-commit(t) => {
+                                root.rename-commit(t);
+                                keys.focus();
+                            }
+                            rename-cancel => {
+                                root.rename-cancel();
+                                keys.focus();
+                            }
+                            rename-next(t, back) => {
+                                root.rename-next(t, back);
+                            }
                             columns: root.columns;
                             desc: root.desc;
                             scroll-y <=> root.scroll-y;

@@ -230,24 +230,7 @@ fn create_file(parent: String, name: String) -> R<String> {
 
 #[tauri::command]
 fn rename(path: String, name: String) -> R<String> {
-    let name = name.trim();
-    if name.is_empty() || name.contains(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) {
-        return Err("Nazwa nie może zawierać znaków \\ / : * ? \" < > |".into());
-    }
-    let src = PathBuf::from(&path);
-    let dst = src.with_file_name(name);
-    if dst == src {
-        return Ok(path);
-    }
-    let case_only = dst.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
-    if dst.exists() && !case_only {
-        return Err("Element o tej nazwie już istnieje".into());
-    }
-    std::fs::rename(&src, &dst).map_err(|e| fsx::io_err(&e))?;
-    shell::invalidate(&path);
-    let d = dst.to_string_lossy().to_string();
-    ops::push_undo(ops::Undo::Renamed(d.clone(), path));
-    Ok(d)
+    ops::rename_one(&path, &name)
 }
 
 #[derive(Serialize)]
