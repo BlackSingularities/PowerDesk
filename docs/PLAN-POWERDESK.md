@@ -49,7 +49,8 @@ Zasady:
 - [x] Paleta poleceń (Ctrl+Shift+P): czynności programu z grupami i skrótami, szukanie bez polskich znaków
 - [x] Paleta szybkiego przejścia (Ctrl+K): podfoldery, szybki dostęp, dyski, historia, wpisana ścieżka
 - [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
-- [ ] Boczne przyciski myszy, F6 między obszarami, wpisywanie nazwy
+- [x] Boczne przyciski myszy (wstecz/dalej w całym oknie), F6/Shift+F6 między panelami i paskiem adresu, wpisywanie nazwy (skok do pasującego elementu)
+- [ ] F6 także przez panel boczny i podgląd (nie mają jeszcze własnego fokusu)
 - [ ] Mica / Acrylic, akcent systemowy i własny, krycie okienek
 
 ### Widoki plików

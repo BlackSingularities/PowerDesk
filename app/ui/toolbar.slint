@@ -89,6 +89,8 @@ export component Toolbar inherits Rectangle {
     callback toggle-shelf;
     callback toggle-preview;
     callback toggle-terminal;
+    /// F6 w polu ścieżki – powrót do listy (`true` – do ostatniego panelu).
+    callback leave-address(bool);
     callback toggle-facet(string);
     callback clear-facets;
     callback save-search;
@@ -311,6 +313,11 @@ export component Toolbar inherits Rectangle {
                     key-pressed(e) => {
                         if (e.text == Key.Escape) {
                             root.editing = false;
+                            return accept;
+                        }
+                        if (e.text == Key.F6) {
+                            root.editing = false;
+                            root.leave-address(e.modifiers.shift);
                             return accept;
                         }
                         if (AddrSugg.items.length > 0) {

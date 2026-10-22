@@ -216,6 +216,11 @@ export component MainWindow inherits Window {
                 toolbar.edit-address();
                 return accept;
             }
+            // F6 / Shift+F6: panele (przy podziale) i pasek adresu na zmianę.
+            if (e.text == Key.F6 && !(root.split && root.focused-pane == (e.modifiers.shift ? 1 : 0))) {
+                toolbar.edit-address();
+                return accept;
+            }
             if ((e.modifiers.control && e.text == "f") || e.text == Key.F3) {
                 toolbar.focus-search();
                 return accept;
@@ -272,6 +277,10 @@ export component MainWindow inherits Window {
                 padding-left: 8px;
                 padding-right: 8px;
                     toolbar := Toolbar {
+                        leave-address(last) => {
+                            keys.focus();
+                            root.focus-pane(last && root.split ? 1 : 0);
+                        }
                         crumbs: root.crumbs;
                         path: root.path;
                         folder-icon: root.folder-icon;

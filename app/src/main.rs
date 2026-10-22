@@ -159,6 +159,22 @@ fn main() -> Result<(), slint::PlatformError> {
 }
 
 fn wire(ui: &MainWindow, st: &Shared) {
+    // Boczne przyciski myszy: wstecz / dalej – w całym oknie.
+    ui.window().on_winit_window_event(|_, ev| {
+        use slint::winit_030::winit::event::{ElementState, MouseButton, WindowEvent};
+        if let WindowEvent::MouseInput { state: ElementState::Released, button, .. } = ev {
+            let go: Option<fn(&Shared)> = match button {
+                MouseButton::Back => Some(back),
+                MouseButton::Forward => Some(forward),
+                _ => None,
+            };
+            if let Some(go) = go {
+                let _ = slint::invoke_from_event_loop(move || with_state(go));
+                return slint::winit_030::EventResult::PreventDefault;
+            }
+        }
+        slint::winit_030::EventResult::Propagate
+    });
     ui.set_hints(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(h.0)).collect::<Vec<_>>())));
     ui.set_hint_tips(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(h.1)).collect::<Vec<_>>())));
     ui.on_drag({
@@ -2450,6 +2466,11 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
         }
         return;
     }
+    // Pisanie przeskakuje do pasującej nazwy (kolejne litery w ciągu 0,8 s wydłużają początek).
+    // Klawisze specjalne Slinta leżą w obszarze prywatnym U+F700–U+F8FF.
+    if !ctrl && !alt && k.chars().count() == 1 && !k.chars().any(|c| c.is_control() || (0xF700..=0xF8FF).contains(&(c as u32))) {
+        return type_ahead(s, k);
+    }
     let dir = if is(Key::LeftArrow) {
         Some((-1, 0))
     } else if is(Key::RightArrow) {
@@ -2467,6 +2488,41 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     };
     if let Some(d) = dir {
         move_focus(s, d, shift, ctrl);
+    }
+}
+
+thread_local! {
+    static TYPED: RefCell<(String, Option<std::time::Instant>)> = const { RefCell::new((String::new(), None)) };
+}
+
+fn type_ahead(s: &Shared, k: &str) {
+    let typed = TYPED.with(|t| {
+        let mut t = t.borrow_mut();
+        if t.1.is_none_or(|at| at.elapsed() > std::time::Duration::from_millis(800)) {
+            t.0.clear();
+        }
+        t.0.push_str(&k.to_lowercase());
+        t.1 = Some(std::time::Instant::now());
+        t.0.clone()
+    });
+    let i = tab_mut(s, |t| {
+        let n = t.items.len();
+        if n == 0 {
+            return None;
+        }
+        let f = t.focus.unwrap_or(n - 1);
+        // Pierwsza litera szuka od następnego elementu – ta sama litera chodzi po kolejnych.
+        let start = if typed.chars().count() == 1 { f + 1 } else { f };
+        let i = (0..n).map(|k| (start + k) % n).find(|&i| t.items[i].name.to_lowercase().starts_with(&typed))?;
+        t.selected.clear();
+        t.selected.insert(t.items[i].path.clone());
+        t.focus = Some(i);
+        t.anchor = Some(i);
+        Some(i)
+    });
+    if let Some(i) = i {
+        reveal(s, i);
+        render_items(s);
     }
 }
 
