@@ -569,6 +569,13 @@ fn fallback_thumb(path: &str, size: u32) -> Option<(Vec<u8>, &'static str)> {
             }
             None
         }
+        // Bez czytnika PDF z miniaturami Windows nic nie da – pierwsza strona z Windows.Data.Pdf.
+        // Osobny wątek: WinRT czeka na wynik, a wątki puli powłoki są STA.
+        "pdf" => {
+            let p = path.to_string();
+            let (png, _) = std::thread::spawn(move || crate::pdf::render(&p, 0, size.max(64))).join().ok()??;
+            Some((png, "image/png"))
+        }
         "png" | "jpg" | "jpeg" | "jfif" => {
             if std::fs::metadata(path).ok()?.len() > 80 * 1024 * 1024 {
                 return None;

@@ -57,7 +57,7 @@ Zasady:
 - [x] Lista (podstawowe kolumny), ikony systemowe
 - [x] Siatka i galeria z wirtualnym przewijaniem (układ liczony w Rust, rysowane tylko widoczne)
 - [x] Miniatury z pamięci podręcznej Windows (w tym RAW/HEIC)
-- [ ] Miniatury PDF renderowane, gdy Windows ich nie ma
+- [x] Miniatury PDF renderowane (pierwsza strona, Windows.Data.Pdf), gdy Windows ich nie ma
 - [x] Sortowanie (menu i nagłówki kolumn), foldery na górze, sortowanie naturalne
 - [x] Kolumny konfigurowalne (menu nagłówka i przycisk), szerokości (uchwyt, dwuklik przywraca), przenoszenie przeciąganiem
 - [x] Sortowanie po wymiarach, dacie wykonania i czasie trwania
