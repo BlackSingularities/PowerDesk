@@ -2,6 +2,7 @@
 //! Bez zależności od warstwy UI; zdarzenia wychodzą przez [`events`].
 
 pub mod archive;
+pub mod autostart;
 pub mod clip;
 pub mod dnd;
 pub mod drives;
@@ -21,4 +22,5 @@ pub mod sync_core;
 pub mod sysmon;
 pub mod system;
 pub mod terminal;
+pub mod tray;
 pub mod winkey;

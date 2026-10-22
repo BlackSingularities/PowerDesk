@@ -129,8 +129,9 @@ impl dnd::DropHandler for Handler {
 
 /// Okno przyjmuje upuszczane pliki (z aplikacji i z innych programów).
 pub fn register(s: &Shared) {
+    // Przy starcie do zasobnika okna jeszcze nie ma – rejestracja dochodzi przy pierwszym pokazaniu.
     let hwnd = crate::hwnd(s);
-    if hwnd == 0 {
+    if hwnd == 0 || REGISTERED.with(|r| r.replace(true)) {
         return;
     }
     let ui = s.borrow().ui.clone();
@@ -193,6 +194,7 @@ pub fn start_paths(s: &Shared, paths: Vec<String>, done: impl FnOnce(&Shared) + 
 }
 
 thread_local! {
+    static REGISTERED: Cell<bool> = const { Cell::new(false) };
     static DONE: std::cell::RefCell<Option<Box<dyn FnOnce(&Shared)>>> = const { std::cell::RefCell::new(None) };
 }
 

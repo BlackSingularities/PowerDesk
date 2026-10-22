@@ -136,6 +136,9 @@ fn render(s: &Shared) {
     g.set_viewer_info(p.viewer_info);
     g.set_confirm_trash(p.confirm_trash);
     g.set_win_e(powerdesk_core::winkey::enabled());
+    g.set_tray(p.tray);
+    g.set_close_to_tray(p.close_to_tray);
+    g.set_autostart(powerdesk_core::autostart::enabled());
     g.set_remembered(p.folders.len() as i32);
     g.set_version(env!("CARGO_PKG_VERSION").into());
     g.set_prefs_path(prefs_path().into());
@@ -216,6 +219,20 @@ pub fn toggle(s: &Shared, key: &str) {
         "folder-sizes" => change(s, |p| p.folder_sizes = !p.folder_sizes),
         "viewer-info" => change(s, |p| p.viewer_info = !p.viewer_info),
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),
+        "tray" => {
+            change(s, |p| p.tray = !p.tray);
+            crate::sync_tray(s);
+            return;
+        }
+        "close-to-tray" => change(s, |p| p.close_to_tray = !p.close_to_tray),
+        "autostart" => {
+            let on = !powerdesk_core::autostart::enabled();
+            if let Err(e) = powerdesk_core::autostart::set(on) {
+                crate::transfers::toast(s, format!("Nie udało się zmienić autostartu: {e}"), crate::transfers::Kind::Error, None);
+            }
+            with_ui(s, |g| g.set_autostart(powerdesk_core::autostart::enabled()));
+            return;
+        }
         // Stan żyje w rejestrze, nie w prefs.json.
         "win-e" => {
             let on = !powerdesk_core::winkey::enabled();

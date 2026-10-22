@@ -27,6 +27,10 @@ export global SettingsState {
     in-out property <bool> confirm-trash;
     /// Win+E otwiera PowerDesk (stan z rejestru).
     in-out property <bool> win-e;
+    in-out property <bool> tray;
+    in-out property <bool> close-to-tray;
+    /// Start z Windows (stan z rejestru).
+    in-out property <bool> autostart;
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
@@ -704,6 +708,33 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.win-e;
                         toggled => {
                             SettingsState.toggle("win-e");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.pin;
+                        text: "Ikona w zasobniku";
+                        hint: "Obok zegara: klik otwiera okno, prawy przycisk – menu z „Zakończ”";
+                        on: SettingsState.tray;
+                        toggled => {
+                            SettingsState.toggle("tray");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.close;
+                        text: "Zamykanie do zasobnika";
+                        hint: SettingsState.tray ? "Krzyżyk chowa okno, program działa dalej (np. synchronizacja)" : "Wymaga ikony w zasobniku";
+                        on: SettingsState.close-to-tray && SettingsState.tray;
+                        toggled => {
+                            SettingsState.toggle("close-to-tray");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.refresh;
+                        text: "Uruchamiaj z Windows";
+                        hint: SettingsState.tray ? "Po zalogowaniu startuje schowany w zasobniku" : "Po zalogowaniu otwiera okno";
+                        on: SettingsState.autostart;
+                        toggled => {
+                            SettingsState.toggle("autostart");
                         }
                     }
                 }

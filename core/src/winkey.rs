@@ -12,7 +12,7 @@ fn command_key() -> String {
     format!(r"{CLSID}\shell\opennewwindow\command")
 }
 
-fn reg(args: &[&str]) -> Result<String, String> {
+pub(crate) fn reg(args: &[&str]) -> Result<String, String> {
     let out = Command::new("reg").args(args).creation_flags(NO_WINDOW).output().map_err(|e| e.to_string())?;
     if out.status.success() {
         Ok(String::from_utf8_lossy(&out.stdout).to_string())
@@ -21,7 +21,7 @@ fn reg(args: &[&str]) -> Result<String, String> {
     }
 }
 
-fn exe() -> Result<String, String> {
+pub(crate) fn exe() -> Result<String, String> {
     std::env::current_exe().map(|p| p.to_string_lossy().to_string()).map_err(|e| e.to_string())
 }
 

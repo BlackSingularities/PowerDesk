@@ -115,7 +115,8 @@ Zasady:
 - [ ] Wysuwanie, czyszczenie dysku, mapowanie SMB, FTP/SFTP, WebDAV
 
 ### Integracja z systemem
-- [ ] Zasobnik, autostart, domyślny menedżer plików, menu kontekstowe Eksploratora, aktualizacje
+- [x] Zasobnik (ikona, menu, zamykanie do zasobnika, powrót po restarcie Eksploratora), autostart (`--tray`), Win+E
+- [ ] Domyślny menedżer plików, menu kontekstowe Eksploratora, aktualizacje
 - [x] Jedna instancja (potok nazwany), otwieranie ścieżki z wiersza poleceń w nowej karcie, okno na wierzch
 
 ### Nowe: pulpit i pasek

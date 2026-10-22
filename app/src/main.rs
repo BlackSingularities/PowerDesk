@@ -112,7 +112,9 @@ fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
 /// Argumenty od kolejnego uruchomienia: każda ścieżka w nowej karcie, bez ścieżek – karta startowa.
 fn open_args(s: &Shared, args: Vec<String>) {
     let targets: Vec<_> = args.iter().filter_map(|a| arg_target(a)).collect();
-    if targets.is_empty() {
+    // Okno schowane w zasobniku: Win+E po prostu je przywraca, z kartami jak przed schowaniem.
+    let hidden = s.borrow().ui.upgrade().is_some_and(|u| !u.window().is_visible());
+    if targets.is_empty() && !hidden {
         let start = settings::start_path(&s.borrow().prefs);
         new_tab_at(s, &start, true);
     }
@@ -122,7 +124,67 @@ fn open_args(s: &Shared, args: Vec<String>) {
             select_path(s, &f);
         }
     }
+    show_window(s);
+}
+
+/// Ikona programu do zasobnika (ta sama co wersji webowej).
+const TRAY_ICO: &[u8] = include_bytes!("../../src-tauri/icons/icon.ico");
+
+/// Pokazuje ikonę w zasobniku albo ją chowa, zgodnie z ustawieniami.
+pub fn sync_tray(s: &Shared) {
+    use powerdesk_core::tray;
+    if s.borrow().prefs.tray {
+        tray::show(TRAY_ICO, |e| {
+            let _ = slint::invoke_from_event_loop(move || with_state(|s| tray_event(s, e)));
+        });
+    } else {
+        tray::hide();
+    }
+}
+
+fn tray_event(s: &Shared, e: powerdesk_core::tray::Event) {
+    use powerdesk_core::tray::Event;
+    match e {
+        Event::Show => show_window(s),
+        Event::NewTab => {
+            let start = settings::start_path(&s.borrow().prefs);
+            new_tab_at(s, &start, true);
+            show_window(s);
+        }
+        Event::Quit => quit(s),
+    }
+}
+
+/// Pokazuje okno (także schowane do zasobnika) i wysuwa je na wierzch.
+pub fn show_window(s: &Shared) {
+    let Some(ui) = s.borrow().ui.upgrade() else { return };
+    let first = !ui.window().is_visible();
+    let _ = ui.show();
+    if ui.window().is_minimized() {
+        ui.window().set_minimized(false);
+    }
+    if first {
+        // Okno mogło dopiero powstać (start z autostartu) – cel upuszczania i tło Mica/Acrylic.
+        dragdrop::register(s);
+        settings::relook(s);
+    }
     powerdesk_core::instance::bring_to_front(hwnd(s));
+}
+
+/// Krzyżyk i Alt+F4: do zasobnika, jeśli tak ustawiono i ikona jest widoczna; inaczej koniec.
+fn close_window(s: &Shared) {
+    let to_tray = s.borrow().prefs.close_to_tray && powerdesk_core::tray::visible();
+    match s.borrow().ui.upgrade() {
+        Some(ui) if to_tray => {
+            let _ = ui.hide();
+        }
+        _ => quit(s),
+    }
+}
+
+fn quit(_s: &Shared) {
+    powerdesk_core::tray::hide();
+    let _ = slint::quit_event_loop();
 }
 
 fn main() -> Result<(), slint::PlatformError> {
@@ -196,7 +258,14 @@ fn main() -> Result<(), slint::PlatformError> {
     // Cel upuszczania wymaga uchwytu okna – rejestrujemy go po starcie pętli.
     let s2 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_millis(50), move || dragdrop::register(&s2));
-    ui.run()
+    sync_tray(&st);
+    // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu (o ile ikona jest).
+    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG) && st.borrow().prefs.tray;
+    if !hidden {
+        ui.show()?;
+    }
+    // Pętla trwa także przy schowanym oknie – kończy ją dopiero quit().
+    slint::run_event_loop_until_quit()
 }
 
 fn wire(ui: &MainWindow, st: &Shared) {
@@ -246,8 +315,10 @@ fn wire(ui: &MainWindow, st: &Shared) {
             }
         }
     });
-    ui.on_close_window(|| {
-        let _ = slint::quit_event_loop();
+    ui.on_close_window(|| with_state(close_window));
+    ui.window().on_close_requested(|| {
+        with_state(close_window);
+        slint::CloseRequestResponse::KeepWindowShown
     });
 
     let s = st.clone();
