@@ -1,6 +1,7 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon } from "components.slint";
+import { MenuPopup, MenuEntry } from "menu.slint";
 
 /// Ikona na pulpicie (plik lub folder z Pulpitu użytkownika albo publicznego).
 export struct DeskIcon {
@@ -9,10 +10,17 @@ export struct DeskIcon {
     img: image,
     has-img: bool,
     dir: bool,
+    /// Miejsce w siatce (kolumna, wiersz) – ręczne albo wyliczone w desktop.rs.
+    col: int,
+    row: int,
+    sel: bool,
+    /// Pole zmiany nazwy zamiast podpisu.
+    renaming: bool,
 }
 
-/// Pulpit na jednym monitorze (desktop.rs): tapeta z ustawień Windows i ikony ułożone
-/// kolumnami od lewego górnego rogu, jak w Eksploratorze. Tryb testowy – Esc zamyka.
+/// Pulpit na jednym monitorze (desktop.rs): tapeta z ustawień Windows i ikony w siatce.
+/// Zaznaczanie kliknięciem, z Ctrl i Shift oraz ramką; przeciąganie przenosi zaznaczone
+/// ikony na inne miejsca; menu w stylu PowerDesk. Tryb testowy – Esc zamyka.
 export component DesktopWindow inherits Window {
     no-frame: true;
     title: "PowerDesk – pulpit";
@@ -24,17 +32,57 @@ export component DesktopWindow inherits Window {
     in property <int> fit;
     in property <color> bg: #000000;
     in property <[DeskIcon]> icons;
-    in-out property <int> selected: -1;
     /// Napis w rogu – przypomina, że to tryb testowy.
     in property <bool> test: true;
+
+    // Menu (MenuPopup jak w głównym oknie) – pozycje i miejsce podaje desktop.rs.
+    in property <[MenuEntry]> menu-entries;
+    in property <length> menu-x;
+    in property <length> menu-y;
+    in property <length> menu-width: 240px;
+
     callback open(int);
+    /// Klik na ikonie (-1 – w puste miejsce) z klawiszami Ctrl i Shift.
+    callback select(int, bool, bool);
+    /// Koniec zaznaczania ramką: lewy górny róg, rozmiar, Ctrl (dodaje do zaznaczenia).
+    callback band-done(length, length, length, length, bool);
+    /// Prawy przycisk na ikonie (-1 – na pustym miejscu).
     callback context(int, length, length);
+    /// Upuszczenie przeciąganych ikon – przesunięcie od miejsca startu.
+    callback dropped(length, length);
+    callback key(string, bool, bool);
+    callback rename-done(int, string);
+    callback rename-cancel();
+    callback menu-chosen(int);
     callback close-desk();
     callback refresh();
 
-    property <length> cell-w: 84px;
-    property <length> cell-h: 96px;
-    property <int> rows: max(1, floor((root.height - 16px) / root.cell-h));
+    out property <length> cell-w: 84px;
+    out property <length> cell-h: 96px;
+    out property <length> margin: 8px;
+
+    // Przeciąganie ikon.
+    property <bool> dragging;
+    property <bool> just-dragged;
+    property <length> drag-dx;
+    property <length> drag-dy;
+    property <bool> click-ctrl;
+    property <bool> click-shift;
+    // Ramka zaznaczania.
+    property <bool> banding;
+    property <bool> band-ctrl;
+    property <length> band-x0;
+    property <length> band-y0;
+    property <length> band-x1;
+    property <length> band-y1;
+    property <length> bl: min(root.band-x0, root.band-x1);
+    property <length> bt: min(root.band-y0, root.band-y1);
+    property <length> br: max(root.band-x0, root.band-x1);
+    property <length> bb: max(root.band-y0, root.band-y1);
+
+    public function show-menu() {
+        menu.show();
+    }
 
     if root.has-wallpaper: Image {
         width: parent.width;
@@ -45,23 +93,105 @@ export component DesktopWindow inherits Window {
         vertical-tiling: root.fit == 4 ? repeat : none;
     }
 
-    // Klik w puste miejsce zdejmuje zaznaczenie.
-    TouchArea {
-        clicked => {
-            root.selected = -1;
-            fs.focus();
+    // Puste miejsce: klik zdejmuje zaznaczenie, przeciąganie rysuje ramkę, prawy – menu pulpitu.
+    bg-ta := TouchArea {
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                root.band-x0 = self.mouse-x;
+                root.band-y0 = self.mouse-y;
+                root.band-x1 = self.mouse-x;
+                root.band-y1 = self.mouse-y;
+                root.band-ctrl = e.modifiers.control;
+                fs.focus();
+            }
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left) {
+                if (root.banding) {
+                    root.banding = false;
+                    root.band-done(root.bl, root.bt, root.br - root.bl, root.bb - root.bt, root.band-ctrl);
+                } else if (!e.modifiers.control) {
+                    root.select(-1, false, false);
+                }
+            }
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                root.context(-1, self.mouse-x, self.mouse-y);
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.band-x1 = self.mouse-x;
+                root.band-y1 = self.mouse-y;
+                if (abs(root.band-x1 - root.band-x0) > 4px || abs(root.band-y1 - root.band-y0) > 4px) {
+                    root.banding = true;
+                }
+            }
         }
     }
 
     for it[i] in root.icons: Rectangle {
-        x: 8px + floor(i / root.rows) * root.cell-w;
-        y: 8px + Math.mod(i, root.rows) * root.cell-h;
+        property <bool> moving: root.dragging && it.sel;
+        property <length> ix: root.margin + it.col * root.cell-w;
+        property <length> iy: root.margin + it.row * root.cell-h;
+        // Ikona w ramce zaznaczania – podświetlona na bieżąco.
+        property <bool> in-band: root.banding && self.ix < root.br && self.ix + root.cell-w > root.bl && self.iy < root.bb && self.iy + root.cell-h > root.bt;
+        x: self.ix + (self.moving ? root.drag-dx : 0);
+        y: self.iy + (self.moving ? root.drag-dy : 0);
         width: root.cell-w - 4px;
         height: root.cell-h - 4px;
+        opacity: self.moving ? 0.7 : 1;
         border-radius: Theme.r-s;
-        background: root.selected == i ? #ffffff40 : ic-ta.has-hover ? #ffffff22 : transparent;
-        border-width: root.selected == i ? 1px : 0;
+        background: it.sel || self.in-band ? #ffffff40 : ic-ta.has-hover ? #ffffff22 : transparent;
+        border-width: it.sel ? 1px : 0;
         border-color: #ffffff66;
+
+        ic-ta := TouchArea {
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                    root.just-dragged = false;
+                    root.click-ctrl = e.modifiers.control;
+                    root.click-shift = e.modifiers.shift;
+                    fs.focus();
+                }
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.dragging) {
+                    root.dragging = false;
+                    root.just-dragged = true;
+                    root.dropped(root.drag-dx, root.drag-dy);
+                    root.drag-dx = 0;
+                    root.drag-dy = 0;
+                }
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                    if (!it.sel) {
+                        root.select(i, false, false);
+                    }
+                    root.context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                }
+            }
+            moved => {
+                if (self.pressed && !it.renaming) {
+                    if (!root.dragging && (abs(self.mouse-x - self.pressed-x) > 4px || abs(self.mouse-y - self.pressed-y) > 4px)) {
+                        // Przeciągamy zaznaczenie; ikona spoza niego zaznacza się sama.
+                        if (!it.sel) {
+                            root.select(i, false, false);
+                        }
+                        root.dragging = true;
+                    }
+                    if (root.dragging) {
+                        root.drag-dx = self.mouse-x - self.pressed-x;
+                        root.drag-dy = self.mouse-y - self.pressed-y;
+                    }
+                }
+            }
+            clicked => {
+                if (root.just-dragged) {
+                    root.just-dragged = false;
+                } else {
+                    root.select(i, root.click-ctrl, root.click-shift);
+                }
+            }
+            double-clicked => {
+                root.open(i);
+            }
+        }
+
         VerticalLayout {
             padding: 4px;
             spacing: 4px;
@@ -80,34 +210,62 @@ export component DesktopWindow inherits Window {
                     color: #ffffff;
                 }
             }
-            Text {
+            if !it.renaming: Text {
                 text: it.name;
                 color: #ffffff;
                 font-size: 12px;
                 horizontal-alignment: center;
                 wrap: word-wrap;
                 overflow: elide;
-                height: root.selected == i ? self.preferred-height : min(self.preferred-height, 32px);
+                height: it.sel ? self.preferred-height : min(self.preferred-height, 32px);
                 stroke: #000000b0;
                 stroke-width: 1.5px;
                 stroke-style: outside;
             }
-        }
-        ic-ta := TouchArea {
-            clicked => {
-                root.selected = i;
-                fs.focus();
-            }
-            double-clicked => {
-                root.open(i);
-            }
-            pointer-event(e) => {
-                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
-                    root.selected = i;
-                    root.context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            // Zmiana nazwy w miejscu podpisu (F2 albo z menu).
+            if it.renaming: Rectangle {
+                height: 24px;
+                border-radius: Theme.r-xs;
+                background: Theme.popup-high;
+                border-width: 1px;
+                border-color: Theme.accent;
+                ed := TextInput {
+                    x: 4px;
+                    width: parent.width - 8px;
+                    text: it.name;
+                    font-size: 12px;
+                    color: Theme.text;
+                    vertical-alignment: center;
+                    single-line: true;
+                    selection-background-color: Theme.sel-strong;
+                    init => {
+                        self.focus();
+                        self.select-all();
+                    }
+                    accepted => {
+                        root.rename-done(i, self.text);
+                    }
+                    key-pressed(e) => {
+                        if (e.text == Key.Escape) {
+                            root.rename-cancel();
+                            return accept;
+                        }
+                        reject
+                    }
                 }
             }
         }
+    }
+
+    // Ramka zaznaczania.
+    if root.banding: Rectangle {
+        x: root.bl;
+        y: root.bt;
+        width: root.br - root.bl;
+        height: root.bb - root.bt;
+        background: Theme.accent.with-alpha(0.18);
+        border-width: 1px;
+        border-color: Theme.accent;
     }
 
     if root.test: Rectangle {
@@ -124,6 +282,16 @@ export component DesktopWindow inherits Window {
         }
     }
 
+    menu := MenuPopup {
+        x: root.menu-x;
+        y: root.menu-y;
+        menu-width: root.menu-width;
+        entries: root.menu-entries;
+        chosen(i) => {
+            root.menu-chosen(i);
+        }
+    }
+
     fs := FocusScope {
         width: 0;
         height: 0;
@@ -136,28 +304,9 @@ export component DesktopWindow inherits Window {
                 root.refresh();
                 return accept;
             }
-            if (e.text == Key.Return && root.selected >= 0) {
-                root.open(root.selected);
-                return accept;
-            }
-            // Strzałki: w górę/w dół w kolumnie, w bok o całą kolumnę.
-            if (e.text == Key.DownArrow) {
-                root.selected = min(root.icons.length - 1, root.selected + 1);
-                return accept;
-            }
-            if (e.text == Key.UpArrow) {
-                root.selected = max(0, root.selected - 1);
-                return accept;
-            }
-            if (e.text == Key.RightArrow) {
-                root.selected = min(root.icons.length - 1, root.selected + root.rows);
-                return accept;
-            }
-            if (e.text == Key.LeftArrow) {
-                root.selected = max(0, root.selected - root.rows);
-                return accept;
-            }
-            reject
+            // Reszta (Enter, Del, F2, Ctrl+A/C/X/V) – w desktop.rs.
+            root.key(e.text, e.modifiers.control, e.modifiers.shift);
+            accept
         }
     }
 

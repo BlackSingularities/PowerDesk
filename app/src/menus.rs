@@ -70,12 +70,12 @@ pub struct Open {
     width: f32,
 }
 
-pub fn show(s: &Shared, items: Vec<Item>, x: f32, y: f32) {
-    let Some(ui) = s.borrow().ui.upgrade() else { return };
+/// Pozycje dla `MenuPopup`, szerokość i miejsce dopasowane do okna o rozmiarze `size` (logicznym).
+/// Wspólne dla głównego okna i innych okien z własnym menu (pulpit).
+pub fn layout(items: &[Item], x: f32, y: f32, size: slint::LogicalSize) -> (Vec<MenuEntry>, f32, f32, f32) {
     // Szerokość jak w CSS: min 220, max 380 – według najdłuższej etykiety.
     let longest = items.iter().map(|i| i.label.chars().count() + i.kbd.chars().count()).max().unwrap_or(0);
     let width = (longest as f32 * 7.0 + 96.0).clamp(220.0, 380.0);
-    let size = ui.window().size().to_logical(ui.window().scale_factor());
     let h: f32 = items.iter().map(|e| if e.sep { 11.0 } else { 32.0 }).sum::<f32>() + 14.0;
     let mx = if x + width > size.width - 8.0 { (size.width - width - 8.0).max(8.0) } else { x };
     let my = if y + h > size.height - 8.0 { (size.height - h - 8.0).max(8.0) } else { y };
@@ -92,6 +92,20 @@ pub fn show(s: &Shared, items: Vec<Item>, x: f32, y: f32) {
             has_sub: !i.sub.is_empty(),
         })
         .collect();
+    (entries, width, mx, my)
+}
+
+/// Wykonuje pozycję menu (bez podmenu – te obsługuje tylko główne okno).
+pub fn run(s: &Shared, item: &Item) {
+    if let Some(act) = &item.act {
+        act(s);
+    }
+}
+
+pub fn show(s: &Shared, items: Vec<Item>, x: f32, y: f32) {
+    let Some(ui) = s.borrow().ui.upgrade() else { return };
+    let size = ui.window().size().to_logical(ui.window().scale_factor());
+    let (entries, width, mx, my) = layout(&items, x, y, size);
     ui.set_menu_x(mx);
     ui.set_menu_y(my);
     ui.set_menu_width(width);

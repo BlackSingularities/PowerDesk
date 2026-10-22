@@ -122,7 +122,7 @@ Zasady:
 - [x] Jedna instancja (potok nazwany), otwieranie ścieżki z wiersza poleceń w nowej karcie, okno na wierzch
 
 ### Nowe: pulpit i pasek
-- [ ] Pulpit na każdym monitorze, tapety Windows, ikony z Pulpitu użytkownika i publicznego (pierwsza wersja w kodzie, nieuruchamiana: tapeta per monitor, ikony na głównym, dwuklik, menu Eksploratora, F5, strzałki)
+- [ ] Pulpit na każdym monitorze, tapety Windows, ikony z Pulpitu użytkownika i publicznego (tryb testowy sprawdzony: tapeta per monitor, ikony na głównym; w kodzie, nieuruchamiane: menu pulpitu i ikon w stylu PowerDesk, zaznaczanie z Ctrl, Shift i ramką, przeciąganie ikon z zapamiętaniem miejsc, „Uporządkuj ikony”, zmiana nazwy w miejscu, nowy folder i dokument, kopiuj/wytnij/wklej, Kosz)
 - [ ] **Tryb testowy**: nakładka zamiast podmiany pulpitu, szybkie wyłączenie (Esc, zasobnik, `--desktop-test`)
 - [ ] Tryb zastępujący: wpięcie w WorkerW, ukrycie ikon systemowych, przywracanie po wyjściu i awarii
 - [ ] Reakcja na zmiany monitorów, DPI, tapety i restart Eksploratora

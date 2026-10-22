@@ -33,6 +33,15 @@ pub fn open(s: &Shared) {
     }
 }
 
+/// Numer sekcji „Pulpit” na liście po lewej (settings.slint).
+pub const SECTION_DESKTOP: i32 = 5;
+
+/// Ustawienia otwarte od razu na podanej sekcji.
+pub fn open_section(s: &Shared, section: i32) {
+    with_ui(s, |g| g.set_section(section));
+    open(s);
+}
+
 /// Wołane przy każdym odświeżeniu okna: ekran widać tylko na jego karcie.
 pub fn sync(s: &Shared) {
     let on = crate::tab_mut(s, |t| t.path == TAB);
