@@ -441,9 +441,29 @@ pub fn paste(s: &Shared, into: Option<&str>) {
 }
 
 pub fn trash(s: &Shared, paths: &[String]) {
-    if !paths.is_empty() && !crate::archives::read_only(s, paths) {
-        ops::start(Core, "trash".into(), paths.to_vec(), String::new(), ops::Conflict::Skip);
+    if paths.is_empty() || crate::archives::read_only(s, paths) {
+        return;
     }
+    let paths = paths.to_vec();
+    if !s.borrow().prefs.confirm_trash {
+        ops::start(Core, "trash".into(), paths, String::new(), ops::Conflict::Skip);
+        return;
+    }
+    let what = if paths.len() == 1 {
+        format!("„{}”", Path::new(&paths[0]).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())
+    } else {
+        format!("{} elementów", paths.len())
+    };
+    crate::transfers::confirm(
+        s,
+        "Przenieść do Kosza?",
+        &format!("{what} trafi do Kosza – można je stamtąd przywrócić."),
+        "Do Kosza",
+        false,
+        std::rc::Rc::new(move |_| {
+            ops::start(Core, "trash".into(), paths.clone(), String::new(), ops::Conflict::Skip);
+        }),
+    );
 }
 
 fn terminal(path: &str) {

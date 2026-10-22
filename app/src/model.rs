@@ -446,6 +446,9 @@ impl Tab {
         if self.path == HOME {
             return "Ten komputer".into();
         }
+        if self.path == "ofp:settings" {
+            return "Ustawienia".into();
+        }
         Path::new(&self.path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| self.path.trim_end_matches('\\').to_string())
     }
 
@@ -824,6 +827,16 @@ pub struct Prefs {
     pub viewer_info: bool,
     /// Przypięte karty – wracają przy uruchomieniu.
     pub pinned_tabs: Vec<String>,
+    /// Motyw: „system”, „dark” albo „light”; pusty – jeszcze z ustawień wersji webowej.
+    pub theme: String,
+    /// Akcent: „mono” (biały / czarny), „system” (z Windows) albo kolor #rrggbb.
+    pub accent: String,
+    /// Po uruchomieniu: „home” (folder domowy), „computer” (Ten komputer) albo „folder” (`start_folder`).
+    pub start: String,
+    pub start_folder: String,
+    /// Widok folderu, dla którego nic nie zapamiętano.
+    pub default_view: View,
+    pub confirm_trash: bool,
 }
 
 /// Wyszukiwanie zapisane w panelu bocznym.
@@ -837,7 +850,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new() }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false }
     }
 }
 

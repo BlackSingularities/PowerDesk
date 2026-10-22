@@ -1,0 +1,668 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label, TipArea } from "components.slint";
+import { ScrollView } from "std-widgets.slint";
+
+/// Ekran ustawień (SettingsView.svelte) – dane i zapis w settings.rs.
+export global SettingsState {
+    in-out property <bool> open;
+    /// Wybrana sekcja z listy po lewej.
+    in-out property <int> section;
+    /// 0 – jak w systemie, 1 – ciemny, 2 – jasny.
+    in-out property <int> theme;
+    /// „mono”, „system” albo #rrggbb.
+    in-out property <string> accent;
+    in-out property <color> system-accent;
+    /// 0 – folder domowy, 1 – Ten komputer, 2 – wybrany folder.
+    in-out property <int> start;
+    in-out property <string> start-folder;
+    /// 0 – lista, 1 – siatka, 2 – galeria.
+    in-out property <int> default-view;
+    in-out property <bool> show-hidden;
+    in-out property <bool> folders-first;
+    in-out property <bool> auto-gallery;
+    in-out property <bool> folder-sizes;
+    in-out property <bool> preview-open;
+    in-out property <bool> viewer-info;
+    in-out property <bool> confirm-trash;
+    in-out property <int> remembered;
+    in-out property <string> version;
+    in-out property <string> prefs-path;
+    callback set-theme(int);
+    callback set-accent(string);
+    callback set-start(int);
+    callback pick-start-folder;
+    callback set-default-view(int);
+    /// Przełącznik po kluczu: show-hidden, folders-first, auto-gallery, folder-sizes, preview, viewer-info, confirm-trash.
+    callback toggle(string);
+    callback forget-views;
+    callback open-prefs-folder;
+}
+
+/// Przełącznik w stylu Windows.
+component Switch inherits Rectangle {
+    in property <bool> on;
+    width: 38px;
+    height: 20px;
+    border-radius: 10px;
+    background: root.on ? Theme.accent : Theme.line-strong;
+    animate background { duration: 120ms; }
+    Rectangle {
+        x: root.on ? parent.width - self.width - 3px : 3px;
+        y: 3px;
+        width: 14px;
+        height: 14px;
+        border-radius: 7px;
+        background: root.on ? Theme.on-accent : Theme.text;
+        animate x { duration: 120ms; }
+    }
+}
+
+/// Wiersz z ikoną, opisem i przełącznikiem; klik w cały wiersz przełącza.
+component ToggleRow inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <string> hint;
+    in property <string> kbd;
+    in property <bool> on;
+    callback toggled;
+    height: max(48px, row.preferred-height);
+    border-radius: Theme.r;
+    background: tr-ta.has-hover ? Theme.hover : Theme.card;
+    row := HorizontalLayout {
+        padding: 10px;
+        padding-left: 14px;
+        spacing: 12px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.icon;
+            size: 17px;
+            color: Theme.dim;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Label {
+                text: root.text;
+                font-size: 13px;
+            }
+            if root.hint != "": Text {
+                text: root.hint;
+                wrap: word-wrap;
+                font-family: Theme.font;
+                font-size: 11.5px;
+                color: Theme.faint;
+            }
+        }
+        if root.kbd != "": Label {
+            text: root.kbd;
+            font-size: 11px;
+            color: Theme.faint;
+        }
+        Switch {
+            y: (parent.height - self.height) / 2;
+            on: root.on;
+        }
+    }
+    tr-ta := TouchArea {
+        clicked => {
+            root.toggled();
+        }
+    }
+}
+
+/// Karta wyboru jednej z kilku opcji (motyw, start, widok).
+component Choice inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <string> hint;
+    in property <bool> on;
+    callback clicked;
+    height: 64px;
+    horizontal-stretch: 1;
+    border-radius: Theme.r;
+    border-width: root.on ? 2px : 1px;
+    border-color: root.on ? Theme.accent : Theme.line;
+    background: ch-ta.has-hover ? Theme.hover : Theme.card;
+    HorizontalLayout {
+        padding: 12px;
+        spacing: 10px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.icon;
+            size: 18px;
+            color: root.on ? Theme.text : Theme.dim;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Label {
+                text: root.text;
+                font-size: 13px;
+                font-weight: root.on ? 600 : 400;
+            }
+            Label {
+                text: root.hint;
+                font-size: 11px;
+                color: Theme.faint;
+            }
+        }
+    }
+    ch-ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component Heading inherits VerticalLayout {
+    in property <string> title;
+    in property <string> lead;
+    spacing: 3px;
+    padding-bottom: 6px;
+    Label {
+        text: root.title;
+        font-size: 20px;
+        font-weight: 600;
+    }
+    Label {
+        text: root.lead;
+        font-size: 12.5px;
+        color: Theme.faint;
+    }
+}
+
+component Key inherits HorizontalLayout {
+    in property <string> keys;
+    in property <string> what;
+    height: 30px;
+    spacing: 12px;
+    Rectangle {
+        width: 170px;
+        Rectangle {
+            x: 0;
+            y: (parent.height - self.height) / 2;
+            width: k.preferred-width + 14px;
+            height: 22px;
+            border-radius: Theme.r-xs;
+            background: Theme.card;
+            border-width: 1px;
+            border-color: Theme.line;
+            k := Label {
+                horizontal-alignment: center;
+                text: root.keys;
+                font-size: 11.5px;
+            }
+        }
+    }
+    Label {
+        horizontal-stretch: 1;
+        text: root.what;
+        font-size: 12.5px;
+        color: Theme.dim;
+    }
+}
+
+export component SettingsView inherits Rectangle {
+    background: Theme.bg;
+    property <[{title: string, icon: string}]> nav: [
+        { title: "Wygląd", icon: Icons.eye },
+        { title: "Po uruchomieniu", icon: Icons.bolt },
+        { title: "Domyślny widok", icon: Icons.grid },
+        { title: "Przeglądanie", icon: Icons.folder },
+        { title: "Podgląd", icon: Icons.panel },
+        { title: "Bezpieczeństwo", icon: Icons.shield },
+        { title: "Skróty klawiszowe", icon: Icons.hash },
+        { title: "O aplikacji", icon: Icons.info },
+    ];
+    property <[string]> accents: ["#4f8cff", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6"];
+    property <[{keys: string, what: string}]> shortcuts: [
+        { keys: "Ctrl+T / Ctrl+W", what: "Nowa / zamknij kartę" },
+        { keys: "Ctrl+Shift+T", what: "Przywróć zamkniętą kartę" },
+        { keys: "Ctrl+Tab", what: "Następna karta" },
+        { keys: "Ctrl+\\", what: "Podział na dwa panele" },
+        { keys: "F6", what: "Przejście do drugiego panelu" },
+        { keys: "Ctrl+K", what: "Szybkie przejście do folderu" },
+        { keys: "Ctrl+Shift+P", what: "Paleta poleceń" },
+        { keys: "Ctrl+,", what: "Ustawienia" },
+        { keys: "Ctrl+L / Alt+D", what: "Edytuj ścieżkę" },
+        { keys: "Alt+← / → / ↑", what: "Wstecz / dalej / w górę" },
+        { keys: "Alt+P", what: "Panel podglądu" },
+        { keys: "F2", what: "Zmień nazwę" },
+        { keys: "Del / Shift+Del", what: "Kosz / usuń trwale" },
+        { keys: "Ctrl+C / X / V", what: "Kopiuj / wytnij / wklej" },
+        { keys: "Ctrl+Z / Ctrl+Y", what: "Cofnij / ponów" },
+        { keys: "Ctrl+Shift+N", what: "Nowy folder" },
+        { keys: "Ctrl+Shift+S", what: "Dodaj na półkę" },
+        { keys: "Ctrl+1 / 2 / 3", what: "Lista / siatka / galeria" },
+        { keys: "Ctrl+kółko", what: "Wielkość miniatur" },
+        { keys: "Ctrl+H", what: "Ukryte pliki" },
+        { keys: "Ctrl+B", what: "Zwiń panel boczny" },
+        { keys: "Alt+Enter", what: "Właściwości" },
+        { keys: "F11", what: "Pełny ekran w przeglądarce zdjęć" },
+    ];
+
+    HorizontalLayout {
+        // Lista sekcji.
+        Rectangle {
+            width: 230px;
+            VerticalLayout {
+                padding: 16px;
+                padding-top: 22px;
+                spacing: 2px;
+                alignment: start;
+                Label {
+                    text: "Ustawienia";
+                    font-size: 15px;
+                    font-weight: 600;
+                }
+                Rectangle {
+                    height: 10px;
+                }
+                for n[i] in root.nav: Rectangle {
+                    height: 34px;
+                    border-radius: Theme.r-s;
+                    background: SettingsState.section == i ? Theme.sel : nv-ta.has-hover ? Theme.hover : transparent;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        spacing: 10px;
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: n.icon;
+                            size: 15px;
+                            color: SettingsState.section == i ? Theme.text : Theme.dim;
+                        }
+                        Label {
+                            horizontal-stretch: 1;
+                            text: n.title;
+                            font-size: 12.5px;
+                            font-weight: SettingsState.section == i ? 600 : 400;
+                        }
+                    }
+                    nv-ta := TouchArea {
+                        clicked => {
+                            SettingsState.section = i;
+                        }
+                    }
+                }
+            }
+        }
+        ScrollView {
+            horizontal-stretch: 1;
+            VerticalLayout {
+                padding: 28px;
+                padding-right: 40px;
+                spacing: 10px;
+                alignment: start;
+
+                if SettingsState.section == 0: VerticalLayout {
+                    spacing: 10px;
+                    Heading {
+                        title: "Wygląd";
+                        lead: "Motyw i kolor akcentu całej aplikacji";
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Choice {
+                            icon: Icons.app;
+                            text: "Jak w systemie";
+                            hint: "Podąża za ustawieniem Windows";
+                            on: SettingsState.theme == 0;
+                            clicked => {
+                                SettingsState.set-theme(0);
+                            }
+                        }
+                        Choice {
+                            icon: Icons.eye;
+                            text: "Ciemny";
+                            hint: "Czarne tło";
+                            on: SettingsState.theme == 1;
+                            clicked => {
+                                SettingsState.set-theme(1);
+                            }
+                        }
+                        Choice {
+                            icon: Icons.eye;
+                            text: "Jasny";
+                            hint: "Jasne tło";
+                            on: SettingsState.theme == 2;
+                            clicked => {
+                                SettingsState.set-theme(2);
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Kolor akcentu";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        alignment: start;
+                        // Biały / czarny.
+                        Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 15px;
+                            border-width: SettingsState.accent == "mono" ? 3px : 1px;
+                            border-color: SettingsState.accent == "mono" ? Theme.text : Theme.line-strong;
+                            background: Theme.light ? #111111 : #ffffff;
+                            TipArea {
+                                tip: "Biały lub czarny";
+                                clicked => {
+                                    SettingsState.set-accent("mono");
+                                }
+                            }
+                        }
+                        // Z Windows.
+                        Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 15px;
+                            border-width: SettingsState.accent == "system" ? 3px : 1px;
+                            border-color: SettingsState.accent == "system" ? Theme.text : Theme.line-strong;
+                            background: SettingsState.system-accent;
+                            Label {
+                                horizontal-alignment: center;
+                                text: "W";
+                                font-size: 12px;
+                                font-weight: 700;
+                                color: #ffffff;
+                            }
+                            TipArea {
+                                tip: "Kolor akcentu z Windows";
+                                clicked => {
+                                    SettingsState.set-accent("system");
+                                }
+                            }
+                        }
+                        for c in root.accents: Rectangle {
+                            width: 30px;
+                            height: 30px;
+                            border-radius: 15px;
+                            border-width: SettingsState.accent == c ? 3px : 0px;
+                            border-color: Theme.text;
+                            background: c == "#4f8cff" ? #4f8cff : c == "#8b5cf6" ? #8b5cf6 : c == "#ec4899" ? #ec4899 : c == "#ef4444" ? #ef4444 : c == "#f97316" ? #f97316 : c == "#eab308" ? #eab308 : c == "#22c55e" ? #22c55e : #14b8a6;
+                            TouchArea {
+                                clicked => {
+                                    SettingsState.set-accent(c);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if SettingsState.section == 1: VerticalLayout {
+                    spacing: 10px;
+                    Heading {
+                        title: "Po uruchomieniu";
+                        lead: "Co zobaczysz po otwarciu aplikacji · przypięte karty wracają zawsze";
+                    }
+                    Choice {
+                        icon: Icons.home;
+                        text: "Folder domowy";
+                        hint: "Jedna karta z Twoim folderem użytkownika";
+                        on: SettingsState.start == 0;
+                        clicked => {
+                            SettingsState.set-start(0);
+                        }
+                    }
+                    Choice {
+                        icon: Icons.pc;
+                        text: "Ten komputer";
+                        hint: "Dyski, foldery i ostatnie pliki";
+                        on: SettingsState.start == 1;
+                        clicked => {
+                            SettingsState.set-start(1);
+                        }
+                    }
+                    Choice {
+                        icon: Icons.folder;
+                        text: "Wybrany folder";
+                        hint: SettingsState.start-folder != "" ? SettingsState.start-folder : "Kliknij, aby wybrać folder";
+                        on: SettingsState.start == 2;
+                        clicked => {
+                            if (SettingsState.start-folder == "") {
+                                SettingsState.pick-start-folder();
+                            } else {
+                                SettingsState.set-start(2);
+                            }
+                        }
+                    }
+                    if SettingsState.start == 2: HorizontalLayout {
+                        alignment: start;
+                        Rectangle {
+                            width: pf.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: pf-ta.has-hover ? Theme.press : Theme.card;
+                            pf := Label {
+                                horizontal-alignment: center;
+                                text: "Zmień folder…";
+                                font-size: 12.5px;
+                            }
+                            pf-ta := TouchArea {
+                                clicked => {
+                                    SettingsState.pick-start-folder();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if SettingsState.section == 2: VerticalLayout {
+                    spacing: 10px;
+                    Heading {
+                        title: "Domyślny widok";
+                        lead: "Jak otwiera się folder, dla którego nic nie zapamiętano";
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Choice {
+                            icon: Icons.list;
+                            text: "Lista";
+                            hint: "Ctrl+1";
+                            on: SettingsState.default-view == 0;
+                            clicked => {
+                                SettingsState.set-default-view(0);
+                            }
+                        }
+                        Choice {
+                            icon: Icons.grid;
+                            text: "Siatka";
+                            hint: "Ctrl+2";
+                            on: SettingsState.default-view == 1;
+                            clicked => {
+                                SettingsState.set-default-view(1);
+                            }
+                        }
+                        Choice {
+                            icon: Icons.gallery;
+                            text: "Galeria";
+                            hint: "Ctrl+3";
+                            on: SettingsState.default-view == 2;
+                            clicked => {
+                                SettingsState.set-default-view(2);
+                            }
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.gallery;
+                        text: "Zdjęcia i filmy w galerii";
+                        hint: "Foldery z samymi mediami otwierają się w galerii";
+                        on: SettingsState.auto-gallery;
+                        toggled => {
+                            SettingsState.toggle("auto-gallery");
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Label {
+                            horizontal-stretch: 1;
+                            text: SettingsState.remembered > 0 ? "Zapamiętane widoki folderów: " + SettingsState.remembered : "Żaden folder nie ma zapamiętanego widoku";
+                            font-size: 12px;
+                            color: Theme.faint;
+                        }
+                        if SettingsState.remembered > 0: Rectangle {
+                            width: fv.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: fv-ta.has-hover ? Theme.press : Theme.card;
+                            fv := Label {
+                                horizontal-alignment: center;
+                                text: "Zapomnij wszystkie";
+                                font-size: 12.5px;
+                            }
+                            fv-ta := TouchArea {
+                                clicked => {
+                                    SettingsState.forget-views();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if SettingsState.section == 3: VerticalLayout {
+                    spacing: 8px;
+                    Heading {
+                        title: "Przeglądanie";
+                        lead: "Jak wyglądają i otwierają się foldery";
+                    }
+                    ToggleRow {
+                        icon: Icons.eye;
+                        text: "Ukryte i systemowe pliki";
+                        kbd: "Ctrl+H";
+                        on: SettingsState.show-hidden;
+                        toggled => {
+                            SettingsState.toggle("show-hidden");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.sort;
+                        text: "Foldery przed plikami";
+                        on: SettingsState.folders-first;
+                        toggled => {
+                            SettingsState.toggle("folders-first");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.hash;
+                        text: "Rozmiary folderów";
+                        hint: "Liczone w tle w kolumnie Rozmiar · bez dysków sieciowych";
+                        on: SettingsState.folder-sizes;
+                        toggled => {
+                            SettingsState.toggle("folder-sizes");
+                        }
+                    }
+                }
+
+                if SettingsState.section == 4: VerticalLayout {
+                    spacing: 8px;
+                    Heading {
+                        title: "Podgląd";
+                        lead: "Panel z prawej i przeglądarka zdjęć";
+                    }
+                    ToggleRow {
+                        icon: Icons.panel;
+                        text: "Panel podglądu";
+                        hint: "Zdjęcia, filmy, PDF, tekst i kod obok listy";
+                        kbd: "Alt+P";
+                        on: SettingsState.preview-open;
+                        toggled => {
+                            SettingsState.toggle("preview");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.info;
+                        text: "Informacje i EXIF w przeglądarce";
+                        hint: "Panel z metadanymi po prawej stronie zdjęcia";
+                        kbd: "I";
+                        on: SettingsState.viewer-info;
+                        toggled => {
+                            SettingsState.toggle("viewer-info");
+                        }
+                    }
+                }
+
+                if SettingsState.section == 5: VerticalLayout {
+                    spacing: 8px;
+                    Heading {
+                        title: "Bezpieczeństwo";
+                        lead: "Potwierdzenia przed zmianami";
+                    }
+                    ToggleRow {
+                        icon: Icons.trash;
+                        text: "Pytaj przed przeniesieniem do Kosza";
+                        hint: "Usuwanie trwałe (Shift+Del) zawsze wymaga potwierdzenia";
+                        on: SettingsState.confirm-trash;
+                        toggled => {
+                            SettingsState.toggle("confirm-trash");
+                        }
+                    }
+                }
+
+                if SettingsState.section == 6: VerticalLayout {
+                    spacing: 2px;
+                    Heading {
+                        title: "Skróty klawiszowe";
+                        lead: "Zgodne z Eksploratorem Windows tam, gdzie to możliwe";
+                    }
+                    for k in root.shortcuts: Key {
+                        keys: k.keys;
+                        what: k.what;
+                    }
+                }
+
+                if SettingsState.section == 7: VerticalLayout {
+                    spacing: 10px;
+                    Heading {
+                        title: "O aplikacji";
+                        lead: "PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows";
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Label {
+                            width: 120px;
+                            text: "Wersja";
+                            font-size: 12.5px;
+                            color: Theme.dim;
+                        }
+                        Label {
+                            text: SettingsState.version;
+                            font-size: 12.5px;
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Label {
+                            width: 120px;
+                            text: "Ustawienia";
+                            font-size: 12.5px;
+                            color: Theme.dim;
+                        }
+                        Rectangle {
+                            horizontal-stretch: 1;
+                            height: pp.preferred-height + 10px;
+                            border-radius: Theme.r-s;
+                            background: pp-ta.has-hover ? Theme.hover : transparent;
+                            pp := Label {
+                                x: 4px;
+                                text: SettingsState.prefs-path;
+                                font-size: 12px;
+                                color: Theme.faint;
+                            }
+                            pp-ta := TipArea {
+                                tip: "Otwórz folder z ustawieniami";
+                                clicked => {
+                                    SettingsState.open-prefs-folder();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

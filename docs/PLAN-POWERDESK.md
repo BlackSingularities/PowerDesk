@@ -102,7 +102,8 @@ Zasady:
 ### Ekrany specjalne
 - [x] Ten komputer (Home): powitanie z wyszukiwaniem, dyski, stan komputera (procesor z historią, RAM, czas pracy), rozmiary folderów, ostatnie pliki z filtrem i menu
 - [ ] Ten komputer: zmiana kolejności i zwijanie sekcji, ulubione, aktywność transferów i synchronizacji, wykres zmian z 14 dni
-- [ ] Ustawienia (wszystkie obecne opcje)
+- [x] Ustawienia (karta, Ctrl+,): motyw i akcent, start (folder domowy / Ten komputer / wybrany folder), domyślny widok, przeglądanie, podgląd, pytanie przed Koszem, skróty, o aplikacji
+- [ ] Ustawienia: jedno kliknięcie, sekcje panelu bocznego, tło okna i krycie, zasobnik, autostart, aktualizacje, integracja z Windows (razem z ich funkcjami)
 - [ ] Synchronizacja: profile, podgląd planu, historia, praca z zasobnika
 - [ ] Analiza miejsca i porządki
 - [ ] Wbudowany terminal

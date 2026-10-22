@@ -7,6 +7,7 @@ mod dragdrop;
 mod facets;
 mod fmt;
 mod home;
+mod settings;
 mod menus;
 mod model;
 mod preview;
@@ -96,13 +97,14 @@ pub fn with_state(f: impl FnOnce(&Shared)) {
 
 fn main() -> Result<(), slint::PlatformError> {
     let ui = MainWindow::new()?;
-    apply_theme(&ui);
+    let prefs = Prefs::load();
+    settings::apply_look(&ui, &prefs);
 
-    let start = dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| "C:\\".into());
+    let start = settings::start_path(&prefs);
     let st: Shared = Rc::new(RefCell::new(State {
         tabs: vec![Tab::new(&start)],
         active: 0,
-        prefs: Prefs::load(),
+        prefs,
         ui: ui.as_weak(),
         panes: vec![0],
         focused: 0,
@@ -430,6 +432,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     g.on_pdf_step(move |d| preview::pdf_step(&s, d));
     player::bind(&ui, &st);
     home::bind(&ui, &st);
+    settings::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));
@@ -1027,7 +1030,8 @@ fn same(a: &str, b: &str) -> bool {
 fn apply_prefs(s: &Shared) {
     let mut b = s.borrow_mut();
     let a = b.active;
-    let p = b.prefs.folders.get(&b.tabs[a].path.to_lowercase()).copied().unwrap_or_default();
+    let fallback = model::FolderPrefs { view: b.prefs.default_view, ..Default::default() };
+    let p = b.prefs.folders.get(&b.tabs[a].path.to_lowercase()).copied().unwrap_or(fallback);
     let t = &mut b.tabs[a];
     t.view = p.view;
     t.sort = p.sort;
@@ -1369,6 +1373,7 @@ fn render_all(s: &Shared) {
     shelf::render(s);
     // Ekran „Ten komputer” zamiast listy, gdy to jego karta.
     home::sync(s);
+    settings::sync(s);
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
@@ -2293,6 +2298,9 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
         }
         return;
     }
+    if ctrl && k == "," {
+        return settings::open(s);
+    }
     if alt && is(Key::LeftArrow) {
         return back(s);
     }
@@ -2514,6 +2522,8 @@ fn tab_icon(t: &Tab) -> SharedString {
         ic("search")
     } else if path == HOME {
         ic("pc")
+    } else if path == settings::TAB {
+        ic("settings")
     } else if path.len() <= 3 && path.contains(':') {
         ic("drive")
     } else if path.starts_with("\\\\") {
@@ -2692,22 +2702,6 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
         });
     }
     v
-}
-
-/// Motyw jak w wersji webowej: ustawienie z state.json, „system” – według Windows.
-fn apply_theme(ui: &MainWindow) {
-    let state = dirs::data_dir().map(|d| d.join("OpenFilePowerWin").join("state.json"));
-    let theme = state
-        .and_then(|p| std::fs::read_to_string(p).ok())
-        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
-        .and_then(|v| v["settings"]["theme"].as_str().map(String::from))
-        .unwrap_or_else(|| "system".into());
-    let light = match theme.as_str() {
-        "light" => true,
-        "dark" => false,
-        _ => system_light(),
-    };
-    ui.global::<Theme>().set_light(light);
 }
 
 fn system_light() -> bool {
