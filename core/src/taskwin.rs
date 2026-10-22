@@ -118,6 +118,23 @@ pub fn click(hwnd: isize) {
     }
 }
 
+/// Przywraca (jeśli zminimalizowane) i wysuwa na wierzch – bez przełączania jak `click`.
+pub fn activate(hwnd: isize) {
+    let w = h(hwnd);
+    unsafe {
+        if IsIconic(w).as_bool() {
+            let _ = ShowWindow(w, SW_RESTORE);
+        }
+        let _ = SetForegroundWindow(w);
+    }
+}
+
+pub fn minimize(hwnd: isize) {
+    unsafe {
+        let _ = ShowWindow(h(hwnd), SW_MINIMIZE);
+    }
+}
+
 pub fn close(hwnd: isize) {
     unsafe {
         let _ = PostMessageW(Some(h(hwnd)), WM_CLOSE, WPARAM(0), LPARAM(0));

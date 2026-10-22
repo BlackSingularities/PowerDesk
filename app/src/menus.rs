@@ -50,6 +50,9 @@ impl Item {
         self.danger = true;
         self
     }
+    pub fn is_sep(&self) -> bool {
+        self.sep
+    }
     /// Pozycja nieczynna w tym miejscu (np. zamknięcie jedynej karty).
     fn disabled(mut self) -> Item {
         self.disabled = true;

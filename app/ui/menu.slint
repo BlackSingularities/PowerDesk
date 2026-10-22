@@ -13,14 +13,11 @@ export struct MenuEntry {
     has-sub: bool,
 }
 
-/// Wyskakujące menu (ContextMenu.svelte): tło high, obwódka line, promień r, cień 0 24px 60px, pozycje 32 px.
-export component MenuPopup inherits PopupWindow {
+/// Treść menu (ContextMenu.svelte): tło high, obwódka line, promień r, cień 0 24px 60px, pozycje 32 px.
+/// Wspólna dla MenuPopup i osobnych okien z menu (pasek zadań).
+export component MenuBody inherits Rectangle {
     in property <[MenuEntry]> entries;
-    in property <length> menu-width: 240px;
     callback chosen(int);
-
-    width: menu-width;
-    close-policy: close-on-click-outside;
 
     Rectangle {
         drop-shadow-blur: 60px;
@@ -48,7 +45,6 @@ export component MenuPopup inherits PopupWindow {
                         enabled: !e.disabled;
                         clicked => {
                             root.chosen(i);
-                            root.close();
                         }
                     }
                     HorizontalLayout {
@@ -87,6 +83,24 @@ export component MenuPopup inherits PopupWindow {
                     }
                 }
             }
+        }
+    }
+}
+
+/// Wyskakujące menu w oknie aplikacji.
+export component MenuPopup inherits PopupWindow {
+    in property <[MenuEntry]> entries;
+    in property <length> menu-width: 240px;
+    callback chosen(int);
+
+    width: menu-width;
+    close-policy: close-on-click-outside;
+
+    MenuBody {
+        entries: root.entries;
+        chosen(i) => {
+            root.chosen(i);
+            root.close();
         }
     }
 }

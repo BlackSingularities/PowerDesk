@@ -1,6 +1,25 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon, TipArea } from "components.slint";
+import { MenuBody, MenuEntry } from "menu.slint";
+
+/// Menu paska w osobnym oknie nad kliknięciem – pasek ma 48 px, menu by się w nim nie zmieściło.
+/// Wygląd jak menu w oknie PowerDesk; zamyka się po wyborze albo utracie fokusu (taskbar.rs).
+export component BarMenuWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    in property <[MenuEntry]> entries;
+    in property <length> menu-width: 240px;
+    callback chosen(int);
+    width: root.menu-width;
+    MenuBody {
+        entries: root.entries;
+        chosen(i) => {
+            root.chosen(i);
+        }
+    }
+}
 
 /// Przycisk okna na pasku (taskbar.rs trzyma uchwyty w tej samej kolejności).
 export struct TaskButton {
