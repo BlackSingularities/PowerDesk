@@ -329,6 +329,24 @@ pub fn extract_temp(path: &str) -> Result<String, String> {
     out.into_iter().next().ok_or_else(|| "Nie znaleziono pliku w archiwum".into())
 }
 
+/// Wypakowuje elementy (pliki i foldery) do nowego folderu tymczasowego – do przeciągnięcia
+/// do innych programów, które nie widzą wnętrza archiwum. Stare foldery przeciągania sprząta.
+pub fn extract_drag(sources: &[String]) -> Result<Vec<String>, String> {
+    let root = std::env::temp_dir().join("OpenFilePower").join("drag");
+    // Po dniu nikt już nie upuszcza – usuwamy pozostałości poprzednich przeciągnięć.
+    if let Ok(rd) = std::fs::read_dir(&root) {
+        for de in rd.flatten() {
+            let old = de.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).is_some_and(|d| d.as_secs() > 86_400);
+            if old {
+                let _ = std::fs::remove_dir_all(de.path());
+            }
+        }
+    }
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_nanos()).unwrap_or_default();
+    let dest = root.join(format!("{stamp:x}"));
+    std::fs::create_dir_all(&dest).map_err(|e| io_err(&e))?;
+    extract(sources, &dest.to_string_lossy())
+}
 
 /// Pakuje pliki i foldery do nowego archiwum ZIP (nazwa unikalna, obok źródeł).
 pub fn create_zip(sources: &[String], dest: &str) -> Result<String, String> {
@@ -361,4 +379,18 @@ pub fn create_zip(sources: &[String], dest: &str) -> Result<String, String> {
     }
     z.finish().map_err(|e| e.to_string())?;
     Ok(out.to_string_lossy().to_string())
+}
+
+#[cfg(test)]
+mod drag_tests {
+    #[test]
+    fn extract_drag_gives_real_files() {
+        let dir = std::env::temp_dir().join(format!("ofp-drag-test-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("src").join("a.txt"), "abc").unwrap();
+        let zip = super::create_zip(&[dir.join("src").to_string_lossy().to_string()], &dir.join("t.zip").to_string_lossy()).unwrap();
+        let out = super::extract_drag(&[format!("{zip}\\src\\a.txt")]).unwrap();
+        assert_eq!(std::fs::read_to_string(&out[0]).unwrap(), "abc");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

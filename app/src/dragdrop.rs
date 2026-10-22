@@ -151,7 +151,25 @@ pub fn start(s: &Shared, i: usize) {
     });
     let Some(paths) = paths.filter(|p| !p.is_empty() && !p.iter().any(|x| x.starts_with("ofp:"))) else { return };
     crate::render_items(s);
+    if paths.iter().any(|p| crate::archives::inside(p)) {
+        return start_from_archive(paths);
+    }
     start_paths(s, paths, |_| {});
+}
+
+/// Elementy archiwum: inne programy widzą tylko prawdziwe pliki, więc najpierw wypakowujemy je
+/// do folderu tymczasowego (w tle), a przeciąganie rusza, jeśli przycisk myszy jest nadal wciśnięty.
+fn start_from_archive(paths: Vec<String>) {
+    std::thread::spawn(move || {
+        let res = powerdesk_core::archive::extract_drag(&paths);
+        let _ = slint::invoke_from_event_loop(move || {
+            crate::with_state(|s| match res {
+                Ok(out) if dnd::left_button_down() => start_paths(s, out, |_| {}),
+                Ok(_) => {}
+                Err(e) => transfers::toast(s, e, transfers::Kind::Error, None),
+            });
+        });
+    });
 }
 
 /// Przeciąganie OLE podanych ścieżek; `done` – w wątku UI po upuszczeniu albo anulowaniu.
