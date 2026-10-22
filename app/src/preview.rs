@@ -69,6 +69,7 @@ pub fn toggle(s: &Shared) {
         b.prefs.save();
     }
     SHOWN.with(|x| x.borrow_mut().clear());
+    crate::player::stop_target(s, crate::player::PREVIEW);
     sync(s);
 }
 
@@ -115,6 +116,7 @@ fn load(s: &Shared) {
         g.set(g.get() + 1);
         g.get()
     });
+    crate::player::stop_target(s, crate::player::PREVIEW);
     let (sel, dir, count) = crate::tab_mut(s, |t| (t.items.iter().filter(|e| t.selected.contains(&e.path)).cloned().collect::<Vec<_>>(), t.path.clone(), t.items.len()));
     match sel.len() {
         0 => folder(s, &dir, count),
@@ -135,6 +137,7 @@ fn clear(g: &PreviewState) {
     g.set_usage(-1.0);
     g.set_path("".into());
     g.set_has_map(false);
+    g.set_media(0);
     g.set_coords("".into());
     COORDS.with(|c| c.set(None));
 }
@@ -248,6 +251,13 @@ fn one(s: &Shared, gen: u64, e: Entry) {
         g.set_subtitle(if e.dir { fmt::type_label(&e) } else { format!("{} · {}", fmt::type_label(&e), fmt::size(e.size)) }.into());
         g.set_path(e.path.clone().into());
         g.set_is_dir(e.dir);
+        if !e.dir && !packed && !e.cloud {
+            g.set_media(match k {
+                Kind::Video => 1,
+                Kind::Audio => 2,
+                _ => 0,
+            });
+        }
         let mut rows = vec![row("Zmodyfikowano", fmt::date(e.modified)), row("Utworzono", fmt::date(e.created))];
         if e.dir && !packed {
             rows.insert(0, row("Zawartość", "liczę…"));

@@ -53,6 +53,8 @@ export const I = {
   chevronDown: 'M6 9l6 6 6-6',
   play: 'M7 4v16l13-8z',
   pause: 'M7 4h4v16H7zM13 4h4v16h-4z',
+  volume: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',
+  mute: 'M11 5 6 9H2v6h4l5 4V5zM22 9l-6 6M16 9l6 6',
   rotate: 'M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5',
   zoomIn: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.35-4.35M11 8v6M8 11h6',
   zoomOut: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.35-4.35M8 11h6',

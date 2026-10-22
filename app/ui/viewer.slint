@@ -3,6 +3,7 @@ import { Icons } from "icons.slint";
 import { Icon, IconButton, Label, TipArea } from "components.slint";
 import { ScrollView } from "std-widgets.slint";
 import { PropSection } from "props.slint";
+import { PlayerState, PlayerBar } from "player.slint";
 
 export struct ViewerThumb {
     index: int,
@@ -16,6 +17,7 @@ export global ViewerState {
     in-out property <bool> open;
     in-out property <bool> fullscreen;
     in-out property <string> name;
+    in-out property <string> path;
     in-out property <string> counter;
     in-out property <string> details;
     in-out property <image> img;
@@ -70,8 +72,11 @@ export component ViewerView inherits Rectangle {
     property <float> scale: 1;
     property <length> ox;
     property <length> oy;
-    property <int> iw: ViewerState.img.width;
-    property <int> ih: ViewerState.img.height;
+    /// Film gra w przeglądarce – zamiast zdjęcia pokazujemy jego klatki.
+    property <bool> playing-here: PlayerState.target == 2 && PlayerState.path == ViewerState.path;
+    property <image> src: root.playing-here && PlayerState.has-frame ? PlayerState.frame : ViewerState.img;
+    property <int> iw: root.src.width;
+    property <int> ih: root.src.height;
     property <bool> turned: mod(ViewerState.rotation, 2) == 1;
     // Wymiary po obrocie – do dopasowania.
     property <float> rw: root.turned ? root.ih : root.iw;
@@ -107,7 +112,7 @@ export component ViewerView inherits Rectangle {
     // Pokaz slajdów – co 4 s następne zdjęcie.
     Timer {
         interval: 4s;
-        running: ViewerState.slideshow;
+        running: ViewerState.slideshow && !(root.playing-here && PlayerState.playing);
         triggered => {
             ViewerState.step(1);
         }
@@ -122,6 +127,14 @@ export component ViewerView inherits Rectangle {
                 ViewerState.escape();
             } else if (e.text == Key.F11) {
                 ViewerState.toggle-fullscreen();
+            } else if (e.text == " " && ViewerState.is-video) {
+                if (root.playing-here) {
+                    PlayerState.toggle();
+                } else {
+                    PlayerState.start(2, ViewerState.path);
+                }
+            } else if ((e.text == "m" || e.text == "M") && root.playing-here) {
+                PlayerState.toggle-mute();
             } else if (e.text == Key.RightArrow || e.text == Key.PageDown || e.text == " ") {
                 ViewerState.step(1);
             } else if (e.text == Key.LeftArrow || e.text == Key.PageUp || e.text == Key.Backspace) {
@@ -283,12 +296,12 @@ export component ViewerView inherits Rectangle {
                 stage := Rectangle {
                     horizontal-stretch: 1;
                     clip: true;
-                    if ViewerState.has-img: Image {
+                    if ViewerState.has-img || (root.playing-here && PlayerState.has-frame): Image {
                         width: root.iw * 1px * root.eff;
                         height: root.ih * 1px * root.eff;
                         x: (parent.width - self.width) / 2 + root.ox;
                         y: (parent.height - self.height) / 2 + root.oy;
-                        source: ViewerState.img;
+                        source: root.src;
                         image-rendering: root.eff > 2 ? pixelated : smooth;
                         transform-rotation: ViewerState.rotation * 90deg;
                     }
@@ -369,7 +382,7 @@ export component ViewerView inherits Rectangle {
                             }
                         }
                     }
-                    if ViewerState.is-video: Rectangle {
+                    if ViewerState.is-video && !root.playing-here: Rectangle {
                         width: 72px;
                         height: 72px;
                         border-radius: 36px;
@@ -380,11 +393,21 @@ export component ViewerView inherits Rectangle {
                             color: #ffffff;
                         }
                         play-ta := TipArea {
-                            tip: "Odtwórz w domyślnym odtwarzaczu (Enter)";
+                            tip: "Odtwórz (spacja); Enter – w domyślnym odtwarzaczu";
                             clicked => {
-                                ViewerState.open-external();
+                                PlayerState.start(2, ViewerState.path);
                             }
                         }
+                    }
+                    if root.playing-here: PlayerBar {
+                        dark: true;
+                        x: 16px;
+                        y: parent.height - self.height - 16px;
+                        width: parent.width - 32px;
+                    }
+                    if root.playing-here && PlayerState.error: Label {
+                        text: "Nie udało się odtworzyć tego pliku – Enter otworzy go w domyślnym odtwarzaczu";
+                        color: #ffffffd9;
                     }
                 }
                 // Informacje i EXIF.

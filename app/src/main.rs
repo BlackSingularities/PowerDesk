@@ -12,6 +12,7 @@ mod preview;
 mod props;
 mod viewer;
 mod palette;
+mod player;
 mod shelf;
 mod syntax;
 mod query;
@@ -424,6 +425,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_copy_path(move || preview::copy_path(&s));
     g.on_open_map(|| preview::open_map());
+    player::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));

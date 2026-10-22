@@ -93,10 +93,11 @@ Zasady:
 ### Podgląd
 - [x] Panel podglądu: obraz z powłoki (zdjęcia, RAW, klatka wideo, strona PDF, dokumenty), tekst i kod, spis archiwum, metadane, folder i dysk, zmiana szerokości, Alt+P
 - [x] Panel podglądu: tekst z DOCX/XLSX/PPTX/ODT/EPUB (arkusz wiersz po wierszu), mapa GPS, podświetlanie składni
-- [ ] Panel podglądu: odtwarzanie wideo i audio, przewijanie stron PDF
+- [x] Odtwarzanie wideo i audio (Media Foundation) w panelu podglądu i w przeglądarce: pasek z czasem, przewijaniem, głośnością i wyciszeniem; spacja, M
+- [ ] Panel podglądu: przewijanie stron PDF
 - [x] Przeglądarka zdjęć w osobnej karcie tego samego okna (pasek tytułu z kartami i przyciskami okna zostaje, minimalizacja działa; pełny ekran tylko przyciskiem albo F11): zoom do kursora, przesuwanie, obrót, pokaz slajdów, pasek miniatur, EXIF
 - [x] Przeglądarka: przesuwanie palcem (w bok – następne i poprzednie, w dół – zamknięcie)
-- [ ] Przeglądarka: szczypanie (Slint nie daje jeszcze wielodotyku), odtwarzanie wideo w środku
+- [ ] Przeglądarka: szczypanie (Slint nie daje jeszcze wielodotyku)
 
 ### Ekrany specjalne
 - [ ] Ten komputer (Home): dyski, foldery, ostatnie pliki, informacje o systemie

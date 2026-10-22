@@ -3,6 +3,7 @@ import { Icons } from "icons.slint";
 import { Icon, IconButton, Label, TipArea } from "components.slint";
 import { ScrollView } from "std-widgets.slint";
 import { PropRow, PropSection } from "props.slint";
+import { PlayerState, PlayerBar } from "player.slint";
 
 /// Kawałek wiersza kodu: `kind` to numer koloru (`Tok` w syntax.rs).
 export struct CodeTok {
@@ -41,6 +42,8 @@ export global PreviewState {
     in-out property <image> map;
     in-out property <bool> has-map;
     in-out property <string> coords;
+    /// Plik do odtworzenia w panelu: 0 – nie, 1 – wideo, 2 – audio.
+    in-out property <int> media;
     callback open-map();
     callback resize(length);
     callback resize-done;
@@ -149,6 +152,7 @@ component Row inherits HorizontalLayout {
 /// Panel podglądu po prawej stronie listy; lewa krawędź zmienia szerokość.
 export component PreviewPane inherits Rectangle {
     width: PreviewState.width;
+    property <bool> playing-here: PlayerState.target == 1 && PlayerState.path == PreviewState.path;
     background: Theme.bg;
     border-radius: Theme.r-l;
     clip: true;
@@ -163,17 +167,47 @@ export component PreviewPane inherits Rectangle {
             if PreviewState.has-img && PreviewState.text == "" && PreviewState.list.length == 0: Rectangle {
                 height: min(PreviewState.width - 32px, 420px);
                 border-radius: Theme.r;
+                property <bool> playing-here: PlayerState.target == 1 && PlayerState.path == PreviewState.path;
                 Image {
                     width: parent.width;
                     height: parent.height;
-                    source: PreviewState.img;
+                    source: root.playing-here && PlayerState.has-frame ? PlayerState.frame : PreviewState.img;
                     image-fit: contain;
                 }
                 TouchArea {
+                    clicked => {
+                        if (root.playing-here) {
+                            PlayerState.toggle();
+                        }
+                    }
                     double-clicked => {
                         PreviewState.open-item();
                     }
                 }
+                // Odtwarzanie w panelu – przycisk na środku obrazu.
+                if PreviewState.media > 0 && !root.playing-here: Rectangle {
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 28px;
+                    background: pp-ta.has-hover ? #000000b3 : #00000080;
+                    Icon {
+                        commands: Icons.play;
+                        size: 24px;
+                        color: #ffffff;
+                    }
+                    pp-ta := TipArea {
+                        tip: PreviewState.media == 1 ? "Odtwórz film tutaj" : "Odtwórz dźwięk tutaj";
+                        clicked => {
+                            PlayerState.start(1, PreviewState.path);
+                        }
+                    }
+                }
+            }
+            if PreviewState.media > 0 && PlayerState.target == 1 && PlayerState.path == PreviewState.path: PlayerBar { }
+            if PreviewState.media > 0 && PlayerState.error && PlayerState.target == 1: Label {
+                text: "Nie udało się odtworzyć tego pliku";
+                font-size: 12px;
+                color: Theme.rec;
             }
             if PreviewState.has-img && (PreviewState.text != "" || PreviewState.list.length > 0): Image {
                 height: 56px;

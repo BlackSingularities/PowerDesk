@@ -1,0 +1,151 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label, TipArea } from "components.slint";
+
+/// Odtwarzacz wideo i audio – jeden na całe okno (player.rs). `target`: 0 – nic nie gra,
+/// 1 – panel podglądu, 2 – przeglądarka; `path` mówi, który plik.
+export global PlayerState {
+    in-out property <int> target;
+    in-out property <string> path;
+    in-out property <bool> playing;
+    in-out property <bool> has-video;
+    /// Bieżąca klatka wideo.
+    in-out property <image> frame;
+    in-out property <bool> has-frame;
+    /// Sekundy.
+    in-out property <float> position;
+    in-out property <float> duration;
+    in-out property <string> time;
+    in-out property <float> volume: 1;
+    in-out property <bool> muted;
+    in-out property <bool> error;
+    callback start(int, string);
+    callback toggle;
+    callback seek(float);
+    callback set-volume(float);
+    callback toggle-mute;
+    callback stop;
+}
+
+/// Przycisk paska; `dark` – jasna ikona na ciemnym tle (przeglądarka).
+component PButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    in property <bool> dark;
+    in property <length> icon-size: 16px;
+    callback clicked;
+    width: 32px;
+    height: 32px;
+    border-radius: Theme.r-s;
+    background: pb-ta.has-hover ? (root.dark ? #ffffff1f : Theme.press) : transparent;
+    Icon {
+        commands: root.icon;
+        size: root.icon-size;
+        color: root.dark ? #ffffffe6 : Theme.text;
+    }
+    pb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Suwak (pozycja, głośność): klik i przeciąganie ustawiają wartość 0–1.
+component Track inherits Rectangle {
+    in property <float> value;
+    in property <bool> dark;
+    callback changed-by-user(float);
+    height: 18px;
+    property <float> shown: tr-ta.pressed ? clamp(tr-ta.mouse-x / self.width, 0, 1) : root.value;
+    Rectangle {
+        y: (parent.height - self.height) / 2;
+        height: tr-ta.has-hover || tr-ta.pressed ? 5px : 3px;
+        border-radius: 2px;
+        background: root.dark ? #ffffff40 : Theme.line;
+        Rectangle {
+            x: 0;
+            width: parent.width * root.shown;
+            border-radius: 2px;
+            background: Theme.accent;
+        }
+    }
+    if tr-ta.has-hover || tr-ta.pressed: Rectangle {
+        x: parent.width * root.shown - self.width / 2;
+        y: (parent.height - self.height) / 2;
+        width: 11px;
+        height: 11px;
+        border-radius: 5.5px;
+        background: #ffffff;
+        border-width: 1px;
+        border-color: Theme.accent;
+    }
+    tr-ta := TouchArea {
+        mouse-cursor: pointer;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up) {
+                root.changed-by-user(clamp(self.mouse-x / root.width, 0, 1));
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.changed-by-user(clamp(self.mouse-x / root.width, 0, 1));
+            }
+        }
+    }
+}
+
+/// Pasek sterowania: odtwarzanie, czas, pozycja, wyciszenie i głośność.
+export component PlayerBar inherits Rectangle {
+    in property <bool> dark;
+    height: 40px;
+    border-radius: Theme.r;
+    background: root.dark ? #000000a6 : Theme.card;
+    HorizontalLayout {
+        padding-left: 4px;
+        padding-right: 8px;
+        spacing: 6px;
+        PButton {
+            y: (parent.height - self.height) / 2;
+            dark: root.dark;
+            icon: PlayerState.playing ? Icons.pause : Icons.play;
+            tip: PlayerState.playing ? "Wstrzymaj (spacja)" : "Odtwórz (spacja)";
+            clicked => {
+                PlayerState.toggle();
+            }
+        }
+        Label {
+            min-width: 76px;
+            text: PlayerState.time;
+            font-size: 11.5px;
+            color: root.dark ? #ffffffd9 : Theme.dim;
+        }
+        Track {
+            horizontal-stretch: 1;
+            y: (parent.height - self.height) / 2;
+            dark: root.dark;
+            value: PlayerState.duration > 0 ? PlayerState.position / PlayerState.duration : 0;
+            changed-by-user(v) => {
+                PlayerState.seek(v * PlayerState.duration);
+            }
+        }
+        PButton {
+            y: (parent.height - self.height) / 2;
+            dark: root.dark;
+            icon: PlayerState.muted || PlayerState.volume == 0 ? Icons.mute : Icons.volume;
+            tip: PlayerState.muted ? "Włącz dźwięk (M)" : "Wycisz (M)";
+            clicked => {
+                PlayerState.toggle-mute();
+            }
+        }
+        Track {
+            width: 64px;
+            y: (parent.height - self.height) / 2;
+            dark: root.dark;
+            value: PlayerState.muted ? 0 : PlayerState.volume;
+            changed-by-user(v) => {
+                PlayerState.set-volume(v);
+            }
+        }
+    }
+}

@@ -9,6 +9,7 @@ pub mod events;
 pub mod fsx;
 pub mod library;
 pub mod maps;
+pub mod media;
 pub mod ops;
 pub mod remote;
 pub mod shell;

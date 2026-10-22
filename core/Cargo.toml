@@ -54,5 +54,8 @@ features = [
   "Win32_System_Com_StructuredStorage",
   "Win32_System_Variant",
   "Win32_Security_Credentials",
+  "Win32_Media_MediaFoundation",
+  "Win32_Graphics_Imaging",
+  "Win32_Graphics_Dxgi_Common",
 ]
 

@@ -70,6 +70,8 @@ fn viewer<R>(s: &Shared, f: impl FnOnce(&Viewer) -> R) -> Option<R> {
 pub fn sync_tab(s: &Shared) {
     let on = viewer(s, |_| ()).is_some();
     with_ui(s, |g| g.set_open(on));
+    // Inna karta – film z przeglądarki nie gra w tle.
+    crate::player::stop_target(s, crate::player::VIEWER);
     if on {
         with_ui(s, |g| {
             g.set_info_open(s.borrow().prefs.viewer_info);
@@ -81,6 +83,7 @@ pub fn sync_tab(s: &Shared) {
 
 pub fn close(s: &Shared) {
     GEN.with(|g| g.set(g.get() + 1));
+    crate::player::stop_target(s, crate::player::VIEWER);
     let path = {
         let mut b = s.borrow_mut();
         let a = b.active;
@@ -192,8 +195,10 @@ fn show(s: &Shared) {
     let video = fmt::kind_of(&e) == Kind::Video;
     let decoded = DECODED.contains(&e.ext.to_lowercase().as_str()) && !e.cloud;
     let dims = s.borrow().media.get(&e.path).filter(|m| m.w > 0).map(|m| format!("{} × {} · ", m.w, m.h)).unwrap_or_default();
+    crate::player::stop_target(s, crate::player::VIEWER);
     with_ui(s, |g| {
         g.set_name(e.name.clone().into());
+        g.set_path(e.path.clone().into());
         g.set_counter(format!("{} / {n}", index + 1).into());
         g.set_details(format!("{dims}{} · {}", fmt::size(e.size), fmt::date(e.modified)).into());
         g.set_is_video(video);
