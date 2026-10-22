@@ -32,9 +32,19 @@ struct Bar {
     placed: bool,
     /// Okna w kolejności pojawiania się na pasku.
     wins: Vec<Win>,
-    /// Przyciski: okna jednego programu razem, w kolejności `wins`.
-    groups: Vec<Vec<Win>>,
+    /// Przyciski: najpierw przypięte programy, potem reszta okien w kolejności `wins`.
+    groups: Vec<Group>,
+    /// Przypięte programy z ostatniego odświeżenia – zmiana przebudowuje przyciski.
+    pins: Vec<String>,
     fg: isize,
+}
+
+/// Przycisk paska: program i jego okna z tego monitora (przypięty może nie mieć żadnego).
+#[derive(Clone, PartialEq)]
+struct Group {
+    exe: String,
+    pinned: bool,
+    wins: Vec<Win>,
 }
 
 thread_local! {
@@ -82,8 +92,8 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         }
         w.on_start(taskwin::open_start);
         w.on_activate(move |i| {
-            if let Some(group) = group_at(n, i as usize) {
-                click_group(&group);
+            if let Some(g) = group_at(n, i as usize) {
+                click(&g);
                 // Stan (aktywne / zminimalizowane) od razu, bez czekania na zegar.
                 slint::Timer::single_shot(Duration::from_millis(150), refresh);
             }
@@ -91,7 +101,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_context(move |i, x, y| context(n, i as usize, x, y));
         w.on_close_test(|| slint::Timer::single_shot(Duration::ZERO, close));
         let _ = w.show();
-        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), fg: 0 });
+        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
     refresh();
@@ -109,8 +119,42 @@ pub fn close() {
     }
 }
 
-fn group_at(bar: usize, i: usize) -> Option<Vec<Win>> {
+fn group_at(bar: usize, i: usize) -> Option<Group> {
     BARS.with(|b| b.borrow().get(bar).and_then(|b| b.groups.get(i).cloned()))
+}
+
+fn launch(exe: &str) {
+    let _ = std::process::Command::new(exe).spawn();
+}
+
+/// Przypięty program bez okien – klik go uruchamia.
+fn click(g: &Group) {
+    if g.wins.is_empty() {
+        launch(&g.exe);
+    } else {
+        click_group(&g.wins);
+    }
+}
+
+fn pinned(exe: &str) -> bool {
+    let mut on = false;
+    crate::with_state(|s| on = s.borrow().prefs.taskbar_pins.iter().any(|p| p.eq_ignore_ascii_case(exe)));
+    on
+}
+
+/// Przypina albo odpina program; paski przebudują się przy odświeżeniu.
+fn toggle_pin(exe: &str) {
+    crate::with_state(|s| {
+        let mut b = s.borrow_mut();
+        let pins = &mut b.prefs.taskbar_pins;
+        if let Some(i) = pins.iter().position(|p| p.eq_ignore_ascii_case(exe)) {
+            pins.remove(i);
+        } else {
+            pins.push(exe.to_string());
+        }
+        b.prefs.save();
+    });
+    refresh();
 }
 
 /// Klik w przycisk: jedno okno – jak na pasku Windows (przełącz / zminimalizuj). Kilka okien –
@@ -137,9 +181,25 @@ fn click_group(group: &[Win]) {
 /// Prawy przycisk na przycisku – menu PowerDesk nad paskiem. Przy kilku oknach programu
 /// najpierw lista okien do wyboru, potem polecenia dla całej grupy.
 fn context(bar: usize, i: usize, x: f32, _y: f32) {
-    let Some(group) = group_at(bar, i) else { return };
-    let Some(first) = group.first().cloned() else { return };
+    let Some(g) = group_at(bar, i) else { return };
     let mut items = Vec::new();
+    let pin_item = |exe: String| {
+        if pinned(&exe) {
+            it("Odepnij od paska", "pin", move |_| toggle_pin(&exe))
+        } else {
+            it("Przypnij do paska", "pin", move |_| toggle_pin(&exe))
+        }
+    };
+    let Some(first) = g.wins.first().cloned() else {
+        // Przypięty program bez okien.
+        let exe = g.exe.clone();
+        items.push(it(&format!("Uruchom {}", program_name(&g.exe)), "open", move |_| launch(&exe)));
+        items.push(sep());
+        items.push(pin_item(g.exe.clone()));
+        show_menu(bar, items, x);
+        return;
+    };
+    let group = g.wins;
     if group.len() == 1 {
         let target = first.hwnd;
         items.push(it("Przełącz na to okno", "open", move |_| taskwin::activate(target)));
@@ -160,9 +220,8 @@ fn context(bar: usize, i: usize, x: f32, _y: f32) {
     if !first.exe.is_empty() {
         let exe = first.exe.clone();
         // Nowe okno tego samego programu (jak środkowy przycisk na pasku Windows).
-        items.push(it("Nowe okno programu", "plus", move |_| {
-            let _ = std::process::Command::new(&exe).spawn();
-        }));
+        items.push(it("Nowe okno programu", "plus", move |_| launch(&exe)));
+        items.push(pin_item(first.exe.clone()));
     }
     items.push(sep());
     if group.len() == 1 {
@@ -258,32 +317,44 @@ fn keep_order(prev: &[Win], now: Vec<Win>) -> Vec<Win> {
     out
 }
 
-/// Okna tego samego programu razem – grupa stoi tam, gdzie jej pierwsze okno.
-/// Okna bez znanego pliku programu zostają osobno.
-fn group(wins: &[Win]) -> Vec<Vec<Win>> {
-    let mut out: Vec<Vec<Win>> = Vec::new();
+/// Nazwa programu z pliku (bez folderu i rozszerzenia) – podpis przypiętego bez okien.
+fn program_name(exe: &str) -> String {
+    std::path::Path::new(exe).file_stem().map_or_else(|| exe.to_string(), |n| n.to_string_lossy().into_owned())
+}
+
+/// Najpierw przypięte programy (także bez okien), potem okna tego samego programu razem –
+/// grupa stoi tam, gdzie jej pierwsze okno. Okna bez znanego pliku programu zostają osobno.
+fn group(pins: &[String], wins: &[Win]) -> Vec<Group> {
+    let mut out: Vec<Group> = pins.iter().map(|p| Group { exe: p.clone(), pinned: true, wins: Vec::new() }).collect();
     for w in wins {
-        match out.iter_mut().find(|g| !w.exe.is_empty() && g[0].exe.eq_ignore_ascii_case(&w.exe)) {
-            Some(g) => g.push(w.clone()),
-            None => out.push(vec![w.clone()]),
+        match out.iter_mut().find(|g| !w.exe.is_empty() && g.exe.eq_ignore_ascii_case(&w.exe)) {
+            Some(g) => g.wins.push(w.clone()),
+            None => out.push(Group { exe: w.exe.clone(), pinned: false, wins: vec![w.clone()] }),
         }
     }
     out
 }
 
-fn buttons(groups: &[Vec<Win>], fg: isize, px: u32) -> Vec<TaskButton> {
+fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
+    let mut idle = 0;
     groups
         .iter()
         .map(|g| {
-            let w = g.iter().find(|w| w.hwnd == fg).unwrap_or(&g[0]);
-            let img = if w.exe.is_empty() { None } else { crate::thumbs::get(&w.exe, px, true) };
+            let idle_before = idle;
+            if g.wins.is_empty() {
+                idle += 1;
+            }
+            let img = if g.exe.is_empty() { None } else { crate::thumbs::get(&g.exe, px, true) };
+            let w = g.wins.iter().find(|w| w.hwnd == fg).or(g.wins.first());
             TaskButton {
-                title: w.title.clone().into(),
+                title: w.map_or_else(|| program_name(&g.exe), |w| w.title.clone()).into(),
                 has_img: img.is_some(),
                 img: img.unwrap_or_default(),
-                active: w.hwnd == fg,
-                minimized: g.iter().all(|w| w.minimized),
-                count: g.len() as i32,
+                active: w.is_some_and(|w| w.hwnd == fg),
+                minimized: g.wins.iter().all(|w| w.minimized),
+                count: g.wins.len() as i32,
+                pinned: g.pinned,
+                idle_before,
             }
         })
         .collect()
@@ -294,16 +365,20 @@ fn refresh() {
     let fg = taskwin::foreground();
     let now = Local::now();
     let (time, date) = (now.format("%H:%M").to_string(), now.format("%d.%m.%Y").to_string());
+    let mut pins = Vec::new();
+    crate::with_state(|s| pins = s.borrow().prefs.taskbar_pins.clone());
     BARS.with(|b| {
         for bar in b.borrow_mut().iter_mut() {
             place(bar);
             let mine: Vec<Win> = all.iter().filter(|w| w.monitor == bar.origin).cloned().collect();
             let wins = keep_order(&bar.wins, mine);
             // Model tylko przy zmianie – inaczej co sekundę migałyby podpowiedzi.
-            if wins != bar.wins || fg != bar.fg {
+            if wins != bar.wins || fg != bar.fg || pins != bar.pins {
                 let px = (20.0 * bar.w.window().scale_factor()) as u32;
-                bar.groups = group(&wins);
+                bar.groups = group(&pins, &wins);
+                bar.pins = pins.clone();
                 bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, fg, px))));
+                bar.w.set_idle(bar.groups.iter().filter(|g| g.wins.is_empty()).count() as i32);
                 bar.wins = wins;
                 bar.fg = fg;
             }
@@ -317,7 +392,7 @@ fn refresh() {
 pub fn thumbs_arrived(paths: &HashSet<String>) {
     BARS.with(|b| {
         for bar in b.borrow().iter() {
-            if bar.wins.iter().any(|w| paths.contains(&w.exe)) {
+            if bar.groups.iter().any(|g| paths.contains(&g.exe)) {
                 let px = (20.0 * bar.w.window().scale_factor()) as u32;
                 bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, bar.fg, px))));
             }

@@ -28,8 +28,11 @@ export struct TaskButton {
     has-img: bool,
     active: bool,
     minimized: bool,
-    /// Okna programu pod tym przyciskiem.
+    /// Okna programu pod tym przyciskiem (0 – przypięty program, który nie działa).
     count: int,
+    pinned: bool,
+    /// Przypiętych bez okien przed tym przyciskiem – do wyliczenia jego miejsca.
+    idle-before: int,
 }
 
 /// Pasek zadań PowerDesk na jednym monitorze – tryb testowy: leży na wierzchu,
@@ -41,6 +44,8 @@ export component TaskbarWindow inherits Window {
     background: Theme.panel;
 
     in property <[TaskButton]> buttons;
+    /// Przypięte programy bez okien – wąskie przyciski z samą ikoną.
+    in property <int> idle;
     in property <string> time;
     in property <string> date;
     in property <bool> test: true;
@@ -82,14 +87,16 @@ export component TaskbarWindow inherits Window {
             }
         }
 
-        // Okna programów – szerokość dzielona po równo, najwyżej 200 px na przycisk.
+        // Programy – przypięte bez okien mają 44 px, reszta dzieli miejsce po równo
+        // (najwyżej 200 px na przycisk).
         Rectangle {
             horizontal-stretch: 1;
-            property <length> each: root.buttons.length == 0 ? 0 : min(200px, (self.width - 4px * root.buttons.length) / root.buttons.length);
+            property <int> busy: root.buttons.length - root.idle;
+            property <length> each: self.busy == 0 ? 0 : min(200px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy);
             for b[i] in root.buttons: Rectangle {
-                x: i * (parent.each + 4px);
+                x: b.idle-before * (44px + 4px) + (i - b.idle-before) * (parent.each + 4px);
                 y: (parent.height - self.height) / 2;
-                width: parent.each;
+                width: b.count == 0 ? 44px : parent.each;
                 height: 40px;
                 border-radius: Theme.r;
                 background: b.active ? Theme.sel : tb-ta.has-hover ? Theme.hover : transparent;
@@ -97,7 +104,7 @@ export component TaskbarWindow inherits Window {
                     padding-left: 8px;
                     padding-right: 8px;
                     spacing: 8px;
-                    alignment: parent.width < 80px ? LayoutAlignment.center : LayoutAlignment.start;
+                    alignment: parent.width < 80px || b.count == 0 ? LayoutAlignment.center : LayoutAlignment.start;
                     Rectangle {
                         width: 20px;
                         if b.has-img: Image {
@@ -129,7 +136,7 @@ export component TaskbarWindow inherits Window {
                             }
                         }
                     }
-                    if parent.width >= 80px: Text {
+                    if parent.width >= 80px && b.count > 0: Text {
                         vertical-alignment: center;
                         horizontal-stretch: 1;
                         text: b.title;
@@ -138,8 +145,8 @@ export component TaskbarWindow inherits Window {
                         color: b.minimized ? Theme.faint : Theme.text;
                     }
                 }
-                // Aktywne okno – kreska u dołu przycisku.
-                Rectangle {
+                // Aktywne okno – kreska u dołu przycisku; przypięty bez okien jej nie ma.
+                if b.count > 0: Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - 3px;
                     width: b.active ? 18px : 8px;
@@ -149,7 +156,7 @@ export component TaskbarWindow inherits Window {
                     animate width { duration: 120ms; }
                 }
                 tb-ta := TipArea {
-                    tip: b.count > 1 ? b.title + " · okien: " + b.count : b.title;
+                    tip: b.count == 0 ? b.title + " · przypięty" : b.count > 1 ? b.title + " · okien: " + b.count : b.title;
                     clicked => {
                         root.activate(i);
                     }
