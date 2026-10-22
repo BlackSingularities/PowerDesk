@@ -109,7 +109,12 @@ pub fn kind_of(e: &Entry) -> Kind {
     if e.dir {
         return Kind::Folder;
     }
-    match e.ext.to_lowercase().as_str() {
+    kind_ext(&e.ext)
+}
+
+/// Kategoria po samym rozszerzeniu (bez kropki).
+pub fn kind_ext(ext: &str) -> Kind {
+    match ext.to_lowercase().as_str() {
         "jpg" | "jpeg" | "jfif" | "png" | "gif" | "webp" | "bmp" | "ico" | "avif" | "svg" | "tif" | "tiff" | "heic" | "heif" | "jxl" => Kind::Image,
         "cr2" | "cr3" | "nef" | "nrw" | "arw" | "srf" | "sr2" | "dng" | "raf" | "orf" | "rw2" | "pef" | "srw" | "x3f" | "3fr" | "erf" | "kdc" | "mrw" | "mos" | "iiq" | "rwl" => Kind::Raw,
         "mp4" | "m4v" | "mov" | "mkv" | "webm" | "avi" | "wmv" | "mts" | "m2ts" | "3gp" | "flv" | "mpg" | "mpeg" | "vob" | "ogv" => Kind::Video,
@@ -124,4 +129,20 @@ pub fn kind_of(e: &Entry) -> Kind {
         "exe" | "msi" | "lnk" | "appx" | "msix" | "url" => Kind::App,
         _ => Kind::Other,
     }
+}
+
+/// Liczba z odstępami tysięcy jak `toLocaleString('pl')` (1234 bez odstępu, 12 345 z odstępem).
+pub fn thousands(n: u64) -> String {
+    let s = n.to_string();
+    if s.len() <= 4 {
+        return s;
+    }
+    let mut out = String::new();
+    for (i, c) in s.chars().enumerate() {
+        if i > 0 && (s.len() - i) % 3 == 0 {
+            out.push('\u{a0}');
+        }
+        out.push(c);
+    }
+    out
 }

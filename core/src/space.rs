@@ -16,12 +16,12 @@ static GEN: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Serialize, Clone)]
 pub struct Node {
-    name: String,
-    path: String,
-    size: u64,
-    files: u64,
-    dir: bool,
-    children: Vec<Node>,
+    pub name: String,
+    pub path: String,
+    pub size: u64,
+    pub files: u64,
+    pub dir: bool,
+    pub children: Vec<Node>,
 }
 
 #[derive(Serialize, Clone)]
@@ -106,11 +106,11 @@ pub fn cancel() {
 
 #[derive(Serialize, Clone)]
 pub struct Junk {
-    path: String,
-    size: u64,
-    kind: &'static str,
-    reason: String,
-    modified: i64,
+    pub path: String,
+    pub size: u64,
+    pub kind: &'static str,
+    pub reason: String,
+    pub modified: i64,
 }
 
 /// Foldery, do których nie zaglądamy: systemowe, programów i repozytoriów – tam „puste” często coś znaczy.

@@ -9,6 +9,7 @@ mod fmt;
 mod home;
 mod settings;
 mod syncview;
+mod spaceview;
 mod menus;
 mod model;
 mod preview;
@@ -435,6 +436,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     home::bind(&ui, &st);
     settings::bind(&ui, &st);
     syncview::bind(&ui, &st);
+    spaceview::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));
@@ -747,7 +749,8 @@ fn toggle_split(s: &Shared) {
         b.active = cur;
     }
     // Panele mają inną szerokość niż jeden obszar – układ liczymy od nowa.
-    for pane in 0..s.borrow().panes.len() {
+    let n = s.borrow().panes.len();
+    for pane in 0..n {
         layout_pane(s, pane);
     }
     show_tab(s);
@@ -878,7 +881,8 @@ fn reopen_closed(s: &Shared) {
 /// Zamyka wszystkie karty poza `i` (przypięte zostają).
 fn close_others(s: &Shared, i: usize) {
     // Od końca, żeby numery kart przed `i` się nie przesuwały.
-    for j in (0..s.borrow().tabs.len()).rev() {
+    let n = s.borrow().tabs.len();
+    for j in (0..n).rev() {
         if j != i && !s.borrow().tabs[j].pinned {
             close_tab(s, j);
         }
@@ -1377,6 +1381,7 @@ fn render_all(s: &Shared) {
     home::sync(s);
     settings::sync(s);
     syncview::sync_tab(s);
+    spaceview::sync_tab(s);
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
@@ -1651,7 +1656,8 @@ fn paint_pane(s: &Shared, pane: usize) {
 
 /// Rysuje oba panele (drugi tylko przy podziale).
 fn paint_items(s: &Shared) {
-    for pane in 0..s.borrow().panes.len() {
+    let n = s.borrow().panes.len();
+    for pane in 0..n {
         paint_pane(s, pane);
     }
 }
@@ -2243,6 +2249,7 @@ struct SearchBatch {
 fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
     match name {
         "sync-status" => syncview::on_status(s),
+        "space-progress" => spaceview::on_progress(s, payload),
         "search" => {
             let Ok(batch) = serde_json::from_value::<SearchBatch>(payload) else { return };
             let hit = {
@@ -2530,6 +2537,8 @@ fn tab_icon(t: &Tab) -> SharedString {
         ic("settings")
     } else if path == syncview::TAB {
         ic("sync")
+    } else if path.starts_with(spaceview::PREFIX) {
+        ic("grid")
     } else if path.len() <= 3 && path.contains(':') {
         ic("drive")
     } else if path.starts_with("\\\\") {

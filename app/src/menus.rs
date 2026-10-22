@@ -46,7 +46,7 @@ impl Item {
         self.checked = on;
         self
     }
-    fn danger(mut self) -> Item {
+    pub fn danger(mut self) -> Item {
         self.danger = true;
         self
     }
@@ -274,7 +274,7 @@ pub fn background_menu(s: &Shared, x: f32, y: f32) {
     v.push(it("Przypnij ten folder", "pin", |_| {}).later());
     let p = path.clone();
     v.push(it("Terminal tutaj", "terminal", move |_| terminal(&p)));
-    v.push(it("Zajętość i porządki", "grid", |_| {}).later());
+    v.push(it("Zajętość i porządki", "grid", crate::spaceview::open_here));
     let p = path.clone();
     v.push(it("Otwórz w Eksploratorze", "open", move |_| {
         let _ = open::that_detached(&p);

@@ -106,7 +106,7 @@ Zasady:
 - [ ] Ustawienia: jedno kliknięcie, sekcje panelu bocznego, tło okna i krycie, zasobnik, autostart, aktualizacje, integracja z Windows (razem z ich funkcjami)
 - [x] Synchronizacja (karta, paleta): profile ze stanem i postępem, edytor, podgląd planu, potwierdzanie masowych usunięć, historia; silnik startuje po wejściu na ekran i czeka, gdy działa stary OpenFilePower
 - [ ] Synchronizacja: praca z zasobnika i od startu systemu, wejście z panelu bocznego
-- [ ] Analiza miejsca i porządki
+- [x] Zajętość i porządki (karta `ofp:space|folder`, menu tła, paleta, Ten komputer): mapa kafelkowa z wchodzeniem w głąb, lista największych, menu kafelka z Koszem; porządki – puste foldery, śmieci, TEMP, zaznaczanie grup
 - [ ] Wbudowany terminal
 
 ### Dyski i sieć

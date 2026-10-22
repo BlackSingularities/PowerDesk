@@ -281,6 +281,12 @@ export component HomeView inherits Rectangle {
                             HomeState.go-new-tab(d.path);
                         }
                     }
+                    if HomeState.drives.length > 0: Chip {
+                        text: "Co zajmuje miejsce?";
+                        clicked => {
+                            HomeState.go("ofp:space|" + HomeState.drives[0].path);
+                        }
+                    }
                 }
                 Card {
                     row: root.wide ? 0 : 1;

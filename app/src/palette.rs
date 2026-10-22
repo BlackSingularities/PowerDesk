@@ -119,6 +119,7 @@ fn all(s: &Shared) -> Vec<Cmd> {
             v.push(cmd("Wklej", "Pliki", "paste", "Ctrl+V", |s| crate::menus::paste(s, None)));
         }
         v.push(cmd("Odśwież", "Pliki", "refresh", "F5", |s| crate::load(s, true)));
+        v.push(cmd("Zajętość i porządki w tym folderze", "Pliki", "grid", "", crate::spaceview::open_here));
         v.push(cmd("Zaznacz wszystko", "Pliki", "check", "Ctrl+A", crate::select_all));
         v.push(cmd("Właściwości", "Pliki", "info", "Alt+Enter", |s| crate::command(s, "props")));
         v.push(cmd("Folder wyżej", "Nawigacja", "up", "Alt+↑", crate::up));
