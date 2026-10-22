@@ -1,0 +1,141 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label } from "components.slint";
+
+export struct TabData {
+    title: string,
+    icon: string,
+    active: bool,
+    pinned: bool,
+    loading: bool,
+}
+
+/// Pasek tytułu z kartami i przyciskami okna (TitleBar.svelte). Wysokość 42 px.
+export component TitleBar inherits Rectangle {
+    in property <[TabData]> tabs;
+    in property <bool> maximized;
+    callback activate(int);
+    callback close-tab(int);
+    callback new-tab;
+    callback minimize;
+    callback toggle-maximize;
+    callback close-window;
+    callback drag;
+
+    height: 42px;
+    background: Theme.bg;
+
+    // Puste miejsce paska przeciąga okno; podwójne kliknięcie maksymalizuje.
+    TouchArea {
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                root.drag();
+            }
+        }
+        double-clicked => {
+            root.toggle-maximize();
+        }
+    }
+
+    HorizontalLayout {
+        padding-left: 8px;
+        spacing: 6px;
+
+        HorizontalLayout {
+            spacing: 4px;
+            alignment: start;
+            for t[i] in root.tabs: Rectangle {
+                y: (parent.height - 32px) / 2;
+                height: 32px;
+                width: t.pinned ? 40px : 210px;
+                border-radius: Theme.r;
+                background: t.active ? Theme.higher : tab-ta.has-hover ? Theme.hover : transparent;
+                animate background { duration: 120ms; }
+                tab-ta := TouchArea {
+                    clicked => {
+                        root.activate(i);
+                    }
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
+                            root.close-tab(i);
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 6px;
+                    spacing: 8px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: t.icon;
+                        size: 15px;
+                        color: t.active ? Theme.text : tab-ta.has-hover ? Theme.dim : Theme.faint;
+                        opacity: 0.85;
+                    }
+                    if !t.pinned: Label {
+                        horizontal-stretch: 1;
+                        text: t.title;
+                        color: t.active ? Theme.text : tab-ta.has-hover ? Theme.dim : Theme.faint;
+                    }
+                    if !t.pinned: Rectangle {
+                        y: (parent.height - 22px) / 2;
+                        width: 22px;
+                        height: 22px;
+                        border-radius: Theme.r-xs;
+                        opacity: t.active || tab-ta.has-hover ? 1 : 0;
+                        background: x-ta.has-hover ? Theme.press : transparent;
+                        Icon {
+                            commands: Icons.close;
+                            size: 13px;
+                            color: x-ta.has-hover ? Theme.text : Theme.dim;
+                        }
+                        x-ta := TouchArea {
+                            clicked => {
+                                root.close-tab(i);
+                            }
+                        }
+                    }
+                }
+            }
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: Icons.plus;
+                tooltip: "Nowa karta (Ctrl+T)";
+                clicked => {
+                    root.new-tab();
+                }
+            }
+        }
+
+        Rectangle {
+            horizontal-stretch: 1;
+        }
+
+        HorizontalLayout {
+            for b[i] in [
+                { icon: Icons.min, size: 15px },
+                { icon: root.maximized ? Icons.restore : Icons.max, size: 13px },
+                { icon: Icons.close, size: 15px },
+            ]: Rectangle {
+                width: 46px;
+                background: wb.has-hover ? (i == 2 ? #e81123 : Theme.hover) : transparent;
+                Icon {
+                    commands: b.icon;
+                    size: b.size;
+                    color: wb.has-hover ? (i == 2 ? #ffffff : Theme.text) : Theme.dim;
+                }
+                wb := TouchArea {
+                    clicked => {
+                        if (i == 0) {
+                            root.minimize();
+                        } else if (i == 1) {
+                            root.toggle-maximize();
+                        } else {
+                            root.close-window();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

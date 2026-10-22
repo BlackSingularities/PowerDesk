@@ -1,16 +1,7 @@
-pub mod archive;
-mod drives;
-mod fsx;
-pub mod ops;
-mod remote;
-mod library;
-mod space;
-mod sysmon;
-mod system;
-mod terminal;
-mod shell;
-mod sync;
-pub mod sync_core;
+mod desktop;
+
+use powerdesk_core::events::AppHandle as Core;
+use powerdesk_core::{archive, drives, fsx, library, ops, remote, shell, space, sync, sysmon, system, terminal};
 
 use std::os::windows::process::CommandExt;
 use std::path::{Path, PathBuf};
@@ -24,6 +15,8 @@ use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 
 static CLOSE_TO_TRAY: AtomicBool = AtomicBool::new(true);
 static START_HIDDEN: AtomicBool = AtomicBool::new(false);
+/// `--desktop-test`: pulpit w trybie testowym niezależnie od ustawień.
+static DESKTOP_TEST: AtomicBool = AtomicBool::new(false);
 const NO_WINDOW: u32 = 0x0800_0000;
 const REPO: &str = "BlackSingularities/OpenFilePowerWin";
 
@@ -288,7 +281,7 @@ async fn rename_many(pairs: Vec<(String, String)>) -> R<RenameResult> {
 
 #[tauri::command]
 fn start_op(app: AppHandle, kind: String, sources: Vec<String>, dest: String, conflict: ops::Conflict) -> u64 {
-    ops::start(app, kind, sources, dest, conflict)
+    ops::start(Core, kind, sources, dest, conflict)
 }
 
 #[tauri::command]
@@ -313,7 +306,7 @@ fn redo() -> R<String> {
 
 #[tauri::command]
 fn search(app: AppHandle, root: String, query: String, hidden: bool) -> u64 {
-    fsx::search(app, root, query, hidden)
+    fsx::search(Core, root, query, hidden)
 }
 
 #[tauri::command]
@@ -528,7 +521,7 @@ async fn check_update(app: AppHandle) -> R<UpdateInfo> {
 
 #[tauri::command]
 async fn space_scan(app: AppHandle, path: String) -> R<space::Node> {
-    blocking(move || space::scan(&app, &path)).await?
+    blocking(move || space::scan(&Core, &path)).await?
 }
 
 #[tauri::command]
@@ -568,7 +561,7 @@ async fn system_info() -> R<sysmon::Info> {
 
 #[tauri::command]
 fn term_start(app: AppHandle, cwd: String, cols: u16, rows: u16) -> R<u64> {
-    terminal::start(app, &cwd, cols, rows)
+    terminal::start(Core, &cwd, cols, rows)
 }
 
 #[tauri::command]
@@ -613,12 +606,46 @@ fn set_context_menu(on: bool) -> R<()> {
 
 #[tauri::command]
 async fn download_update(app: AppHandle) -> R<String> {
-    blocking(move || system::download_update(&app, REPO)).await?
+    blocking(move || system::download_update(&Core, REPO)).await?
 }
 
 #[tauri::command]
 fn install_update(app: AppHandle, path: String) -> R<()> {
-    system::install_update(&app, &path)
+    system::install_update(&Core, &path)
+}
+
+// ---------- Pulpit ----------
+
+#[tauri::command]
+fn desktop_set(app: AppHandle, mode: String) {
+    desktop::set(&app, desktop::Mode::parse(&mode))
+}
+
+#[tauri::command]
+fn desktop_mode() -> String {
+    desktop::mode().name().into()
+}
+
+#[tauri::command]
+fn desktop_forced() -> bool {
+    DESKTOP_TEST.load(Ordering::SeqCst)
+}
+
+#[tauri::command]
+fn desktop_screen(window: WebviewWindow) -> Option<desktop::Screen> {
+    desktop::screen_for(window.label())
+}
+
+/// Folder z pulpitu otwiera się w głównym oknie, w nowej karcie.
+#[tauri::command]
+fn open_in_main(app: AppHandle, path: String) {
+    show_main(&app);
+    let _ = app.emit_to("main", "open-path", path);
+}
+
+#[tauri::command]
+fn show_main_window(app: AppHandle) {
+    show_main(&app)
 }
 
 // ---------- Dyski sieciowe ----------
@@ -710,6 +737,17 @@ pub fn run() {
     if std::env::args().any(|a| a == "--tray") {
         START_HIDDEN.store(true, Ordering::SeqCst);
     }
+    if std::env::args().any(|a| a == "--desktop-test") {
+        DESKTOP_TEST.store(true, Ordering::SeqCst);
+    }
+    // Po awarii systemowe ikony pulpitu muszą wrócić – nawet gdy wątek panikuje.
+    let default_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        desktop::restore();
+        default_hook(info)
+    }));
+    // Poprzednie uruchomienie mogło paść w trybie pulpitu – zaczynamy od czystego stanu.
+    desktop::restore();
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             show_main(app);
@@ -747,23 +785,37 @@ pub fn run() {
         })
         .setup(|app| {
             let handle = app.handle().clone();
-            fsx::init_watcher(handle.clone());
-            drives::init_watch(handle.clone());
-            sync::init(handle.clone());
+            let h = handle.clone();
+            powerdesk_core::events::set_sink(move |name, payload| {
+                let _ = h.emit(name, payload);
+            });
+            let h = handle.clone();
+            powerdesk_core::events::set_exit(move |code| h.exit(code));
+            fsx::init_watcher(Core);
+            drives::init_watch(Core);
+            sync::init(Core);
 
-            let show = MenuItem::with_id(app, "show", "Pokaż OpenFilePower", true, None::<&str>)?;
+            let show = MenuItem::with_id(app, "show", "Pokaż PowerDesk", true, None::<&str>)?;
             let sync_all = MenuItem::with_id(app, "sync", "Synchronizuj teraz", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
+            let desk_test = MenuItem::with_id(app, "desk-test", "Pulpit PowerDesk – tryb testowy", true, None::<&str>)?;
+            let desk_off = MenuItem::with_id(app, "desk-off", "Przywróć pulpit Windows", true, None::<&str>)?;
+            let sep2 = PredefinedMenuItem::separator(app)?;
             let quit = MenuItem::with_id(app, "quit", "Zakończ", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &sync_all, &sep, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &sync_all, &sep, &desk_test, &desk_off, &sep2, &quit])?;
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().cloned().expect("ikona"))
-                .tooltip("OpenFilePower")
+                .tooltip("PowerDesk")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, ev| match ev.id().as_ref() {
                     "show" => show_main(app),
                     "sync" => sync::sync_now(None, false),
+                    "desk-test" => desktop::set(app, desktop::Mode::Test),
+                    "desk-off" => {
+                        DESKTOP_TEST.store(false, Ordering::SeqCst);
+                        desktop::set(app, desktop::Mode::Off)
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -786,6 +838,14 @@ pub fn run() {
         .on_window_event(|window, event| {
             if let tauri::WindowEvent::CloseRequested { api, .. } = event {
                 let has_sync = !sync::profiles().0.is_empty();
+                // Zamknięcie okna pulpitu testowego wyłącza cały pulpit (wszystkie monitory).
+                if window.label().starts_with("desk-") && desktop::mode() == desktop::Mode::Test {
+                    api.prevent_close();
+                    DESKTOP_TEST.store(false, Ordering::SeqCst);
+                    let app = window.app_handle().clone();
+                    let _ = app.clone().run_on_main_thread(move || desktop::set(&app, desktop::Mode::Off));
+                    return;
+                }
                 // Do zasobnika chowa się tylko główne okno – okno podglądu zamyka się normalnie.
                 if window.label() == "main" && CLOSE_TO_TRAY.load(Ordering::SeqCst) && has_sync {
                     api.prevent_close();
@@ -878,7 +938,18 @@ pub fn run() {
             sync_enable,
             sync_cancel,
             sync_preview,
+            desktop_set,
+            desktop_mode,
+            desktop_forced,
+            desktop_screen,
+            open_in_main,
+            show_main_window,
         ])
-        .run(tauri::generate_context!())
-        .expect("błąd uruchamiania aplikacji");
+        .build(tauri::generate_context!())
+        .expect("błąd uruchamiania aplikacji")
+        .run(|_app, ev| {
+            if let tauri::RunEvent::Exit = ev {
+                desktop::restore();
+            }
+        });
 }

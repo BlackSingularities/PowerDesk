@@ -1,0 +1,206 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label } from "components.slint";
+import { TitleBar, TabData } from "titlebar.slint";
+import { Sidebar, SideItem } from "sidebar.slint";
+import { FileList, FileRow } from "filelist.slint";
+
+export { Theme, Icons, TabData, SideItem, FileRow }
+
+/// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek adresu, panel boczny, panel plików.
+export component MainWindow inherits Window {
+    title: "PowerDesk";
+    icon: @image-url("../../src-tauri/icons/128x128.png");
+    no-frame: true;
+    min-width: 720px;
+    min-height: 480px;
+    preferred-width: 1360px;
+    preferred-height: 860px;
+    background: Theme.bg;
+    default-font-family: Theme.font;
+    default-font-size: Theme.font-size;
+
+    in property <[TabData]> tabs;
+    in property <[SideItem]> side;
+    in property <[FileRow]> rows;
+    in property <string> path;
+    in property <string> status;
+    in property <bool> can-back;
+    in property <bool> can-forward;
+    in property <bool> is-maximized;
+
+    callback activate-tab(int);
+    callback close-tab(int);
+    callback new-tab;
+    callback minimize;
+    callback toggle-maximize;
+    callback close-window;
+    callback drag;
+    callback navigate(string);
+    callback back;
+    callback forward;
+    callback up;
+    callback refresh;
+    callback select(int, bool, bool);
+    callback open(int);
+    callback context(int, length, length);
+
+    forward-focus: keys;
+    keys := FocusScope {
+        key-pressed(e) => {
+            if (e.modifiers.alt && e.text == Key.LeftArrow) {
+                root.back();
+                return accept;
+            }
+            if (e.modifiers.alt && e.text == Key.RightArrow) {
+                root.forward();
+                return accept;
+            }
+            if (e.modifiers.alt && e.text == Key.UpArrow) {
+                root.up();
+                return accept;
+            }
+            if (e.text == Key.Backspace) {
+                root.up();
+                return accept;
+            }
+            if (e.text == Key.F5) {
+                root.refresh();
+                return accept;
+            }
+            if (e.modifiers.control && e.text == "t") {
+                root.new-tab();
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            TitleBar {
+                tabs: root.tabs;
+                maximized: root.is-maximized;
+                activate(i) => {
+                    root.activate-tab(i);
+                }
+                close-tab(i) => {
+                    root.close-tab(i);
+                }
+                new-tab => {
+                    root.new-tab();
+                }
+                minimize => {
+                    root.minimize();
+                }
+                toggle-maximize => {
+                    root.toggle-maximize();
+                }
+                close-window => {
+                    root.close-window();
+                }
+                drag => {
+                    root.drag();
+                }
+            }
+
+            // Pasek adresu (Toolbar.svelte – wersja podstawowa).
+            HorizontalLayout {
+                height: 46px;
+                padding-left: 8px;
+                padding-right: 8px;
+                padding-bottom: 8px;
+                spacing: 4px;
+                IconButton {
+                    icon: Icons.back;
+                    enabled: root.can-back;
+                    clicked => {
+                        root.back();
+                    }
+                }
+                IconButton {
+                    icon: Icons.fwd;
+                    enabled: root.can-forward;
+                    clicked => {
+                        root.forward();
+                    }
+                }
+                IconButton {
+                    icon: Icons.up;
+                    clicked => {
+                        root.up();
+                    }
+                }
+                IconButton {
+                    icon: Icons.refresh;
+                    clicked => {
+                        root.refresh();
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: Theme.r;
+                    background: Theme.card;
+                    TextInput {
+                        x: 12px;
+                        width: parent.width - 24px;
+                        text: root.path;
+                        color: Theme.text;
+                        font-size: Theme.font-size;
+                        vertical-alignment: center;
+                        single-line: true;
+                        selection-background-color: Theme.sel-strong;
+                        accepted => {
+                            root.navigate(self.text);
+                            keys.focus();
+                        }
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+                padding-left: 8px;
+                padding-right: 8px;
+                padding-bottom: 8px;
+                spacing: 8px;
+                Sidebar {
+                    items: root.side;
+                    open(p) => {
+                        root.navigate(p);
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                    background: Theme.bg;
+                    border-radius: Theme.r-l;
+                    border-width: 1px;
+                    border-color: Theme.line;
+                    clip: true;
+                    VerticalLayout {
+                        FileList {
+                            vertical-stretch: 1;
+                            rows: root.rows;
+                            select(i, c, s) => {
+                                keys.focus();
+                                root.select(i, c, s);
+                            }
+                            open(i) => {
+                                root.open(i);
+                            }
+                            context(i, x, y) => {
+                                root.context(i, x, y);
+                            }
+                        }
+                        // Pasek stanu (StatusBar.svelte).
+                        Label {
+                            height: 28px;
+                            x: 14px;
+                            text: root.status;
+                            font-size: 12px;
+                            color: Theme.faint;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

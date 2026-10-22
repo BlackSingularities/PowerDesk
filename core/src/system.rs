@@ -7,7 +7,7 @@ use std::path::PathBuf;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Emitter};
+use crate::events::{AppHandle, Emitter};
 
 const NO_WINDOW: u32 = 0x0800_0000;
 const VERB: &str = "OpenFilePower";

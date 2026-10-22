@@ -1,0 +1,48 @@
+import { Theme } from "theme.slint";
+
+/// Ikona liniowa 24×24 (stroke 1.7) – odpowiednik Icon.svelte.
+export component Icon inherits Path {
+    in property <length> size: 18px;
+    in property <brush> color: Theme.text;
+    in property <bool> filled: false;
+    width: size;
+    height: size;
+    viewbox-width: 24;
+    viewbox-height: 24;
+    stroke: color;
+    stroke-width: 1.7px * size / 18px;
+    fill: filled ? color : transparent;
+    stroke-line-cap: round;
+}
+
+/// Kwadratowy przycisk z ikoną (klasa icon-btn w wersji webowej).
+export component IconButton inherits Rectangle {
+    in property <string> icon;
+    in property <length> icon-size: 16px;
+    in property <length> size: 30px;
+    in property <string> tooltip;
+    in property <bool> enabled: true;
+    callback clicked;
+    width: size;
+    height: size;
+    border-radius: Theme.r-s;
+    background: !enabled ? transparent : ta.pressed ? Theme.press : ta.has-hover ? Theme.hover : transparent;
+    animate background { duration: 100ms; }
+    Icon {
+        commands: root.icon;
+        size: root.icon-size;
+        color: !root.enabled ? Theme.ghost : ta.has-hover ? Theme.text : Theme.dim;
+    }
+    ta := TouchArea {
+        enabled: root.enabled;
+        clicked => { root.clicked(); }
+    }
+}
+
+export component Label inherits Text {
+    font-family: Theme.font;
+    font-size: Theme.font-size;
+    color: Theme.text;
+    vertical-alignment: center;
+    overflow: elide;
+}

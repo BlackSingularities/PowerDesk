@@ -1,0 +1,93 @@
+import { Theme } from "theme.slint";
+import { Icon, Label } from "components.slint";
+
+export struct SideItem {
+    section: string,
+    name: string,
+    icon: string,
+    path: string,
+    detail: string,
+    usage: float,
+    active: bool,
+}
+
+/// Panel boczny (Sidebar.svelte): sekcje z nagłówkami, pozycje 34 px, dyski z paskiem zajętości.
+export component Sidebar inherits Rectangle {
+    in property <[SideItem]> items;
+    in property <length> panel-width: 248px;
+    callback open(string);
+
+    width: panel-width;
+    background: Theme.panel;
+    border-radius: Theme.r-l;
+    clip: true;
+
+    Flickable {
+        VerticalLayout {
+            padding: 8px;
+            padding-top: 10px;
+            padding-bottom: 12px;
+            alignment: start;
+            for it[i] in root.items: VerticalLayout {
+                if it.section != "": Label {
+                    height: 36px;
+                    vertical-alignment: bottom;
+                    text: it.section;
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.66px;
+                    color: Theme.faint;
+                    x: 8px;
+                }
+                if it.section != "": Rectangle {
+                    height: 6px;
+                }
+                Rectangle {
+                    height: it.detail != "" ? 52px : 34px;
+                    border-radius: Theme.r;
+                    background: it.active ? Theme.sel : ta.has-hover ? Theme.hover : transparent;
+                    animate background { duration: 100ms; }
+                    ta := TouchArea {
+                        clicked => {
+                            root.open(it.path);
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 11px;
+                        Icon {
+                            y: it.detail != "" ? 8px : (parent.height - self.height) / 2;
+                            commands: it.icon;
+                            color: it.active || ta.has-hover ? Theme.text : Theme.dim;
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 3px;
+                            Label {
+                                text: it.name;
+                                color: it.active || ta.has-hover ? Theme.text : Theme.dim;
+                            }
+                            if it.detail != "": Rectangle {
+                                height: 3px;
+                                border-radius: 2px;
+                                background: Theme.line;
+                                Rectangle {
+                                    x: 0;
+                                    width: parent.width * it.usage;
+                                    border-radius: 2px;
+                                    background: it.usage > 0.9 ? Theme.rec : Theme.dim;
+                                }
+                            }
+                            if it.detail != "": Label {
+                                text: it.detail;
+                                font-size: 11px;
+                                color: Theme.faint;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

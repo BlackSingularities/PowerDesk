@@ -256,8 +256,8 @@ pub fn win_err(code: u32) -> String {
 
 /// Podłączenie/odłączenie dysku lub włożenie karty do czytnika – zdarzenie „drives-changed”
 /// od razu, bez czekania na okresowe odświeżenie.
-pub fn init_watch(app: tauri::AppHandle) {
-    use tauri::Emitter;
+pub fn init_watch(app: crate::events::AppHandle) {
+    use crate::events::Emitter;
     std::thread::Builder::new()
         .name("drives".into())
         .spawn(move || {

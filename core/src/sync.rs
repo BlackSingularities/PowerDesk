@@ -17,7 +17,7 @@ use notify::{RecommendedWatcher, RecursiveMode, Watcher};
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use crate::events::{AppHandle, Emitter};
 
 use crate::drives;
 use crate::sync_core::{self, Action, FileState, Mode, Plan};

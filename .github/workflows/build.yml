@@ -61,8 +61,8 @@ jobs:
         run: |
           $v = "${{ steps.ver.outputs.version }}"
           New-Item -ItemType Directory out | Out-Null
-          Copy-Item "src-tauri/target/release/bundle/nsis/*.exe" "out/OpenFilePower-$v-setup.exe"
-          Copy-Item "src-tauri/target/release/openfilepower-win.exe" "out/OpenFilePower-$v-portable.exe"
+          Copy-Item "target/release/bundle/nsis/*.exe" "out/OpenFilePower-$v-setup.exe"
+          Copy-Item "target/release/openfilepower-win.exe" "out/OpenFilePower-$v-portable.exe"
           # Podpis cyfrowy (bez ostrzeżeń SmartScreen) – tylko gdy w sekretach repozytorium jest certyfikat:
           # WINDOWS_CERTIFICATE (plik .pfx w base64) i WINDOWS_CERTIFICATE_PASSWORD.
           if ($env:WIN_CERT) {

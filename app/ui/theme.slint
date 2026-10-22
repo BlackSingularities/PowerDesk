@@ -1,0 +1,42 @@
+// Tokeny wyglądu – te same wartości co w src/app.css (wersja webowa), żeby wygląd był 1:1.
+
+export global Theme {
+    in-out property <bool> light: false;
+    /// Akcent użytkownika; domyślnie „mono” – biel w ciemnym, czerń w jasnym motywie.
+    in-out property <color> accent-override: transparent;
+
+    out property <color> bg: light ? #f6f6f7 : #000000;
+    out property <color> panel: light ? #ffffff : #0b0b0b;
+    out property <color> high: light ? #ececee : #161616;
+    out property <color> higher: light ? #e2e2e5 : #1f1f1f;
+    out property <color> card: light ? #0000000d : #ffffff0f;
+    out property <color> hover: light ? #0000000d : #ffffff12;
+    out property <color> press: light ? #0000001a : #ffffff1f;
+    out property <color> sel: light ? #00000014 : #ffffff21;
+    out property <color> sel-strong: light ? #00000024 : #ffffff33;
+    out property <color> line: light ? #00000014 : #ffffff17;
+    out property <color> line-strong: light ? #0000002e : #ffffff2e;
+    out property <color> text: light ? #111111 : #ffffff;
+    out property <color> dim: light ? #000000b3 : #ffffffb3;
+    out property <color> faint: light ? #00000075 : #ffffff6b;
+    out property <color> ghost: light ? #0000003d : #ffffff38;
+    out property <color> accent: accent-override.alpha > 0 ? accent-override : (light ? #111111 : #ffffff);
+    out property <color> on-accent: light ? #ffffff : #000000;
+    out property <color> scroll: light ? #00000029 : #ffffff1f;
+    out property <color> shadow: light ? #0000002e : #000000b3;
+    out property <color> rec: #ff3b47;
+    out property <color> ok: light ? #18a558 : #34d17a;
+    out property <color> warn: light ? #c77d00 : #ffb547;
+    out property <color> info: light ? #1f7ae0 : #5aa9ff;
+
+    // Skala zaokrągleń: element wewnątrz ma promień = promień rodzica − odstęp.
+    out property <length> r-xs: 4px;
+    out property <length> r-s: 6px;
+    out property <length> r: 8px;
+    out property <length> r-l: 12px;
+    out property <length> r-xl: 16px;
+
+    out property <string> font: "Segoe UI Variable Text";
+    out property <string> mono: "Cascadia Mono";
+    out property <length> font-size: 13px;
+}

@@ -2,8 +2,8 @@
 
 use std::io::Write;
 
-use ofp_lib::archive::{extract, list, split};
-use ofp_lib::ops::rename_batch;
+use powerdesk_core::archive::{extract, list, split};
+use powerdesk_core::ops::rename_batch;
 
 
 #[test]

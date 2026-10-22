@@ -1,0 +1,142 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label } from "components.slint";
+import { ScrollView } from "std-widgets.slint";
+
+export struct FileRow {
+    name: string,
+    path: string,
+    dir: bool,
+    modified: string,
+    kind: string,
+    size: string,
+    icon: image,
+    has-icon: bool,
+    selected: bool,
+    hidden: bool,
+}
+
+/// Widok listy (FileView.svelte, tryb list): nagłówek 38 px, wiersze 32 px.
+export component FileList inherits Rectangle {
+    in property <[FileRow]> rows;
+    in property <string> empty-text: "Ten folder jest pusty";
+    callback select(int, bool, bool);
+    callback open(int);
+    callback context(int, length, length);
+
+    property <length> col-mod: 140px;
+    property <length> col-type: 130px;
+    property <length> col-size: 86px;
+
+    VerticalLayout {
+        Rectangle {
+            height: 38px;
+            HorizontalLayout {
+                padding-left: 18px;
+                padding-right: 18px;
+                spacing: 12px;
+                Label {
+                    horizontal-stretch: 1;
+                    text: "Nazwa";
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+                Label {
+                    width: root.col-mod;
+                    text: "Zmodyfikowano";
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+                Label {
+                    width: root.col-type;
+                    text: "Typ";
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+                Label {
+                    width: root.col-size;
+                    horizontal-alignment: right;
+                    text: "Rozmiar";
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+            }
+            Rectangle {
+                y: parent.height - 1px;
+                height: 1px;
+                background: Theme.line;
+            }
+        }
+        ScrollView {
+            vertical-stretch: 1;
+            content-height: max(self.visible-height, root.rows.length * 32px + 8px);
+            content-width: self.visible-width;
+            for r[i] in root.rows: Rectangle {
+                x: 6px;
+                y: 4px + i * 32px;
+                width: parent.width - 12px;
+                height: 32px;
+                border-radius: Theme.r-s;
+                background: r.selected ? Theme.sel : ta.has-hover ? Theme.hover : transparent;
+                ta := TouchArea {
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                            root.select(i, e.modifiers.control, e.modifiers.shift);
+                        }
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                            root.context(i, self.mouse-x, self.mouse-y);
+                        }
+                    }
+                    double-clicked => {
+                        root.open(i);
+                    }
+                }
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 12px;
+                    spacing: 12px;
+                    HorizontalLayout {
+                        horizontal-stretch: 1;
+                        spacing: 10px;
+                        if r.has-icon: Image {
+                            y: (parent.height - 18px) / 2;
+                            width: 18px;
+                            height: 18px;
+                            source: r.icon;
+                        }
+                        if !r.has-icon: Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: r.dir ? Icons.folder : Icons.file;
+                            color: Theme.dim;
+                        }
+                        Label {
+                            text: r.name;
+                            opacity: r.hidden ? 0.55 : 1;
+                        }
+                    }
+                    Label {
+                        width: root.col-mod;
+                        text: r.modified;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        width: root.col-type;
+                        text: r.kind;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        width: root.col-size;
+                        text: r.size;
+                        color: Theme.dim;
+                        horizontal-alignment: right;
+                    }
+                }
+            }
+        }
+    }
+    if root.rows.length == 0: Label {
+        horizontal-alignment: center;
+        text: root.empty-text;
+        color: Theme.faint;
+    }
+}

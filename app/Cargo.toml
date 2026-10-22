@@ -1,0 +1,22 @@
+[package]
+name = "powerdesk"
+version = "1.0.2"
+description = "PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows"
+authors = ["adam001d"]
+edition = "2021"
+rust-version = "1.80"
+
+[[bin]]
+name = "powerdesk"
+path = "src/main.rs"
+
+[dependencies]
+powerdesk-core = { path = "../core" }
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-femtovg", "unstable-winit-030"] }
+image = { version = "0.25", default-features = false, features = ["png"] }
+open = "5"
+dirs = "6"
+chrono = "0.4"
+
+[build-dependencies]
+slint-build = "1.18"

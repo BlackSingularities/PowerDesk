@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
 use serde::Serialize;
-use tauri::{AppHandle, Emitter};
+use crate::events::{AppHandle, Emitter};
 
 struct Session {
     master: Box<dyn MasterPty + Send>,

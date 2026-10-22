@@ -30,6 +30,10 @@ export interface Drive {
 }
 
 export interface SystemInfo { host: string; os: string; cpu: string; cores: number; threads: number; cpu_usage: number; mem_total: number; mem_used: number; uptime: number }
+export interface DesktopScreen {
+  label: string; device: string; primary: boolean; rect: number[]; work: number[]; scale: number; index: number
+  wallpaper: string; fit: 'fill' | 'fit' | 'stretch' | 'tile' | 'center' | 'span'; mode: 'off' | 'test' | 'replace'
+}
 export interface Known { id: string; name: string; path: string }
 export interface Library { name: string; path: string; folders: string[] }
 export interface Prop { name: string; value: string; key: string; num: number | null }
@@ -150,6 +154,11 @@ export const api = {
   syncNow: (id?: string, confirm = false) => invoke<void>('sync_now', { id: id ?? null, confirm }),
   syncEnable: (id: string, enabled: boolean) => invoke<void>('sync_enable', { id, enabled }),
   syncCancel: (id: string) => invoke<void>('sync_cancel', { id }),
+  desktopSet: (mode: string) => invoke<void>('desktop_set', { mode }),
+  desktopForced: () => invoke<boolean>('desktop_forced'),
+  desktopScreen: () => invoke<DesktopScreen | null>('desktop_screen'),
+  openInMain: (path: string) => invoke<void>('open_in_main', { path }),
+  showMain: () => invoke<void>('show_main_window'),
   syncPreview: (id: string) => invoke<{ counts: SyncCounts; items: string[] }>('sync_preview', { id }),
 }
 

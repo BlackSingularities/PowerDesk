@@ -391,6 +391,8 @@ export const settings = $state({
   listCols: ['modified', 'type', 'size'] as ListCol[],
   listColW: {} as Partial<Record<ListCol, number>>,
   collapsed: {} as Record<string, boolean>,
+  /** Pulpit PowerDesk: wyłączony, testowy (zwykłe okna) albo zamiast pulpitu Windows. */
+  desktopMode: 'off' as 'off' | 'test' | 'replace',
 })
 
 export const app = $state({
@@ -423,6 +425,12 @@ export const app = $state({
   dragging: null as { paths: string[]; fromShelf?: boolean } | null,
   /** Schowek plików (półka) – osobny od schowka Windows. */
   shelf: [] as Entry[],
+  /** To okno jest pulpitem (#desktop) – nie zapisuje stanu, foldery otwiera w głównym oknie. */
+  desktop: false,
+  /** Pulpit testowy włączony z zasobnika lub `--desktop-test` – tylko do końca sesji. */
+  desktopForced: false,
+  /** Dodatkowe foldery dołączane do zawartości pulpitu (Pulpit publiczny). */
+  desktopExtra: [] as string[],
 })
 
 export type MenuItem =
@@ -464,6 +472,10 @@ export function activeTab(): Tab {
 }
 
 export function newTab(path = HOME, activate = true, afterId?: string) {
+  if (app.desktop) {
+    api.openInMain(path)
+    return new Tab(path)
+  }
   const t = new Tab(path)
   applyPrefs(t)
   const at = afterId ? app.tabs.findIndex((x) => x.id === afterId) + 1 : app.tabs.length
@@ -567,6 +579,10 @@ export async function load(t: Tab, keepSelection = false) {
       const parts = await Promise.all(lib.folders.map((f) => api.listDir(f).catch(() => [] as Entry[])))
       list = parts.flat()
     } else list = await api.listDir(path)
+    if (app.desktop && app.desktopExtra.length) {
+      const extra = await Promise.all(app.desktopExtra.map((f) => api.listDir(f).catch(() => [] as Entry[])))
+      list = [...list, ...extra.flat()]
+    }
     if (t.path !== path) return
     t.entries = list
     t.error = ''
@@ -596,6 +612,11 @@ export async function load(t: Tab, keepSelection = false) {
 
 export function navigate(t: Tab, path: string, push = true) {
   if (!path) return
+  if (app.desktop) {
+    // Pulpit się nie przewija do innych folderów – otwieramy je w głównym oknie.
+    if (!samePath(path, t.path)) api.openInMain(path)
+    return
+  }
   if (/^[a-zA-Z]:$/.test(path)) path += '\\'
   if (!t.special) {
     t.scrollMemory.set(t.path.toLowerCase(), t.scrollTop)
@@ -1224,6 +1245,7 @@ export async function refreshSync() {
 // ---------- Trwałość ----------
 
 const persist = debounce(() => {
+  if (app.desktop) return
   const data = {
     settings: $state.snapshot(settings),
     favorites: app.favorites,
@@ -1311,6 +1333,13 @@ export async function init() {
   on<SyncStatus>('sync-status', (s) => {
     app.syncStatus[s.id] = s
   })
+  on<string>('desktop-mode', (m) => {
+    if (m === 'off') {
+      app.desktopForced = false
+      settings.desktopMode = 'off'
+    } else if (m === 'test' && settings.desktopMode !== 'test') app.desktopForced = true
+  })
+  api.desktopForced().then((f) => f && (app.desktopForced = true))
   on<string>('open-path', (p) => {
     api.stat(p).then((e) => newTab(e.dir ? e.path : parent(e.path) ?? HOME)).catch(() => {})
   })
@@ -1348,6 +1377,24 @@ export async function init() {
       const w = getCurrentWindow()
       ;(fx === 'none' ? w.clearEffects() : w.setEffects({ effects: [fx === 'mica' ? Effect.Mica : Effect.Acrylic] })).catch(() => {})
     })
+    appearance()
+    $effect(() => {
+      api.desktopSet(app.desktopForced ? 'test' : settings.desktopMode).catch(() => {})
+    })
+  })
+
+  app.ready = true
+  if (settings.checkUpdates) {
+    setTimeout(() => {
+      api.checkUpdate().then((u) => {
+        if (u.newer) app.update = { latest: u.latest, url: u.url }
+      }).catch(() => {})
+    }, 4000)
+  }
+}
+
+/** Motyw, akcent i przezroczystość okienek – wspólne dla głównego okna, podglądu i pulpitu. */
+export function appearance() {
     $effect(() => {
       const want = settings.accent
       const root = document.documentElement.style
@@ -1379,16 +1426,6 @@ export async function init() {
       mq.addEventListener('change', apply)
       return () => mq.removeEventListener('change', apply)
     })
-  })
-
-  app.ready = true
-  if (settings.checkUpdates) {
-    setTimeout(() => {
-      api.checkUpdate().then((u) => {
-        if (u.newer) app.update = { latest: u.latest, url: u.url }
-      }).catch(() => {})
-    }, 4000)
-  }
 }
 
 const refreshDrivesSoon = debounce(refreshDrives, 400)
