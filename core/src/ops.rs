@@ -25,7 +25,7 @@ pub enum Conflict {
     Newer,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Progress {
     pub id: u64,
     pub kind: String,
@@ -39,6 +39,8 @@ pub struct Progress {
     pub state: String, // running | done | error | cancelled
     pub errors: Vec<String>,
     pub dest: String,
+    /// Wstrzymane przez użytkownika (pasek transferów).
+    pub paused: bool,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -52,6 +54,7 @@ pub enum Undo {
 
 static NEXT: AtomicU64 = AtomicU64::new(1);
 static CANCEL: Lazy<Mutex<HashMap<u64, Arc<AtomicBool>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
+static PAUSE: Lazy<Mutex<HashMap<u64, Arc<AtomicBool>>>> = Lazy::new(|| Mutex::new(HashMap::new()));
 static UNDO: Lazy<Mutex<Vec<Undo>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 pub fn push_undo(u: Undo) {
@@ -62,6 +65,13 @@ pub fn push_undo(u: Undo) {
     }
     // Nowa operacja kasuje możliwość ponowienia cofniętych.
     REDO.lock().clear();
+}
+
+/// Wstrzymuje albo wznawia operację; wątek czeka przy najbliższym sprawdzeniu.
+pub fn pause(id: u64, on: bool) {
+    if let Some(f) = PAUSE.lock().get(&id) {
+        f.store(on, Ordering::SeqCst);
+    }
 }
 
 pub fn cancel(id: u64) {
@@ -135,6 +145,7 @@ struct Ctx {
     app: AppHandle,
     p: Progress,
     cancel: Arc<AtomicBool>,
+    pause: Arc<AtomicBool>,
     last_emit: Instant,
     started: Instant,
     conflict: Conflict,
@@ -151,7 +162,19 @@ impl Ctx {
             self.last_emit = Instant::now();
         }
     }
-    fn cancelled(&self) -> bool {
+    /// Sprawdza anulowanie; gdy operacja jest wstrzymana – czeka (czas przerwy nie liczy się do prędkości).
+    fn cancelled(&mut self) -> bool {
+        if self.pause.load(Ordering::SeqCst) && !self.cancel.load(Ordering::SeqCst) {
+            let t0 = Instant::now();
+            self.p.paused = true;
+            self.emit(true);
+            while self.pause.load(Ordering::SeqCst) && !self.cancel.load(Ordering::SeqCst) {
+                std::thread::sleep(Duration::from_millis(100));
+            }
+            self.started += t0.elapsed();
+            self.p.paused = false;
+            self.emit(true);
+        }
         self.cancel.load(Ordering::SeqCst)
     }
     fn err(&mut self, msg: String) {
@@ -195,6 +218,8 @@ pub fn start(app: AppHandle, kind: String, sources: Vec<String>, dest: String, c
     let id = NEXT.fetch_add(1, Ordering::SeqCst);
     let flag = Arc::new(AtomicBool::new(false));
     CANCEL.lock().insert(id, flag.clone());
+    let paused = Arc::new(AtomicBool::new(false));
+    PAUSE.lock().insert(id, paused.clone());
     std::thread::spawn(move || {
         let srcs: Vec<PathBuf> = sources.iter().map(PathBuf::from).collect();
         let title = match kind.as_str() {
@@ -218,8 +243,10 @@ pub fn start(app: AppHandle, kind: String, sources: Vec<String>, dest: String, c
                 state: "running".into(),
                 errors: vec![],
                 dest: dest.clone(),
+                paused: false,
             },
             cancel: flag,
+            pause: paused,
             last_emit: Instant::now() - Duration::from_secs(1),
             started: Instant::now(),
             conflict,
@@ -330,6 +357,7 @@ pub fn start(app: AppHandle, kind: String, sources: Vec<String>, dest: String, c
         };
         ctx.emit(true);
         CANCEL.lock().remove(&id);
+        PAUSE.lock().remove(&id);
     });
     id
 }

@@ -699,10 +699,8 @@ impl Tab {
         }
     }
 
-    /// Indeksy elementów widocznych w oknie [top, top+height] z zapasem.
-    pub fn visible(&self, top: f32, height: f32) -> std::ops::Range<usize> {
-        let lo = top - height * 0.5;
-        let hi = top + height * 1.5;
+    /// Indeksy elementów, których prostokąty przecinają pas treści [lo, hi].
+    pub fn visible_in(&self, lo: f32, hi: f32) -> std::ops::Range<usize> {
         let first = self.boxes.partition_point(|b| b.y + b.h < lo);
         let last = self.boxes.partition_point(|b| b.y <= hi);
         first..last.max(first)

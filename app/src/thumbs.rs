@@ -28,6 +28,8 @@ struct Cache {
     pending: HashSet<(String, u32, bool)>,
     missing: HashSet<(String, u32, bool)>,
     redraw: bool,
+    /// Ścieżki, których obrazy dotarły od ostatniego przerysowania.
+    arrived: HashSet<String>,
 }
 
 thread_local! {
@@ -67,6 +69,7 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
     let schedule = CACHE.with(|c| {
         let mut c = c.borrow_mut();
         c.pending.remove(&key);
+        c.arrived.insert(key.0.clone());
         match buf {
             Some(b) => {
                 c.map.insert(key.clone(), Image::from_rgba8(b));
@@ -86,11 +89,13 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
     });
     if schedule {
         slint::Timer::single_shot(std::time::Duration::from_millis(16), || {
-            CACHE.with(|c| c.borrow_mut().redraw = false);
-            crate::with_state(|s| {
-                crate::render_items(s);
-                crate::render_side(s);
+            let paths = CACHE.with(|c| {
+                let mut c = c.borrow_mut();
+                c.redraw = false;
+                std::mem::take(&mut c.arrived)
             });
+            // Tylko wiersze z nowymi obrazami – bez przebudowy całej listy i panelu.
+            crate::with_state(|s| crate::thumbs_arrived(s, &paths));
         });
     }
 }

@@ -7,6 +7,7 @@ mod menus;
 mod model;
 mod query;
 mod thumbs;
+mod transfers;
 mod icons {
     include!(concat!(env!("OUT_DIR"), "/icons.rs"));
 }
@@ -44,8 +45,15 @@ pub struct State {
     drives: Vec<drives::Drive>,
     /// Zaznaczenie sprzed ramki (z Ctrl/Shift ramka je rozszerza); Some, dopóki trwa przeciąganie.
     marquee: Option<HashSet<String>>,
-    /// Komunikat (np. błąd zmiany nazwy) pokazywany chwilowo w pasku stanu.
-    notice: Option<String>,
+    /// Pasek transferów, powiadomienia, okna konfliktu i potwierdzenia.
+    transfers: transfers::Transfers,
+    /// Wiersze modelu widoku: (indeks elementu, epoka) w każdym slocie; epoka rośnie przy zmianie danych.
+    slots: Vec<Option<(usize, u64)>>,
+    epoch: u64,
+    /// Narysowany pas treści (y od–do).
+    painted: (f32, f32),
+    /// Ścieżki pozycji panelu bocznego (żeby wiedzieć, czy nowa ikona go dotyczy).
+    side_paths: HashSet<String>,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -79,7 +87,11 @@ fn main() -> Result<(), slint::PlatformError> {
         dir_pending: HashSet::new(),
         menu: None,
         marquee: None,
-        notice: None,
+        transfers: Default::default(),
+        slots: Vec::new(),
+        epoch: 0,
+        painted: (0.0, 0.0),
+        side_paths: HashSet::new(),
         drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
@@ -190,8 +202,10 @@ fn wire(ui: &MainWindow, st: &Shared) {
         if relayout {
             layout(&s);
             render_chrome(&s);
+            render_items(&s);
+        } else {
+            scroll_items(&s);
         }
-        render_items(&s);
     });
     let s = st.clone();
     ui.on_context(move |i, x, y, shift| context(&s, i as usize, x, y, shift));
@@ -326,6 +340,21 @@ fn wire(ui: &MainWindow, st: &Shared) {
         tab_mut(&s, |t| t.renaming = None);
         render_items(&s);
     });
+    // Pasek transferów, powiadomienia, okna dialogowe.
+    let s = st.clone();
+    ui.on_toggle_transfers(move || transfers::toggle_hidden(&s));
+    ui.on_op_pause(|id, on| powerdesk_core::ops::pause(id as u64, on));
+    ui.on_op_cancel(|id| powerdesk_core::ops::cancel(id as u64));
+    let s = st.clone();
+    ui.on_op_dismiss(move |id| transfers::dismiss(&s, id));
+    let s = st.clone();
+    ui.on_toast_action(move |id| transfers::toast_action(&s, id));
+    let s = st.clone();
+    ui.on_toast_close(move |id| transfers::close_toast(&s, id));
+    let s = st.clone();
+    ui.on_conflict_pick(move |i| transfers::conflict_pick(&s, i));
+    let s = st.clone();
+    ui.on_confirm_answer(move |yes| transfers::confirm_answer(&s, yes));
     let s = st.clone();
     ui.on_toggle_group(move |i| toggle_group(&s, i as usize));
     let s = st.clone();
@@ -803,7 +832,7 @@ fn save_search(s: &Shared) {
         b.prefs.save();
         name
     };
-    notice(s, format!("Zapisano „{name}” w panelu bocznym"));
+    transfers::toast(s, format!("Zapisano „{name}” w panelu bocznym"), transfers::Kind::Ok, None);
     render_chrome(s);
 }
 
@@ -941,10 +970,6 @@ fn render_status(s: &Shared) {
     let b = s.borrow();
     let Some(ui) = b.ui.upgrade() else { return };
     let t = &b.tabs[b.active];
-    if let Some(n) = &b.notice {
-        ui.set_status(n.clone().into());
-        return;
-    }
     let mut text = fmt::items(t.items.len());
     if let Some(x) = &t.search {
         text = format!("{text} · przeszukano {}", x.scanned);
@@ -966,57 +991,95 @@ fn render_status(s: &Shared) {
 }
 
 /// Elementy w oknie widoku – reszta nie istnieje w drzewie Slint (wirtualne przewijanie).
+/// Pełne przerysowanie: zmieniły się dane (zaznaczenie, miniatury, układ, folder).
 pub fn render_items(s: &Shared) {
-    let b = s.borrow();
-    let Some(ui) = b.ui.upgrade() else { return };
-    let t = &b.tabs[b.active];
-    let (top, _, h) = b.viewport;
-    let range = t.visible(top, h);
-    let scale = ui.window().scale_factor();
-    let mut v = Vec::with_capacity(range.len());
-    for i in range {
-        let (Some(e), Some(bx)) = (t.items.get(i), t.boxes.get(i)) else { continue };
-        if bx.w <= 0.0 {
-            continue;
+    s.borrow_mut().epoch += 1;
+    paint_items(s);
+    render_status(s);
+}
+
+/// Przewinięcie: rysujemy z zapasem (ekran wyżej i dwa niżej), a ponownie dopiero,
+/// gdy widok zbliży się do krawędzi narysowanego obszaru – Slint sam przesuwa treść.
+fn scroll_items(s: &Shared) {
+    let skip = {
+        let b = s.borrow();
+        let (top, _, h) = b.viewport;
+        let (lo, hi) = b.painted;
+        top - h * 0.3 >= lo && top + h * 1.3 <= hi
+    };
+    if !skip {
+        paint_items(s);
+    }
+}
+
+/// Stałe sloty: element i zawsze trafia do wiersza i % pojemność, więc przy przewijaniu
+/// zmieniają się tylko wiersze, które weszły w zakres – reszta zostaje nietknięta.
+fn paint_items(s: &Shared) {
+    let Some(ui) = s.borrow().ui.upgrade() else { return };
+    let (lo, hi, range) = {
+        let b = s.borrow();
+        let (top, _, h) = b.viewport;
+        let (lo, hi) = (top - h, top + h * 2.0);
+        (lo, hi, b.tabs[b.active].visible_in(lo, hi))
+    };
+    let model = ui.get_items();
+    let fits = s.borrow().slots.len();
+    let vm = match model.as_any().downcast_ref::<VecModel<VisItem>>() {
+        Some(vm) if fits >= range.len() && vm.row_count() == fits && fits > 0 => vm,
+        _ => {
+            let cap = (range.len() + 64).next_multiple_of(32);
+            s.borrow_mut().slots = vec![None; cap];
+            ui.set_items(ModelRc::new(VecModel::from(vec![VisItem::default(); cap])));
+            return paint_items(s);
         }
-        let media = fmt::is_media(e);
-        let (thumb, icon) = match t.view {
-            View::List => (None, thumbs::get(&e.path, (18.0 * scale) as u32, true)),
-            View::Grid => (thumbs::get(&e.path, ((bx.w - 12.0) * scale) as u32, e.dir), None),
-            View::Gallery => (thumbs::get(&e.path, (bx.w.max(bx.h) * scale) as u32, e.dir || !media), None),
+    };
+    let scale = ui.window().scale_factor();
+    let mut b = s.borrow_mut();
+    let cap = b.slots.len();
+    let epoch = b.epoch;
+    let mut slots = std::mem::take(&mut b.slots);
+    let st: &State = &*b;
+    let t = &st.tabs[st.active];
+    for (slot, cur) in slots.iter_mut().enumerate() {
+        // Indeks z zakresu, który wypada na ten slot (najwyżej jeden, bo zakres ≤ pojemność).
+        let want = {
+            let first = range.start - range.start % cap + slot;
+            let i = if first < range.start { first + cap } else { first };
+            (i < range.end).then_some(i)
         };
-        v.push(VisItem {
-            tip: tip(&b, t, e).into(),
-            index: i as i32,
-            x: bx.x,
-            y: bx.y,
-            w: bx.w,
-            h: bx.h,
-            name: e.name.clone().into(),
-            cells: if t.view == View::List { ModelRc::new(VecModel::from(cells(&b, e))) } else { ModelRc::default() },
-            dir: e.dir,
-            hidden: e.hidden,
-            media,
-            selected: t.selected.contains(&e.path),
-            focused: t.focus == Some(i),
-            renaming: t.renaming.as_deref() == Some(e.path.as_str()),
-            has_icon: icon.is_some(),
-            icon: icon.unwrap_or_default(),
-            has_thumb: thumb.is_some(),
-            thumb: thumb.unwrap_or_default(),
+        match (want, *cur) {
+            (Some(i), Some((j, e))) if j == i && e == epoch => continue,
+            (None, None) => continue,
+            _ => {}
+        }
+        let item = want.and_then(|i| {
+            let (e, bx) = (t.items.get(i)?, t.boxes.get(i)?);
+            (bx.w > 0.0).then(|| vis_item(st, t, i, e, *bx, scale))
         });
+        match item {
+            Some(it) => {
+                vm.set_row_data(slot, it);
+                *cur = want.map(|i| (i, epoch));
+            }
+            None => {
+                if cur.is_some() {
+                    vm.set_row_data(slot, VisItem::default());
+                }
+                *cur = None;
+            }
+        }
     }
     let pad = if t.view == View::List { 6.0 } else { 12.0 };
     let heads: Vec<GroupHead> = match &t.groups {
         Some(groups) => t
             .heads
             .iter()
-            .filter(|hd| hd.y + 38.0 >= top - h * 0.5 && hd.y <= top + h * 1.5)
+            .filter(|hd| hd.y + 38.0 >= lo && hd.y <= hi)
             .map(|hd| GroupHead {
                 index: hd.group as i32,
                 x: pad,
                 y: hd.y,
-                w: (b.viewport.1 - pad * 2.0).max(100.0),
+                w: (st.viewport.1 - pad * 2.0).max(100.0),
                 label: groups[hd.group].label.clone().into(),
                 count: (groups[hd.group].end - groups[hd.group].start) as i32,
                 shut: hd.shut,
@@ -1024,29 +1087,64 @@ pub fn render_items(s: &Shared) {
             .collect(),
         None => Vec::new(),
     };
-    ui.set_heads(ModelRc::new(VecModel::from(heads)));
-    // Ten sam zakres (zmiana zaznaczenia) albo trwająca ramka: wiersze aktualizowane w miejscu,
-    // żeby elementy Slint nie były tworzone od nowa – inaczej przeciąganie ramki z wiersza by się urwało.
-    let model = ui.get_items();
-    let vm = model.as_any().downcast_ref::<VecModel<VisItem>>();
-    match vm {
-        Some(vm) if b.marquee.is_some() || (vm.row_count() == v.len() && vm.row_data(0).map(|r| r.index) == v.first().map(|r| r.index)) => {
-            let n = v.len();
-            for (i, it) in v.into_iter().enumerate() {
-                if i >= vm.row_count() {
-                    vm.push(it);
-                } else if vm.row_data(i).as_ref() != Some(&it) {
-                    vm.set_row_data(i, it);
-                }
-            }
-            while vm.row_count() > n {
-                vm.remove(vm.row_count() - 1);
+    let old = ui.get_heads();
+    if old.row_count() != heads.len() || old.iter().zip(&heads).any(|(a, b)| a != *b) {
+        ui.set_heads(ModelRc::new(VecModel::from(heads)));
+    }
+    b.slots = slots;
+    b.painted = (lo, hi);
+}
+
+/// Dotarły miniatury lub ikony: odświeżamy tylko wiersze tych plików, a panel boczny – gdy dotyczy.
+pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
+    let Some(ui) = s.borrow().ui.upgrade() else { return };
+    let side = s.borrow().side_paths.iter().any(|p| paths.contains(p));
+    {
+        let b = s.borrow();
+        let model = ui.get_items();
+        let Some(vm) = model.as_any().downcast_ref::<VecModel<VisItem>>() else { return };
+        let t = &b.tabs[b.active];
+        let scale = ui.window().scale_factor();
+        for (slot, cur) in b.slots.iter().enumerate() {
+            let Some((i, _)) = cur else { continue };
+            let (Some(e), Some(bx)) = (t.items.get(*i), t.boxes.get(*i)) else { continue };
+            if paths.contains(&e.path) && slot < vm.row_count() {
+                vm.set_row_data(slot, vis_item(&b, t, *i, e, *bx, scale));
             }
         }
-        _ => ui.set_items(ModelRc::new(VecModel::from(v))),
     }
-    drop(b);
-    render_status(s);
+    if side {
+        render_side(s);
+    }
+}
+
+fn vis_item(b: &State, t: &Tab, i: usize, e: &fsx::Entry, bx: model::BoxR, scale: f32) -> VisItem {
+    let media = fmt::is_media(e);
+    let (thumb, icon) = match t.view {
+        View::List => (None, thumbs::get(&e.path, (18.0 * scale) as u32, true)),
+        View::Grid => (thumbs::get(&e.path, ((bx.w - 12.0) * scale) as u32, e.dir), None),
+        View::Gallery => (thumbs::get(&e.path, (bx.w.max(bx.h) * scale) as u32, e.dir || !media), None),
+    };
+    VisItem {
+        tip: tip(b, t, e).into(),
+        index: i as i32,
+        x: bx.x,
+        y: bx.y,
+        w: bx.w,
+        h: bx.h,
+        name: e.name.clone().into(),
+        cells: if t.view == View::List { ModelRc::new(VecModel::from(cells(b, e))) } else { ModelRc::default() },
+        dir: e.dir,
+        hidden: e.hidden,
+        media,
+        selected: t.selected.contains(&e.path),
+        focused: t.focus == Some(i),
+        renaming: t.renaming.as_deref() == Some(e.path.as_str()),
+        has_icon: icon.is_some(),
+        icon: icon.unwrap_or_default(),
+        has_thumb: thumb.is_some(),
+        thumb: thumb.unwrap_or_default(),
+    }
 }
 
 /// Fasety w wierszach o zadanej szerokości: nazwa grupy, potem jej filtry; na końcu „Wyczyść filtry”.
@@ -1373,7 +1471,7 @@ fn rename_commit(s: &Shared, name: &str) -> Option<String> {
             Some(p)
         }
         Err(e) => {
-            notice(s, e);
+            transfers::toast(s, e, transfers::Kind::Error, None);
             render_items(s);
             None
         }
@@ -1394,16 +1492,6 @@ fn rename_next(s: &Shared, name: &str, back: bool) {
     }
 }
 
-/// Komunikat w pasku stanu na kilka sekund (do czasu własnych toastów).
-fn notice(s: &Shared, text: String) {
-    s.borrow_mut().notice = Some(text);
-    render_status(s);
-    let s2 = s.clone();
-    slint::Timer::single_shot(std::time::Duration::from_secs(5), move || {
-        s2.borrow_mut().notice = None;
-        render_status(&s2);
-    });
-}
 
 // ---------- Sortowanie, widoki, wyszukiwanie ----------
 
@@ -1550,6 +1638,11 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
                 refresh(s);
             }
         }
+        "op-progress" => {
+            if let Ok(p) = serde_json::from_value::<powerdesk_core::ops::Progress>(payload) {
+                transfers::on_progress(s, p);
+            }
+        }
         "drives-changed" => {
             s.borrow_mut().drives = drives::list();
             render_side(s);
@@ -1636,6 +1729,15 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     }
     if is(Key::Delete) && !shift {
         return command(s, "trash");
+    }
+    if is(Key::Delete) && shift {
+        return transfers::delete_permanently(s, selected_paths(s));
+    }
+    if ctrl && (k == "z" || k == "Z") && !shift {
+        return transfers::undo(s);
+    }
+    if ctrl && (k == "y" || k == "Y" || ((k == "z" || k == "Z") && shift)) {
+        return transfers::redo(s);
     }
     if is(Key::F5) {
         return load(s, true);
@@ -1821,8 +1923,11 @@ pub fn render_side(s: &Shared) {
             it
         })
         .collect();
+    let paths: HashSet<String> = items.iter().map(|i| i.path.to_string()).collect();
     ui.set_side(ModelRc::new(VecModel::from(items)));
     ui.set_folder_icon(thumbs::get(&t.path, (16.0 * scale) as u32, true).unwrap_or_default());
+    drop(b);
+    s.borrow_mut().side_paths = paths;
 }
 
 fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {

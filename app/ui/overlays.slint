@@ -1,0 +1,429 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label, TipArea } from "components.slint";
+
+/// Operacja w pasku transferów (Overlay.svelte). `state`: 0 – trwa, 1 – gotowe, 2 – błędy, 3 – anulowano.
+export struct OpItem {
+    id: int,
+    icon: string,
+    title: string,
+    current: string,
+    meta: string,
+    pct: float,
+    state: int,
+    paused: bool,
+    errors: string,
+    error-count: int,
+}
+
+/// Powiadomienie: `kind` 0 – informacja, 1 – sukces, 2 – błąd; `action` – etykieta przycisku (np. „Cofnij”).
+export struct ToastItem {
+    id: int,
+    text: string,
+    kind: int,
+    action: string,
+}
+
+/// Pasek transferów: karty operacji z postępem, wstrzymaniem i anulowaniem, pod nimi powiadomienia.
+/// Pływa w prawym dolnym rogu nad listą – bez osobnych okien jak w Eksploratorze.
+export component TransferStack inherits Rectangle {
+    in property <[OpItem]> ops;
+    in property <[ToastItem]> toasts;
+    callback pause(int, bool);
+    callback cancel(int);
+    callback dismiss(int);
+    callback toast-action(int);
+    callback toast-close(int);
+    property <int> open-errors: -1;
+    width: 380px;
+    height: col.preferred-height;
+
+    col := VerticalLayout {
+        spacing: 8px;
+        alignment: end;
+        for o in root.ops: Rectangle {
+            border-radius: Theme.r-l;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: o.state == 2 ? #ff3b4780 : Theme.line;
+            drop-shadow-blur: 40px;
+            drop-shadow-offset-y: 14px;
+            drop-shadow-color: Theme.shadow;
+            TouchArea { }
+            VerticalLayout {
+                padding-left: 14px;
+                padding-right: 10px;
+                padding-top: 10px;
+                padding-bottom: 12px;
+                spacing: 8px;
+                HorizontalLayout {
+                    height: 26px;
+                    spacing: 8px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: o.icon;
+                        size: 16px;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        horizontal-stretch: 1;
+                        text: o.title;
+                        font-weight: 600;
+                    }
+                    if o.state == 0: IconButton {
+                        y: 1px;
+                        size: 24px;
+                        icon: o.paused ? Icons.play : Icons.pause;
+                        icon-size: 13px;
+                        tooltip: o.paused ? "Wznów" : "Wstrzymaj";
+                        clicked => {
+                            root.pause(o.id, !o.paused);
+                        }
+                    }
+                    if o.state == 0: IconButton {
+                        y: 1px;
+                        size: 24px;
+                        icon: Icons.close;
+                        icon-size: 14px;
+                        tooltip: "Anuluj";
+                        clicked => {
+                            root.cancel(o.id);
+                        }
+                    }
+                    if o.state == 2: Rectangle {
+                        width: errs-l.preferred-width + 8px;
+                        errs-l := Label {
+                            text: o.error-count + " błędów";
+                            font-size: 12px;
+                            color: #ff8a91;
+                        }
+                        TipArea {
+                            tip: "Pokaż błędy";
+                            clicked => {
+                                root.open-errors = root.open-errors == o.id ? -1 : o.id;
+                            }
+                        }
+                    }
+                    if o.state == 1: Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.check;
+                        size: 16px;
+                        color: Theme.ok;
+                    }
+                    if o.state != 0: IconButton {
+                        y: 1px;
+                        size: 24px;
+                        icon: Icons.close;
+                        icon-size: 13px;
+                        tooltip: "Ukryj";
+                        clicked => {
+                            root.dismiss(o.id);
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 4px;
+                    border-radius: 2px;
+                    background: Theme.line;
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * clamp(o.pct, 0, 1);
+                        border-radius: 2px;
+                        background: o.state == 2 ? Theme.rec : o.paused ? Theme.warn : o.state == 1 ? Theme.ok : Theme.accent;
+                        animate width { duration: 150ms; }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Label {
+                        horizontal-stretch: 1;
+                        text: o.current;
+                        font-size: 11.5px;
+                        color: Theme.faint;
+                    }
+                    Label {
+                        text: o.meta;
+                        font-size: 11.5px;
+                        color: Theme.faint;
+                    }
+                }
+                if root.open-errors == o.id: Text {
+                    text: o.errors;
+                    wrap: word-wrap;
+                    font-family: Theme.font;
+                    font-size: 11.5px;
+                    color: #ff8a91;
+                }
+            }
+        }
+        for t in root.toasts: Rectangle {
+            border-radius: Theme.r-l;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line;
+            drop-shadow-blur: 40px;
+            drop-shadow-offset-y: 14px;
+            drop-shadow-color: Theme.shadow;
+            TouchArea { }
+            HorizontalLayout {
+                padding-left: 14px;
+                padding-right: 8px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+                spacing: 10px;
+                if t.kind != 0: Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: t.kind == 1 ? Icons.check : Icons.info;
+                    size: 16px;
+                    color: t.kind == 1 ? Theme.ok : Theme.rec;
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: t.text;
+                    wrap: word-wrap;
+                    font-family: Theme.font;
+                    font-size: Theme.font-size;
+                    color: Theme.text;
+                }
+                if t.action != "": Rectangle {
+                    y: (parent.height - 26px) / 2;
+                    height: 26px;
+                    width: act-l.preferred-width + 20px;
+                    border-radius: Theme.r-s;
+                    background: act-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
+                    act-l := Label {
+                        text: t.action;
+                        font-weight: 600;
+                        color: Theme.on-accent;
+                    }
+                    act-ta := TouchArea {
+                        clicked => {
+                            root.toast-action(t.id);
+                        }
+                    }
+                }
+                IconButton {
+                    y: (parent.height - self.height) / 2;
+                    size: 24px;
+                    icon: Icons.close;
+                    icon-size: 12px;
+                    tooltip: "Zamknij";
+                    clicked => {
+                        root.toast-close(t.id);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Konflikt nazw w folderze docelowym.
+export struct ConflictRow {
+    name: string,
+    new-info: string,
+    old-info: string,
+}
+
+/// Wybór zachowania przy konflikcie (Dialogs.svelte → conflict): okno wewnątrz aplikacji.
+/// `pick`: 0 – zastąp, 1 – tylko starsze, 2 – zachowaj oba, 3 – pomiń, -1 – anuluj.
+export component ConflictDialog inherits Rectangle {
+    in property <string> title;
+    in property <[ConflictRow]> rows;
+    in property <string> more;
+    in property <bool> has-dirs;
+    in property <bool> moving;
+    callback pick(int);
+    background: #00000066;
+    TouchArea {
+        clicked => {
+            root.pick(-1);
+        }
+    }
+    Rectangle {
+        width: 460px;
+        height: dlg.preferred-height;
+        border-radius: Theme.r-xl;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 60px;
+        drop-shadow-offset-y: 24px;
+        drop-shadow-color: Theme.shadow;
+        TouchArea { }
+        dlg := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            Text {
+                text: root.title;
+                font-family: Theme.font;
+                font-size: 17px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+            Label {
+                text: "W folderze docelowym są już elementy o tych samych nazwach.";
+                color: Theme.dim;
+            }
+            VerticalLayout {
+                spacing: 8px;
+                for r in root.rows: VerticalLayout {
+                    spacing: 2px;
+                    Label {
+                        text: r.name;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: r.new-info;
+                        font-size: 12px;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        text: r.old-info;
+                        font-size: 12px;
+                        color: Theme.faint;
+                    }
+                }
+                if root.more != "": Label {
+                    text: root.more;
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+            }
+            for c[i] in [
+                { icon: Icons.copy, t: "Zastąp", d: root.has-dirs ? "Foldery zostaną scalone" : "Istniejące pliki zostaną nadpisane" },
+                { icon: Icons.history, t: "Zastąp tylko starsze", d: "Nadpisz, jeśli kopiowany plik jest nowszy" },
+                { icon: Icons.file-plus, t: "Zachowaj oba", d: "Nowe dostaną nazwę „(2)”" },
+                { icon: Icons.fwd, t: "Pomiń", d: "Nie ruszaj istniejących" },
+            ]: Rectangle {
+                height: 48px;
+                border-radius: Theme.r;
+                background: ch-ta.has-hover ? Theme.hover : Theme.card;
+                HorizontalLayout {
+                    padding-left: 14px;
+                    spacing: 12px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: c.icon;
+                        color: ch-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    VerticalLayout {
+                        alignment: center;
+                        Label {
+                            text: c.t;
+                            font-weight: 600;
+                        }
+                        Label {
+                            text: c.d;
+                            font-size: 12px;
+                            color: Theme.faint;
+                        }
+                    }
+                }
+                ch-ta := TouchArea {
+                    clicked => {
+                        root.pick(i);
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                Rectangle {
+                    height: 32px;
+                    width: cancel-l.preferred-width + 24px;
+                    border-radius: Theme.r-s;
+                    background: cancel-ta.has-hover ? Theme.hover : transparent;
+                    cancel-l := Label {
+                        text: root.moving ? "Anuluj przenoszenie" : "Anuluj kopiowanie";
+                        color: Theme.dim;
+                    }
+                    cancel-ta := TouchArea {
+                        clicked => {
+                            root.pick(-1);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Potwierdzenie (np. trwałe usunięcie) – okno wewnątrz aplikacji.
+export component ConfirmDialog inherits Rectangle {
+    in property <string> title;
+    in property <string> text;
+    in property <string> ok;
+    in property <bool> danger;
+    callback answer(bool);
+    background: #00000066;
+    TouchArea {
+        clicked => {
+            root.answer(false);
+        }
+    }
+    Rectangle {
+        width: 420px;
+        height: box.preferred-height;
+        border-radius: Theme.r-xl;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 60px;
+        drop-shadow-offset-y: 24px;
+        drop-shadow-color: Theme.shadow;
+        TouchArea { }
+        box := VerticalLayout {
+            padding: 20px;
+            spacing: 12px;
+            Text {
+                text: root.title;
+                font-family: Theme.font;
+                font-size: 17px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+            Text {
+                text: root.text;
+                wrap: word-wrap;
+                font-family: Theme.font;
+                font-size: Theme.font-size;
+                color: Theme.dim;
+            }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+                Rectangle {
+                    height: 32px;
+                    width: no-l.preferred-width + 24px;
+                    border-radius: Theme.r-s;
+                    background: no-ta.has-hover ? Theme.hover : transparent;
+                    no-l := Label {
+                        text: "Anuluj";
+                        color: Theme.dim;
+                    }
+                    no-ta := TouchArea {
+                        clicked => {
+                            root.answer(false);
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 32px;
+                    width: ok-l.preferred-width + 24px;
+                    border-radius: Theme.r-s;
+                    background: root.danger ? (ok-ta.has-hover ? Theme.rec.darker(0.15) : Theme.rec) : (ok-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent);
+                    ok-l := Label {
+                        text: root.ok;
+                        font-weight: 600;
+                        color: root.danger ? #ffffff : Theme.on-accent;
+                    }
+                    ok-ta := TouchArea {
+                        clicked => {
+                            root.answer(true);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

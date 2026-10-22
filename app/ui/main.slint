@@ -1,13 +1,14 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Label, Tip, TipArea } from "components.slint";
+import { Icon, Label, Tip, TipArea } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
 import { Toolbar, Crumb, FilterChip, FacetChip, FacetRow, FacetPanel } from "toolbar.slint";
 import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
+import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog } from "overlays.slint";
 
-export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry }
+export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -64,6 +65,24 @@ export component MainWindow inherits Window {
     in property <bool> desc;
     in-out property <length> scroll-y;
     in property <string> status;
+    // Transfery i powiadomienia.
+    in property <[OpItem]> ops;
+    in property <[ToastItem]> toasts;
+    in property <string> ops-summary;
+    in property <bool> transfers-hidden;
+    // Okno konfliktu nazw.
+    in property <bool> conflict-open;
+    in property <string> conflict-title;
+    in property <[ConflictRow]> conflict-rows;
+    in property <string> conflict-more;
+    in property <bool> conflict-dirs;
+    in property <bool> conflict-moving;
+    // Potwierdzenie.
+    in property <bool> confirm-open;
+    in property <string> confirm-title;
+    in property <string> confirm-text;
+    in property <string> confirm-ok;
+    in property <bool> confirm-danger;
 
     // Menu.
     in property <[MenuEntry]> menu-entries;
@@ -99,6 +118,14 @@ export component MainWindow inherits Window {
     callback save-search;
     callback add-hint(string);
     callback side-context(string, length, length);
+    callback toggle-transfers;
+    callback op-pause(int, bool);
+    callback op-cancel(int);
+    callback op-dismiss(int);
+    callback toast-action(int);
+    callback toast-close(int);
+    callback conflict-pick(int);
+    callback confirm-answer(bool);
     callback viewport-changed(length, length, length);
     callback select(int, bool, bool);
     callback open(int);
@@ -371,19 +398,93 @@ export component MainWindow inherits Window {
                                 root.zoom-step(d);
                             }
                         }
-                        // Pasek stanu (StatusBar.svelte).
+                        // Pasek stanu (StatusBar.svelte); po prawej podsumowanie transferów – klik chowa/pokazuje pasek.
                         Rectangle {
                             height: 28px;
                             Label {
                                 x: 14px;
+                                width: parent.width - 28px - sum.width;
                                 text: root.status;
                                 font-size: 12px;
                                 color: Theme.faint;
+                            }
+                            sum := Rectangle {
+                                x: parent.width - self.width - 8px;
+                                y: 2px;
+                                height: 24px;
+                                width: root.ops-summary == "" ? 0 : sum-row.preferred-width + 16px;
+                                border-radius: Theme.r-s;
+                                background: sum-ta.has-hover ? Theme.hover : transparent;
+                                visible: root.ops-summary != "";
+                                sum-row := HorizontalLayout {
+                                    x: 8px;
+                                    spacing: 6px;
+                                    Icon {
+                                        y: (parent.height - self.height) / 2;
+                                        commands: Icons.sync;
+                                        size: 13px;
+                                        color: Theme.dim;
+                                    }
+                                    Label {
+                                        text: root.ops-summary;
+                                        font-size: 12px;
+                                        color: sum-ta.has-hover ? Theme.text : Theme.dim;
+                                    }
+                                }
+                                sum-ta := TipArea {
+                                    tip: root.transfers-hidden ? "Pokaż pasek transferów" : "Ukryj pasek transferów";
+                                    clicked => {
+                                        root.toggle-transfers();
+                                    }
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    // Pasek transferów i powiadomienia – prawy dolny róg, nad paskiem stanu.
+    TransferStack {
+        x: root.width - self.width - 22px;
+        y: root.height - self.height - 44px;
+        ops: root.ops;
+        toasts: root.toasts;
+        pause(id, on) => {
+            root.op-pause(id, on);
+        }
+        cancel(id) => {
+            root.op-cancel(id);
+        }
+        dismiss(id) => {
+            root.op-dismiss(id);
+        }
+        toast-action(id) => {
+            root.toast-action(id);
+        }
+        toast-close(id) => {
+            root.toast-close(id);
+        }
+    }
+
+    if root.conflict-open: ConflictDialog {
+        title: root.conflict-title;
+        rows: root.conflict-rows;
+        more: root.conflict-more;
+        has-dirs: root.conflict-dirs;
+        moving: root.conflict-moving;
+        pick(i) => {
+            root.conflict-pick(i);
+        }
+    }
+    if root.confirm-open: ConfirmDialog {
+        title: root.confirm-title;
+        text: root.confirm-text;
+        ok: root.confirm-ok;
+        danger: root.confirm-danger;
+        answer(yes) => {
+            root.confirm-answer(yes);
         }
     }
 

@@ -197,7 +197,8 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     }
     let p2 = ps.clone();
     v.push(it("Do Kosza", "trash", move |_| trash(&p2)).kbd("Del"));
-    v.push(it("Usuń trwale", "trash", |_| {}).kbd("Shift+Del").danger().later());
+    let p3 = ps.clone();
+    v.push(it("Usuń trwale", "trash", move |s| crate::transfers::delete_permanently(s, p3.clone())).kbd("Shift+Del").danger());
     v.push(sep());
     if let Some(e) = one.as_ref().filter(|e| e.dir) {
         v.push(it("Przypnij w panelu bocznym", "pin", |_| {}).later());
@@ -382,7 +383,11 @@ pub fn paste(s: &Shared, into: Option<&str>) {
     if files.is_empty() {
         return;
     }
-    ops::start(Core, if cut { "move" } else { "copy" }.into(), files, dest, ops::Conflict::Rename);
+    crate::transfers::transfer(s, files, &dest, if cut { "move" } else { "copy" });
+    // Wycięte pliki po wklejeniu nie zostają w schowku.
+    if cut {
+        let _ = clip::set_files(&[], false);
+    }
 }
 
 pub fn trash(paths: &[String]) {

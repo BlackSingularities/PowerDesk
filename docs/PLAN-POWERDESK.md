@@ -28,7 +28,7 @@ Zasady:
 |---|---|---|
 | 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | gotowe |
 | 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | gotowe |
-| 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | **następny** |
+| 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | **w toku** |
 | 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | – |
 | 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
 | 5 | Pulpit PowerDesk na wszystkich monitorach (tryb testowy i zastępujący) | – |
@@ -75,12 +75,13 @@ Zasady:
 - [ ] Ulubione, biblioteki, zapisane wyszukiwania, lokalizacje sieciowe, synchronizacja, zwijanie sekcji, zmiana szerokości
 
 ### Operacje
-- [ ] Kopiowanie/przenoszenie w tle z postępem, konflikty, cofanie/ponawianie
+- [x] Kopiowanie/przenoszenie w tle: pasek transferów w oknie (postęp, prędkość, czas, wstrzymanie, anulowanie, błędy) zamiast okienek Windows; konflikty w oknie aplikacji; cofanie/ponawianie (Ctrl+Z/Ctrl+Y, „Cofnij” w powiadomieniu)
 - [ ] Kosz, schowek zgodny z Eksploratorem, przeciąganie do/z innych programów
 - [ ] Menu kontekstowe własne + pełne menu Eksploratora (Shift)
 - [ ] Nowy folder/plik, masowa zmiana nazwy, archiwa (ZIP/7z: przeglądanie, wypakowanie, tworzenie)
 - [ ] Właściwości: metadane systemowe, rozmiar folderu, SHA-256, systemowe okno właściwości
-- [ ] Półka (Shelf), toasty, okna dialogowe
+- [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)
+- [ ] Półka (Shelf), pozostałe okna dialogowe (właściwości, masowa zmiana nazw, nazwa zapisanego wyszukiwania)
 
 ### Podgląd
 - [ ] Panel podglądu: zdjęcia, wideo, audio, PDF, tekst/kod z podświetlaniem, DOCX/XLSX/PPTX/ODT/EPUB, ZIP, metadane, mapa GPS

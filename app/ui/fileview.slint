@@ -449,7 +449,9 @@ export component FileView inherits Rectangle {
                 }
             }
 
+            // Puste sloty (szerokość 0) nie są rysowane.
             for it in root.items: Rectangle {
+                visible: it.w > 0;
                 x: it.x;
                 y: it.y;
                 width: it.w;
