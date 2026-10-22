@@ -2724,7 +2724,7 @@ pub fn render_side(s: &Shared) {
         shut: false,
         header_only: false,
     });
-    let (extra, syncs) = side_extra(&t.path, &b.prefs.favorites);
+    let (extra, syncs) = side_extra(&t.path, &b.prefs.favorites, px);
     // Kolejność: zapisane, szybki dostęp, przypięte, biblioteki, dyski, sieć, synchronizacja.
     let base = side_items(&t.path, &b.drives, &b.prefs.net_places);
     let quick = base.iter().take_while(|i| !i.section.starts_with("Dyski") && !i.section.starts_with("Sieć")).count();
@@ -2742,6 +2742,9 @@ pub fn render_side(s: &Shared) {
             if it.tip.is_empty() {
                 it.tip = it.path.clone();
             }
+            if it.has_img {
+                return it;
+            }
             if let Some(img) = thumbs::get(it.path.as_str(), px, true) {
                 it.img = img;
                 it.has_img = true;
@@ -2749,7 +2752,9 @@ pub fn render_side(s: &Shared) {
             it
         })
         .collect();
-    let paths: HashSet<String> = items.iter().map(|i| i.path.to_string()).collect();
+    let mut paths: HashSet<String> = items.iter().map(|i| i.path.to_string()).collect();
+    // Ikony bibliotek pochodzą z plików .library-ms – po ich dotarciu panel też trzeba przerysować.
+    LIBS.with(|l| paths.extend(l.borrow().iter().flatten().map(|x| x.path.clone())));
     // Zwinięta sekcja zostawia sam nagłówek; w pasku ikon nagłówków nie ma, więc pokazuje wszystko.
     let mut section = SharedString::new();
     let mut items_out = Vec::with_capacity(items.len());
@@ -2936,7 +2941,7 @@ fn list_library(folders: &[String]) -> Result<Vec<fsx::Entry>, String> {
 }
 
 /// Przypięte, biblioteki i synchronizacje – sekcje panelu poza szybkim dostępem i dyskami.
-fn side_extra(current: &str, favorites: &[String]) -> (Vec<SideItem>, Vec<SideItem>) {
+fn side_extra(current: &str, favorites: &[String], px: u32) -> (Vec<SideItem>, Vec<SideItem>) {
     let mut v = Vec::new();
     let mut first = true;
     for f in favorites {
@@ -2961,8 +2966,10 @@ fn side_extra(current: &str, favorites: &[String]) -> (Vec<SideItem>, Vec<SideIt
             it.tip = format!("{}
 {}", lib.name, lib.folders.join("
 ")).into();
-            if lib.folders.len() > 1 {
-                it.detail = format!("{} folderów", lib.folders.len()).into();
+            // Ikona biblioteki z Windows (z pliku .library-ms), nie folderu.
+            if let Some(img) = thumbs::get(&lib.path, px, true) {
+                it.img = img;
+                it.has_img = true;
             }
             v.push(it);
         }
