@@ -7,6 +7,7 @@ pub mod dnd;
 pub mod drives;
 pub mod events;
 pub mod fsx;
+pub mod instance;
 pub mod library;
 pub mod maps;
 pub mod media;

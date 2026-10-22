@@ -99,12 +99,44 @@ pub fn with_state(f: impl FnOnce(&Shared)) {
     }
 }
 
+/// Ścieżka z wiersza poleceń: folder albo plik (wtedy jego folder i plik do zaznaczenia).
+fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
+    let p = Path::new(arg.trim().trim_matches('"'));
+    if p.is_dir() {
+        return Some((p.to_string_lossy().to_string(), None));
+    }
+    let dir = p.parent().filter(|d| p.is_file() && d.is_dir())?;
+    Some((dir.to_string_lossy().to_string(), Some(p.to_string_lossy().to_string())))
+}
+
+/// Argumenty od kolejnego uruchomienia: każda ścieżka w nowej karcie, bez ścieżek – karta startowa.
+fn open_args(s: &Shared, args: Vec<String>) {
+    let targets: Vec<_> = args.iter().filter_map(|a| arg_target(a)).collect();
+    if targets.is_empty() {
+        let start = settings::start_path(&s.borrow().prefs);
+        new_tab_at(s, &start, true);
+    }
+    for (dir, file) in targets {
+        new_tab_at(s, &dir, true);
+        if let Some(f) = file {
+            select_path(s, &f);
+        }
+    }
+    powerdesk_core::instance::bring_to_front(hwnd(s));
+}
+
 fn main() -> Result<(), slint::PlatformError> {
+    // Działa już okno – oddajemy mu argumenty (Win+E, „Otwórz w PowerDesk”) i kończymy.
+    let args: Vec<String> = std::env::args().skip(1).filter(|a| !a.starts_with("--")).collect();
+    if powerdesk_core::instance::send_to_running(&args) {
+        return Ok(());
+    }
     let ui = MainWindow::new()?;
     let prefs = Prefs::load();
     settings::apply_look(&ui, &prefs);
 
-    let start = settings::start_path(&prefs);
+    let first = args.iter().find_map(|a| arg_target(a));
+    let start = first.as_ref().map(|(d, _)| d.clone()).unwrap_or_else(|| settings::start_path(&prefs));
     let st: Shared = Rc::new(RefCell::new(State {
         tabs: vec![Tab::new(&start)],
         active: 0,
@@ -147,6 +179,12 @@ fn main() -> Result<(), slint::PlatformError> {
     slint::Timer::single_shot(std::time::Duration::from_millis(50), move || settings::relook(&s));
     restore_pinned(&st);
     load(&st, false);
+    if let Some((_, Some(f))) = &first {
+        select_path(&st, f);
+    }
+    powerdesk_core::instance::serve(|args| {
+        let _ = slint::invoke_from_event_loop(move || with_state(|s| open_args(s, args)));
+    });
     // „Wklej” pokazuje się tylko, gdy w schowku są pliki – także skopiowane w innym programie.
     let paste_timer = slint::Timer::default();
     let w = ui.as_weak();

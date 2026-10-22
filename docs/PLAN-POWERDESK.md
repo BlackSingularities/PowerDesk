@@ -116,7 +116,7 @@ Zasady:
 
 ### Integracja z systemem
 - [ ] Zasobnik, autostart, domyślny menedżer plików, menu kontekstowe Eksploratora, aktualizacje
-- [ ] Jedna instancja, otwieranie ścieżki z wiersza poleceń
+- [x] Jedna instancja (potok nazwany), otwieranie ścieżki z wiersza poleceń w nowej karcie, okno na wierzch
 
 ### Nowe: pulpit i pasek
 - [ ] Pulpit na każdym monitorze, tapety Windows, ikony z Pulpitu użytkownika i publicznego
