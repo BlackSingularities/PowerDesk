@@ -5,6 +5,7 @@ mod archives;
 mod bulk;
 mod desktop;
 mod dragdrop;
+mod taskbar;
 mod facets;
 mod fmt;
 mod home;
@@ -168,6 +169,7 @@ fn tray_event(s: &Shared, e: powerdesk_core::tray::Event) {
             show_window(s);
         }
         Event::Desktop => desktop::toggle(s),
+        Event::Taskbar => taskbar::toggle(s),
         Event::Quit => quit(s),
     }
 }
@@ -202,6 +204,7 @@ fn close_window(s: &Shared) {
 
 fn quit(_s: &Shared) {
     desktop::close();
+    taskbar::close();
     powerdesk_core::tray::hide();
     let _ = slint::quit_event_loop();
 }
@@ -293,10 +296,15 @@ fn main() -> Result<(), slint::PlatformError> {
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
     // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu.
     // Z --desktop-test: od razu pulpit testowy, okno folderów schowane.
+    // Z --taskbar-test: od razu pasek testowy (można razem z pulpitem).
     let desk_test = std::env::args().any(|a| a == desktop::TEST_FLAG);
-    let hidden = desk_test || std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
+    let bar_test = std::env::args().any(|a| a == taskbar::TEST_FLAG);
+    let hidden = desk_test || bar_test || std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
     if desk_test {
         desktop::open(&st);
+    }
+    if bar_test {
+        taskbar::open(&st);
     }
     if !hidden {
         ui.show()?;
@@ -1851,6 +1859,7 @@ fn paint_items(s: &Shared) {
 /// Dotarły miniatury lub ikony: odświeżamy tylko wiersze tych plików, a panel boczny – gdy dotyczy.
 pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     desktop::thumbs_arrived(paths);
+    taskbar::thumbs_arrived(paths);
     let Some(ui) = s.borrow().ui.upgrade() else { return };
     let side = s.borrow().side_paths.iter().any(|p| paths.contains(p));
     {

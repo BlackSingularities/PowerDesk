@@ -126,7 +126,7 @@ Zasady:
 - [ ] **Tryb testowy**: nakładka zamiast podmiany pulpitu, szybkie wyłączenie (Esc, zasobnik, `--desktop-test`)
 - [ ] Tryb zastępujący: wpięcie w WorkerW, ukrycie ikon systemowych, przywracanie po wyjściu i awarii
 - [ ] Reakcja na zmiany monitorów, DPI, tapety i restart Eksploratora
-- [ ] Pasek zadań (AppBar) na każdym monitorze, systemowy pasek ukryty; Alt+Tab, Win+Tab, Win+D zostają systemowe
+- [ ] Pasek zadań (AppBar) na każdym monitorze, systemowy pasek ukryty; Alt+Tab, Win+Tab, Win+D zostają systemowe (pierwsza wersja testowa w kodzie, nieuruchamiana: pasek na wierzchu nad paskiem Windows, Start systemowy, okna z monitora, zegar, `--taskbar-test`)
 - [ ] Lista okien, grupowanie, miniatury, menu przycisków (nowe okno / przypnij / zamknij)
 - [ ] Zegar, głośność, sieć, bateria; zasobnik (przechwytywanie ikon)
 - [ ] Menu Start (najpierw jak w Windows)

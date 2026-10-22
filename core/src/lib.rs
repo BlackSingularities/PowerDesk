@@ -24,6 +24,7 @@ pub mod sync;
 pub mod sync_core;
 pub mod sysmon;
 pub mod system;
+pub mod taskwin;
 pub mod terminal;
 pub mod tray;
 pub mod winkey;

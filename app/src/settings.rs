@@ -83,6 +83,18 @@ pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
     powerdesk_core::system::set_backdrop(window_hwnd(ui), effect);
 }
 
+/// Wygląd głównego okna – globalne Slint są osobne dla każdego okna, więc pasek i pulpit
+/// przepisują go od głównego.
+pub struct Look {
+    pub light: bool,
+    pub accent: Color,
+}
+
+pub fn look(ui: &crate::MainWindow) -> Look {
+    let t = ui.global::<Theme>();
+    Look { light: t.get_light(), accent: t.get_accent_override() }
+}
+
 fn effect_of(p: &Prefs) -> u32 {
     match p.window_effect.as_str() {
         "mica" => 1,
@@ -260,6 +272,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_repair_integration(crate::ensure_integration);
     let s = st.clone();
     g.on_desktop_test(move || crate::desktop::toggle(&s));
+    let s = st.clone();
+    g.on_taskbar_test(move || crate::taskbar::toggle(&s));
     let s = st.clone();
     g.on_set_accent(move |a| {
         let a = a.trim();
