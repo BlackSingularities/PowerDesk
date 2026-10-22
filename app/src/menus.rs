@@ -7,7 +7,7 @@ use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::{archive, clip, fsx, ops, shell};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
-use crate::model::{SortKey, View};
+use crate::model::{Col, SortKey, View};
 use crate::{icons, MenuEntry, Shared};
 
 pub type Act = Rc<dyn Fn(&Shared)>;
@@ -419,4 +419,53 @@ fn shortcut_target(s: &Shared, lnk: &str, new_tab: bool) {
         crate::navigate(s, &dir, true);
     }
     crate::select_path(s, &target);
+}
+
+/// Wybór kolumn listy (colMenu w FileView.svelte).
+pub fn column_menu(s: &Shared, x: f32, y: f32) {
+    let (cols, sizes) = {
+        let b = s.borrow();
+        (b.prefs.list_cols.clone(), b.prefs.folder_sizes)
+    };
+    let mut v: Vec<Item> = Col::ALL
+        .iter()
+        .map(|&c| {
+            it(c.label(), "", move |s| {
+                {
+                    let mut b = s.borrow_mut();
+                    let cols = &mut b.prefs.list_cols;
+                    if let Some(i) = cols.iter().position(|x| *x == c) {
+                        cols.remove(i);
+                    } else {
+                        cols.push(c);
+                    }
+                    b.prefs.save();
+                }
+                crate::refresh(s);
+            })
+            .checked(cols.contains(&c))
+        })
+        .collect();
+    v.push(sep());
+    v.push(
+        it("Rozmiary folderów", "", |s| {
+            {
+                let mut b = s.borrow_mut();
+                b.prefs.folder_sizes = !b.prefs.folder_sizes;
+                b.prefs.save();
+            }
+            crate::refresh(s);
+        })
+        .checked(sizes),
+    );
+    v.push(it("Przywróć domyślne kolumny", "undo", |s| {
+        {
+            let mut b = s.borrow_mut();
+            b.prefs.list_cols = Col::DEFAULT.to_vec();
+            b.prefs.list_col_w.clear();
+            b.prefs.save();
+        }
+        crate::refresh(s);
+    }));
+    show(s, v, x, y);
 }

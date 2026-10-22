@@ -13,8 +13,10 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{LazyLock, Mutex};
 
-use model::{KindFilter, Prefs, Search, SortKey, Tab, View, HOME};
+use model::{Col, KindFilter, Prefs, Search, SortKey, Tab, View, HOME};
 use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::{drives, fsx, shell};
 use slint::winit_030::WinitWindowAccessor;
@@ -29,9 +31,12 @@ pub struct State {
     ui: Weak<MainWindow>,
     /// Okno widoku: przesunięcie, szerokość, wysokość (piksele logiczne).
     viewport: (f32, f32, f32),
-    /// Proporcje zdjęć i filmów (szer./wys.) dla galerii.
-    ratios: HashMap<String, f32>,
-    ratio_pending: HashSet<String>,
+    /// Metadane zdjęć i filmów: proporcje w galerii, kolumny Wymiary / Data wykonania / Czas trwania.
+    media: HashMap<String, shell::MediaInfo>,
+    media_pending: HashSet<String>,
+    /// Rozmiary folderów policzone w tle (klucz: ścieżka małymi literami).
+    dir_sizes: HashMap<String, u64>,
+    dir_pending: HashSet<String>,
     menu: Option<menus::Open>,
     /// Dyski – odświeżane po zmianie (podłączenie pendrive'a), nie przy każdym rysowaniu.
     drives: Vec<drives::Drive>,
@@ -64,8 +69,10 @@ fn main() -> Result<(), slint::PlatformError> {
         prefs: Prefs::load(),
         ui: ui.as_weak(),
         viewport: (0.0, 900.0, 600.0),
-        ratios: HashMap::new(),
-        ratio_pending: HashSet::new(),
+        media: HashMap::new(),
+        media_pending: HashSet::new(),
+        dir_sizes: HashMap::new(),
+        dir_pending: HashSet::new(),
         menu: None,
         marquee: None,
         drives: drives::list(),
@@ -216,14 +223,47 @@ fn wire(ui: &MainWindow, st: &Shared) {
     ui.on_sort_menu(move |x, y| menus::sort_menu(&s, x, y));
     let s = st.clone();
     ui.on_header_sort(move |id| {
-        let k = match id.as_str() {
-            "modified" => SortKey::Modified,
-            "type" => SortKey::Type,
-            "size" => SortKey::Size,
-            _ => SortKey::Name,
+        let k = match Col::ALL.get(id as usize) {
+            Some(c) => match c.sort() {
+                Some(k) => k,
+                None => return,
+            },
+            None => SortKey::Name,
         };
         set_sort(&s, k);
     });
+
+    // Kolumny listy: kolejność, szerokości, wybór.
+    let s = st.clone();
+    ui.on_col_move(move |id, dx| {
+        let Some(&c) = Col::ALL.get(id as usize) else { return };
+        {
+            let mut b = s.borrow_mut();
+            b.prefs.move_col(c, dx);
+            b.prefs.save();
+        }
+        render_all(&s);
+    });
+    let s = st.clone();
+    ui.on_col_resize(move |id, w| {
+        let Some(&c) = Col::ALL.get(id as usize) else { return };
+        s.borrow_mut().prefs.list_col_w.insert(c, w.clamp(48.0, 600.0).round());
+        render_all(&s);
+    });
+    let s = st.clone();
+    ui.on_col_resize_end(move || s.borrow().prefs.save());
+    let s = st.clone();
+    ui.on_col_reset(move |id| {
+        let Some(&c) = Col::ALL.get(id as usize) else { return };
+        {
+            let mut b = s.borrow_mut();
+            b.prefs.list_col_w.remove(&c);
+            b.prefs.save();
+        }
+        render_all(&s);
+    });
+    let s = st.clone();
+    ui.on_col_menu(move |x, y| menus::column_menu(&s, x, y));
     let s = st.clone();
     ui.on_set_view(move |v| set_view(&s, View::from_index(v)));
     let s = st.clone();
@@ -499,11 +539,13 @@ fn watch(s: &Shared) {
 fn refresh(s: &Shared) {
     {
         let mut b = s.borrow_mut();
+        let b = &mut *b;
         let (hidden, ff) = (b.prefs.show_hidden, b.prefs.folders_first);
-        let a = b.active;
-        b.tabs[a].rebuild(hidden, ff);
+        let sizes = &b.dir_sizes;
+        b.tabs[b.active].rebuild(hidden, ff, |e| size_of(sizes, e));
     }
-    request_ratios(s);
+    request_media(s);
+    request_dir_sizes(s);
     layout(s);
     render_all(s);
 }
@@ -512,40 +554,50 @@ fn layout(s: &Shared) {
     let mut b = s.borrow_mut();
     let b = &mut *b;
     let (w, g, r) = (b.viewport.1, b.prefs.grid_size, b.prefs.gallery_row);
-    let ratios = &b.ratios;
+    let media = &b.media;
     let t = &mut b.tabs[b.active];
-    t.layout(w, g, r, |e| ratio_of(ratios, e));
+    t.layout(w, g, r, |e| ratio_of(media, e));
 }
 
 /// Jak `ratioOf` w FileView.svelte.
-fn ratio_of(ratios: &HashMap<String, f32>, e: &fsx::Entry) -> f32 {
+fn ratio_of(media: &HashMap<String, shell::MediaInfo>, e: &fsx::Entry) -> f32 {
     if e.dir || !fmt::is_media(e) {
         return 1.0;
     }
-    match ratios.get(&e.path) {
+    match media.get(&e.path) {
         None => 1.5,
-        Some(r) if *r <= 0.0 => 1.0,
-        Some(r) => r.clamp(0.33, 3.2),
+        Some(m) if m.w == 0 || m.h == 0 => 1.0,
+        Some(m) => (m.w as f32 / m.h as f32).clamp(0.33, 3.2),
     }
 }
 
-/// Proporcje zdjęć dla galerii – partiami w tle, potem ponowny układ.
-fn request_ratios(s: &Shared) {
+/// Rozmiar do sortowania – dla folderu policzony w tle albo -1 (jak `sizeOf` w state.svelte.ts).
+fn size_of(sizes: &HashMap<String, u64>, e: &fsx::Entry) -> i64 {
+    if e.dir {
+        sizes.get(&e.path.to_lowercase()).map(|n| *n as i64).unwrap_or(-1)
+    } else {
+        e.size as i64
+    }
+}
+
+/// Metadane zdjęć i filmów – partiami w tle (galeria albo kolumny z metadanymi), potem ponowny układ.
+fn request_media(s: &Shared) {
     let todo: Vec<(String, i64)> = {
         let mut b = s.borrow_mut();
         let b = &mut *b;
         let t = &b.tabs[b.active];
-        if t.view != View::Gallery {
+        let cols = t.view == View::List && b.prefs.list_cols.iter().any(|c| c.media());
+        if t.view != View::Gallery && !cols {
             return;
         }
         let v: Vec<(String, i64)> = t
             .items
             .iter()
-            .filter(|e| fmt::is_media(e) && !b.ratios.contains_key(&e.path) && !b.ratio_pending.contains(&e.path))
+            .filter(|e| fmt::is_media(e) && !b.media.contains_key(&e.path) && !b.media_pending.contains(&e.path))
             .map(|e| (e.path.clone(), e.modified))
             .collect();
         for (p, _) in &v {
-            b.ratio_pending.insert(p.clone());
+            b.media_pending.insert(p.clone());
         }
         v
     };
@@ -555,14 +607,14 @@ fn request_ratios(s: &Shared) {
     std::thread::spawn(move || {
         for chunk in todo.chunks(200) {
             let info = shell::media_info(chunk.to_vec());
-            let res: Vec<(String, f32)> = chunk.iter().zip(info).map(|((p, _), m)| (p.clone(), if m.w > 0 && m.h > 0 { m.w as f32 / m.h as f32 } else { 0.0 })).collect();
+            let res: Vec<(String, shell::MediaInfo)> = chunk.iter().zip(info).map(|((p, _), m)| (p.clone(), m)).collect();
             let _ = slint::invoke_from_event_loop(move || {
                 with_state(|s| {
                     {
                         let mut b = s.borrow_mut();
-                        for (p, r) in res {
-                            b.ratio_pending.remove(&p);
-                            b.ratios.insert(p, r);
+                        for (p, m) in res {
+                            b.media_pending.remove(&p);
+                            b.media.insert(p, m);
                         }
                     }
                     layout(s);
@@ -574,6 +626,68 @@ fn request_ratios(s: &Shared) {
 }
 
 // ---------- Renderowanie ----------
+
+/// Kolejka rozmiarów folderów: nowsze żądania (bieżący folder) wyprzedzają stare, liczą dwa wątki naraz.
+static DS_QUEUE: LazyLock<Mutex<std::collections::VecDeque<String>>> = LazyLock::new(Default::default);
+static DS_RUNNING: AtomicUsize = AtomicUsize::new(0);
+
+/// Rozmiary folderów – tylko gdy widać kolumnę Rozmiar albo sortujemy po rozmiarze; bez dysków sieciowych.
+fn request_dir_sizes(s: &Shared) {
+    let todo: Vec<String> = {
+        let mut b = s.borrow_mut();
+        let b = &mut *b;
+        let t = &b.tabs[b.active];
+        let shown = (t.view == View::List && b.prefs.list_cols.contains(&Col::Size)) || t.sort == SortKey::Size;
+        if !b.prefs.folder_sizes || t.search.is_some() || !shown {
+            return;
+        }
+        let net: Vec<String> = b.drives.iter().filter(|d| d.kind == "network").map(|d| d.path[..2.min(d.path.len())].to_lowercase()).collect();
+        let v: Vec<String> = t
+            .items
+            .iter()
+            .filter(|e| e.dir && !e.path.starts_with("\\\\"))
+            .map(|e| e.path.to_lowercase())
+            .filter(|p| !b.dir_sizes.contains_key(p) && !b.dir_pending.contains(p) && !net.iter().any(|n| p.starts_with(n.as_str())))
+            .collect();
+        b.dir_pending.extend(v.iter().cloned());
+        v
+    };
+    if todo.is_empty() {
+        return;
+    }
+    {
+        let mut q = DS_QUEUE.lock().unwrap();
+        for p in todo.into_iter().rev() {
+            q.push_front(p);
+        }
+    }
+    while DS_RUNNING.load(Ordering::SeqCst) < 2 {
+        DS_RUNNING.fetch_add(1, Ordering::SeqCst);
+        std::thread::spawn(|| {
+            loop {
+                let next = DS_QUEUE.lock().unwrap().pop_front();
+                let Some(p) = next else { break };
+                let size = fsx::dir_size(&p).size;
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_state(|s| {
+                        let by_size = {
+                            let mut b = s.borrow_mut();
+                            b.dir_pending.remove(&p);
+                            b.dir_sizes.insert(p, size);
+                            b.tabs[b.active].sort == SortKey::Size
+                        };
+                        if by_size {
+                            refresh(s);
+                        } else {
+                            render_items(s);
+                        }
+                    })
+                });
+            }
+            DS_RUNNING.fetch_sub(1, Ordering::SeqCst);
+        });
+    }
+}
 
 fn render_all(s: &Shared) {
     render_chrome(s);
@@ -602,6 +716,20 @@ fn render_chrome(s: &Shared) {
         .into(),
     );
     ui.set_desc(t.desc);
+    let has_type = b.prefs.list_cols.contains(&Col::Type);
+    ui.set_columns(ModelRc::new(VecModel::from(
+        b.prefs
+            .list_cols
+            .iter()
+            .map(|&c| Column {
+                id: Col::ALL.iter().position(|x| *x == c).unwrap_or(0) as i32,
+                label: c.label().into(),
+                w: b.prefs.col_w(c),
+                right: c.right(),
+                sorted: c.sort() == Some(t.sort) && (c != Col::Ext || !has_type),
+            })
+            .collect::<Vec<_>>(),
+    )));
     ui.set_sort_label(t.sort.label().into());
     ui.set_filters(ModelRc::new(VecModel::from(
         t.shown_filters(b.prefs.show_hidden)
@@ -708,9 +836,7 @@ pub fn render_items(s: &Shared) {
             w: bx.w,
             h: bx.h,
             name: e.name.clone().into(),
-            modified: fmt::date(e.modified).into(),
-            kind: fmt::type_label(e).into(),
-            size: if e.dir { SharedString::new() } else { fmt::size(e.size).into() },
+            cells: if t.view == View::List { ModelRc::new(VecModel::from(cells(&b, e))) } else { ModelRc::default() },
             dir: e.dir,
             hidden: e.hidden,
             media,
@@ -744,6 +870,37 @@ pub fn render_items(s: &Shared) {
     }
     drop(b);
     render_status(s);
+}
+
+/// Teksty kolumn listy (`cell` w FileView.svelte).
+fn cells(b: &State, e: &fsx::Entry) -> Vec<SharedString> {
+    let m = b.media.get(&e.path);
+    b.prefs
+        .list_cols
+        .iter()
+        .map(|c| match c {
+            Col::Modified => fmt::date(e.modified),
+            Col::Created => fmt::date(e.created),
+            Col::Type => fmt::type_label(e),
+            Col::Ext => if e.dir { String::new() } else { e.ext.to_uppercase() },
+            Col::Size if e.dir => match b.dir_sizes.get(&e.path.to_lowercase()) {
+                Some(n) => fmt::size(*n),
+                None if b.prefs.folder_sizes => "…".into(),
+                None => String::new(),
+            },
+            Col::Size => fmt::size(e.size),
+            Col::Dims => m.filter(|m| m.w > 0).map(|m| format!("{} × {}", m.w, m.h)).unwrap_or_default(),
+            Col::Taken => m.filter(|m| m.taken > 0).map(|m| fmt::date(m.taken)).unwrap_or_default(),
+            Col::Duration => m.filter(|m| m.dur > 0).map(|m| fmt::duration(m.dur)).unwrap_or_default(),
+            Col::Attrs => [(e.readonly, "R"), (e.hidden, "H"), (e.system, "S"), (e.link, "L"), (e.cloud, "C")]
+                .iter()
+                .filter(|(on, _)| *on)
+                .map(|(_, l)| *l)
+                .collect::<Vec<_>>()
+                .join(" "),
+        }
+        .into())
+        .collect()
 }
 
 fn set_scroll(s: &Shared, top: f32) {
@@ -1036,6 +1193,11 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
         }
         "fs-changed" => {
             let Ok(dirs) = serde_json::from_value::<Vec<String>>(payload) else { return };
+            {
+                let mut b = s.borrow_mut();
+                let low: Vec<String> = dirs.iter().map(|d| d.to_lowercase()).collect();
+                b.dir_sizes.retain(|k, _| !low.iter().any(|d| d.starts_with(k.as_str())));
+            }
             let (path, searching) = tab_mut(s, |t| (t.path.clone(), t.search.is_some()));
             if !searching && dirs.iter().any(|d| same(d, &path)) {
                 load(s, true);

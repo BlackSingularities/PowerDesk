@@ -55,6 +55,66 @@ impl SortKey {
     }
 }
 
+/// Kolumna widoku listy (LIST_COLS w state.svelte.ts). Nazwa jest zawsze pierwsza i nie jest tu wymieniana.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
+#[serde(rename_all = "lowercase")]
+pub enum Col {
+    Modified,
+    Created,
+    Type,
+    Ext,
+    Size,
+    Dims,
+    Taken,
+    Duration,
+    Attrs,
+}
+
+impl Col {
+    pub const ALL: [Col; 9] = [Col::Modified, Col::Created, Col::Type, Col::Ext, Col::Size, Col::Dims, Col::Taken, Col::Duration, Col::Attrs];
+    pub const DEFAULT: [Col; 3] = [Col::Modified, Col::Type, Col::Size];
+    pub fn label(self) -> &'static str {
+        match self {
+            Col::Modified => "Zmodyfikowano",
+            Col::Created => "Utworzono",
+            Col::Type => "Typ",
+            Col::Ext => "Rozszerzenie",
+            Col::Size => "Rozmiar",
+            Col::Dims => "Wymiary",
+            Col::Taken => "Data wykonania",
+            Col::Duration => "Czas trwania",
+            Col::Attrs => "Atrybuty",
+        }
+    }
+    pub fn width(self) -> f32 {
+        match self {
+            Col::Modified | Col::Created | Col::Taken => 140.0,
+            Col::Type => 130.0,
+            Col::Ext | Col::Duration => 90.0,
+            Col::Size => 86.0,
+            Col::Dims => 100.0,
+            Col::Attrs => 74.0,
+        }
+    }
+    /// Klucz sortowania po kliknięciu nagłówka (kolumny z metadanych mediów jeszcze bez sortowania).
+    pub fn sort(self) -> Option<SortKey> {
+        match self {
+            Col::Modified => Some(SortKey::Modified),
+            Col::Created => Some(SortKey::Created),
+            Col::Type | Col::Ext => Some(SortKey::Type),
+            Col::Size => Some(SortKey::Size),
+            _ => None,
+        }
+    }
+    pub fn right(self) -> bool {
+        matches!(self, Col::Size | Col::Dims | Col::Duration)
+    }
+    /// Kolumny, które potrzebują metadanych zdjęć i filmów.
+    pub fn media(self) -> bool {
+        matches!(self, Col::Dims | Col::Taken | Col::Duration)
+    }
+}
+
 /// Filtr kategorii plików (przyciski w pasku poleceń).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum KindFilter {
@@ -166,7 +226,8 @@ impl Tab {
     }
 
     /// Filtr i sortowanie jak w `Tab.grouped` (state.svelte.ts).
-    pub fn rebuild(&mut self, show_hidden: bool, folders_first: bool) {
+    /// `size_of` zwraca rozmiar elementu – dla folderów policzony w tle albo -1, dopóki go nie ma.
+    pub fn rebuild(&mut self, show_hidden: bool, folders_first: bool, size_of: impl Fn(&Entry) -> i64) {
         let source = match &self.search {
             Some(s) => &s.results,
             None => &self.entries,
@@ -189,7 +250,7 @@ impl Tab {
             let r = match key {
                 SortKey::Modified => a.modified.cmp(&b.modified),
                 SortKey::Created => a.created.cmp(&b.created),
-                SortKey::Size => a.size.cmp(&b.size),
+                SortKey::Size => size_of(a).cmp(&size_of(b)),
                 SortKey::Type => a.ext.to_lowercase().cmp(&b.ext.to_lowercase()),
                 SortKey::Name => std::cmp::Ordering::Equal,
             };
@@ -400,15 +461,42 @@ pub struct Prefs {
     pub show_hidden: bool,
     pub folders_first: bool,
     pub auto_gallery: bool,
+    pub list_cols: Vec<Col>,
+    pub list_col_w: HashMap<Col, f32>,
+    /// Rozmiary folderów liczone w tle w kolumnie Rozmiar (bez dysków sieciowych).
+    pub folder_sizes: bool,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true }
     }
 }
 
 impl Prefs {
+    pub fn col_w(&self, c: Col) -> f32 {
+        self.list_col_w.get(&c).copied().unwrap_or(c.width())
+    }
+    /// Nowe miejsce kolumny po przeciągnięciu nagłówka o `dx`: przed pierwszą, której środek jest dalej.
+    pub fn move_col(&mut self, c: Col, dx: f32) {
+        const GAP: f32 = 12.0;
+        let mut x = 0.0;
+        let mut center = 0.0;
+        let mut centers = Vec::new();
+        for &k in &self.list_cols {
+            let w = self.col_w(k);
+            if k == c {
+                center = x + w / 2.0 + dx;
+            } else {
+                centers.push((k, x + w / 2.0));
+            }
+            x += w + GAP;
+        }
+        let idx = centers.iter().position(|(_, m)| center < *m).unwrap_or(centers.len());
+        let mut order: Vec<Col> = centers.into_iter().map(|(k, _)| k).collect();
+        order.insert(idx, c);
+        self.list_cols = order;
+    }
     fn file() -> Option<std::path::PathBuf> {
         let d = dirs::data_dir()?.join("PowerDesk");
         let _ = std::fs::create_dir_all(&d);
@@ -461,7 +549,7 @@ mod tests {
         t.entries = vec![entry("a.jpg", false), entry("b.mp4", false), entry("c.pdf", false), entry("Folder", true)];
         assert_eq!(t.shown_filters(false), vec![KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc]);
         t.kind_filter = KindFilter::Media;
-        t.rebuild(false, true);
+        t.rebuild(false, true, |e| e.size as i64);
         assert_eq!(t.items.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), ["a.jpg", "b.mp4"]);
     }
 
@@ -469,11 +557,21 @@ mod tests {
     fn marquee_hits() {
         let mut t = Tab::new("C:/t");
         t.entries = (0..10).map(|i| entry(&format!("p{i}.txt"), false)).collect();
-        t.rebuild(false, true);
+        t.rebuild(false, true, |e| e.size as i64);
         t.layout(800.0, 132.0, 210.0, |_| 1.0);
         // Wiersze po 32 px od y=4: ramka 40..100 łapie wiersze 1–3; na prawo od 420 px nic.
         assert_eq!(t.in_rect(10.0, 40.0, 50.0, 100.0), vec![1, 2, 3]);
         assert!(t.in_rect(500.0, 40.0, 600.0, 100.0).is_empty());
+    }
+
+    #[test]
+    fn column_moves() {
+        let mut p = Prefs::default();
+        // Zmodyfikowano (140) przeciągnięte za Typ (130): środek 70+200 > środek Typu 152+65.
+        p.move_col(Col::Modified, 200.0);
+        assert_eq!(p.list_cols, [Col::Type, Col::Modified, Col::Size]);
+        p.move_col(Col::Size, -1000.0);
+        assert_eq!(p.list_cols, [Col::Size, Col::Type, Col::Modified]);
     }
 
     #[test]

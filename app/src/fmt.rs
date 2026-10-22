@@ -59,6 +59,17 @@ pub fn type_label(e: &Entry) -> String {
     format!("{} {}", kind_label(&e.ext.to_lowercase()), e.ext.to_uppercase())
 }
 
+/// Czas trwania jak `duration` w util.ts: 3:07, 1:02:03.
+pub fn duration(ms: u64) -> String {
+    let t = (ms as f64 / 1000.0).round() as u64;
+    let (h, m, sec) = (t / 3600, (t % 3600) / 60, t % 60);
+    if h > 0 {
+        format!("{h}:{m:02}:{sec:02}")
+    } else {
+        format!("{m}:{sec:02}")
+    }
+}
+
 pub fn items(n: usize) -> String {
     let w = if n == 1 {
         "element"

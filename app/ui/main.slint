@@ -4,10 +4,10 @@ import { Label } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
 import { Toolbar, Crumb, FilterChip } from "toolbar.slint";
-import { FileView, VisItem } from "fileview.slint";
+import { FileView, VisItem, Column } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 
-export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, VisItem, MenuEntry }
+export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, VisItem, Column, MenuEntry }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -49,6 +49,7 @@ export component MainWindow inherits Window {
     in property <length> total-height;
     in property <string> empty-text;
     in property <string> sort-id;
+    in property <[Column]> columns;
     in property <bool> desc;
     in-out property <length> scroll-y;
     in property <string> status;
@@ -89,7 +90,12 @@ export component MainWindow inherits Window {
     callback marquee-begin(bool);
     callback marquee-update(length, length, length, length);
     callback marquee-end;
-    callback header-sort(string);
+    callback header-sort(int);
+    callback col-move(int, length);
+    callback col-resize(int, length);
+    callback col-resize-end;
+    callback col-reset(int);
+    callback col-menu(length, length);
     callback zoom-step(int);
     callback menu-chosen(int);
     callback key(string, bool, bool, bool);
@@ -252,9 +258,7 @@ export component MainWindow inherits Window {
                             total-height: root.total-height;
                             empty-text: root.empty-text;
                             sort-name: root.sort-id == "name";
-                            sort-modified: root.sort-id == "modified";
-                            sort-type: root.sort-id == "type";
-                            sort-size: root.sort-id == "size";
+                            columns: root.columns;
                             desc: root.desc;
                             scroll-y <=> root.scroll-y;
                             viewport-changed(t, w, h) => {
@@ -286,6 +290,21 @@ export component MainWindow inherits Window {
                             }
                             header-sort(id) => {
                                 root.header-sort(id);
+                            }
+                            col-move(id, dx) => {
+                                root.col-move(id, dx);
+                            }
+                            col-resize(id, w) => {
+                                root.col-resize(id, w);
+                            }
+                            col-resize-end => {
+                                root.col-resize-end();
+                            }
+                            col-reset(id) => {
+                                root.col-reset(id);
+                            }
+                            col-menu(x, y) => {
+                                root.col-menu(x, y);
                             }
                             zoom(d) => {
                                 root.zoom-step(d);
