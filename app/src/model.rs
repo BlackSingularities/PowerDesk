@@ -3,6 +3,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::fmt::{kind_of, Kind};
 use powerdesk_core::fsx::Entry;
 use serde::{Deserialize, Serialize};
 
@@ -54,6 +55,35 @@ impl SortKey {
     }
 }
 
+/// Filtr kategorii plików (przyciski w pasku poleceń).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
+pub enum KindFilter {
+    #[default]
+    All,
+    Media,
+    Image,
+    Video,
+    Doc,
+    Audio,
+    Archive,
+}
+
+impl KindFilter {
+    pub const ALL: [KindFilter; 7] = [KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc, KindFilter::Audio, KindFilter::Archive];
+    /// Czy kategoria pliku należy do grupy (KIND_GROUPS w state.svelte.ts).
+    pub fn has(self, k: Kind) -> bool {
+        match self {
+            KindFilter::All => true,
+            KindFilter::Media => matches!(k, Kind::Image | Kind::Raw | Kind::Video),
+            KindFilter::Image => matches!(k, Kind::Image | Kind::Raw),
+            KindFilter::Video => k == Kind::Video,
+            KindFilter::Doc => matches!(k, Kind::Pdf | Kind::Doc | Kind::Sheet | Kind::Slides | Kind::Text),
+            KindFilter::Audio => k == Kind::Audio,
+            KindFilter::Archive => k == Kind::Archive,
+        }
+    }
+}
+
 /// Wyniki wyszukiwania w podfolderach.
 pub struct Search {
     pub query: String,
@@ -82,6 +112,7 @@ pub struct Tab {
     pub sort: SortKey,
     pub desc: bool,
     pub filter: String,
+    pub kind_filter: KindFilter,
     pub search: Option<Search>,
     /// Elementy po filtrze i sortowaniu – to, co pokazuje widok.
     pub items: Vec<Entry>,
@@ -107,6 +138,7 @@ impl Tab {
             sort: SortKey::Name,
             desc: false,
             filter: String::new(),
+            kind_filter: KindFilter::All,
             search: None,
             items: Vec::new(),
             selected: Default::default(),
@@ -144,6 +176,7 @@ impl Tab {
         let mut v: Vec<Entry> = source
             .iter()
             .filter(|e| show_hidden || !(e.hidden || e.system))
+            .filter(|e| self.kind_filter == KindFilter::All || (!e.dir && self.kind_filter.has(kind_of(e))))
             .filter(|e| f.is_empty() || if wild { wildcard(&f, &e.name.to_lowercase()) } else { e.name.to_lowercase().contains(&f) })
             .cloned()
             .collect();
@@ -170,6 +203,45 @@ impl Tab {
         self.items = v;
         let alive: std::collections::HashSet<&str> = self.items.iter().map(|e| e.path.as_str()).collect();
         self.selected.retain(|p| alive.contains(p.as_str()));
+    }
+
+    /// Kategorie, które mają sens w tym folderze – „Wszystko” zawsze, „Media” tylko gdy są i zdjęcia, i filmy.
+    pub fn shown_filters(&self, show_hidden: bool) -> Vec<KindFilter> {
+        let source = match &self.search {
+            Some(s) => &s.results,
+            None => &self.entries,
+        };
+        let mut counts = [0usize; 7];
+        for e in source.iter().filter(|e| !e.dir && (show_hidden || !(e.hidden || e.system))) {
+            let k = kind_of(e);
+            for (i, f) in KindFilter::ALL.iter().enumerate().skip(1) {
+                if f.has(k) {
+                    counts[i] += 1;
+                }
+            }
+        }
+        KindFilter::ALL
+            .iter()
+            .zip(counts)
+            .filter(|(f, n)| **f == KindFilter::All || (*n > 0 && !(**f == KindFilter::Media && (counts[2] == 0 || counts[3] == 0))))
+            .map(|(f, _)| *f)
+            .collect()
+    }
+
+    /// Elementy, których prostokąt przecina ramkę zaznaczenia (na liście liczy się tylko pierwsze 420 px).
+    pub fn in_rect(&self, x0: f32, y0: f32, x1: f32, y1: f32) -> Vec<usize> {
+        let first = self.boxes.partition_point(|b| b.y + b.h < y0);
+        let mut out = Vec::new();
+        for (i, b) in self.boxes.iter().enumerate().skip(first) {
+            if b.y > y1 {
+                break;
+            }
+            let bw = if self.view == View::List { b.w.min(420.0) } else { b.w };
+            if b.y + b.h >= y0 && b.x < x1 && b.x + bw > x0 {
+                out.push(i);
+            }
+        }
+        out
     }
 
     /// Układ jak w FileView.svelte: lista 32 px, siatka kafelków rozciągniętych do szerokości,
@@ -363,6 +435,45 @@ mod tests {
     fn natural_order() {
         assert_eq!(natural("plik2", "plik10"), std::cmp::Ordering::Less);
         assert_eq!(natural("A", "a"), std::cmp::Ordering::Equal);
+    }
+
+    fn entry(name: &str, dir: bool) -> Entry {
+        let ext = if dir { "" } else { name.rsplit_once('.').map(|x| x.1).unwrap_or("") };
+        Entry {
+            name: name.into(),
+            path: format!("C:/t/{name}"),
+            dir,
+            size: 0,
+            modified: 0,
+            created: 0,
+            ext: ext.into(),
+            hidden: false,
+            system: false,
+            readonly: false,
+            link: false,
+            cloud: false,
+        }
+    }
+
+    #[test]
+    fn kind_filters() {
+        let mut t = Tab::new("C:/t");
+        t.entries = vec![entry("a.jpg", false), entry("b.mp4", false), entry("c.pdf", false), entry("Folder", true)];
+        assert_eq!(t.shown_filters(false), vec![KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc]);
+        t.kind_filter = KindFilter::Media;
+        t.rebuild(false, true);
+        assert_eq!(t.items.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), ["a.jpg", "b.mp4"]);
+    }
+
+    #[test]
+    fn marquee_hits() {
+        let mut t = Tab::new("C:/t");
+        t.entries = (0..10).map(|i| entry(&format!("p{i}.txt"), false)).collect();
+        t.rebuild(false, true);
+        t.layout(800.0, 132.0, 210.0, |_| 1.0);
+        // Wiersze po 32 px od y=4: ramka 40..100 łapie wiersze 1–3; na prawo od 420 px nic.
+        assert_eq!(t.in_rect(10.0, 40.0, 50.0, 100.0), vec![1, 2, 3]);
+        assert!(t.in_rect(500.0, 40.0, 600.0, 100.0).is_empty());
     }
 
     #[test]

@@ -48,7 +48,7 @@ Zasady:
 - [ ] Podpowiedzi przy edycji ścieżki
 - [ ] Paleta szybkiego przejścia (Ctrl+K) i poleceń (Ctrl+Shift+P)
 - [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
-- [ ] Boczne przyciski myszy, F6 między obszarami, wpisywanie nazwy, zaznaczanie ramką
+- [ ] Boczne przyciski myszy, F6 między obszarami, wpisywanie nazwy
 - [ ] Mica / Acrylic, akcent systemowy i własny, krycie okienek
 
 ### Widoki plików
@@ -60,8 +60,10 @@ Zasady:
 - [ ] Kolumny konfigurowalne, szerokości, grupowanie
 - [x] Widok i sortowanie zapamiętywane per folder, auto-galeria, wielkość miniatur (suwak, Ctrl+kółko)
 - [x] Filtrowanie na żywo (z `*` i `?`), wyszukiwanie w podfolderach (Enter)
-- [ ] Filtry typów i faset, składnia zapytań (typ:, rozmiar…), zapisane wyszukiwania
-- [ ] Zaznaczanie ramką, zmiana nazwy w miejscu, zaznaczenie zapamiętane per folder
+- [x] Filtry kategorii (Wszystko, Media, Zdjęcia, Wideo, Dokumenty, Audio, Archiwa) – tylko obecne w folderze
+- [ ] Fasety (format, kadr, data…), składnia zapytań (typ:, rozmiar…), zapisane wyszukiwania
+- [x] Zaznaczanie ramką (z tła, na liście poza nazwą, w siatce/galerii z Altem; Ctrl/Shift rozszerza; samoczynne przewijanie)
+- [ ] Zmiana nazwy w miejscu, zaznaczenie zapamiętane per folder
 - [ ] Rozmiary folderów, metadane mediów (wymiary, czas trwania, data wykonania)
 
 ### Panel boczny

@@ -74,3 +74,43 @@ pub fn items(n: usize) -> String {
 pub fn is_media(e: &Entry) -> bool {
     !e.dir && matches!(kind_label(&e.ext.to_lowercase()), "Obraz" | "Zdjęcie RAW" | "Wideo")
 }
+
+/// Kategoria pliku – ta sama tabela rozszerzeń co `kindOf` w util.ts.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Kind {
+    Folder,
+    Image,
+    Raw,
+    Video,
+    Audio,
+    Pdf,
+    Doc,
+    Sheet,
+    Slides,
+    Text,
+    Code,
+    Archive,
+    App,
+    Other,
+}
+
+pub fn kind_of(e: &Entry) -> Kind {
+    if e.dir {
+        return Kind::Folder;
+    }
+    match e.ext.to_lowercase().as_str() {
+        "jpg" | "jpeg" | "jfif" | "png" | "gif" | "webp" | "bmp" | "ico" | "avif" | "svg" | "tif" | "tiff" | "heic" | "heif" | "jxl" => Kind::Image,
+        "cr2" | "cr3" | "nef" | "nrw" | "arw" | "srf" | "sr2" | "dng" | "raf" | "orf" | "rw2" | "pef" | "srw" | "x3f" | "3fr" | "erf" | "kdc" | "mrw" | "mos" | "iiq" | "rwl" => Kind::Raw,
+        "mp4" | "m4v" | "mov" | "mkv" | "webm" | "avi" | "wmv" | "mts" | "m2ts" | "3gp" | "flv" | "mpg" | "mpeg" | "vob" | "ogv" => Kind::Video,
+        "mp3" | "flac" | "wav" | "m4a" | "aac" | "ogg" | "opus" | "wma" | "aiff" | "ape" | "alac" => Kind::Audio,
+        "pdf" => Kind::Pdf,
+        "doc" | "docx" | "docm" | "odt" | "rtf" | "dotx" | "pages" | "epub" => Kind::Doc,
+        "xls" | "xlsx" | "xlsm" | "ods" | "csv" | "numbers" => Kind::Sheet,
+        "ppt" | "pptx" | "ppsx" | "odp" | "key" => Kind::Slides,
+        "txt" | "md" | "log" | "ini" | "cfg" | "conf" | "nfo" | "srt" | "vtt" => Kind::Text,
+        "js" | "ts" | "jsx" | "tsx" | "json" | "xml" | "html" | "htm" | "css" | "scss" | "py" | "rs" | "kt" | "kts" | "java" | "c" | "h" | "cpp" | "hpp" | "cs" | "go" | "rb" | "php" | "sh" | "ps1" | "bat" | "cmd" | "yml" | "yaml" | "toml" | "sql" | "lua" | "swift" | "dart" | "vue" | "svelte" | "gradle" | "properties" | "reg" => Kind::Code,
+        "zip" | "7z" | "rar" | "tar" | "gz" | "tgz" | "bz2" | "xz" | "zst" | "cab" | "iso" => Kind::Archive,
+        "exe" | "msi" | "lnk" | "appx" | "msix" | "url" => Kind::App,
+        _ => Kind::Other,
+    }
+}

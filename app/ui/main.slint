@@ -3,11 +3,11 @@ import { Icons } from "icons.slint";
 import { Label } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
-import { Toolbar, Crumb } from "toolbar.slint";
+import { Toolbar, Crumb, FilterChip } from "toolbar.slint";
 import { FileView, VisItem } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 
-export { Theme, Icons, TabData, SideItem, Crumb, VisItem, MenuEntry }
+export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, VisItem, MenuEntry }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -37,6 +37,7 @@ export component MainWindow inherits Window {
     in property <bool> searching;
     in property <bool> search-active;
     in property <string> sort-label;
+    in property <[FilterChip]> filters;
     in-out property <string> query;
     in-out property <float> zoom;
     in property <float> zoom-min;
@@ -79,12 +80,15 @@ export component MainWindow inherits Window {
     callback zoom-changed(float);
     callback new-menu(length, length);
     callback command(string);
+    callback set-kind(int);
     callback viewport-changed(length, length, length);
     callback select(int, bool, bool);
     callback open(int);
     callback context(int, length, length, bool);
     callback background-context(length, length, bool);
-    callback background-click;
+    callback marquee-begin(bool);
+    callback marquee-update(length, length, length, length);
+    callback marquee-end;
     callback header-sort(string);
     callback zoom-step(int);
     callback menu-chosen(int);
@@ -165,6 +169,7 @@ export component MainWindow inherits Window {
                         searching: root.searching;
                         search-active: root.search-active;
                         sort-label: root.sort-label;
+                        filters: root.filters;
                         view: root.view;
                         zoom <=> root.zoom;
                         zoom-min: root.zoom-min;
@@ -213,6 +218,10 @@ export component MainWindow inherits Window {
                         }
                         command(c) => {
                             root.command(c);
+                        }
+                        set-kind(k) => {
+                            root.set-kind(k);
+                            keys.focus();
                         }
                     }
             }
@@ -265,9 +274,15 @@ export component MainWindow inherits Window {
                                 keys.focus();
                                 root.background-context(x, y, shift);
                             }
-                            background-click => {
+                            marquee-begin(additive) => {
                                 keys.focus();
-                                root.background-click();
+                                root.marquee-begin(additive);
+                            }
+                            marquee-update(x0, y0, x1, y1) => {
+                                root.marquee-update(x0, y0, x1, y1);
+                            }
+                            marquee-end => {
+                                root.marquee-end();
                             }
                             header-sort(id) => {
                                 root.header-sort(id);

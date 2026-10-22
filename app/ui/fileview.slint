@@ -43,13 +43,62 @@ export component FileView inherits Rectangle {
     callback open(int);
     callback context(int, length, length, bool);
     callback background-context(length, length, bool);
-    callback background-click;
+    callback marquee-begin(bool);
+    callback marquee-update(length, length, length, length);
+    callback marquee-end;
     callback header-sort(string);
     callback zoom(int);
 
     property <length> col-mod: 140px;
     property <length> col-type: 130px;
     property <length> col-size: 86px;
+
+    // Zaznaczanie ramką (współrzędne w treści przewijanej).
+    property <bool> mq-on;
+    property <length> mq-x0;
+    property <length> mq-y0;
+    property <length> mq-x1;
+    property <length> mq-y1;
+    /// -1 / 1: wskaźnik przy górnej / dolnej krawędzi – widok przewija się sam.
+    property <int> mq-edge;
+
+    function mq-start(x: length, y: length, additive: bool) {
+        mq-on = true;
+        mq-x0 = x;
+        mq-y0 = y;
+        mq-x1 = x;
+        mq-y1 = y;
+        mq-edge = 0;
+        root.marquee-begin(additive);
+    }
+    function mq-move(x: length, y: length) {
+        if (!mq-on) {
+            return;
+        }
+        mq-x1 = clamp(x, 0, sv.visible-width);
+        mq-y1 = max(0, y);
+        let vy = y + sv.content-y;
+        mq-edge = vy > sv.visible-height - 24px ? 1 : vy < 24px ? -1 : 0;
+        root.marquee-update(min(mq-x0, mq-x1), min(mq-y0, mq-y1), max(mq-x0, mq-x1), max(mq-y0, mq-y1));
+    }
+    function mq-stop() {
+        if (mq-on) {
+            mq-on = false;
+            mq-edge = 0;
+            root.marquee-end();
+        }
+    }
+
+    Timer {
+        interval: 30ms;
+        running: root.mq-on && root.mq-edge != 0;
+        triggered => {
+            let old = sv.content-y;
+            sv.content-y = clamp(sv.content-y - 18px * root.mq-edge, min(0, sv.visible-height - sv.content-height), 0);
+            root.mq-y1 = max(0, root.mq-y1 + old - sv.content-y);
+            root.marquee-update(min(root.mq-x0, root.mq-x1), min(root.mq-y0, root.mq-y1), max(root.mq-x0, root.mq-x1), max(root.mq-y0, root.mq-y1));
+        }
+    }
 
     VerticalLayout {
         // Nagłówek kolumn – tylko w widoku listy.
@@ -114,10 +163,16 @@ export component FileView inherits Rectangle {
             TouchArea {
                 width: sv.content-width;
                 height: sv.content-height;
-                clicked => {
-                    root.background-click();
+                moved => {
+                    root.mq-move(self.mouse-x, self.mouse-y);
                 }
                 pointer-event(e) => {
+                    if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                        root.mq-start(self.mouse-x, self.mouse-y, e.modifiers.control || e.modifiers.shift);
+                    }
+                    if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left) {
+                        root.mq-stop();
+                    }
                     if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                         root.background-context(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y, e.modifiers.shift);
                     }
@@ -142,10 +197,27 @@ export component FileView inherits Rectangle {
                 border-width: it.focused ? (root.view == 2 ? 2px : 1px) : 0;
                 border-color: Theme.line-strong;
 
+                // Szerokość ikony z nazwą na liście – poza nią przeciąganie zaczyna ramkę (jak w Eksploratorze).
+                probe := Label {
+                    visible: false;
+                    text: root.view == 0 ? it.name : "";
+                }
+                property <length> name-end: 12px + 18px + 10px + probe.preferred-width + 8px;
+
                 ta := TouchArea {
+                    moved => {
+                        root.mq-move(it.x + self.mouse-x, it.y + self.mouse-y);
+                    }
                     pointer-event(e) => {
                         if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
-                            root.select(it.index, e.modifiers.control, e.modifiers.shift);
+                            if ((root.view == 0 && self.mouse-x > parent.name-end) || e.modifiers.alt) {
+                                root.mq-start(it.x + self.mouse-x, it.y + self.mouse-y, e.modifiers.control || e.modifiers.shift);
+                            } else {
+                                root.select(it.index, e.modifiers.control, e.modifiers.shift);
+                            }
+                        }
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left) {
+                            root.mq-stop();
                         }
                         if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                             root.context(it.index, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y, e.modifiers.shift);
@@ -282,6 +354,17 @@ export component FileView inherits Rectangle {
                         color: Theme.on-accent;
                     }
                 }
+            }
+
+            if root.mq-on: Rectangle {
+                x: min(root.mq-x0, root.mq-x1);
+                y: min(root.mq-y0, root.mq-y1);
+                width: abs(root.mq-x1 - root.mq-x0);
+                height: abs(root.mq-y1 - root.mq-y0);
+                background: Theme.hover;
+                border-width: 1px;
+                border-color: Theme.ghost;
+                border-radius: 4px;
             }
         }
     }

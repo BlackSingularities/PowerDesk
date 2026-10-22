@@ -14,11 +14,11 @@ use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
-use model::{Prefs, Search, SortKey, Tab, View, HOME};
+use model::{KindFilter, Prefs, Search, SortKey, Tab, View, HOME};
 use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::{drives, fsx, shell};
 use slint::winit_030::WinitWindowAccessor;
-use slint::{ComponentHandle, ModelRc, SharedString, VecModel, Weak};
+use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 
 slint::include_modules!();
 
@@ -35,6 +35,8 @@ pub struct State {
     menu: Option<menus::Open>,
     /// Dyski – odświeżane po zmianie (podłączenie pendrive'a), nie przy każdym rysowaniu.
     drives: Vec<drives::Drive>,
+    /// Zaznaczenie sprzed ramki (z Ctrl/Shift ramka je rozszerza); Some, dopóki trwa przeciąganie.
+    marquee: Option<HashSet<String>>,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -65,6 +67,7 @@ fn main() -> Result<(), slint::PlatformError> {
         ratios: HashMap::new(),
         ratio_pending: HashSet::new(),
         menu: None,
+        marquee: None,
         drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
@@ -129,10 +132,36 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     ui.on_select(move |i, ctrl, shift| select(&s, i as usize, ctrl, shift));
     let s = st.clone();
-    ui.on_background_click(move || {
-        tab_mut(&s, |t| t.selected.clear());
+    ui.on_marquee_begin(move |additive| {
+        tab_mut(&s, |t| {
+            if !additive {
+                t.selected.clear();
+            }
+        });
+        let base = tab_mut(&s, |t| t.selected.clone());
+        s.borrow_mut().marquee = Some(base);
         render_items(&s);
     });
+    let s = st.clone();
+    ui.on_marquee_update(move |x0, y0, x1, y1| {
+        {
+            let mut b = s.borrow_mut();
+            let b = &mut *b;
+            let Some(base) = &b.marquee else { return };
+            let t = &mut b.tabs[b.active];
+            let mut sel = base.clone();
+            for i in t.in_rect(x0, y0, x1, y1) {
+                sel.insert(t.items[i].path.clone());
+            }
+            if sel == t.selected {
+                return;
+            }
+            t.selected = sel;
+        }
+        render_items(&s);
+    });
+    let s = st.clone();
+    ui.on_marquee_end(move || s.borrow_mut().marquee = None);
     let s = st.clone();
     ui.on_viewport_changed(move |top, w, h| {
         let relayout = {
@@ -168,6 +197,13 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     ui.on_filter_changed(move |q| {
         tab_mut(&s, |t| t.filter = q.to_string());
+        refresh(&s);
+    });
+    let s = st.clone();
+    ui.on_set_kind(move |k| {
+        let f = KindFilter::ALL.get(k as usize).copied().unwrap_or_default();
+        tab_mut(&s, |t| t.kind_filter = if t.kind_filter == f { KindFilter::All } else { f });
+        set_scroll(&s, 0.0);
         refresh(&s);
     });
     let s = st.clone();
@@ -319,6 +355,7 @@ fn navigate(s: &Shared, path: &str, push: bool) {
         let prev = std::mem::replace(&mut t.path, path.clone());
         t.search = None;
         t.filter.clear();
+        t.kind_filter = KindFilter::All;
         t.selected.clear();
         t.focus = None;
         t.anchor = None;
@@ -566,6 +603,24 @@ fn render_chrome(s: &Shared) {
     );
     ui.set_desc(t.desc);
     ui.set_sort_label(t.sort.label().into());
+    ui.set_filters(ModelRc::new(VecModel::from(
+        t.shown_filters(b.prefs.show_hidden)
+            .into_iter()
+            .map(|f| FilterChip {
+                id: KindFilter::ALL.iter().position(|x| *x == f).unwrap_or(0) as i32,
+                icon: ic(match f {
+                    KindFilter::All => "filter",
+                    KindFilter::Media => "gallery",
+                    KindFilter::Image => "image",
+                    KindFilter::Video => "video",
+                    KindFilter::Doc => "doc",
+                    KindFilter::Audio => "music",
+                    KindFilter::Archive => "archive",
+                }),
+                on: t.kind_filter == f,
+            })
+            .collect::<Vec<_>>(),
+    )));
     let (zmin, zmax, z) = match t.view {
         View::Gallery => (120.0, 420.0, b.prefs.gallery_row),
         _ => (84.0, 280.0, b.prefs.grid_size),
@@ -583,7 +638,7 @@ fn render_chrome(s: &Shared) {
             match &t.search {
                 Some(x) if x.running => "Szukam…".into(),
                 Some(_) => "Nic nie znaleziono".into(),
-                None if !t.filter.is_empty() => "Brak elementów pasujących do filtra".into(),
+                None if !t.filter.is_empty() || t.kind_filter != KindFilter::All => "Brak elementów pasujących do filtra".into(),
                 None => "Ten folder jest pusty".into(),
             }
         } else {
@@ -667,7 +722,26 @@ pub fn render_items(s: &Shared) {
             thumb: thumb.unwrap_or_default(),
         });
     }
-    ui.set_items(ModelRc::new(VecModel::from(v)));
+    // Ten sam zakres (zmiana zaznaczenia) albo trwająca ramka: wiersze aktualizowane w miejscu,
+    // żeby elementy Slint nie były tworzone od nowa – inaczej przeciąganie ramki z wiersza by się urwało.
+    let model = ui.get_items();
+    let vm = model.as_any().downcast_ref::<VecModel<VisItem>>();
+    match vm {
+        Some(vm) if b.marquee.is_some() || (vm.row_count() == v.len() && vm.row_data(0).map(|r| r.index) == v.first().map(|r| r.index)) => {
+            let n = v.len();
+            for (i, it) in v.into_iter().enumerate() {
+                if i >= vm.row_count() {
+                    vm.push(it);
+                } else if vm.row_data(i).as_ref() != Some(&it) {
+                    vm.set_row_data(i, it);
+                }
+            }
+            while vm.row_count() > n {
+                vm.remove(vm.row_count() - 1);
+            }
+        }
+        _ => ui.set_items(ModelRc::new(VecModel::from(v))),
+    }
     drop(b);
     render_status(s);
 }

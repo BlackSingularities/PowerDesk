@@ -60,13 +60,13 @@ export component Sidebar inherits Rectangle {
                         spacing: 11px;
                         // Ikona systemowa (jak w Eksploratorze); liniowa tylko do czasu jej wczytania.
                         if it.has-img: Image {
-                            y: it.detail != "" ? 8px : (parent.height - 18px) / 2;
+                            y: (parent.height - 18px) / 2;
                             width: 18px;
                             height: 18px;
                             source: it.img;
                         }
                         if !it.has-img: Icon {
-                            y: it.detail != "" ? 8px : (parent.height - self.height) / 2;
+                            y: (parent.height - self.height) / 2;
                             commands: it.icon;
                             color: it.active || ta.has-hover ? Theme.text : Theme.dim;
                         }
@@ -85,7 +85,7 @@ export component Sidebar inherits Rectangle {
                                     x: 0;
                                     width: parent.width * it.usage;
                                     border-radius: 2px;
-                                    background: it.usage > 0.9 ? Theme.rec : Theme.dim;
+                                    background: it.usage > 0.9 ? Theme.rec : it.usage > 0.75 ? Theme.warn : Theme.ok;
                                 }
                             }
                             if it.detail != "": Label {

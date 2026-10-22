@@ -7,6 +7,13 @@ export struct Crumb {
     path: string,
 }
 
+/// Przycisk filtra kategorii (fchip): `id` to indeks KindFilter::ALL.
+export struct FilterChip {
+    id: int,
+    icon: string,
+    on: bool,
+}
+
 /// Pasek narzędzi (Toolbar.svelte): nawigacja, okruszki z podfolderami, filtr/wyszukiwanie,
 /// polecenia, sortowanie, wielkość miniatur i przełącznik widoków.
 export component Toolbar inherits Rectangle {
@@ -20,6 +27,7 @@ export component Toolbar inherits Rectangle {
     in property <bool> searching;
     in property <bool> search-active;
     in property <string> sort-label;
+    in property <[FilterChip]> filters;
     in property <int> view;
     in-out property <float> zoom;
     in property <float> zoom-min: 84;
@@ -40,6 +48,7 @@ export component Toolbar inherits Rectangle {
     callback zoom-changed(float);
     callback new-menu(length, length);
     callback command(string);
+    callback set-kind(int);
 
     property <bool> editing;
 
@@ -330,6 +339,27 @@ export component Toolbar inherits Rectangle {
             }
             Rectangle {
                 horizontal-stretch: 1;
+            }
+            // Filtry kategorii – tylko gdy w folderze są co najmniej dwie różne.
+            if root.filters.length > 2: HorizontalLayout {
+                spacing: 4px;
+                for f in root.filters: Rectangle {
+                    y: 3px;
+                    width: 30px;
+                    height: 28px;
+                    border-radius: Theme.r-s;
+                    background: f.on ? Theme.accent : chip-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: f.icon;
+                        size: 15px;
+                        color: f.on ? Theme.on-accent : chip-ta.has-hover ? Theme.text : Theme.faint;
+                    }
+                    chip-ta := TouchArea {
+                        clicked => {
+                            root.set-kind(f.id);
+                        }
+                    }
+                }
             }
             // Sortowanie (btn ghost sm).
             Rectangle {
