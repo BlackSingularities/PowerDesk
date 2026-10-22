@@ -65,7 +65,7 @@ export component ShelfPanel inherits Rectangle {
     width: 340px;
     height: min(box.preferred-height, 480px);
     border-radius: Theme.r-l;
-    background: Theme.panel;
+    background: Theme.popup;
     border-width: Drag.active && Drag.target == "ofp:shelf" ? 2px : 1px;
     border-color: Drag.active && Drag.target == "ofp:shelf" ? Theme.accent : Theme.line;
     drop-shadow-blur: 50px;

@@ -51,7 +51,7 @@ Zasady:
 - [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
 - [x] Boczne przyciski myszy (wstecz/dalej w całym oknie), F6/Shift+F6 między panelami i paskiem adresu, wpisywanie nazwy (skok do pasującego elementu)
 - [ ] F6 także przez panel boczny i podgląd (nie mają jeszcze własnego fokusu)
-- [ ] Mica / Acrylic, akcent systemowy i własny, krycie okienek
+- [x] Mica / Acrylic (DWM, półprzezroczyste tło i panele), akcent systemowy i własny (#rrggbb), krycie okienek 60–100% (bez rozmycia – Slint go nie ma)
 
 ### Widoki plików
 - [x] Lista (podstawowe kolumny), ikony systemowe

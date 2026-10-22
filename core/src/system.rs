@@ -195,3 +195,26 @@ pub fn install_update(app: &AppHandle, setup: &str) -> Result<(), String> {
     app.exit(0);
     Ok(())
 }
+
+/// Tło okna z Windows 11: 0 – pełne (bez efektu), 1 – Mica, 2 – Acrylic.
+/// Okno musi rysować półprzezroczyste tło, żeby efekt było widać.
+pub fn set_backdrop(hwnd: isize, kind: u32) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMWA_SYSTEMBACKDROP_TYPE};
+    use windows::Win32::UI::Controls::MARGINS;
+    if hwnd == 0 {
+        return;
+    }
+    let h = HWND(hwnd as *mut _);
+    // DWMSBT_NONE = 1, DWMSBT_MAINWINDOW (Mica) = 2, DWMSBT_TRANSIENTWINDOW (Acrylic) = 3.
+    let t: i32 = match kind {
+        1 => 2,
+        2 => 3,
+        _ => 1,
+    };
+    let m = if kind == 0 { MARGINS::default() } else { MARGINS { cxLeftWidth: -1, cxRightWidth: -1, cyTopHeight: -1, cyBottomHeight: -1 } };
+    unsafe {
+        let _ = DwmExtendFrameIntoClientArea(h, &m);
+        let _ = DwmSetWindowAttribute(h, DWMWA_SYSTEMBACKDROP_TYPE, &t as *const i32 as *const _, 4);
+    }
+}

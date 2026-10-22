@@ -1,7 +1,7 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon, Label, TipArea } from "components.slint";
-import { ScrollView } from "std-widgets.slint";
+import { ScrollView, LineEdit, Slider } from "std-widgets.slint";
 
 /// Ekran ustawień (SettingsView.svelte) – dane i zapis w settings.rs.
 export global SettingsState {
@@ -28,7 +28,13 @@ export global SettingsState {
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
+    /// Tło okna: 0 – pełne, 1 – Mica, 2 – Acrylic.
+    in-out property <int> effect;
+    /// Krycie okienek w procentach (60–100).
+    in-out property <float> popup-opacity: 100;
     callback set-theme(int);
+    callback set-effect(int);
+    callback set-popup-opacity(float);
     callback set-accent(string);
     callback set-start(int);
     callback pick-start-folder;
@@ -391,6 +397,94 @@ export component SettingsView inherits Rectangle {
                                 }
                             }
                         }
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        Label {
+                            y: (parent.height - self.height) / 2;
+                            text: "Własny kolor";
+                            font-size: 12.5px;
+                            color: Theme.dim;
+                        }
+                        LineEdit {
+                            width: 130px;
+                            placeholder-text: "#rrggbb";
+                            text: SettingsState.accent.character-count == 7 ? SettingsState.accent : "";
+                            accepted(t) => {
+                                SettingsState.set-accent(t);
+                            }
+                        }
+                        Label {
+                            y: (parent.height - self.height) / 2;
+                            text: "Enter zatwierdza";
+                            font-size: 11px;
+                            color: Theme.faint;
+                        }
+                    }
+                    Label {
+                        text: "Tło okna";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Choice {
+                            icon: Icons.panel;
+                            text: "Pełne";
+                            hint: "Jednolity kolor motywu";
+                            on: SettingsState.effect == 0;
+                            clicked => {
+                                SettingsState.set-effect(0);
+                            }
+                        }
+                        Choice {
+                            icon: Icons.gallery;
+                            text: "Mica";
+                            hint: "Delikatnie przepuszcza kolor tapety (Windows 11)";
+                            on: SettingsState.effect == 1;
+                            clicked => {
+                                SettingsState.set-effect(1);
+                            }
+                        }
+                        Choice {
+                            icon: Icons.gallery;
+                            text: "Acrylic";
+                            hint: "Rozmyte tło spod okna (Windows 11)";
+                            on: SettingsState.effect == 2;
+                            clicked => {
+                                SettingsState.set-effect(2);
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Krycie okienek";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Slider {
+                            horizontal-stretch: 1;
+                            minimum: 60;
+                            maximum: 100;
+                            step: 5;
+                            value: SettingsState.popup-opacity;
+                            changed(v) => {
+                                SettingsState.set-popup-opacity(round(v / 5) * 5);
+                            }
+                        }
+                        Label {
+                            y: (parent.height - self.height) / 2;
+                            width: 44px;
+                            text: round(SettingsState.popup-opacity) + "%";
+                            font-size: 12.5px;
+                        }
+                    }
+                    Label {
+                        text: "Menu, okna dialogowe, paleta, podpowiedzi i powiadomienia";
+                        font-size: 11.5px;
+                        color: Theme.faint;
                     }
                 }
 

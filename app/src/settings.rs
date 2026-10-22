@@ -76,6 +76,29 @@ pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
         c => hex(c),
     };
     t.set_accent_override(accent.unwrap_or(Color::from_argb_u8(0, 0, 0, 0)));
+    let effect = effect_of(p);
+    t.set_effect(effect as i32);
+    t.set_popup_alpha(p.popup_opacity.clamp(60.0, 100.0) / 100.0);
+    powerdesk_core::system::set_backdrop(window_hwnd(ui), effect);
+}
+
+fn effect_of(p: &Prefs) -> u32 {
+    match p.window_effect.as_str() {
+        "mica" => 1,
+        "acrylic" => 2,
+        _ => 0,
+    }
+}
+
+fn window_hwnd(ui: &crate::MainWindow) -> isize {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    use slint::winit_030::WinitWindowAccessor;
+    ui.window()
+        .with_winit_window(|w| match w.window_handle().map(|h| h.as_raw()) {
+            Ok(RawWindowHandle::Win32(h)) => h.hwnd.get(),
+            _ => 0,
+        })
+        .unwrap_or(0)
 }
 
 fn prefs_path() -> String {
@@ -95,6 +118,8 @@ fn render(s: &Shared) {
     let g = ui.global::<SettingsState>();
     g.set_theme(theme);
     g.set_accent(p.accent.clone().into());
+    g.set_effect(effect_of(p) as i32);
+    g.set_popup_opacity(p.popup_opacity.clamp(60.0, 100.0));
     g.set_system_accent(sys);
     g.set_start(match p.start.as_str() {
         "computer" => 1,
@@ -125,7 +150,8 @@ fn change(s: &Shared, f: impl FnOnce(&mut Prefs)) {
     render(s);
 }
 
-fn relook(s: &Shared) {
+/// Wygląd całego okna od nowa (także tło DWM – wymaga już utworzonego okna).
+pub fn relook(s: &Shared) {
     let b = s.borrow();
     if let Some(ui) = b.ui.upgrade() {
         apply_look(&ui, &b.prefs);
@@ -134,6 +160,16 @@ fn relook(s: &Shared) {
 
 pub fn set_theme(s: &Shared, i: i32) {
     change(s, |p| p.theme = ["system", "dark", "light"][i.clamp(0, 2) as usize].into());
+    relook(s);
+}
+
+pub fn set_effect(s: &Shared, i: i32) {
+    change(s, |p| p.window_effect = ["none", "mica", "acrylic"][i.clamp(0, 2) as usize].into());
+    relook(s);
+}
+
+pub fn set_popup_opacity(s: &Shared, v: f32) {
+    change(s, |p| p.popup_opacity = v.clamp(60.0, 100.0));
     relook(s);
 }
 
@@ -208,7 +244,17 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_set_theme(move |i| set_theme(&s, i));
     let s = st.clone();
-    g.on_set_accent(move |a| set_accent(&s, &a));
+    g.on_set_accent(move |a| {
+        let a = a.trim();
+        // Własny kolor tylko jako #rrggbb – literówka nie psuje wyglądu.
+        if a == "mono" || a == "system" || hex(a).is_some() {
+            set_accent(&s, a);
+        }
+    });
+    let s = st.clone();
+    g.on_set_effect(move |i| set_effect(&s, i));
+    let s = st.clone();
+    g.on_set_popup_opacity(move |v| set_popup_opacity(&s, v));
     let s = st.clone();
     g.on_set_start(move |i| set_start(&s, i));
     let s = st.clone();

@@ -5,8 +5,16 @@ export global Theme {
     /// Akcent użytkownika; domyślnie „mono” – biel w ciemnym, czerń w jasnym motywie.
     in-out property <color> accent-override: transparent;
 
-    out property <color> bg: light ? #f6f6f7 : #000000;
-    out property <color> panel: light ? #ffffff : #0b0b0b;
+    /// Tło okna: 0 – pełne, 1 – Mica, 2 – Acrylic (tło i panele przepuszczają efekt Windows).
+    in-out property <int> effect: 0;
+    /// Krycie wyskakujących okienek (menu, dialogi, paleta, podpowiedzi), 0,6–1.
+    in-out property <float> popup-alpha: 1;
+
+    out property <color> bg: effect == 0 ? (light ? #f6f6f7 : #000000) : effect == 1 ? (light ? #f6f6f78c : #00000073) : (light ? #f6f6f7bd : #000000a8);
+    out property <color> panel: effect == 0 ? (light ? #ffffff : #0b0b0b) : effect == 1 ? (light ? #ffffff99 : #1414148c) : (light ? #ffffffcc : #141414bd);
+    /// Tła okienek – pełne kolory motywu, tylko z wybranym kryciem.
+    out property <color> popup: (light ? #ffffff : #0b0b0b).with-alpha(popup-alpha);
+    out property <color> popup-high: (light ? #ececee : #161616).with-alpha(popup-alpha);
     out property <color> high: light ? #ececee : #161616;
     out property <color> higher: light ? #e2e2e5 : #1f1f1f;
     out property <color> card: light ? #0000000d : #ffffff0f;

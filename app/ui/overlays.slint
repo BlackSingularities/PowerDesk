@@ -43,7 +43,7 @@ export component TransferStack inherits Rectangle {
         alignment: end;
         for o in root.ops: Rectangle {
             border-radius: Theme.r-l;
-            background: Theme.panel;
+            background: Theme.popup;
             border-width: 1px;
             border-color: o.state == 2 ? #ff3b4780 : Theme.line;
             drop-shadow-blur: 40px;
@@ -158,7 +158,7 @@ export component TransferStack inherits Rectangle {
         }
         for t in root.toasts: Rectangle {
             border-radius: Theme.r-l;
-            background: Theme.panel;
+            background: Theme.popup;
             border-width: 1px;
             border-color: Theme.line;
             drop-shadow-blur: 40px;
@@ -244,7 +244,7 @@ export component ConflictDialog inherits Rectangle {
         width: 460px;
         height: dlg.preferred-height;
         border-radius: Theme.r-xl;
-        background: Theme.panel;
+        background: Theme.popup;
         border-width: 1px;
         border-color: Theme.line;
         drop-shadow-blur: 60px;
@@ -365,7 +365,7 @@ export component ConfirmDialog inherits Rectangle {
         width: 420px;
         height: box.preferred-height;
         border-radius: Theme.r-xl;
-        background: Theme.panel;
+        background: Theme.popup;
         border-width: 1px;
         border-color: Theme.line;
         drop-shadow-blur: 60px;
@@ -448,7 +448,7 @@ export component PromptDialog inherits Rectangle {
         width: 420px;
         height: box.preferred-height;
         border-radius: Theme.r-xl;
-        background: Theme.panel;
+        background: Theme.popup;
         border-width: 1px;
         border-color: Theme.line;
         drop-shadow-blur: 60px;

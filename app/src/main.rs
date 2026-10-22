@@ -142,6 +142,9 @@ fn main() -> Result<(), slint::PlatformError> {
     wire(&ui, &st);
     shelf::restore(&st);
     termview::restore(&st);
+    // Tło Mica/Acrylic ustawia DWM na gotowym oknie – po starcie pętli zdarzeń.
+    let s = st.clone();
+    slint::Timer::single_shot(std::time::Duration::from_millis(50), move || settings::relook(&s));
     restore_pinned(&st);
     load(&st, false);
     // „Wklej” pokazuje się tylko, gdy w schowku są pliki – także skopiowane w innym programie.
