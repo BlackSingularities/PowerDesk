@@ -101,7 +101,12 @@ pub fn with_state(f: impl FnOnce(&Shared)) {
 
 /// Ścieżka z wiersza poleceń: folder albo plik (wtedy jego folder i plik do zaznaczenia).
 fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
-    let p = Path::new(arg.trim().trim_matches('"'));
+    // Dysk z menu Eksploratora przychodzi jako `C:"` ("C:\" – ukośnik zjada cudzysłów).
+    let mut a = arg.trim().trim_matches('"').to_string();
+    if a.len() == 2 && a.ends_with(':') {
+        a.push('\\');
+    }
+    let p = Path::new(&a);
     if p.is_dir() {
         return Some((p.to_string_lossy().to_string(), None));
     }
@@ -130,16 +135,26 @@ fn open_args(s: &Shared, args: Vec<String>) {
 /// Ikona programu do zasobnika (ta sama co wersji webowej).
 const TRAY_ICO: &[u8] = include_bytes!("../../src-tauri/icons/icon.ico");
 
-/// Pokazuje ikonę w zasobniku albo ją chowa, zgodnie z ustawieniami.
-pub fn sync_tray(s: &Shared) {
-    use powerdesk_core::tray;
-    if s.borrow().prefs.tray {
-        tray::show(TRAY_ICO, |e| {
-            let _ = slint::invoke_from_event_loop(move || with_state(|s| tray_event(s, e)));
+/// Ikona w zasobniku – zawsze: PowerDesk działa w tle jako powłoka systemu.
+fn start_tray() {
+    powerdesk_core::tray::show(TRAY_ICO, |e| {
+        let _ = slint::invoke_from_event_loop(move || with_state(|s| tray_event(s, e)));
+    });
+}
+
+/// Odnawia wpisy zastępujące Eksplorator (w tle – to kilka wywołań reg.exe).
+pub fn ensure_integration() {
+    std::thread::spawn(|| {
+        let res = powerdesk_core::integration::ensure();
+        let _ = slint::invoke_from_event_loop(move || {
+            with_state(|s| {
+                if let Err(e) = res {
+                    transfers::toast(s, format!("Nie udało się zastąpić Eksploratora: {e}"), transfers::Kind::Error, None);
+                }
+                settings::render_system(s);
+            })
         });
-    } else {
-        tray::hide();
-    }
+    });
 }
 
 fn tray_event(s: &Shared, e: powerdesk_core::tray::Event) {
@@ -171,9 +186,10 @@ pub fn show_window(s: &Shared) {
     powerdesk_core::instance::bring_to_front(hwnd(s));
 }
 
-/// Krzyżyk i Alt+F4: do zasobnika, jeśli tak ustawiono i ikona jest widoczna; inaczej koniec.
+/// Krzyżyk i Alt+F4 chowają okno do zasobnika; program kończy „Zakończ” z menu ikony.
+/// Gdyby ikona się nie pojawiła, krzyżyk zamyka program – inaczej nie dałoby się go zamknąć.
 fn close_window(s: &Shared) {
-    let to_tray = s.borrow().prefs.close_to_tray && powerdesk_core::tray::visible();
+    let to_tray = powerdesk_core::tray::visible();
     match s.borrow().ui.upgrade() {
         Some(ui) if to_tray => {
             let _ = ui.hide();
@@ -188,6 +204,15 @@ fn quit(_s: &Shared) {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // Przywrócenie Eksploratora (deinstalator, awaria) – bez okna.
+    if std::env::args().any(|a| a == powerdesk_core::integration::REMOVE_FLAG) {
+        powerdesk_core::tray::hide();
+        if let Err(e) = powerdesk_core::integration::remove() {
+            eprintln!("{e}");
+            std::process::exit(1);
+        }
+        return Ok(());
+    }
     // Działa już okno – oddajemy mu argumenty (Win+E, „Otwórz w PowerDesk”) i kończymy.
     let args: Vec<String> = std::env::args().skip(1).filter(|a| !a.starts_with("--")).collect();
     if powerdesk_core::instance::send_to_running(&args) {
@@ -258,12 +283,13 @@ fn main() -> Result<(), slint::PlatformError> {
     // Cel upuszczania wymaga uchwytu okna – rejestrujemy go po starcie pętli.
     let s2 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_millis(50), move || dragdrop::register(&s2));
-    sync_tray(&st);
+    start_tray();
+    ensure_integration();
     // Synchronizacja rusza w tle chwilę po starcie, żeby nie opóźniać pierwszego okna.
     let s3 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
-    // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu (o ile ikona jest).
-    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG) && st.borrow().prefs.tray;
+    // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu.
+    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
     if !hidden {
         ui.show()?;
     }

@@ -15,12 +15,12 @@ import { ViewerView, ViewerState, ViewerThumb } from "viewer.slint";
 import { PaletteDialog, Palette, PaletteRow } from "palette.slint";
 import { PlayerState } from "player.slint";
 import { HomeView, HomeState, HomeDrive, HomeFolder, HomeFile, HomeSection, HomeActivity, HomeDay } from "home.slint";
-import { SettingsView, SettingsState } from "settings.slint";
+import { SettingsView, SettingsState, SysItem } from "settings.slint";
 import { SyncView, SyncState, SyncCard, SyncHist } from "sync.slint";
 import { SpaceView, SpaceState, SpaceTile, SpaceRow, SpaceJunk } from "space.slint";
 import { TermPanel, TermState, TermLine, TermRun } from "term.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, Gauge, ShelfState, ShelfItem, Prompt, PreviewState, CodeTok, CodeLine, ViewerState, ViewerThumb, Palette, PaletteRow, PlayerState, HomeState, HomeDrive, HomeFolder, HomeFile, HomeSection, HomeActivity, HomeDay, SettingsState, SyncState, SyncCard, SyncHist, SpaceState, SpaceTile, SpaceRow, SpaceJunk, TermState, TermLine, TermRun, AddrSugg }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, Gauge, ShelfState, ShelfItem, Prompt, PreviewState, CodeTok, CodeLine, ViewerState, ViewerThumb, Palette, PaletteRow, PlayerState, HomeState, HomeDrive, HomeFolder, HomeFile, HomeSection, HomeActivity, HomeDay, SettingsState, SysItem, SyncState, SyncCard, SyncHist, SpaceState, SpaceTile, SpaceRow, SpaceJunk, TermState, TermLine, TermRun, AddrSugg }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {

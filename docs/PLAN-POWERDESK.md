@@ -116,7 +116,9 @@ Zasady:
 
 ### Integracja z systemem
 - [x] Zasobnik (ikona, menu, zamykanie do zasobnika, powrót po restarcie Eksploratora), autostart (`--tray`), Win+E
-- [ ] Domyślny menedżer plików, menu kontekstowe Eksploratora, aktualizacje
+- [x] Zastąpienie Eksploratora zawsze włączone (bez przełączników): foldery i dyski, Win+E, „Otwórz w PowerDesk”, autostart – odnawiane przy starcie, stan i „Napraw” w Ustawieniach → System; cofnięcie `--remove-integration`
+- [x] Ustawienia jako ustawienia powłoki: Wygląd, Nowe okno, Widok folderów, Przeglądanie, Podgląd, Pulpit, Pasek zadań, System, Skróty, O aplikacji
+- [ ] Aktualizacje
 - [x] Jedna instancja (potok nazwany), otwieranie ścieżki z wiersza poleceń w nowej karcie, okno na wierzch
 
 ### Nowe: pulpit i pasek

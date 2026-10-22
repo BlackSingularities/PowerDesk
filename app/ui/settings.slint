@@ -3,6 +3,13 @@ import { Icons } from "icons.slint";
 import { Icon, Label, TipArea } from "components.slint";
 import { ScrollView, LineEdit, Slider } from "std-widgets.slint";
 
+/// Element zastępowania Eksploratora w sekcji System.
+export struct SysItem {
+    name: string,
+    detail: string,
+    ok: bool,
+}
+
 /// Ekran ustawień (SettingsView.svelte) – dane i zapis w settings.rs.
 export global SettingsState {
     in-out property <bool> open;
@@ -25,12 +32,9 @@ export global SettingsState {
     in-out property <bool> preview-open;
     in-out property <bool> viewer-info;
     in-out property <bool> confirm-trash;
-    /// Win+E otwiera PowerDesk (stan z rejestru).
-    in-out property <bool> win-e;
-    in-out property <bool> tray;
-    in-out property <bool> close-to-tray;
-    /// Start z Windows (stan z rejestru).
-    in-out property <bool> autostart;
+    /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
+    in-out property <[SysItem]> system;
+    callback repair-integration;
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
@@ -221,11 +225,13 @@ export component SettingsView inherits Rectangle {
     background: Theme.bg;
     property <[{title: string, icon: string}]> nav: [
         { title: "Wygląd", icon: Icons.eye },
-        { title: "Po uruchomieniu", icon: Icons.bolt },
-        { title: "Domyślny widok", icon: Icons.grid },
+        { title: "Nowe okno", icon: Icons.bolt },
+        { title: "Widok folderów", icon: Icons.grid },
         { title: "Przeglądanie", icon: Icons.folder },
         { title: "Podgląd", icon: Icons.panel },
-        { title: "Bezpieczeństwo", icon: Icons.shield },
+        { title: "Pulpit", icon: Icons.desktop },
+        { title: "Pasek zadań", icon: Icons.sidebar },
+        { title: "System", icon: Icons.shield },
         { title: "Skróty klawiszowe", icon: Icons.hash },
         { title: "O aplikacji", icon: Icons.info },
     ];
@@ -497,8 +503,8 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 1: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Po uruchomieniu";
-                        lead: "Co zobaczysz po otwarciu aplikacji · przypięte karty wracają zawsze";
+                        title: "Nowe okno";
+                        lead: "Co pokazuje nowa karta i okno (Win+E, menu ikony w zasobniku) · przypięte karty wracają zawsze";
                     }
                     Choice {
                         icon: Icons.home;
@@ -555,7 +561,7 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 2: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Domyślny widok";
+                        title: "Widok folderów";
                         lead: "Jak otwiera się folder, dla którego nic nie zapamiętano";
                     }
                     HorizontalLayout {
@@ -656,6 +662,15 @@ export component SettingsView inherits Rectangle {
                             SettingsState.toggle("folder-sizes");
                         }
                     }
+                    ToggleRow {
+                        icon: Icons.trash;
+                        text: "Pytaj przed przeniesieniem do Kosza";
+                        hint: "Usuwanie trwałe (Shift+Del) zawsze wymaga potwierdzenia";
+                        on: SettingsState.confirm-trash;
+                        toggled => {
+                            SettingsState.toggle("confirm-trash");
+                        }
+                    }
                 }
 
                 if SettingsState.section == 4: VerticalLayout {
@@ -687,59 +702,109 @@ export component SettingsView inherits Rectangle {
                 }
 
                 if SettingsState.section == 5: VerticalLayout {
-                    spacing: 8px;
+                    spacing: 10px;
                     Heading {
-                        title: "Bezpieczeństwo";
-                        lead: "Potwierdzenia przed zmianami";
+                        title: "Pulpit";
+                        lead: "PowerDesk zastąpi pulpit Windows na każdym monitorze";
                     }
-                    ToggleRow {
-                        icon: Icons.trash;
-                        text: "Pytaj przed przeniesieniem do Kosza";
-                        hint: "Usuwanie trwałe (Shift+Del) zawsze wymaga potwierdzenia";
-                        on: SettingsState.confirm-trash;
-                        toggled => {
-                            SettingsState.toggle("confirm-trash");
-                        }
-                    }
-                    ToggleRow {
-                        icon: Icons.folder;
-                        text: "Win+E otwiera PowerDesk";
-                        hint: "Zamiast Eksploratora Windows; tylko dla Twojego konta, wyłączenie przywraca Eksplorator";
-                        on: SettingsState.win-e;
-                        toggled => {
-                            SettingsState.toggle("win-e");
-                        }
-                    }
-                    ToggleRow {
-                        icon: Icons.pin;
-                        text: "Ikona w zasobniku";
-                        hint: "Obok zegara: klik otwiera okno, prawy przycisk – menu z „Zakończ”";
-                        on: SettingsState.tray;
-                        toggled => {
-                            SettingsState.toggle("tray");
-                        }
-                    }
-                    ToggleRow {
-                        icon: Icons.close;
-                        text: "Zamykanie do zasobnika";
-                        hint: SettingsState.tray ? "Krzyżyk chowa okno, program działa dalej (np. synchronizacja)" : "Wymaga ikony w zasobniku";
-                        on: SettingsState.close-to-tray && SettingsState.tray;
-                        toggled => {
-                            SettingsState.toggle("close-to-tray");
-                        }
-                    }
-                    ToggleRow {
-                        icon: Icons.refresh;
-                        text: "Uruchamiaj z Windows";
-                        hint: SettingsState.tray ? "Po zalogowaniu startuje schowany w zasobniku" : "Po zalogowaniu otwiera okno";
-                        on: SettingsState.autostart;
-                        toggled => {
-                            SettingsState.toggle("autostart");
-                        }
+                    Label {
+                        text: "W przygotowaniu: tapeta i ikony z Pulpitu użytkownika i publicznego na każdym monitorze, układ ikon, siatka i ich wielkość. Pierwsza wersja ruszy w trybie testowym – jako nakładka, którą wyłącza Esc.";
+                        wrap: word-wrap;
+                        font-size: 12.5px;
+                        color: Theme.dim;
                     }
                 }
 
                 if SettingsState.section == 6: VerticalLayout {
+                    spacing: 10px;
+                    Heading {
+                        title: "Pasek zadań";
+                        lead: "PowerDesk zastąpi dolny pasek Windows";
+                    }
+                    Label {
+                        text: "W przygotowaniu: pasek na każdym monitorze z listą okien, grupowaniem i miniaturami, zegar, głośność, sieć, bateria, ikony w zasobniku i menu Start. Alt+Tab, Win+Tab i Win+D zostają systemowe.";
+                        wrap: word-wrap;
+                        font-size: 12.5px;
+                        color: Theme.dim;
+                    }
+                }
+
+                if SettingsState.section == 7: VerticalLayout {
+                    spacing: 8px;
+                    Heading {
+                        title: "System";
+                        lead: "PowerDesk zastępuje Eksplorator Windows · wpisy odnawiają się przy każdym starcie";
+                    }
+                    for it in SettingsState.system: Rectangle {
+                        height: 56px;
+                        border-radius: Theme.r;
+                        background: Theme.card;
+                        HorizontalLayout {
+                            padding-left: 14px;
+                            padding-right: 14px;
+                            spacing: 12px;
+                            Rectangle {
+                                y: (parent.height - self.height) / 2;
+                                width: 8px;
+                                height: 8px;
+                                border-radius: 4px;
+                                background: it.ok ? Theme.ok : Theme.rec;
+                            }
+                            VerticalLayout {
+                                horizontal-stretch: 1;
+                                alignment: center;
+                                spacing: 2px;
+                                Label {
+                                    text: it.name;
+                                    font-size: 13px;
+                                }
+                                Label {
+                                    text: it.detail;
+                                    font-size: 11.5px;
+                                    color: Theme.faint;
+                                }
+                            }
+                            Label {
+                                text: it.ok ? "działa" : "nie działa";
+                                font-size: 12px;
+                                color: it.ok ? Theme.dim : Theme.rec;
+                            }
+                        }
+                    }
+                    if SettingsState.system.length == 0: Label {
+                        text: "Sprawdzam…";
+                        font-size: 12px;
+                        color: Theme.faint;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Rectangle {
+                            width: rp.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: rp-ta.has-hover ? Theme.press : Theme.card;
+                            rp := Label {
+                                horizontal-alignment: center;
+                                text: "Napraw";
+                                font-size: 12.5px;
+                            }
+                            rp-ta := TipArea {
+                                tip: "Ustaw od nowa wpisy, które nie wskazują tego programu";
+                                clicked => {
+                                    SettingsState.repair-integration();
+                                }
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Okno zamyka się do zasobnika – PowerDesk działa dalej w tle. Zakończyć program można z menu ikony obok zegara. Przywrócenie Eksploratora: powerdesk.exe --remove-integration (robi to też deinstalator).";
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: Theme.faint;
+                    }
+                }
+
+                if SettingsState.section == 8: VerticalLayout {
                     spacing: 2px;
                     Heading {
                         title: "Skróty klawiszowe";
@@ -751,7 +816,7 @@ export component SettingsView inherits Rectangle {
                     }
                 }
 
-                if SettingsState.section == 7: VerticalLayout {
+                if SettingsState.section == 9: VerticalLayout {
                     spacing: 10px;
                     Heading {
                         title: "O aplikacji";
