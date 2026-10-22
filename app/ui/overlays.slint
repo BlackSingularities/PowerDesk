@@ -427,3 +427,112 @@ export component ConfirmDialog inherits Rectangle {
         }
     }
 }
+
+/// Pytanie o tekst (np. nowa nazwa) – okno wewnątrz aplikacji; odpowiedź obsługuje transfers::prompt.
+export global Prompt {
+    in-out property <bool> open;
+    in-out property <string> title;
+    in-out property <string> value;
+    in-out property <string> ok;
+    callback answer(bool, string);
+}
+
+export component PromptDialog inherits Rectangle {
+    background: #00000066;
+    TouchArea {
+        clicked => {
+            Prompt.answer(false, "");
+        }
+    }
+    Rectangle {
+        width: 420px;
+        height: box.preferred-height;
+        border-radius: Theme.r-xl;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 60px;
+        drop-shadow-offset-y: 24px;
+        drop-shadow-color: Theme.shadow;
+        TouchArea { }
+        box := VerticalLayout {
+            padding: 20px;
+            spacing: 14px;
+            Text {
+                text: Prompt.title;
+                font-family: Theme.font;
+                font-size: 17px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+            Rectangle {
+                height: 34px;
+                border-radius: Theme.r-s;
+                background: Theme.card;
+                border-width: 1px;
+                border-color: input.has-focus ? Theme.line-strong : Theme.line;
+                input := TextInput {
+                    x: 10px;
+                    width: parent.width - 20px;
+                    text: Prompt.value;
+                    single-line: true;
+                    vertical-alignment: center;
+                    font-family: Theme.font;
+                    font-size: Theme.font-size;
+                    color: Theme.text;
+                    selection-background-color: Theme.sel-strong;
+                    selection-foreground-color: Theme.text;
+                    init => {
+                        self.focus();
+                        self.select-all();
+                    }
+                    accepted => {
+                        Prompt.answer(true, self.text);
+                    }
+                    key-pressed(e) => {
+                        if (e.text == Key.Escape) {
+                            Prompt.answer(false, "");
+                            return accept;
+                        }
+                        reject
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                spacing: 8px;
+                Rectangle {
+                    height: 32px;
+                    width: pn-l.preferred-width + 24px;
+                    border-radius: Theme.r-s;
+                    background: pn-ta.has-hover ? Theme.hover : transparent;
+                    pn-l := Label {
+                        text: "Anuluj";
+                        color: Theme.dim;
+                    }
+                    pn-ta := TouchArea {
+                        clicked => {
+                            Prompt.answer(false, "");
+                        }
+                    }
+                }
+                Rectangle {
+                    height: 32px;
+                    width: max(90px, py-l.preferred-width + 24px);
+                    border-radius: Theme.r-s;
+                    background: py-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
+                    py-l := Label {
+                        text: Prompt.ok;
+                        font-weight: 600;
+                        color: Theme.on-accent;
+                    }
+                    py-ta := TouchArea {
+                        clicked => {
+                            Prompt.answer(true, input.text);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

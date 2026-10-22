@@ -239,7 +239,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
         if path.starts_with("ofp:") {
             return;
         }
-        if shift {
+        if shift && !archives::browsing(&path) {
             native_menu(&s, &[path], x, y);
         } else {
             menus::background_menu(&s, x, y);
@@ -383,6 +383,8 @@ fn wire(ui: &MainWindow, st: &Shared) {
     g.on_apply(move || bulk::apply(&s));
     let s = st.clone();
     g.on_cancel(move || bulk::close(&s));
+    let s = st.clone();
+    ui.global::<Prompt>().on_answer(move |ok, t| transfers::prompt_answer(&s, ok.then_some(t.as_str())));
     let g = ui.global::<ShelfState>();
     let s = st.clone();
     g.on_close(move || shelf::set_open(&s, false));
@@ -922,6 +924,28 @@ pub fn run_saved(s: &Shared, id: &str, new: bool) {
     start_search(s, &v.query);
 }
 
+/// Nowa nazwa zapisanego wyszukiwania (okno z polem tekstowym).
+pub fn rename_saved(s: &Shared, id: &str) {
+    let Some(name) = s.borrow().prefs.saved_searches.iter().find(|v| v.id == id).map(|v| v.name.clone()) else { return };
+    let id = id.to_string();
+    transfers::prompt(
+        s,
+        "Zmień nazwę wyszukiwania",
+        &name,
+        "Zmień",
+        Rc::new(move |s: &Shared, n: &str| {
+            {
+                let mut b = s.borrow_mut();
+                if let Some(v) = b.prefs.saved_searches.iter_mut().find(|v| v.id == id) {
+                    v.name = n.to_string();
+                }
+                b.prefs.save();
+            }
+            render_side(s);
+        }),
+    );
+}
+
 pub fn remove_saved(s: &Shared, id: &str) {
     {
         let mut b = s.borrow_mut();
@@ -1441,7 +1465,8 @@ fn context(s: &Shared, i: usize, x: f32, y: f32, shift: bool) {
     if paths.is_empty() {
         return;
     }
-    if shift {
+    // Elementy z wnętrza archiwum nie istnieją dla Eksploratora – tam zostaje własne menu.
+    if shift && !paths.iter().any(|p| archives::inside(p)) {
         native_menu(s, &paths, x, y);
     } else {
         menus::item_menu(s, x, y);

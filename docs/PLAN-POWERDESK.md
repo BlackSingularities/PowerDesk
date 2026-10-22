@@ -28,7 +28,7 @@ Zasady:
 |---|---|---|
 | 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | gotowe |
 | 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | gotowe |
-| 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | **w toku** |
+| 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | gotowe |
 | 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | – |
 | 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
 | 5 | Pulpit PowerDesk na wszystkich monitorach (tryb testowy i zastępujący) | – |
@@ -65,7 +65,7 @@ Zasady:
 - [x] Filtry kategorii (Wszystko, Media, Zdjęcia, Wideo, Dokumenty, Audio, Archiwa) – tylko obecne w folderze
 - [x] Składnia zapytań (typ:, ext:, rozmiar:, data:, utworzony:) w filtrze i wyszukiwaniu
 - [x] Fasety (format, kadr, rozdzielczość, długość, jakość, rodzaj, rozmiar, data), podpowiedzi zapytań, zapisane wyszukiwania w panelu bocznym
-- [ ] Zmiana nazwy zapisanego wyszukiwania (wymaga okien dialogowych – etap 2)
+- [x] Zmiana nazwy zapisanego wyszukiwania
 - [x] Zaznaczanie ramką (z tła, na liście poza nazwą, w siatce/galerii z Altem; Ctrl/Shift rozszerza; samoczynne przewijanie)
 - [x] Zmiana nazwy w miejscu (F2, menu, nowy folder/plik; Enter/Esc/Tab), zaznaczenie zapamiętane per folder
 - [x] Rozmiary folderów w tle (2 wątki, bez dysków sieciowych, unieważniane po zmianach), metadane mediów w kolumnach
@@ -78,11 +78,12 @@ Zasady:
 - [x] Kopiowanie/przenoszenie w tle: pasek transferów w oknie (postęp, prędkość, czas, wstrzymanie, anulowanie, błędy) zamiast okienek Windows; konflikty w oknie aplikacji; cofanie/ponawianie (Ctrl+Z/Ctrl+Y, „Cofnij” w powiadomieniu)
 - [x] Kosz, schowek zgodny z Eksploratorem
 - [x] Przeciąganie (OLE jak w Eksploratorze): na foldery, tło listy, panel boczny, okruszki i karty; do i z innych programów; Ctrl kopiuj, Shift przenieś
-- [ ] Menu kontekstowe własne + pełne menu Eksploratora (Shift)
+- [x] Menu kontekstowe własne + pełne menu Eksploratora (Shift)
 - [x] Nowy folder/plik: menu „Nowy” (folder z datą, z zaznaczonych, dokumenty, pliki programisty), cofanie, przeniesienie zaznaczonych do nowego folderu
 - [x] Masowa zmiana nazwy (wzorzec, numeracja, znajdź i zamień, podgląd, cofanie)
 - [x] Archiwa ZIP/7z/RAR: przeglądanie jak folderu, otwieranie plików ze środka, wypakowanie (tutaj, obok, przez kopiowanie i wklejanie), tworzenie ZIP
-- [ ] „Wypakuj do…” z wyborem folderu i przeciąganie z archiwum do innych programów
+- [x] „Wypakuj do…” z wyborem folderu
+- [ ] Przeciąganie z archiwum do innych programów
 - [x] Właściwości: metadane systemowe w sekcjach, rozmiar folderu, SHA-256, systemowe okno właściwości
 - [ ] Właściwości: mapa GPS i graficzne skale ekspozycji (z podglądem – etap 3)
 - [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)

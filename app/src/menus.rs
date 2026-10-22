@@ -145,6 +145,8 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
             let p = e.path.clone();
             v.push(it("Wypakuj tutaj", "download", move |s| crate::archives::extract_here(s, &p)));
             let p = e.path.clone();
+            v.push(it("Wypakuj do…", "download", move |s| crate::archives::extract_pick(s, vec![p.clone()])));
+            let p = e.path.clone();
             v.push(it("Otwórz w programie", "open", move |_| {
                 let _ = open::that_detached(&p);
             }));
@@ -185,6 +187,8 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     if let Some(dir) = sel.iter().find(|e| crate::archives::inside(&e.path)).and_then(|e| archive::split(&e.path)).and_then(|(arc, _)| arc.parent().map(|d| d.to_string_lossy().to_string())) {
         let ps = paths(&sel);
         v.push(it("Wypakuj obok archiwum", "download", move |s| crate::archives::extract_to(s, ps.clone(), &dir)));
+        let ps = paths(&sel);
+        v.push(it("Wypakuj do…", "download", move |s| crate::archives::extract_pick(s, ps.clone())));
     }
     v.push(sep());
     let ps = paths(&sel);
@@ -518,14 +522,14 @@ pub fn column_menu(s: &Shared, x: f32, y: f32) {
 
 /// Menu zapisanego wyszukiwania w panelu bocznym (savedMenu w Sidebar.svelte).
 pub fn saved_menu(s: &Shared, id: String, x: f32, y: f32) {
-    let (a, b, c) = (id.clone(), id.clone(), id);
+    let (a, b, c, d) = (id.clone(), id.clone(), id.clone(), id);
     show(
         s,
         vec![
             it("Uruchom", "search", move |s| crate::run_saved(s, &a, false)),
             it("Uruchom w nowej karcie", "plus", move |s| crate::run_saved(s, &b, true)),
             sep(),
-            it("Zmień nazwę", "edit", |_| {}).later(),
+            it("Zmień nazwę", "edit", move |s| crate::rename_saved(s, &d)),
             it("Usuń", "trash", move |s| crate::remove_saved(s, &c)).danger(),
         ],
         x,

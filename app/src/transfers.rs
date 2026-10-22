@@ -8,7 +8,7 @@ use std::time::Duration;
 use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::ops::{self, Conflict, Progress};
 use powerdesk_core::drives;
-use slint::{ModelRc, SharedString, VecModel};
+use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use crate::menus::Act;
 use crate::{fmt, ConflictRow, OpItem, Shared, ToastItem};
@@ -42,6 +42,7 @@ pub struct Transfers {
     hidden: bool,
     pending: Option<Pending>,
     confirm: Option<Act>,
+    prompt: Option<std::rc::Rc<dyn Fn(&Shared, &str)>>,
 }
 
 fn base(p: &str) -> String {
@@ -187,6 +188,27 @@ pub fn confirm(s: &Shared, title: &str, text: &str, ok: &str, danger: bool, act:
     ui.set_confirm_danger(danger);
     ui.set_confirm_open(true);
     s.borrow_mut().transfers.confirm = Some(act);
+}
+
+/// Pytanie o tekst (nazwa) w oknie aplikacji; `act` dostaje wpisany tekst po zatwierdzeniu.
+pub fn prompt(s: &Shared, title: &str, value: &str, ok: &str, act: std::rc::Rc<dyn Fn(&Shared, &str)>) {
+    let Some(ui) = s.borrow().ui.upgrade() else { return };
+    let g = ui.global::<crate::Prompt>();
+    g.set_title(title.into());
+    g.set_value(value.into());
+    g.set_ok(ok.into());
+    g.set_open(true);
+    s.borrow_mut().transfers.prompt = Some(act);
+}
+
+pub fn prompt_answer(s: &Shared, text: Option<&str>) {
+    if let Some(ui) = s.borrow().ui.upgrade() {
+        ui.global::<crate::Prompt>().set_open(false);
+    }
+    let act = s.borrow_mut().transfers.prompt.take();
+    if let (Some(t), Some(act)) = (text.map(str::trim).filter(|t| !t.is_empty()), act) {
+        act(s, t);
+    }
 }
 
 pub fn confirm_answer(s: &Shared, yes: bool) {

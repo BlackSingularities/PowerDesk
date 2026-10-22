@@ -311,6 +311,27 @@ pub fn properties(path: &str) -> Vec<Prop> {
     out
 }
 
+/// Systemowe okno wyboru folderu; `None` – anulowano.
+pub fn pick_folder(hwnd: isize, title: &str, start: Option<&str>) -> Option<String> {
+    use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+    use windows::Win32::UI::Shell::{FileOpenDialog, IFileOpenDialog, IShellItem, FOS_FORCEFILESYSTEM, FOS_PICKFOLDERS, SIGDN_FILESYSPATH};
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let dlg: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).ok()?;
+        let opts = dlg.GetOptions().ok()?;
+        dlg.SetOptions(opts | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM).ok()?;
+        let _ = dlg.SetTitle(&HSTRING::from(title));
+        if let Some(item) = start.and_then(|p| SHCreateItemFromParsingName::<_, _, IShellItem>(&HSTRING::from(p), None).ok()) {
+            let _ = dlg.SetFolder(&item);
+        }
+        dlg.Show(Some(HWND(hwnd as *mut _))).ok()?;
+        let name = dlg.GetResult().ok()?.GetDisplayName(SIGDN_FILESYSPATH).ok()?;
+        let path = name.to_string().ok();
+        CoTaskMemFree(Some(name.0 as *const _));
+        path
+    }
+}
+
 pub fn show_properties(hwnd: isize, path: &str) -> bool {
     unsafe {
         let p = HSTRING::from(path);

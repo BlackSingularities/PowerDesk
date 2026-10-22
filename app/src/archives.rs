@@ -98,6 +98,14 @@ pub fn extract_to(s: &Shared, sources: Vec<String>, dest: &str) {
     });
 }
 
+/// „Wypakuj do…”: folder z systemowego okna wyboru, start w folderze archiwum.
+pub fn extract_pick(s: &Shared, sources: Vec<String>) {
+    let start = sources.first().and_then(|p| archive::split(p)).and_then(|(arc, _)| arc.parent().map(|d| d.to_string_lossy().to_string()));
+    if let Some(dest) = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Wypakuj do folderu", start.as_deref()) {
+        extract_to(s, sources, &dest);
+    }
+}
+
 /// Całe archiwum do folderu obok, o tej samej nazwie.
 pub fn extract_here(s: &Shared, arc: &str) {
     transfers::toast(s, format!("Wypakowuję „{}”…", base(arc)), Kind::Info, None);
