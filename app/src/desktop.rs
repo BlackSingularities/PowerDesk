@@ -89,14 +89,21 @@ fn build(s: &Shared, mons: Vec<Monitor>, walls: Vec<Option<SharedPixelBuffer<Rgb
             });
         }
         // Okno nie może zniknąć w trakcie własnego zdarzenia – zamykamy w następnym obiegu pętli.
-        w.on_close(|| slint::Timer::single_shot(std::time::Duration::ZERO, close));
+        w.on_close_desk(|| slint::Timer::single_shot(std::time::Duration::ZERO, close));
         let s2 = s.clone();
         w.on_refresh(move || refresh(&s2));
         let _ = w.show();
-        data::hide_from_taskbar(crate::window_hwnd(w.window()));
         out.push(w);
     }
     WINDOWS.with(|ws| *ws.borrow_mut() = out);
+    // Okno systemowe powstaje dopiero w pętli zdarzeń – styl (bez paska zadań i Alt+Tab) chwilę później.
+    slint::Timer::single_shot(std::time::Duration::from_millis(100), || {
+        WINDOWS.with(|ws| {
+            for w in ws.borrow().iter() {
+                data::hide_from_taskbar(crate::window_hwnd(w.window()));
+            }
+        })
+    });
     render_icons();
 }
 

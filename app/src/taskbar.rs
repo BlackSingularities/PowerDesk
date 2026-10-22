@@ -22,8 +22,12 @@ struct Bar {
     w: TaskbarWindow,
     /// Lewy górny róg monitora – po nim przypisujemy okna.
     origin: (i32, i32),
+    /// Rozmiar monitora (piksele ekranu).
+    mon: (i32, i32),
     /// Położenie okna paska na ekranie (do menu podręcznego).
     pos: (i32, i32),
+    /// Ułożone na dole monitora i ukryte z paska Windows.
+    placed: bool,
     /// Okna w kolejności przycisków.
     wins: Vec<Win>,
     fg: isize,
@@ -81,16 +85,12 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_context(move |i, x, y| context(n, i as usize, x, y));
         w.on_close_test(|| slint::Timer::single_shot(Duration::ZERO, close));
         let _ = w.show();
-        let scale = w.window().scale_factor();
-        let h = (HEIGHT * scale).round() as i32;
-        let pos = (m.x, m.y + m.height - h);
-        let hwnd = crate::window_hwnd(w.window());
-        data::hide_from_taskbar(hwnd);
-        taskwin::place_topmost(hwnd, pos.0, pos.1, m.width, h);
-        bars.push(Bar { w, origin: (m.x, m.y), pos, wins: Vec::new(), fg: 0 });
+        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
     refresh();
+    // Okno systemowe powstaje dopiero w pętli zdarzeń – ułożenie zaraz po pierwszym obiegu.
+    slint::Timer::single_shot(Duration::from_millis(100), refresh);
     TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(1), refresh));
 }
 
@@ -117,6 +117,26 @@ fn context(bar: usize, i: usize, x: f32, y: f32) {
         _ => {}
     }
     slint::Timer::single_shot(Duration::from_millis(300), refresh);
+}
+
+/// Pasek na dole swojego monitora i na wierzchu. Za pierwszym razem także rozmiar i styl
+/// (bez przycisku na pasku Windows); potem co sekundę już tylko wierzch – pasek Windows
+/// potrafi wysunąć się nad nasz po kliknięciu.
+fn place(bar: &mut Bar) {
+    let hwnd = crate::window_hwnd(bar.w.window());
+    if hwnd == 0 {
+        return;
+    }
+    let scale = bar.w.window().scale_factor();
+    let h = (HEIGHT * scale).round() as i32;
+    bar.pos = (bar.origin.0, bar.origin.1 + bar.mon.1 - h);
+    if !bar.placed {
+        data::hide_from_taskbar(hwnd);
+        bar.w.window().set_position(slint::PhysicalPosition::new(bar.pos.0, bar.pos.1));
+        bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
+        bar.placed = true;
+    }
+    taskwin::place_topmost(hwnd, bar.pos.0, bar.pos.1, bar.mon.0, h);
 }
 
 /// Stała kolejność: okna już na pasku zostają na swoich miejscach, nowe dochodzą na koniec.
@@ -146,6 +166,7 @@ fn refresh() {
     let (time, date) = (now.format("%H:%M").to_string(), now.format("%d.%m.%Y").to_string());
     BARS.with(|b| {
         for bar in b.borrow_mut().iter_mut() {
+            place(bar);
             let mine: Vec<Win> = all.iter().filter(|w| w.monitor == bar.origin).cloned().collect();
             let wins = keep_order(&bar.wins, mine);
             // Model tylko przy zmianie – inaczej co sekundę migałyby podpowiedzi.

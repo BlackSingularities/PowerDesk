@@ -29,7 +29,7 @@ export component DesktopWindow inherits Window {
     in property <bool> test: true;
     callback open(int);
     callback context(int, length, length);
-    callback close();
+    callback close-desk();
     callback refresh();
 
     property <length> cell-w: 84px;
@@ -129,7 +129,7 @@ export component DesktopWindow inherits Window {
         height: 0;
         key-pressed(e) => {
             if (e.text == Key.Escape) {
-                root.close();
+                root.close-desk();
                 return accept;
             }
             if (e.text == Key.F5) {
