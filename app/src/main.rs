@@ -259,6 +259,9 @@ fn main() -> Result<(), slint::PlatformError> {
     let s2 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_millis(50), move || dragdrop::register(&s2));
     sync_tray(&st);
+    // Synchronizacja rusza w tle chwilę po starcie, żeby nie opóźniać pierwszego okna.
+    let s3 = st.clone();
+    slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
     // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu (o ile ikona jest).
     let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG) && st.borrow().prefs.tray;
     if !hidden {

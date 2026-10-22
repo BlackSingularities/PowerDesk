@@ -1,7 +1,7 @@
 //! Ekran synchronizacji (SyncView.svelte) na karcie `ofp:sync`: profile ze stanem, postępem
 //! i historią, edytor profilu, podgląd planu, ochrona przed masowym usunięciem.
-//! Silnik (`powerdesk_core::sync`) startuje dopiero po pierwszym wejściu na ekran – i tylko,
-//! gdy nie działa stary OpenFilePower, który korzysta z tych samych profili.
+//! Silnik (`powerdesk_core::sync`) startuje kilka sekund po uruchomieniu programu (gdy jest włączony
+//! profil) albo po wejściu na ekran – i tylko, gdy nie działa stary OpenFilePower z tymi samymi profilami.
 
 use std::cell::Cell;
 
@@ -52,6 +52,25 @@ fn ensure_started(s: &Shared) {
     }
     STARTED.with(|x| x.set(true));
     sync::init(Core);
+}
+
+/// Synchronizacja od startu programu (także z autostartu, schowanego w zasobniku) – o ile jest
+/// włączony profil. Gdy działa stary OpenFilePower, ponawiamy co minutę, aż się zamknie.
+pub fn start_background(s: &Shared) {
+    if STARTED.with(|x| x.get()) {
+        return;
+    }
+    if !LOADED.with(|x| x.replace(true)) {
+        sync::load();
+    }
+    if !sync::profiles().0.iter().any(|p| p.enabled) {
+        return;
+    }
+    ensure_started(s);
+    if !STARTED.with(|x| x.get()) {
+        let s = s.clone();
+        slint::Timer::single_shot(std::time::Duration::from_secs(60), move || start_background(&s));
+    }
 }
 
 fn blocked(s: &Shared) -> bool {
