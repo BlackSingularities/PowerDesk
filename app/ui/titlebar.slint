@@ -133,7 +133,6 @@ export component TitleBar inherits Rectangle {
                     { id: "copy", icon: Icons.copy, tip: "Kopiuj (Ctrl+C)" },
                     { id: "rename", icon: Icons.edit, tip: "Zmień nazwę (F2)" },
                     { id: "trash", icon: Icons.trash, tip: "Do Kosza (Del)" },
-                    { id: "props", icon: Icons.info, tip: "Właściwości (Alt+Enter)" },
                 ]: IconButton {
                     y: (parent.height - self.height) / 2;
                     icon: c.icon;
@@ -153,7 +152,17 @@ export component TitleBar inherits Rectangle {
                     root.command("paste");
                 }
             }
-            if root.has-selection || root.can-paste: Rectangle {
+            // Bez zaznaczenia – właściwości otwartego folderu.
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: Icons.info;
+                icon-size: 17px;
+                tooltip: root.has-selection ? "Właściwości zaznaczenia (Alt+Enter)" : "Właściwości tego folderu (Alt+Enter)";
+                clicked => {
+                    root.command("props");
+                }
+            }
+            Rectangle {
                 width: 11px;
                 Rectangle {
                     width: 1px;

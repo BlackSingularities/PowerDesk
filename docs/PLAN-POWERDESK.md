@@ -81,7 +81,8 @@ Zasady:
 - [ ] Menu kontekstowe własne + pełne menu Eksploratora (Shift)
 - [x] Nowy folder/plik: menu „Nowy” (folder z datą, z zaznaczonych, dokumenty, pliki programisty), cofanie, przeniesienie zaznaczonych do nowego folderu
 - [x] Masowa zmiana nazwy (wzorzec, numeracja, znajdź i zamień, podgląd, cofanie)
-- [ ] Archiwa (ZIP/7z: przeglądanie, wypakowanie, tworzenie)
+- [x] Archiwa ZIP/7z/RAR: przeglądanie jak folderu, otwieranie plików ze środka, wypakowanie (tutaj, obok, przez kopiowanie i wklejanie), tworzenie ZIP
+- [ ] „Wypakuj do…” z wyborem folderu i przeciąganie z archiwum do innych programów
 - [ ] Właściwości: metadane systemowe, rozmiar folderu, SHA-256, systemowe okno właściwości
 - [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)
 - [ ] Półka (Shelf), pozostałe okna dialogowe (właściwości, masowa zmiana nazw, nazwa zapisanego wyszukiwania)

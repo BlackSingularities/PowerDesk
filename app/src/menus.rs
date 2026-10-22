@@ -139,10 +139,24 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
             let p = e.path.clone();
             v.push(it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &p, false)).kbd("Ctrl+Enter"));
         }
+        Some(e) if crate::archives::browsable(e) => {
+            let p = e.path.clone();
+            v.push(it("Otwórz jako folder", "archive", move |s| crate::navigate(s, &p, true)).kbd("Enter"));
+            let p = e.path.clone();
+            v.push(it("Wypakuj tutaj", "download", move |s| crate::archives::extract_here(s, &p)));
+            let p = e.path.clone();
+            v.push(it("Otwórz w programie", "open", move |_| {
+                let _ = open::that_detached(&p);
+            }));
+        }
         Some(e) => {
             let p = e.path.clone();
             v.push(it("Otwórz", "open", move |_| {
-                let _ = open::that_detached(&p);
+                if crate::archives::inside(&p) {
+                    crate::archives::open_file(&p);
+                } else {
+                    let _ = open::that_detached(&p);
+                }
             })
             .kbd("Enter"));
             v.push(it("Podgląd", "eye", |_| {}).kbd("Spacja").later());
@@ -166,6 +180,11 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
                 crate::navigate(s, &parent.to_string_lossy(), true);
             }
         }));
+    }
+    // Elementy z archiwum: wypakowanie do folderu, w którym leży archiwum.
+    if let Some(dir) = sel.iter().find(|e| crate::archives::inside(&e.path)).and_then(|e| archive::split(&e.path)).and_then(|(arc, _)| arc.parent().map(|d| d.to_string_lossy().to_string())) {
+        let ps = paths(&sel);
+        v.push(it("Wypakuj obok archiwum", "download", move |s| crate::archives::extract_to(s, ps.clone(), &dir)));
     }
     v.push(sep());
     let ps = paths(&sel);
@@ -191,12 +210,12 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
         v.push(it(format!("Zmień nazwy ({})…", sel.len()), "edit", crate::bulk::open).kbd("F2"));
     }
     let p2 = ps.clone();
-    v.push(it("Spakuj do ZIP…", "archive", move |s| zip(s, &p2)));
+    v.push(it("Spakuj do ZIP…", "archive", move |s| crate::archives::zip(s, &p2)));
     if sel.len() > 1 {
         v.push(it("Przenieś do nowego folderu…", "folderPlus", crate::create_with_selection));
     }
     let p2 = ps.clone();
-    v.push(it("Do Kosza", "trash", move |_| trash(&p2)).kbd("Del"));
+    v.push(it("Do Kosza", "trash", move |s| trash(s, &p2)).kbd("Del"));
     let p3 = ps.clone();
     v.push(it("Usuń trwale", "trash", move |s| crate::transfers::delete_permanently(s, p3.clone())).kbd("Shift+Del").danger());
     v.push(sep());
@@ -375,7 +394,7 @@ pub fn new_menu(s: &Shared, x: f32, y: f32) {
     ));
     if n > 0 {
         v.push(sep());
-        v.push(it(format!("Archiwum ZIP z zaznaczonych ({n})"), "archive", |s| zip(s, &crate::selected_paths(s))));
+        v.push(it(format!("Archiwum ZIP z zaznaczonych ({n})"), "archive", |s| crate::archives::zip(s, &crate::selected_paths(s))));
     }
     show(s, v, x, y);
 }
@@ -424,24 +443,10 @@ pub fn paste(s: &Shared, into: Option<&str>) {
     }
 }
 
-pub fn trash(paths: &[String]) {
-    if !paths.is_empty() {
+pub fn trash(s: &Shared, paths: &[String]) {
+    if !paths.is_empty() && !crate::archives::read_only(s, paths) {
         ops::start(Core, "trash".into(), paths.to_vec(), String::new(), ops::Conflict::Skip);
     }
-}
-
-fn zip(s: &Shared, sources: &[String]) {
-    let dir = s.borrow().tabs[s.borrow().active].path.clone();
-    let name = if sources.len() == 1 {
-        Path::new(&sources[0]).file_stem().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "Archiwum".into())
-    } else {
-        Path::new(&dir).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "Archiwum".into())
-    };
-    let dest = Path::new(&dir).join(format!("{name}.zip")).to_string_lossy().to_string();
-    let sources = sources.to_vec();
-    std::thread::spawn(move || {
-        let _ = archive::create_zip(&sources, &dest);
-    });
 }
 
 fn terminal(path: &str) {

@@ -1,4 +1,4 @@
-//! Archiwa ZIP i 7z przeglądane jak zwykłe foldery: `C:\a\zdjecia.zip\2024\x.jpg`.
+//! Archiwa ZIP, 7z i RAR przeglądane jak zwykłe foldery: `C:\a\zdjecia.zip\2024\x.jpg`.
 //! Tylko do odczytu – wypakowanie przez przeciągnięcie, kopiowanie albo otwarcie pliku.
 
 use std::collections::{BTreeMap, HashMap};
@@ -10,7 +10,7 @@ use parking_lot::Mutex;
 
 use crate::fsx::{io_err, Entry};
 
-const EXTS: [&str; 2] = ["zip", "7z"];
+const EXTS: [&str; 3] = ["zip", "7z", "rar"];
 
 /// Pozycja w archiwum (ścieżka z ukośnikami, bez wiodącego).
 #[derive(Clone)]
@@ -60,6 +60,19 @@ fn zip_time(dt: Option<zip::DateTime>) -> i64 {
         .unwrap_or(0)
 }
 
+/// Czas w formacie DOS (RAR) – jak w ZIP traktowany jako czas lokalny zapisany bez strefy.
+fn dos_time(t: u32) -> i64 {
+    let (d, t) = (t >> 16, t & 0xffff);
+    chrono::NaiveDate::from_ymd_opt((d >> 9) as i32 + 1980, (d >> 5) & 15, d & 31)
+        .and_then(|day| day.and_hms_opt(t >> 11, (t >> 5) & 63, (t & 31) * 2))
+        .map(|t| t.and_utc().timestamp_millis())
+        .unwrap_or(0)
+}
+
+fn rar_name(h: &unrar::FileHeader) -> String {
+    h.filename.to_string_lossy().replace('\\', "/")
+}
+
 fn read_items(arc: &Path) -> Result<Vec<Item>, String> {
     let ext = arc.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     let mut out = Vec::new();
@@ -70,6 +83,16 @@ fn read_items(arc: &Path) -> Result<Vec<Item>, String> {
             if let Ok(f) = z.by_index_raw(i) {
                 out.push(Item { name: f.name().replace('\\', "/"), dir: f.is_dir(), size: f.size(), modified: zip_time(f.last_modified()) });
             }
+        }
+    } else if ext == "rar" {
+        let list = unrar::Archive::new(arc).open_for_listing().map_err(|e| format!("Nie udało się otworzyć archiwum RAR: {e}"))?;
+        for h in list {
+            let h = h.map_err(|e| format!("Uszkodzone archiwum RAR: {e}"))?;
+            // Plik podzielony na woluminy występuje w spisie raz na każdy wolumin.
+            if h.is_split_before() {
+                continue;
+            }
+            out.push(Item { name: rar_name(&h), dir: h.is_directory(), size: h.unpacked_size, modified: dos_time(h.file_time) });
         }
     } else {
         let a = sevenz_rust::Archive::open(arc).map_err(|e| format!("Nie udało się otworzyć archiwum 7z: {e}"))?;
@@ -210,6 +233,25 @@ fn extract_from(arc: &Path, inners: &[String], dest: &Path) -> Result<Vec<String
             }
             let mut w = std::fs::File::create(&out).map_err(|e| io_err(&e))?;
             std::io::copy(&mut f, &mut w).map_err(|e| io_err(&e))?;
+        }
+    } else if ext == "rar" {
+        let mut a = unrar::Archive::new(arc).open_for_processing().map_err(|e| format!("Nie udało się otworzyć archiwum RAR: {e}"))?;
+        while let Some(h) = a.read_header().map_err(|e| format!("Uszkodzone archiwum RAR: {e}"))? {
+            let out = target(&rar_name(h.entry()));
+            a = match out {
+                Some(out) if h.entry().is_directory() => {
+                    std::fs::create_dir_all(&out).map_err(|e| io_err(&e))?;
+                    h.skip()
+                }
+                Some(out) => {
+                    if let Some(p) = out.parent() {
+                        std::fs::create_dir_all(p).map_err(|e| io_err(&e))?;
+                    }
+                    h.extract_to(&out)
+                }
+                None => h.skip(),
+            }
+            .map_err(|e| format!("Nie udało się wypakować z RAR: {e}"))?;
         }
     } else {
         let mut r = sevenz_rust::SevenZReader::open(arc, sevenz_rust::Password::empty()).map_err(|e| e.to_string())?;

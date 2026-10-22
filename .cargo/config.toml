@@ -1,0 +1,4 @@
+# unrar_sys linkuje winpthreads dynamicznie (-lpthread), a biblioteka standardowa Rusta dla MinGW
+# statycznie (libpthread.a) – te same symbole z tej samej biblioteki, więc linker może wziąć pierwsze.
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "link-arg=-Wl,--allow-multiple-definition"]

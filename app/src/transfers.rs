@@ -110,6 +110,17 @@ pub fn transfer(s: &Shared, sources: Vec<String>, dest: &str, kind: &str) {
     if dest.starts_with("ofp:") {
         return;
     }
+    // Do archiwum nie da się nic dodać; z archiwum się wypakowuje (oryginał zostaje).
+    if crate::archives::read_only_dest(s, dest) {
+        return;
+    }
+    let (packed, sources): (Vec<String>, Vec<String>) = sources.into_iter().partition(|p| crate::archives::inside(p));
+    if !packed.is_empty() {
+        crate::archives::extract_to(s, packed, dest);
+    }
+    if sources.is_empty() {
+        return;
+    }
     // Przeniesienie do tego samego folderu nic nie zmienia.
     let sources: Vec<String> = sources
         .into_iter()
@@ -190,7 +201,7 @@ pub fn confirm_answer(s: &Shared, yes: bool) {
 
 /// Trwałe usunięcie (Shift+Del) – zawsze po potwierdzeniu.
 pub fn delete_permanently(s: &Shared, paths: Vec<String>) {
-    if paths.is_empty() {
+    if paths.is_empty() || crate::archives::read_only(s, &paths) {
         return;
     }
     let what = if paths.len() == 1 { format!("„{}”", base(&paths[0])) } else { format!("{} elementów", paths.len()) };

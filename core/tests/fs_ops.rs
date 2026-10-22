@@ -74,3 +74,20 @@ fn nowy_folder_i_plik() {
     assert!(create(&d, "zła:nazwa", false).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn rar_jak_folder() {
+    let dir = std::env::temp_dir().join(format!("ofp-rar-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let rp = dir.join("solid.rar");
+    std::fs::copy(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/data/solid.rar"), &rp).unwrap();
+    let root = list(&rp, "").unwrap();
+    assert!(!root.is_empty());
+    let first = root.iter().find(|e| !e.dir).unwrap();
+    let out = dir.join("out");
+    std::fs::create_dir_all(&out).unwrap();
+    extract(&[first.path.clone()], &out.to_string_lossy()).unwrap();
+    assert_eq!(std::fs::metadata(out.join(&first.name)).unwrap().len(), first.size);
+    let _ = std::fs::remove_dir_all(&dir);
+}

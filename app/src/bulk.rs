@@ -179,6 +179,9 @@ pub fn open(s: &Shared) {
     if entries.len() < 2 {
         return crate::start_rename(s);
     }
+    if crate::archives::read_only(s, &entries.iter().map(|e| e.path.clone()).collect::<Vec<_>>()) {
+        return;
+    }
     let Some(ui) = s.borrow().ui.upgrade() else { return };
     let g = ui.global::<Bulk>();
     let d = Opts::default();

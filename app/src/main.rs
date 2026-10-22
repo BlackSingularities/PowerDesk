@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! PowerDesk – natywny interfejs (Slint) nad backendem `powerdesk-core`.
 
+mod archives;
 mod bulk;
 mod dragdrop;
 mod facets;
@@ -502,7 +503,7 @@ fn navigate(s: &Shared, path: &str, push: bool) {
     if path.len() == 2 && path.ends_with(':') {
         path.push('\\');
     }
-    if !path.starts_with("ofp:") && !Path::new(&path).is_dir() {
+    if !path.starts_with("ofp:") && !Path::new(&path).is_dir() && !archives::browsing(&path) {
         // Ścieżka do pliku: otwieramy jego folder.
         match Path::new(&path).parent().filter(|p| p.is_dir()) {
             Some(parent) => path = parent.to_string_lossy().to_string(),
@@ -626,7 +627,10 @@ fn load(s: &Shared, keep_selection: bool) {
         t.generation += 1;
         t.path.clone()
     });
-    let res = fsx::list_dir(&path);
+    let res = match powerdesk_core::archive::split(&path).filter(|_| !path.starts_with("ofp:")) {
+        Some((arc, inner)) => powerdesk_core::archive::list(&arc, &inner),
+        None => fsx::list_dir(&path),
+    };
     let auto = {
         let b = s.borrow();
         b.prefs.auto_gallery && !b.prefs.folders.contains_key(&path.to_lowercase())
@@ -1342,8 +1346,10 @@ fn select(s: &Shared, i: usize, ctrl: bool, shift: bool) {
 fn open(s: &Shared, i: usize) {
     let e = tab_mut(s, |t| t.items.get(i).cloned());
     let Some(e) = e else { return };
-    if e.dir {
+    if e.dir || archives::browsable(&e) {
         navigate(s, &e.path, true);
+    } else if archives::inside(&e.path) {
+        archives::open_file(&e.path);
     } else {
         let _ = open::that_detached(&e.path);
     }
@@ -1402,11 +1408,12 @@ fn command(s: &Shared, c: &str) {
         "cut" => menus::copy(&sel, true),
         "copy" => menus::copy(&sel, false),
         "paste" => menus::paste(s, None),
-        "trash" => menus::trash(&sel),
+        "trash" => menus::trash(s, &sel),
         "props" => {
             let p = sel.first().cloned().unwrap_or_else(|| tab_mut(s, |t| t.path.clone()));
             shell::show_properties(hwnd(s), &p);
         }
+        "rename" if archives::read_only(s, &sel) => {}
         "rename" if sel.len() == 1 => start_rename(s),
         "rename" if sel.len() > 1 => bulk::open(s),
         _ => {}
@@ -1455,6 +1462,9 @@ fn make(s: &Shared, name: &str, folder: bool) -> Option<String> {
         transfers::toast(s, "Tu nie można niczego utworzyć – otwórz zwykły folder", transfers::Kind::Info, None);
         return None;
     }
+    if archives::read_only_dest(s, &dir) {
+        return None;
+    }
     powerdesk_core::ops::create(&dir, name, folder).map_err(|e| transfers::toast(s, e, transfers::Kind::Error, None)).ok()
 }
 
@@ -1477,6 +1487,9 @@ pub fn create_with_selection(s: &Shared) {
 pub fn start_rename(s: &Shared) {
     let sel = tab_mut(s, |t| {
         let e = t.items.iter().find(|e| t.selected.contains(&e.path))?.clone();
+        if archives::inside(&e.path) {
+            return None;
+        }
         t.renaming = Some(e.path.clone());
         let i = t.items.iter().position(|x| x.path == e.path);
         t.focus = i;

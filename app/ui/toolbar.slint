@@ -453,6 +453,8 @@ export component Toolbar inherits Rectangle {
                             }
                         }
                         Label {
+                            x: 0;
+                            width: parent.width;
                             visible: root.query == "";
                             text: root.special ? "Szukaj…" : "Filtruj · Enter: szukaj w podfolderach";
                             color: Theme.faint;
