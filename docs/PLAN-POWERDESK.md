@@ -86,7 +86,7 @@ Zasady:
 - [x] Właściwości: metadane systemowe w sekcjach, rozmiar folderu, SHA-256, systemowe okno właściwości
 - [ ] Właściwości: mapa GPS i graficzne skale ekspozycji (z podglądem – etap 3)
 - [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)
-- [ ] Półka (Shelf), pozostałe okna dialogowe (właściwości, masowa zmiana nazw, nazwa zapisanego wyszukiwania)
+- [x] Półka (Shelf): dodawanie (Ctrl+Shift+S, menu, przeciąganie), kopiowanie i przenoszenie do otwartego folderu, przeciąganie z półki, zapamiętywanie
 
 ### Podgląd
 - [ ] Panel podglądu: zdjęcia, wideo, audio, PDF, tekst/kod z podświetlaniem, DOCX/XLSX/PPTX/ODT/EPUB, ZIP, metadane, mapa GPS

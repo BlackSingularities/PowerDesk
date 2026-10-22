@@ -132,19 +132,28 @@ export component Sidebar inherits Rectangle {
                         spacing: 11px;
                         alignment: root.mini ? center : stretch;
                         // Ikona systemowa (jak w Eksploratorze); liniowa tylko do czasu jej wczytania.
-                        if it.has-img: Image {
-                            y: (parent.height - 18px) / 2;
-                            width: 18px;
-                            height: 18px;
-                            source: it.img;
-                        }
-                        if !it.has-img: Icon {
-                            y: (parent.height - self.height) / 2;
-                            commands: it.icon;
-                            color: it.active || ta.has-hover ? Theme.text : Theme.dim;
+                        // Stała kolumna 20 px i środek na wysokości nazwy – tekst wszystkich pozycji
+                        // zaczyna się w tej samej linii, także w wierszach dysków z paskiem.
+                        Rectangle {
+                            width: 20px;
+                            property <length> top: it.detail != "" && !root.mini ? 8px : (parent.height - 18px) / 2;
+                            if it.has-img: Image {
+                                x: 1px;
+                                y: parent.top;
+                                width: 18px;
+                                height: 18px;
+                                source: it.img;
+                            }
+                            if !it.has-img: Icon {
+                                x: 1px;
+                                y: parent.top;
+                                commands: it.icon;
+                                color: it.active || ta.has-hover ? Theme.text : Theme.dim;
+                            }
                         }
                         if !root.mini: VerticalLayout {
-                            alignment: center;
+                            alignment: it.detail != "" ? start : center;
+                            padding-top: it.detail != "" ? 8px : 0;
                             spacing: 3px;
                             Label {
                                 text: it.name;

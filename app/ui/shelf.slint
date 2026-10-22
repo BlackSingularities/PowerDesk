@@ -1,0 +1,261 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label, TipArea, Drag } from "components.slint";
+import { ListView } from "std-widgets.slint";
+
+export struct ShelfItem {
+    name: string,
+    /// Folder, w którym element leży.
+    place: string,
+    path: string,
+    picked: bool,
+    img: image,
+    has-img: bool,
+    dir: bool,
+}
+
+/// Stan półki – dane podaje shelf.rs.
+export global ShelfState {
+    in-out property <bool> open;
+    in-out property <[ShelfItem]> items;
+    in-out property <int> count;
+    in-out property <string> summary;
+    in-out property <string> target;
+    in-out property <bool> can-put;
+    in-out property <bool> can-move;
+    callback close;
+    callback toggle;
+    callback pick(int, bool);
+    callback remove(int);
+    callback put(bool);
+    callback clear;
+    callback drag(int);
+}
+
+/// Mały przycisk tekstowy stopki (btn sm).
+component SmallButton inherits Rectangle {
+    in property <string> text;
+    in property <string> tip;
+    in property <bool> primary;
+    in property <bool> enabled: true;
+    callback clicked;
+    height: 28px;
+    width: sb-l.preferred-width + 20px;
+    border-radius: Theme.r-s;
+    opacity: root.enabled ? 1 : 0.4;
+    background: root.primary ? (sb-ta.has-hover && root.enabled ? Theme.accent.darker(0.1) : Theme.accent) : (sb-ta.has-hover && root.enabled ? Theme.press : Theme.card);
+    sb-l := Label {
+        text: root.text;
+        font-size: 12px;
+        font-weight: root.primary ? 600 : 400;
+        color: root.primary ? Theme.on-accent : Theme.text;
+    }
+    sb-ta := TipArea {
+        enabled: root.enabled;
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Półka (Shelf.svelte): pływający panel w prawym dolnym rogu. Przyjmuje upuszczane pliki,
+/// pozycje wybiera się kliknięciem (Ctrl – kilka), przeciąga albo kopiuje / przenosi do otwartego folderu.
+export component ShelfPanel inherits Rectangle {
+    width: 340px;
+    height: min(box.preferred-height, 480px);
+    border-radius: Theme.r-l;
+    background: Theme.panel;
+    border-width: Drag.active && Drag.target == "ofp:shelf" ? 2px : 1px;
+    border-color: Drag.active && Drag.target == "ofp:shelf" ? Theme.accent : Theme.line;
+    drop-shadow-blur: 50px;
+    drop-shadow-offset-y: 20px;
+    drop-shadow-color: Theme.shadow;
+    clip: true;
+    // Tło przyjmuje upuszczane pliki; pozycje listy też, żeby cel nie znikał nad nimi.
+    TipArea {
+        drop: "ofp:shelf";
+    }
+    box := VerticalLayout {
+        // Nagłówek.
+        HorizontalLayout {
+            padding-left: 14px;
+            padding-right: 6px;
+            height: 42px;
+            spacing: 8px;
+            Icon {
+                y: (parent.height - self.height) / 2;
+                commands: Icons.archive;
+                size: 16px;
+            }
+            Label {
+                horizontal-stretch: 1;
+                text: "Półka";
+                font-weight: 600;
+            }
+            Label {
+                text: ShelfState.summary;
+                font-size: 12px;
+                color: Theme.dim;
+            }
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                size: 26px;
+                icon: Icons.close;
+                icon-size: 14px;
+                tooltip: "Schowaj (pliki zostaną na półce)";
+                clicked => {
+                    ShelfState.close();
+                }
+            }
+        }
+        Rectangle {
+            height: 1px;
+            background: Theme.line;
+        }
+        if ShelfState.count == 0: VerticalLayout {
+            padding: 24px;
+            spacing: 6px;
+            alignment: center;
+            Icon {
+                x: (parent.width - self.width) / 2;
+                commands: Icons.download;
+                size: 22px;
+                color: Theme.dim;
+            }
+            Text {
+                text: "Przeciągnij tu pliki z różnych folderów albo naciśnij Ctrl+Shift+S przy zaznaczonych, potem przenieś je naraz w jedno miejsce.";
+                wrap: word-wrap;
+                horizontal-alignment: center;
+                font-family: Theme.font;
+                font-size: 12.5px;
+                color: Theme.dim;
+            }
+            Label {
+                horizontal-alignment: center;
+                text: "Niezależna od schowka Windows (Ctrl+C)";
+                font-size: 11px;
+                color: Theme.faint;
+            }
+        }
+        if ShelfState.count > 0: ListView {
+            height: min(ShelfState.count * 46px + 8px, 340px);
+            for it[i] in ShelfState.items: Rectangle {
+                height: 46px;
+                Rectangle {
+                    x: 4px;
+                    y: 2px;
+                    width: parent.width - 8px;
+                    height: parent.height - 4px;
+                    border-radius: Theme.r;
+                    background: it.picked ? Theme.sel : it-ta.has-hover ? Theme.hover : transparent;
+                    it-ta := TipArea {
+                        tip: it.path;
+                        drop: "ofp:shelf";
+                        property <bool> dragged;
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                self.dragged = false;
+                            }
+                            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && !self.dragged) {
+                                ShelfState.pick(i, e.modifiers.control || e.modifiers.shift);
+                            }
+                        }
+                        moved => {
+                            if (self.pressed && !self.dragged && (abs(self.mouse-x - self.pressed-x) > 6px || abs(self.mouse-y - self.pressed-y) > 6px)) {
+                                self.dragged = true;
+                                ShelfState.drag(i);
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 4px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 32px;
+                            if it.has-img: Image {
+                                width: 32px;
+                                height: 32px;
+                                source: it.img;
+                                image-fit: contain;
+                            }
+                            if !it.has-img: Icon {
+                                commands: it.dir ? Icons.folder : Icons.file;
+                                size: 20px;
+                                color: Theme.dim;
+                            }
+                        }
+                        VerticalLayout {
+                            alignment: center;
+                            spacing: 1px;
+                            Label {
+                                text: it.name;
+                                font-size: 12.5px;
+                            }
+                            Label {
+                                text: it.place;
+                                font-size: 11px;
+                                color: Theme.dim;
+                            }
+                        }
+                        IconButton {
+                            y: (parent.height - self.height) / 2;
+                            size: 24px;
+                            icon: Icons.close;
+                            icon-size: 12px;
+                            tooltip: "Zdejmij z półki";
+                            clicked => {
+                                ShelfState.remove(i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if ShelfState.count > 0: Rectangle {
+            height: 1px;
+            background: Theme.line;
+        }
+        if ShelfState.count > 0: HorizontalLayout {
+            padding: 8px;
+            padding-left: 14px;
+            spacing: 6px;
+            Label {
+                horizontal-stretch: 1;
+                text: ShelfState.target;
+                font-size: 11px;
+                color: Theme.dim;
+            }
+            SmallButton {
+                y: (parent.height - self.height) / 2;
+                text: "Kopiuj tutaj";
+                tip: "Skopiuj do otwartego folderu";
+                enabled: ShelfState.can-put;
+                clicked => {
+                    ShelfState.put(false);
+                }
+            }
+            SmallButton {
+                y: (parent.height - self.height) / 2;
+                text: "Przenieś tutaj";
+                tip: "Przenieś do otwartego folderu – zejdą z półki";
+                primary: true;
+                enabled: ShelfState.can-move;
+                clicked => {
+                    ShelfState.put(true);
+                }
+            }
+            IconButton {
+                y: (parent.height - self.height) / 2;
+                size: 28px;
+                icon: Icons.trash;
+                icon-size: 14px;
+                tooltip: "Wyczyść półkę (pliki zostają na dysku)";
+                clicked => {
+                    ShelfState.clear();
+                }
+            }
+        }
+    }
+}

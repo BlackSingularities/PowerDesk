@@ -35,8 +35,14 @@ pub fn mode(sources: &[String], dest: &str, keys: Keys) -> &'static str {
     }
 }
 
+/// Cel „Półka” – upuszczone pliki trafiają na półkę, bez kopiowania.
+pub const SHELF: &str = "ofp:shelf";
+
 /// Efekt upuszczenia na `target`; brak, gdy cel nie przyjmie plików.
 fn effect(paths: &[String], target: &str, keys: Keys) -> (Effect, &'static str) {
+    if target == SHELF {
+        return (Effect::Copy, "shelf");
+    }
     if target.is_empty() || target.starts_with("ofp:") || !Path::new(target).is_dir() {
         return (Effect::None, "");
     }
@@ -104,7 +110,7 @@ impl dnd::DropHandler for Handler {
             let paths = paths.to_vec();
             // Po powrocie z wywołania OLE – kopiowanie idzie przez pasek transferów (z oknem konfliktu).
             slint::Timer::single_shot(std::time::Duration::from_millis(1), move || {
-                crate::with_state(|s| transfers::transfer(s, paths, &target, m));
+                crate::with_state(|s| if m == "shelf" { crate::shelf::add(s, &paths) } else { transfers::transfer(s, paths, &target, m) });
             });
         }
         e
@@ -135,14 +141,31 @@ pub fn start(s: &Shared, i: usize) {
     });
     let Some(paths) = paths.filter(|p| !p.is_empty() && !p.iter().any(|x| x.starts_with("ofp:"))) else { return };
     crate::render_items(s);
+    start_paths(s, paths, |_| {});
+}
+
+/// Przeciąganie OLE podanych ścieżek; `done` – w wątku UI po upuszczeniu albo anulowaniu.
+pub fn start_paths(s: &Shared, paths: Vec<String>, done: impl FnOnce(&Shared) + 'static) {
     let ui = s.borrow().ui.clone();
     // Element z wciśniętym przyciskiem trzyma wskaźnik – puszczamy go, żeby hover działał przy upuszczaniu.
     slint::Timer::single_shot(std::time::Duration::from_millis(1), move || {
         if let Some(ui) = ui.upgrade() {
             ui.window().dispatch_event(WindowEvent::PointerReleased { position: LogicalPosition::new(-1.0, -1.0), button: PointerEventButton::Left });
         }
-        dnd::start_drag(paths, |_| {});
+        // `done` nie jest Send – czeka w wątku UI, a wątek OLE tylko go stamtąd wywołuje.
+        DONE.with(|d| *d.borrow_mut() = Some(Box::new(done)));
+        dnd::start_drag(paths, |_| {
+            let _ = slint::invoke_from_event_loop(|| {
+                if let Some(f) = DONE.with(|d| d.borrow_mut().take()) {
+                    crate::with_state(|s| f(s));
+                }
+            });
+        });
     });
+}
+
+thread_local! {
+    static DONE: std::cell::RefCell<Option<Box<dyn FnOnce(&Shared)>>> = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]

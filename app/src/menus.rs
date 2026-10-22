@@ -225,7 +225,8 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
         let p = e.path.clone();
         v.push(it("Terminal tutaj", "terminal", move |_| terminal(&p)));
     }
-    v.push(it("Dodaj do schowka plików", "archive", |_| {}).kbd("Ctrl+Shift+S").later());
+    let p2 = ps.clone();
+    v.push(it("Dodaj do półki", "archive", move |s| crate::shelf::add(s, &p2)).kbd("Ctrl+Shift+S"));
     let first = ps[0].clone();
     v.push(it("Pokaż w Eksploratorze", "open", move |_| reveal(&first)));
     v.push(sep());

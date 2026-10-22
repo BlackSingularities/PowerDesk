@@ -49,6 +49,9 @@ export component Toolbar inherits Rectangle {
     in property <int> view;
     /// Galeria tylko tam, gdzie przeważają zdjęcia i filmy (albo gdy jest już włączona).
     in property <bool> gallery-ok;
+    /// Półka: liczba pozycji i czy panel jest otwarty.
+    in property <int> shelf-count;
+    in property <bool> shelf-open;
     in-out property <float> zoom;
     in property <float> zoom-min: 84;
     in property <float> zoom-max: 280;
@@ -67,6 +70,7 @@ export component Toolbar inherits Rectangle {
     callback set-view(int);
     callback zoom-changed(float);
     callback toggle-facets;
+    callback toggle-shelf;
     callback toggle-facet(string);
     callback clear-facets;
     callback save-search;
@@ -386,6 +390,40 @@ export component Toolbar inherits Rectangle {
                                 root.zoom = clamp(root.zoom-min + (self.mouse-x - 8px) / (self.width - 16px) * (root.zoom-max - root.zoom-min), root.zoom-min, root.zoom-max);
                                 root.zoom-changed(root.zoom);
                             }
+                        }
+                    }
+                }
+                // Półka (schowek plików) z liczbą pozycji.
+                Rectangle {
+                    y: 2px;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: Theme.r-s;
+                    background: root.shelf-open ? Theme.sel : shelf-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: Icons.archive;
+                        size: 16px;
+                        color: root.shelf-open || shelf-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    if root.shelf-count > 0: Rectangle {
+                        x: parent.width - self.width + 2px;
+                        y: -2px;
+                        height: 15px;
+                        width: max(15px, badge.preferred-width + 8px);
+                        border-radius: 7.5px;
+                        background: Theme.accent;
+                        badge := Label {
+                            text: root.shelf-count;
+                            font-size: 10px;
+                            font-weight: 600;
+                            color: Theme.on-accent;
+                        }
+                    }
+                    shelf-ta := TipArea {
+                        tip: "Półka (Ctrl+Shift+S)";
+                        drop: "ofp:shelf";
+                        clicked => {
+                            root.toggle-shelf();
                         }
                     }
                 }

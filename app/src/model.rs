@@ -802,6 +802,9 @@ pub struct Prefs {
     pub side_shut: Vec<String>,
     /// Panel boczny zwinięty do paska ikon.
     pub side_mini: bool,
+    /// Ścieżki na półce i czy jest otwarta.
+    pub shelf: Vec<String>,
+    pub shelf_open: bool,
 }
 
 /// Wyszukiwanie zapisane w panelu bocznym.
@@ -815,7 +818,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false }
     }
 }
 

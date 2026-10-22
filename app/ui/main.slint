@@ -9,8 +9,9 @@ import { MenuPopup, MenuEntry } from "menu.slint";
 import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog } from "overlays.slint";
 import { BulkDialog, Bulk, BulkRow } from "bulk.slint";
 import { PropsDialog, Props, PropRow, PropSection } from "props.slint";
+import { ShelfPanel, ShelfState, ShelfItem } from "shelf.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, ShelfState, ShelfItem }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -244,6 +245,11 @@ export component MainWindow inherits Window {
                         sort-label: root.sort-label;
                         filter-summary: root.filter-summary;
                         gallery-ok: root.gallery-ok;
+                        shelf-count: ShelfState.count;
+                        shelf-open: ShelfState.open;
+                        toggle-shelf => {
+                            ShelfState.toggle();
+                        }
                         has-facets: root.has-facets;
                         facets-open: root.facets-open;
                         facets-chosen: root.facets-chosen;
@@ -466,8 +472,13 @@ export component MainWindow inherits Window {
     }
 
     // Pasek transferów i powiadomienia – prawy dolny róg, nad paskiem stanu.
-    TransferStack {
+    // Półka – prawy dolny róg; pasek transferów odsuwa się wtedy w lewo.
+    if ShelfState.open && !root.special: ShelfPanel {
         x: root.width - self.width - 22px;
+        y: root.height - self.height - 44px;
+    }
+    TransferStack {
+        x: root.width - self.width - 22px - (ShelfState.open && !root.special ? 352px : 0);
         y: root.height - self.height - 44px;
         ops: root.ops;
         toasts: root.toasts;

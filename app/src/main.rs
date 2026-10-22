@@ -9,6 +9,7 @@ mod fmt;
 mod menus;
 mod model;
 mod props;
+mod shelf;
 mod query;
 mod thumbs;
 mod transfers;
@@ -60,6 +61,7 @@ pub struct State {
     side_paths: HashSet<String>,
     /// Elementy w otwartym oknie masowej zmiany nazw.
     bulk: Option<Vec<fsx::Entry>>,
+    shelf: shelf::Shelf,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -99,6 +101,7 @@ fn main() -> Result<(), slint::PlatformError> {
         painted: (0.0, 0.0),
         side_paths: HashSet::new(),
         bulk: None,
+        shelf: Default::default(),
         drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
@@ -111,6 +114,7 @@ fn main() -> Result<(), slint::PlatformError> {
     drives::init_watch(Core);
 
     wire(&ui, &st);
+    shelf::restore(&st);
     load(&st, false);
     // „Wklej” pokazuje się tylko, gdy w schowku są pliki – także skopiowane w innym programie.
     let paste_timer = slint::Timer::default();
@@ -379,6 +383,21 @@ fn wire(ui: &MainWindow, st: &Shared) {
     g.on_apply(move || bulk::apply(&s));
     let s = st.clone();
     g.on_cancel(move || bulk::close(&s));
+    let g = ui.global::<ShelfState>();
+    let s = st.clone();
+    g.on_close(move || shelf::set_open(&s, false));
+    let s = st.clone();
+    g.on_toggle(move || shelf::toggle(&s));
+    let s = st.clone();
+    g.on_pick(move |i, ctrl| shelf::pick(&s, i as usize, ctrl));
+    let s = st.clone();
+    g.on_remove(move |i| shelf::remove(&s, i as usize));
+    let s = st.clone();
+    g.on_put(move |mv| shelf::put(&s, mv));
+    let s = st.clone();
+    g.on_clear(move || shelf::clear(&s));
+    let s = st.clone();
+    g.on_drag(move |i| shelf::drag(&s, i as usize));
     let g = ui.global::<Props>();
     let s = st.clone();
     g.on_close(move || props::close(&s));
@@ -915,6 +934,8 @@ pub fn remove_saved(s: &Shared, id: &str) {
 fn render_all(s: &Shared) {
     render_chrome(s);
     render_items(s);
+    // Półka pokazuje folder docelowy – zmienia się razem z kartą.
+    shelf::render(s);
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
@@ -1162,6 +1183,9 @@ pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     }
     if side {
         render_side(s);
+    }
+    if shelf::shows_any(s, paths) {
+        shelf::render(s);
     }
 }
 
@@ -1761,6 +1785,9 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     }
     if alt && is(Key::Return) {
         return command(s, "props");
+    }
+    if ctrl && shift && k.eq_ignore_ascii_case("s") {
+        return shelf::shortcut(s);
     }
     if ctrl && shift && k.eq_ignore_ascii_case("n") {
         return create(s, true);
