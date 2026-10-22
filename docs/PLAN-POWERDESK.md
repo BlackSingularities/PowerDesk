@@ -103,7 +103,7 @@ Zasady:
 
 ### Ekrany specjalne
 - [x] Ten komputer (Home): powitanie z wyszukiwaniem, dyski, stan komputera (procesor z historią, RAM, czas pracy), rozmiary folderów, ostatnie pliki z filtrem i menu
-- [ ] Ten komputer: zmiana kolejności i zwijanie sekcji, ulubione, aktywność transferów i synchronizacji, wykres zmian z 14 dni
+- [x] Ten komputer: zmiana kolejności i zwijanie sekcji, ulubione, aktywność transferów i synchronizacji, wykres zmian z 14 dni
 - [x] Ustawienia (karta, Ctrl+,): motyw i akcent, start (folder domowy / Ten komputer / wybrany folder), domyślny widok, przeglądanie, podgląd, pytanie przed Koszem, skróty, o aplikacji
 - [ ] Ustawienia: jedno kliknięcie, sekcje panelu bocznego, tło okna i krycie, zasobnik, autostart, aktualizacje, integracja z Windows (razem z ich funkcjami)
 - [x] Synchronizacja (karta, paleta): profile ze stanem i postępem, edytor, podgląd planu, potwierdzanie masowych usunięć, historia; silnik startuje po wejściu na ekran i czeka, gdy działa stary OpenFilePower

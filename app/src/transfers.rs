@@ -45,6 +45,21 @@ pub struct Transfers {
     prompt: Option<std::rc::Rc<dyn Fn(&Shared, &str)>>,
 }
 
+/// Trwające operacje: tytuł, opis postępu i postęp 0–1 (dla ekranu „Ten komputer”).
+pub fn running(s: &Shared) -> Vec<(String, String, f32)> {
+    s.borrow()
+        .transfers
+        .ops
+        .iter()
+        .filter(|p| p.state == "running")
+        .map(|p| {
+            let ratio = if p.total_bytes > 0 { p.done_bytes as f32 / p.total_bytes as f32 } else if p.total_items > 0 { p.done_items as f32 / p.total_items as f32 } else { 0.0 };
+            let detail = if p.paused { "wstrzymane".to_string() } else if p.total_bytes > 0 { format!("{} z {}", fmt::size(p.done_bytes), fmt::size(p.total_bytes)) } else { format!("{} z {}", p.done_items, p.total_items) };
+            (p.title.clone(), detail, ratio)
+        })
+        .collect()
+}
+
 fn base(p: &str) -> String {
     Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.to_string())
 }

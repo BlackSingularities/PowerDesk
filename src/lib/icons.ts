@@ -51,6 +51,8 @@ export const I = {
   check: 'M5 12l5 5L20 7',
   chevron: 'M9 6l6 6-6 6',
   chevronDown: 'M6 9l6 6 6-6',
+  arrowUp: 'M12 19V5M6 11l6-6 6 6',
+  arrowDown: 'M12 5v14M6 13l6 6 6-6',
   play: 'M7 4v16l13-8z',
   pause: 'M7 4h4v16H7zM13 4h4v16h-4z',
   volume: 'M11 5 6 9H2v6h4l5 4V5zM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14',

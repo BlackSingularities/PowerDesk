@@ -15,11 +15,22 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 use crate::fmt::{self, Kind};
 use crate::menus::{it, sep};
 use crate::model::HOME;
-use crate::{HomeDrive, HomeFile, HomeFolder, HomeState, Shared};
+use crate::{HomeActivity, HomeDay, HomeDrive, HomeFile, HomeFolder, HomeSection, HomeState, Shared};
 
 /// Ile ostatnich plików wczytujemy i pokazujemy.
 const RECENT_LIMIT: usize = 120;
 const SHOWN: usize = 30;
+/// Dni na wykresie zmian.
+const DAYS: usize = 14;
+
+/// Sekcje ekranu pod powitaniem: klucz (w ustawieniach) i nagłówek, w domyślnej kolejności.
+const SECTIONS: [(&str, &str); 5] = [
+    ("overview", "Dyski i system"),
+    ("favorites", "Ulubione"),
+    ("activity", "Aktywność"),
+    ("changes", "Zmiany w 14 dniach"),
+    ("recent", "Ostatnie pliki"),
+];
 
 thread_local! {
     static TIMER: slint::Timer = slint::Timer::default();
@@ -28,6 +39,156 @@ thread_local! {
     /// Rozmiary folderów użytkownika – liczone raz na uruchomienie.
     static SIZES: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
     static CPU: RefCell<Vec<f32>> = const { RefCell::new(Vec::new()) };
+    /// Liczba zmienionych plików w kolejnych dniach (od najstarszego, ostatni – dziś).
+    static DAILY: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
+}
+
+/// Kolejność z ustawień: nieznane klucze pomijamy, brakujące (nowe sekcje) dopisujemy na końcu.
+fn order(saved: &[String]) -> Vec<&'static str> {
+    let mut v: Vec<&'static str> = saved.iter().filter_map(|k| SECTIONS.iter().find(|(x, _)| x == k).map(|(x, _)| *x)).collect();
+    for (k, _) in SECTIONS {
+        if !v.contains(&k) {
+            v.push(k);
+        }
+    }
+    v
+}
+
+fn render_sections(s: &Shared) {
+    let (keys, shut) = {
+        let b = s.borrow();
+        (order(&b.prefs.home_order), b.prefs.home_shut.clone())
+    };
+    let n = keys.len();
+    let rows: Vec<HomeSection> = keys
+        .iter()
+        .enumerate()
+        .map(|(i, k)| HomeSection {
+            key: (*k).into(),
+            title: SECTIONS.iter().find(|(x, _)| x == k).map(|(_, t)| *t).unwrap_or_default().into(),
+            shut: shut.iter().any(|x| x == k),
+            first: i == 0,
+            last: i + 1 == n,
+        })
+        .collect();
+    with_ui(s, |g| g.set_sections(ModelRc::new(VecModel::from(rows))));
+}
+
+/// Przesuwa sekcję o jedno miejsce w górę (-1) albo w dół (1).
+pub fn move_section(s: &Shared, key: &str, dir: i32) {
+    {
+        let mut b = s.borrow_mut();
+        let mut v: Vec<String> = order(&b.prefs.home_order).into_iter().map(String::from).collect();
+        let Some(i) = v.iter().position(|k| k == key) else { return };
+        let j = i as i32 + dir;
+        if j < 0 || j as usize >= v.len() {
+            return;
+        }
+        v.swap(i, j as usize);
+        b.prefs.home_order = v;
+        b.prefs.save();
+    }
+    render_sections(s);
+}
+
+pub fn toggle_section(s: &Shared, key: &str) {
+    {
+        let mut b = s.borrow_mut();
+        let shut = &mut b.prefs.home_shut;
+        match shut.iter().position(|k| k == key) {
+            Some(i) => {
+                shut.remove(i);
+            }
+            None => shut.push(key.to_string()),
+        }
+        b.prefs.save();
+    }
+    render_sections(s);
+}
+
+/// Przypięte foldery (te same co w panelu bocznym).
+fn render_favorites(s: &Shared) {
+    let rows: Vec<HomeFolder> = s
+        .borrow()
+        .prefs
+        .favorites
+        .iter()
+        .map(|p| HomeFolder {
+            name: std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone()).into(),
+            icon: ic("pin"),
+            size: std::path::Path::new(p).parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default().into(),
+            ratio: -1.0,
+            path: p.clone().into(),
+        })
+        .collect();
+    with_ui(s, |g| g.set_favorites(ModelRc::new(VecModel::from(rows))));
+}
+
+/// Transfery w toku i stan synchronizacji – odświeżane razem z zegarem.
+fn render_activity(s: &Shared) {
+    let mut rows: Vec<HomeActivity> = crate::transfers::running(s)
+        .into_iter()
+        .map(|(title, detail, p)| HomeActivity { icon: ic("copy"), title: title.into(), detail: detail.into(), progress: p, path: Default::default() })
+        .collect();
+    let (profiles, status) = powerdesk_core::sync::profiles();
+    for (p, st) in profiles.iter().zip(status.iter()) {
+        let name = if p.name.is_empty() { p.source.clone() } else { p.name.clone() };
+        let (detail, progress) = match st.state.as_str() {
+            "syncing" => (format!("synchronizuję {:.0}%", st.progress * 100.0), st.progress),
+            "scanning" => ("porównuję…".into(), -1.0),
+            "offline" => ("cel odłączony".into(), -1.0),
+            "error" => ("błąd".into(), -1.0),
+            _ if !p.enabled => ("wstrzymana".into(), -1.0),
+            _ => (format!("{} → {}", p.source, p.target.path), -1.0),
+        };
+        rows.push(HomeActivity { icon: ic("sync"), title: name.into(), detail: detail.into(), progress, path: crate::syncview::TAB.into() });
+    }
+    let shelf = s.borrow().shelf.items.len();
+    if shelf > 0 {
+        rows.push(HomeActivity { icon: ic("archive"), title: "Półka".into(), detail: fmt::items(shelf).into(), progress: -1.0, path: Default::default() });
+    }
+    with_ui(s, |g| g.set_activities(ModelRc::new(VecModel::from(rows))));
+}
+
+/// Słupki dni: „pn 13”, liczba plików i wysokość względem największego dnia.
+fn render_days(s: &Shared) {
+    use chrono::Datelike;
+    const WD: [&str; 7] = ["pn", "wt", "śr", "cz", "pt", "so", "nd"];
+    let daily = DAILY.with(|d| d.borrow().clone());
+    let max = daily.iter().copied().max().unwrap_or(0).max(1);
+    let today = Local::now().date_naive();
+    let rows: Vec<HomeDay> = daily
+        .iter()
+        .enumerate()
+        .map(|(i, &n)| {
+            let d = today - chrono::Days::new((daily.len() - 1 - i) as u64);
+            HomeDay {
+                label: format!("{} {}", WD[d.weekday().num_days_from_monday() as usize], d.day()).into(),
+                count: n as i32,
+                ratio: n as f32 / max as f32,
+                today: i + 1 == daily.len(),
+            }
+        })
+        .collect();
+    let total: usize = daily.iter().sum();
+    with_ui(s, |g| {
+        g.set_days(ModelRc::new(VecModel::from(rows)));
+        g.set_changes_note(if daily.is_empty() { String::new() } else { format!("{} w Twoich folderach", fmt::items(total)) }.into());
+    });
+}
+
+/// Pliki z 14 dni rozłożone na dni (najstarszy pierwszy).
+fn daily_counts(list: &[Entry]) -> Vec<usize> {
+    let today = Local::now().date_naive();
+    let mut v = vec![0usize; DAYS];
+    for e in list {
+        let Some(d) = chrono::DateTime::from_timestamp_millis(e.modified).map(|t| t.with_timezone(&Local).date_naive()) else { continue };
+        let back = (today - d).num_days();
+        if (0..DAYS as i64).contains(&back) {
+            v[DAYS - 1 - back as usize] += 1;
+        }
+    }
+    v
 }
 
 fn with_ui(s: &Shared, f: impl FnOnce(&HomeState)) {
@@ -109,6 +270,9 @@ fn render_static(s: &Shared) {
         g.set_storage_usage(if total > 0 { 1.0 - free as f32 / total as f32 } else { 0.0 });
     });
     render_folders(s);
+    render_sections(s);
+    render_favorites(s);
+    render_days(s);
 }
 
 /// „Środa, 22 października 2026”.
@@ -137,7 +301,7 @@ fn tick(s: &Shared) {
         (0, h, m) => format!("{h} h {m} min"),
         (d, h, _) => format!("{d} d {h} h"),
     };
-    let shelf = s.borrow().shelf.items.len();
+    render_activity(s);
     with_ui(s, |g| {
         g.set_clock(Local::now().format("%H:%M").to_string().into());
         g.set_host(i.host.clone().into());
@@ -148,7 +312,7 @@ fn tick(s: &Shared) {
         g.set_mem(format!("{} / {}", fmt::size(i.mem_used), fmt::size(i.mem_total)).into());
         g.set_mem_usage(if i.mem_total > 0 { i.mem_used as f32 / i.mem_total as f32 } else { 0.0 });
         g.set_uptime(uptime.into());
-        g.set_activity(if shelf > 0 { format!("Na półce: {}", fmt::items(shelf)) } else { String::new() }.into());
+        g.set_activity(Default::default());
     });
 }
 
@@ -193,12 +357,17 @@ fn load_files(s: &Shared) {
     with_ui(s, |g| g.set_files_loading(true));
     std::thread::spawn(|| {
         let dirs: Vec<String> = known().into_iter().map(|(_, p, _)| p.to_string_lossy().to_string()).collect();
-        let list = fsx::recent_files(&dirs, 14, RECENT_LIMIT);
+        // Wszystkie pliki z 14 dni – do wykresu; na kafelki tylko najnowsze.
+        let mut list = fsx::recent_files(&dirs, DAYS as u64, usize::MAX);
+        let daily = daily_counts(&list);
+        list.truncate(RECENT_LIMIT);
         let _ = slint::invoke_from_event_loop(move || {
             FILES.with(|f| *f.borrow_mut() = Some(list));
+            DAILY.with(|d| *d.borrow_mut() = daily);
             crate::with_state(|s| {
                 with_ui(s, |g| g.set_files_loading(false));
                 render_files(s);
+                render_days(s);
             });
         });
     });
@@ -313,4 +482,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_kind(move |k| set_kind(&s, k));
     let s = st.clone();
     g.on_refresh_files(move || refresh_files(&s));
+    let s = st.clone();
+    g.on_move_section(move |k, d| move_section(&s, &k, d));
+    let s = st.clone();
+    g.on_toggle_section(move |k| toggle_section(&s, &k));
 }
