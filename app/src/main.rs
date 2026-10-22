@@ -1377,7 +1377,7 @@ fn native_menu(s: &Shared, paths: &[String], x: f32, y: f32) {
     }
 }
 
-fn selected_paths(s: &Shared) -> Vec<String> {
+pub fn selected_paths(s: &Shared) -> Vec<String> {
     tab_mut(s, |t| t.items.iter().filter(|e| t.selected.contains(&e.path)).map(|e| e.path.clone()).collect())
 }
 
@@ -1421,33 +1421,38 @@ fn select_path(s: &Shared, path: &str) {
     render_items(s);
 }
 
-fn create(s: &Shared, folder: bool) {
+pub fn create(s: &Shared, folder: bool) {
+    create_named(s, if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" }, folder);
+}
+
+/// Tworzy element w bieżącym folderze, zaznacza go i otwiera pole nazwy (jak w Eksploratorze).
+pub fn create_named(s: &Shared, name: &str, folder: bool) {
+    let Some(p) = make(s, name, folder) else { return };
+    load(s, true);
+    select_path(s, &p);
+    start_rename(s);
+}
+
+/// Sam zapis na dysku; błąd trafia do powiadomienia.
+fn make(s: &Shared, name: &str, folder: bool) -> Option<String> {
     let dir = tab_mut(s, |t| t.path.clone());
     if dir.starts_with("ofp:") {
+        transfers::toast(s, "Tu nie można niczego utworzyć – otwórz zwykły folder", transfers::Kind::Info, None);
+        return None;
+    }
+    powerdesk_core::ops::create(&dir, name, folder).map_err(|e| transfers::toast(s, e, transfers::Kind::Error, None)).ok()
+}
+
+/// Nowy folder i przeniesienie do niego zaznaczonych elementów (newFolderWith).
+pub fn create_with_selection(s: &Shared) {
+    let sel = selected_paths(s);
+    if sel.is_empty() {
         return;
     }
-    let base = Path::new(&dir).join(if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" });
-    let p = powerdesk_core::ops::unique_path(&base);
-    let ok = if folder { std::fs::create_dir(&p).is_ok() } else { std::fs::File::create(&p).is_ok() };
-    if !ok {
-        return;
-    }
+    let Some(p) = make(s, &format!("Nowy folder ({} elem.)", sel.len()), true) else { return };
+    transfers::transfer(s, sel, &p, "move");
     load(s, true);
-    let p = p.to_string_lossy().to_string();
-    let i = tab_mut(s, |t| {
-        let i = t.items.iter().position(|e| e.path == p);
-        if let Some(i) = i {
-            t.selected.clear();
-            t.selected.insert(p.clone());
-            t.focus = Some(i);
-            t.anchor = Some(i);
-        }
-        i
-    });
-    if let Some(i) = i {
-        reveal(s, i);
-    }
-    // Jak w Eksploratorze: nowy element od razu czeka na nazwę.
+    select_path(s, &p);
     start_rename(s);
 }
 

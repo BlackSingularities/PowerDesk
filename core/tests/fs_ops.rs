@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use powerdesk_core::archive::{extract, list, split};
-use powerdesk_core::ops::rename_batch;
+use powerdesk_core::ops::{create, rename_batch};
 
 
 #[test]
@@ -56,5 +56,21 @@ fn zamiana_nazw() {
     std::fs::write(dir.join("c.txt"), "C").unwrap();
     assert!(rename_batch(&[(s(&a), s(&dir.join("c.txt")))]).is_err());
     assert_eq!(std::fs::read_to_string(&a).unwrap(), "B");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn nowy_folder_i_plik() {
+    let dir = std::env::temp_dir().join(format!("ofp-new-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let d = dir.to_string_lossy().to_string();
+    let a = create(&d, "Nowy folder", true).unwrap();
+    let b = create(&d, "Nowy folder", true).unwrap();
+    assert!(std::path::Path::new(&a).is_dir());
+    assert!(b.ends_with("Nowy folder (2)"));
+    let f = create(&d, " notatka.md ", false).unwrap();
+    assert!(f.ends_with("notatka.md") && std::path::Path::new(&f).is_file());
+    assert!(create(&d, "zła:nazwa", false).is_err());
     let _ = std::fs::remove_dir_all(&dir);
 }

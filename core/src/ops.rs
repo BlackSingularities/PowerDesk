@@ -591,6 +591,23 @@ pub fn rename_one(path: &str, name: &str) -> Result<String, String> {
     Ok(d)
 }
 
+/// Nowy folder albo pusty plik w `parent` (z cofaniem); zajęta nazwa dostaje numer. Zwraca ścieżkę.
+pub fn create(parent: &str, name: &str, folder: bool) -> Result<String, String> {
+    let name = name.trim();
+    if name.is_empty() || name.contains(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) {
+        return Err("Nazwa nie może zawierać znaków \\ / : * ? \" < > |".into());
+    }
+    let p = unique_path(&Path::new(parent).join(name));
+    if folder {
+        std::fs::create_dir(&p).map_err(|e| io_err(&e))?;
+    } else {
+        std::fs::OpenOptions::new().write(true).create_new(true).open(&p).map_err(|e| io_err(&e))?;
+    }
+    let s = p.to_string_lossy().to_string();
+    push_undo(Undo::Created(vec![s.clone()]));
+    Ok(s)
+}
+
 pub fn rename_batch(pairs: &[(String, String)]) -> Result<Vec<(String, String)>, Vec<String>> {
     use std::collections::HashSet;
     let sources: HashSet<String> = pairs.iter().map(|(s, _)| s.to_lowercase()).collect();

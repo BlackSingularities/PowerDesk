@@ -193,7 +193,7 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     let p2 = ps.clone();
     v.push(it("Spakuj do ZIP…", "archive", move |s| zip(s, &p2)));
     if sel.len() > 1 {
-        v.push(it("Przenieś do nowego folderu…", "folderPlus", |_| {}).later());
+        v.push(it("Przenieś do nowego folderu…", "folderPlus", crate::create_with_selection));
     }
     let p2 = ps.clone();
     v.push(it("Do Kosza", "trash", move |_| trash(&p2)).kbd("Del"));
@@ -338,12 +338,46 @@ pub fn sort_menu(s: &Shared, x: f32, y: f32) {
 }
 
 pub fn new_menu(s: &Shared, x: f32, y: f32) {
-    show(
-        s,
-        vec![it("Folder", "folderPlus", |s| crate::create(s, true)).kbd("Ctrl+Shift+N"), it("Dokument tekstowy", "filePlus", |s| crate::create(s, false))],
-        x,
-        y,
-    );
+    let file = |label: &str, icon: &'static str, name: &'static str| it(label, icon, move |s| crate::create_named(s, name, false));
+    let n = crate::selected_paths(s).len();
+    let mut v = vec![
+        it("Folder", "folderPlus", |s| crate::create(s, true)).kbd("Ctrl+Shift+N"),
+        it("Folder z dzisiejszą datą", "folderPlus", |s| {
+            crate::create_named(s, &chrono::Local::now().format("%Y-%m-%d").to_string(), true)
+        }),
+    ];
+    if n > 0 {
+        v.push(it(format!("Folder z zaznaczonych ({n})"), "folderPlus", crate::create_with_selection));
+    }
+    v.push(sep());
+    v.push(file("Plik tekstowy", "filePlus", "Nowy dokument tekstowy.txt"));
+    v.push(sub(
+        "Dokumenty",
+        "doc",
+        vec![
+            file("Dokument Word", "doc", "Nowy dokument.docx"),
+            file("Arkusz Excel", "sheet", "Nowy arkusz.xlsx"),
+            file("Prezentacja PowerPoint", "doc", "Nowa prezentacja.pptx"),
+            file("Notatka Markdown", "doc", "Notatka.md"),
+            file("Plik CSV", "sheet", "Dane.csv"),
+        ],
+    ));
+    v.push(sub(
+        "Pliki programisty",
+        "code",
+        vec![
+            file("JSON", "code", "plik.json"),
+            file("HTML", "code", "index.html"),
+            file("Skrypt PowerShell", "terminal", "skrypt.ps1"),
+            file("Skrypt wsadowy (.bat)", "terminal", "skrypt.bat"),
+            file("Inny plik…", "filePlus", "nowy plik"),
+        ],
+    ));
+    if n > 0 {
+        v.push(sep());
+        v.push(it(format!("Archiwum ZIP z zaznaczonych ({n})"), "archive", |s| zip(s, &crate::selected_paths(s))));
+    }
+    show(s, v, x, y);
 }
 
 /// Podfoldery okruszka.
