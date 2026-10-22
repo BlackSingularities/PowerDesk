@@ -37,3 +37,8 @@ pub fn has_files() -> bool {
 pub fn set_text(text: &str) -> Result<(), String> {
     clipboard_win::set_clipboard_string(text).map_err(|e| e.to_string())
 }
+
+/// Tekst ze schowka (pusty, gdy go nie ma).
+pub fn get_text() -> String {
+    clipboard_win::get_clipboard_string().unwrap_or_default()
+}

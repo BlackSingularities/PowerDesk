@@ -10,6 +10,7 @@ mod home;
 mod settings;
 mod syncview;
 mod spaceview;
+mod termview;
 mod menus;
 mod model;
 mod preview;
@@ -139,6 +140,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     wire(&ui, &st);
     shelf::restore(&st);
+    termview::restore(&st);
     restore_pinned(&st);
     load(&st, false);
     // „Wklej” pokazuje się tylko, gdy w schowku są pliki – także skopiowane w innym programie.
@@ -437,6 +439,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     settings::bind(&ui, &st);
     syncview::bind(&ui, &st);
     spaceview::bind(&ui, &st);
+    termview::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));
@@ -1382,6 +1385,7 @@ fn render_all(s: &Shared) {
     settings::sync(s);
     syncview::sync_tab(s);
     spaceview::sync_tab(s);
+    termview::follow(s);
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
@@ -2250,6 +2254,8 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
     match name {
         "sync-status" => syncview::on_status(s),
         "space-progress" => spaceview::on_progress(s, payload),
+        "term-data" => termview::on_data(s, payload),
+        "term-exit" => termview::on_exit(s, payload),
         "search" => {
             let Ok(batch) = serde_json::from_value::<SearchBatch>(payload) else { return };
             let hit = {
@@ -2311,6 +2317,9 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     }
     if ctrl && k == "," {
         return settings::open(s);
+    }
+    if ctrl && k == "`" {
+        return termview::toggle(s);
     }
     if alt && is(Key::LeftArrow) {
         return back(s);

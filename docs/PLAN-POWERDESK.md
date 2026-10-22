@@ -107,7 +107,7 @@ Zasady:
 - [x] Synchronizacja (karta, paleta): profile ze stanem i postępem, edytor, podgląd planu, potwierdzanie masowych usunięć, historia; silnik startuje po wejściu na ekran i czeka, gdy działa stary OpenFilePower
 - [ ] Synchronizacja: praca z zasobnika i od startu systemu, wejście z panelu bocznego
 - [x] Zajętość i porządki (karta `ofp:space|folder`, menu tła, paleta, Ten komputer): mapa kafelkowa z wchodzeniem w głąb, lista największych, menu kafelka z Koszem; porządki – puste foldery, śmieci, TEMP, zaznaczanie grup
-- [ ] Wbudowany terminal
+- [x] Wbudowany terminal (Ctrl+`, pasek narzędzi, paleta): PowerShell przez ConPTY, ekran `vt100` (kolory, kursor, historia kółkiem i Shift+PgUp/PgDn), zaznaczanie i kopiowanie (Ctrl+C przy zaznaczeniu, Ctrl+Shift+C, prawy przycisk), wklejanie, „Za folderem”, wysokość i widoczność zapamiętane
 
 ### Dyski i sieć
 - [ ] Wysuwanie, czyszczenie dysku, mapowanie SMB, FTP/SFTP, WebDAV

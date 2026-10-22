@@ -1,0 +1,270 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label, TipArea } from "components.slint";
+
+/// Ciąg komórek o tych samych atrybutach; `bg` przezroczyste – domyślne tło.
+export struct TermRun {
+    col: int,
+    len: int,
+    text: string,
+    fg: color,
+    bg: color,
+    bold: bool,
+    underline: bool,
+}
+
+export struct TermLine {
+    runs: [TermRun],
+}
+
+/// Wbudowany terminal (Terminal.svelte) – sesja i ekran w termview.rs.
+export global TermState {
+    in-out property <bool> open;
+    in-out property <float> height: 260;
+    in-out property <string> cwd: "Terminal";
+    in-out property <bool> follow: true;
+    in-out property <[TermLine]> lines;
+    in-out property <int> cursor-row;
+    in-out property <int> cursor-col;
+    in-out property <bool> cursor-on;
+    /// Widać historię, a nie bieżący ekran.
+    in-out property <bool> scrolled;
+    in-out property <bool> sel-on;
+    in-out property <int> sel-r0;
+    in-out property <int> sel-c0;
+    in-out property <int> sel-r1;
+    in-out property <int> sel-c1;
+    /// Zwiększane, gdy panel ma przejąć klawiaturę.
+    in-out property <int> focus-req;
+
+    callback toggle;
+    callback key(string, bool, bool, bool) -> bool;
+    callback resized(int, int);
+    callback restart;
+    callback scroll(int);
+    callback toggle-follow;
+    callback sel-clear;
+    callback sel-move(int, int, int, int);
+    callback context;
+    callback height-changed(float);
+}
+
+component SmallBtn inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    callback clicked;
+    width: 24px;
+    height: 24px;
+    border-radius: Theme.r-s;
+    background: sb-ta.has-hover ? Theme.hover : transparent;
+    Icon {
+        commands: root.icon;
+        size: 13px;
+        color: sb-ta.has-hover ? Theme.text : Theme.dim;
+    }
+    sb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component TermPanel inherits Rectangle {
+    height: clamp(TermState.height * 1px, 120px, 900px);
+    background: Theme.bg;
+
+    property <length> cw: probe.preferred-width / 20;
+    property <length> lh: probe.preferred-height;
+    property <int> cols: max(10, floor((screen.width - 4px) / root.cw));
+    property <int> rows: max(2, floor(screen.height / root.lh));
+    changed cols => {
+        TermState.resized(root.cols, root.rows);
+    }
+    changed rows => {
+        TermState.resized(root.cols, root.rows);
+    }
+    init => {
+        TermState.resized(root.cols, root.rows);
+        fs.focus();
+    }
+    property <int> focus-req: TermState.focus-req;
+    changed focus-req => {
+        fs.focus();
+    }
+
+    probe := Text {
+        opacity: 0;
+        text: "MMMMMMMMMMMMMMMMMMMM";
+        font-family: Theme.mono;
+        font-size: 13px;
+    }
+
+    Rectangle {
+        y: 0;
+        height: 1px;
+        background: Theme.line;
+    }
+
+    VerticalLayout {
+        padding-bottom: 4px;
+        HorizontalLayout {
+            height: 32px;
+            padding-left: 12px;
+            padding-right: 8px;
+            spacing: 8px;
+            Icon {
+                y: (parent.height - self.height) / 2;
+                commands: Icons.terminal;
+                size: 14px;
+                color: Theme.faint;
+            }
+            Label {
+                horizontal-stretch: 1;
+                text: TermState.cwd;
+                font-size: 12px;
+                color: Theme.faint;
+            }
+            Rectangle {
+                y: 5px;
+                height: 22px;
+                width: fl.preferred-width + 18px;
+                border-radius: 11px;
+                background: TermState.follow ? Theme.accent : f-ta.has-hover ? Theme.hover : Theme.card;
+                fl := Label {
+                    text: "Za folderem";
+                    font-size: 11px;
+                    color: TermState.follow ? Theme.on-accent : Theme.text;
+                }
+                f-ta := TipArea {
+                    tip: "Przechodź do folderu otwartego w aplikacji";
+                    clicked => {
+                        TermState.toggle-follow();
+                    }
+                }
+            }
+            SmallBtn {
+                y: 4px;
+                icon: Icons.refresh;
+                tip: "Uruchom ponownie";
+                clicked => {
+                    TermState.restart();
+                }
+            }
+            SmallBtn {
+                y: 4px;
+                icon: Icons.close;
+                tip: "Ukryj (Ctrl+`)";
+                clicked => {
+                    TermState.toggle();
+                }
+            }
+        }
+        screen := Rectangle {
+            vertical-stretch: 1;
+            clip: true;
+            fs := FocusScope {
+                key-pressed(e) => {
+                    if (TermState.key(e.text, e.modifiers.control, e.modifiers.shift, e.modifiers.alt)) {
+                        return accept;
+                    }
+                    return reject;
+                }
+            }
+            // Zaznaczenie – od (r0, c0) do (r1, c1) włącznie, jak w zwykłym terminalu.
+            if TermState.sel-on: Rectangle {
+                for i in TermState.sel-r1 - TermState.sel-r0 + 1: Rectangle {
+                    property <int> r: TermState.sel-r0 + i;
+                    property <int> c0: self.r == TermState.sel-r0 ? TermState.sel-c0 : 0;
+                    property <int> c1: self.r == TermState.sel-r1 ? TermState.sel-c1 : root.cols - 1;
+                    x: 10px + self.c0 * root.cw;
+                    y: self.r * root.lh;
+                    width: (self.c1 - self.c0 + 1) * root.cw;
+                    height: root.lh;
+                    background: Theme.sel-strong;
+                }
+            }
+            for line[r] in TermState.lines: Rectangle {
+                x: 10px;
+                y: r * root.lh;
+                height: root.lh;
+                width: parent.width - 10px;
+                for run in line.runs: Rectangle {
+                    x: run.col * root.cw;
+                    width: run.len * root.cw;
+                    background: run.bg;
+                    Text {
+                        x: 0;
+                        width: parent.width;
+                        text: run.text;
+                        color: run.fg;
+                        font-family: Theme.mono;
+                        font-size: 13px;
+                        font-weight: run.bold ? 700 : 400;
+                        vertical-alignment: center;
+                        overflow: clip;
+                        wrap: no-wrap;
+                    }
+                    if run.underline: Rectangle {
+                        y: parent.height - 2px;
+                        height: 1px;
+                        background: run.fg;
+                    }
+                }
+            }
+            if TermState.cursor-on: Rectangle {
+                x: 10px + TermState.cursor-col * root.cw;
+                y: TermState.cursor-row * root.lh;
+                width: root.cw;
+                height: root.lh;
+                background: fs.has-focus ? Theme.text.with-alpha(0.7) : transparent;
+                border-width: 1px;
+                border-color: Theme.text.with-alpha(0.7);
+            }
+            ta := TouchArea {
+                mouse-cursor: text;
+                property <int> r0;
+                property <int> c0;
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                        fs.focus();
+                        self.r0 = floor(self.mouse-y / root.lh);
+                        self.c0 = floor((self.mouse-x - 10px) / root.cw);
+                        TermState.sel-clear();
+                    }
+                    if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                        fs.focus();
+                        TermState.context();
+                    }
+                }
+                moved => {
+                    if (self.pressed) {
+                        TermState.sel-move(self.r0, self.c0, floor(self.mouse-y / root.lh), floor((self.mouse-x - 10px) / root.cw));
+                    }
+                }
+                scroll-event(e) => {
+                    TermState.scroll(e.delta-y > 0 ? 3 : -3);
+                    return accept;
+                }
+            }
+        }
+    }
+
+    // Uchwyt zmiany wysokości na górnej krawędzi.
+    grip := TouchArea {
+        y: 0;
+        height: 6px;
+        mouse-cursor: row-resize;
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up) {
+                TermState.height-changed(TermState.height);
+            }
+        }
+        // Uchwyt jedzie razem z górną krawędzią, więc wystarczy przesunięcie od miejsca chwytu.
+        moved => {
+            if (self.pressed) {
+                TermState.height = clamp(TermState.height - (self.mouse-y - self.pressed-y) / 1px, 120, 900);
+            }
+        }
+    }
+}

@@ -53,6 +53,7 @@ export component Toolbar inherits Rectangle {
     in property <int> shelf-count;
     in property <bool> shelf-open;
     in property <bool> preview-open;
+    in property <bool> terminal-open;
     in-out property <float> zoom;
     in property <float> zoom-min: 84;
     in property <float> zoom-max: 280;
@@ -73,6 +74,7 @@ export component Toolbar inherits Rectangle {
     callback toggle-facets;
     callback toggle-shelf;
     callback toggle-preview;
+    callback toggle-terminal;
     callback toggle-facet(string);
     callback clear-facets;
     callback save-search;
@@ -426,6 +428,25 @@ export component Toolbar inherits Rectangle {
                         drop: "ofp:shelf";
                         clicked => {
                             root.toggle-shelf();
+                        }
+                    }
+                }
+                // Terminal.
+                Rectangle {
+                    y: 2px;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: Theme.r-s;
+                    background: root.terminal-open ? Theme.sel : tm-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: Icons.terminal;
+                        size: 16px;
+                        color: root.terminal-open || tm-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    tm-ta := TipArea {
+                        tip: root.terminal-open ? "Ukryj terminal (Ctrl+`)" : "Terminal (Ctrl+`)";
+                        clicked => {
+                            root.toggle-terminal();
                         }
                     }
                 }
