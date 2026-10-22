@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, IconButton, Label } from "components.slint";
+import { Icon, IconButton, Label, TipArea } from "components.slint";
 
 export struct TabData {
     title: string,
@@ -8,6 +8,7 @@ export struct TabData {
     active: bool,
     pinned: bool,
     loading: bool,
+    tip: string,
 }
 
 /// Pasek tytułu z kartami i przyciskami okna (TitleBar.svelte). Wysokość 42 px.
@@ -51,7 +52,8 @@ export component TitleBar inherits Rectangle {
                 border-radius: Theme.r;
                 background: t.active ? Theme.higher : tab-ta.has-hover ? Theme.hover : transparent;
                 animate background { duration: 120ms; }
-                tab-ta := TouchArea {
+                tab-ta := TipArea {
+                    tip: t.tip;
                     clicked => {
                         root.activate(i);
                     }
@@ -89,7 +91,8 @@ export component TitleBar inherits Rectangle {
                             size: 13px;
                             color: x-ta.has-hover ? Theme.text : Theme.dim;
                         }
-                        x-ta := TouchArea {
+                        x-ta := TipArea {
+                            tip: "Zamknij kartę (Ctrl+W)";
                             clicked => {
                                 root.close-tab(i);
                             }
@@ -124,7 +127,8 @@ export component TitleBar inherits Rectangle {
                     size: b.size;
                     color: wb.has-hover ? (i == 2 ? #ffffff : Theme.text) : Theme.dim;
                 }
-                wb := TouchArea {
+                wb := TipArea {
+                    tip: i == 0 ? "Minimalizuj" : i == 1 ? (root.maximized ? "Przywróć" : "Maksymalizuj") : "Zamknij";
                     clicked => {
                         if (i == 0) {
                             root.minimize();

@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! PowerDesk – natywny interfejs (Slint) nad backendem `powerdesk-core`.
 
+mod facets;
 mod fmt;
 mod menus;
 mod model;
@@ -17,7 +18,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{LazyLock, Mutex};
 
-use model::{Col, GroupKey, KindFilter, Prefs, Search, SortKey, Tab, View, HOME};
+use model::{Col, GroupKey, KindFilter, Prefs, SavedSearch, Search, SortKey, Tab, View, HOME};
 use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::{drives, fsx, shell};
 use slint::winit_030::WinitWindowAccessor;
@@ -96,6 +97,8 @@ fn main() -> Result<(), slint::PlatformError> {
 }
 
 fn wire(ui: &MainWindow, st: &Shared) {
+    ui.set_hints(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(h.0)).collect::<Vec<_>>())));
+    ui.set_hint_tips(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(h.1)).collect::<Vec<_>>())));
     ui.on_drag({
         let w = ui.as_weak();
         move || {
@@ -129,7 +132,10 @@ fn wire(ui: &MainWindow, st: &Shared) {
     });
 
     let s = st.clone();
-    ui.on_navigate(move |p| navigate(&s, p.as_str(), true));
+    ui.on_navigate(move |p| match p.strip_prefix(SAVED) {
+        Some(id) => run_saved(&s, id, false),
+        None => navigate(&s, p.as_str(), true),
+    });
     let s = st.clone();
     ui.on_back(move || back(&s));
     let s = st.clone();
@@ -206,16 +212,57 @@ fn wire(ui: &MainWindow, st: &Shared) {
 
     // Filtr na żywo i wyszukiwanie w podfolderach.
     let s = st.clone();
-    ui.on_filter_changed(move |q| {
-        tab_mut(&s, |t| t.filter = q.to_string());
-        refresh(&s);
-    });
+    ui.on_filter_changed(move |q| set_filter(&s, q.as_str()));
     let s = st.clone();
     ui.on_set_kind(move |k| {
         let f = KindFilter::ALL.get(k as usize).copied().unwrap_or_default();
-        tab_mut(&s, |t| t.kind_filter = if t.kind_filter == f { KindFilter::All } else { f });
+        tab_mut(&s, |t| {
+            t.kind_filter = if t.kind_filter == f { KindFilter::All } else { f };
+            t.facets.clear();
+        });
         set_scroll(&s, 0.0);
         refresh(&s);
+    });
+    // Fasety, podpowiedzi zapytań, zapisane wyszukiwania.
+    let s = st.clone();
+    ui.on_toggle_facets(move || {
+        tab_mut(&s, |t| t.facets_open = Some(!t.facets_shown(true)));
+        request_media(&s);
+        render_chrome(&s);
+    });
+    let s = st.clone();
+    ui.on_toggle_facet(move |id| {
+        tab_mut(&s, |t| {
+            if !t.facets.remove(id.as_str()) {
+                t.facets.insert(id.to_string());
+            }
+        });
+        set_scroll(&s, 0.0);
+        refresh(&s);
+    });
+    let s = st.clone();
+    ui.on_clear_facets(move || {
+        tab_mut(&s, |t| t.facets.clear());
+        refresh(&s);
+    });
+    let s = st.clone();
+    ui.on_add_hint(move |h| {
+        let q = {
+            let Some(ui) = s.borrow().ui.upgrade() else { return };
+            let q = ui.get_query();
+            let q = if q.trim().is_empty() { format!("{h} ") } else { format!("{} {h} ", q.trim()) };
+            ui.set_query(q.clone().into());
+            q
+        };
+        set_filter(&s, &q);
+    });
+    let s = st.clone();
+    ui.on_save_search(move || save_search(&s));
+    let s = st.clone();
+    ui.on_side_context(move |p, x, y| {
+        if let Some(id) = p.strip_prefix(SAVED) {
+            menus::saved_menu(&s, id.to_string(), x, y);
+        }
     });
     let s = st.clone();
     ui.on_search(move |q| start_search(&s, q.as_str()));
@@ -419,6 +466,8 @@ fn navigate(s: &Shared, path: &str, push: bool) {
         t.search = None;
         t.filter.clear();
         t.kind_filter = KindFilter::All;
+        t.facets.clear();
+        t.facets_open = None;
         t.selected.clear();
         t.focus = None;
         t.anchor = None;
@@ -426,6 +475,7 @@ fn navigate(s: &Shared, path: &str, push: bool) {
     });
     if let Some(ui) = s.borrow().ui.upgrade() {
         ui.set_query(SharedString::new());
+        ui.set_query_chips(ModelRc::default());
     }
     apply_prefs(s);
     load(s, false);
@@ -616,7 +666,8 @@ fn request_media(s: &Shared) {
         let b = &mut *b;
         let t = &b.tabs[b.active];
         let cols = t.view == View::List && b.prefs.list_cols.iter().any(|c| c.media());
-        if t.view != View::Gallery && !cols && !t.sort.media() && t.group != GroupKey::Taken {
+        let facets = t.facets_shown(true);
+        if t.view != View::Gallery && !cols && !t.sort.media() && t.group != GroupKey::Taken && !facets {
             return;
         }
         let v: Vec<(String, i64)> = t
@@ -647,7 +698,7 @@ fn request_media(s: &Shared) {
                         }
                     }
                     // Sortowanie po metadanych – kolejność zmienia się wraz z kolejnymi partiami.
-                    if tab_mut(s, |t| t.sort.media() || t.group == GroupKey::Taken) {
+                    if tab_mut(s, |t| t.sort.media() || t.group == GroupKey::Taken || !t.facets.is_empty()) {
                         refresh(s);
                     } else {
                         layout(s);
@@ -723,6 +774,59 @@ fn request_dir_sizes(s: &Shared) {
     }
 }
 
+/// Ścieżka pozycji panelu bocznego dla zapisanego wyszukiwania: „ofp:saved|<id>”.
+pub const SAVED: &str = "ofp:saved|";
+
+fn set_filter(s: &Shared, q: &str) {
+    tab_mut(s, |t| t.filter = q.to_string());
+    if let Some(ui) = s.borrow().ui.upgrade() {
+        let chips: Vec<SharedString> = query::parse(q).chips.into_iter().map(Into::into).collect();
+        ui.set_query_chips(ModelRc::new(VecModel::from(chips)));
+    }
+    refresh(s);
+}
+
+fn save_search(s: &Shared) {
+    let name = {
+        let mut b = s.borrow_mut();
+        let t = &b.tabs[b.active];
+        let Some(x) = &t.search else { return };
+        let base = Path::new(&t.path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| t.path.clone());
+        let v = SavedSearch {
+            id: format!("{:x}", chrono::Local::now().timestamp_millis()),
+            name: format!("{} w {base}", x.query),
+            root: t.path.clone(),
+            query: x.query.clone(),
+        };
+        let name = v.name.clone();
+        b.prefs.saved_searches.push(v);
+        b.prefs.save();
+        name
+    };
+    notice(s, format!("Zapisano „{name}” w panelu bocznym"));
+    render_chrome(s);
+}
+
+/// Uruchamia zapisane wyszukiwanie (w nowej karcie albo w bieżącej).
+pub fn run_saved(s: &Shared, id: &str, new: bool) {
+    let Some(v) = s.borrow().prefs.saved_searches.iter().find(|v| v.id == id).cloned() else { return };
+    if new {
+        new_tab_at(s, &v.root, true);
+    } else if !tab_mut(s, |t| same(&t.path, &v.root)) {
+        navigate(s, &v.root, true);
+    }
+    start_search(s, &v.query);
+}
+
+pub fn remove_saved(s: &Shared, id: &str) {
+    {
+        let mut b = s.borrow_mut();
+        b.prefs.saved_searches.retain(|v| v.id != id);
+        b.prefs.save();
+    }
+    render_side(s);
+}
+
 fn render_all(s: &Shared) {
     render_chrome(s);
     render_items(s);
@@ -741,6 +845,18 @@ fn render_chrome(s: &Shared) {
     ui.set_view(t.view.index());
     ui.set_sort_name(t.sort == SortKey::Name);
     ui.set_desc(t.desc);
+    let flist = if t.special() { Vec::new() } else { t.facet_list(b.prefs.show_hidden, |e| b.media.get(&e.path).copied()) };
+    let shown = t.facets_shown(!flist.is_empty());
+    ui.set_has_facets(!flist.is_empty());
+    ui.set_facets_open(shown);
+    ui.set_facets_chosen(t.facets.len() as i32);
+    // Panel faset: do 620 px szerokości, minus wewnętrzne marginesy.
+    let width = (ui.window().size().to_logical(ui.window().scale_factor()).width - 48.0).min(620.0) - 24.0;
+    ui.set_facet_rows(ModelRc::new(VecModel::from(if shown { facet_rows(&flist, &t.facets, t.items.len(), width) } else { Vec::new() })));
+    ui.set_can_save_search(match &t.search {
+        Some(x) => !x.running && !b.prefs.saved_searches.iter().any(|v| v.query == x.query && same(&v.root, &t.path)),
+        None => false,
+    });
     let has_type = b.prefs.list_cols.contains(&Col::Type);
     ui.set_columns(ModelRc::new(VecModel::from(
         b.prefs
@@ -761,7 +877,8 @@ fn render_chrome(s: &Shared) {
     ui.set_filters(ModelRc::new(VecModel::from(
         t.shown_filters(b.prefs.show_hidden)
             .into_iter()
-            .map(|f| FilterChip {
+            .map(|(f, n)| FilterChip {
+                tip: if f == KindFilter::All { f.label().into() } else { format!("{} ({n})", f.label()).into() },
                 id: KindFilter::ALL.iter().position(|x| *x == f).unwrap_or(0) as i32,
                 icon: ic(match f {
                     KindFilter::All => "filter",
@@ -806,6 +923,7 @@ fn render_chrome(s: &Shared) {
             .iter()
             .enumerate()
             .map(|(i, t)| TabData {
+                tip: if t.special() { t.title().into() } else { t.path.clone().into() },
                 title: t.title().into(),
                 icon: tab_icon(t),
                 active: i == b.active,
@@ -868,6 +986,7 @@ pub fn render_items(s: &Shared) {
             View::Gallery => (thumbs::get(&e.path, (bx.w.max(bx.h) * scale) as u32, e.dir || !media), None),
         };
         v.push(VisItem {
+            tip: tip(&b, t, e).into(),
             index: i as i32,
             x: bx.x,
             y: bx.y,
@@ -928,6 +1047,82 @@ pub fn render_items(s: &Shared) {
     }
     drop(b);
     render_status(s);
+}
+
+/// Fasety w wierszach o zadanej szerokości: nazwa grupy, potem jej filtry; na końcu „Wyczyść filtry”.
+fn facet_rows(list: &[facets::Facet], chosen: &std::collections::BTreeSet<String>, results: usize, width: f32) -> Vec<FacetRow> {
+    // Szacunek szerokości tekstu 12 px (Segoe UI) – wystarczy do zawijania.
+    let est = |s: &str, px: f32| s.chars().count() as f32 * px * 0.56;
+    let mut chips: Vec<(FacetChip, f32)> = Vec::new();
+    let mut group = "";
+    for f in list {
+        if f.group != group {
+            group = f.group;
+            let l = f.group.to_uppercase();
+            let w = est(&l, 11.0) + 14.0;
+            chips.push((FacetChip { kind: 0, tip: SharedString::new(), id: SharedString::new(), label: l.into(), count: SharedString::new(), on: false }, w));
+        }
+        let count = f.count.to_string();
+        let w = est(&f.label, 12.0) + est(&count, 11.0) + 30.0;
+        chips.push((FacetChip { kind: 1, tip: format!("{}: {} ({})", f.group, f.label, f.count).into(), id: f.id.clone().into(), label: f.label.clone().into(), count: count.into(), on: chosen.contains(&f.id) }, w));
+    }
+    if !chosen.is_empty() {
+        chips.push((FacetChip { kind: 2, tip: "Wyłącz wszystkie filtry".into(), id: SharedString::new(), label: "Wyczyść filtry".into(), count: SharedString::new(), on: false }, est("Wyczyść filtry", 12.0) + 42.0));
+        let l = format!("{results} wyników");
+        let w = est(&l, 12.0) + 6.0;
+        chips.push((FacetChip { kind: 3, tip: SharedString::new(), id: SharedString::new(), label: l.into(), count: SharedString::new(), on: false }, w));
+    }
+    let mut rows: Vec<Vec<FacetChip>> = vec![Vec::new()];
+    let mut x = 0.0;
+    for (i, (c, w)) in chips.iter().enumerate() {
+        // Nazwa grupy nie zostaje sama na końcu wiersza.
+        let need = if c.kind == 0 { w + chips.get(i + 1).map(|n| n.1).unwrap_or(0.0) } else { *w };
+        if x > 0.0 && x + need > width {
+            rows.push(Vec::new());
+            x = 0.0;
+        }
+        rows.last_mut().unwrap().push(c.clone());
+        x += w + 5.0;
+    }
+    rows.into_iter().map(|items| FacetRow { items: ModelRc::new(VecModel::from(items)) }).collect()
+}
+
+/// Podpowiedź elementu jak w Eksploratorze (tip w FileView.svelte).
+fn tip(b: &State, t: &Tab, e: &fsx::Entry) -> String {
+    let mut lines = vec![e.name.clone(), format!("Typ: {}", fmt::type_label(e))];
+    if e.dir {
+        if let Some(n) = b.dir_sizes.get(&e.path.to_lowercase()) {
+            lines.push(format!("Rozmiar: {}", fmt::size(*n)));
+        }
+        lines.push(format!("Data utworzenia: {}", fmt::date(e.created)));
+    } else {
+        if let Some(m) = b.media.get(&e.path) {
+            if m.w > 0 {
+                lines.push(format!("Wymiary: {} × {}", m.w, m.h));
+            }
+            if m.dur > 0 {
+                lines.push(format!("Długość: {}", fmt::duration(m.dur)));
+            }
+            if m.taken > 0 && m.taken != e.modified {
+                lines.push(format!("Data wykonania: {}", fmt::date(m.taken)));
+            }
+        }
+        lines.push(format!("Rozmiar: {}", fmt::size(e.size)));
+        lines.push(format!("Data modyfikacji: {}", fmt::date(e.modified)));
+    }
+    let attrs: Vec<&str> = [(e.readonly, "tylko do odczytu"), (e.hidden, "ukryty")].iter().filter(|x| x.0).map(|x| x.1).collect();
+    if !attrs.is_empty() {
+        lines.push(format!("Atrybuty: {}", attrs.join(", ")));
+    }
+    if e.cloud {
+        lines.push("Dostępny tylko w chmurze".into());
+    }
+    if t.search.is_some() {
+        if let Some(p) = Path::new(&e.path).parent() {
+            lines.push(format!("Lokalizacja: {}", p.to_string_lossy()));
+        }
+    }
+    lines.join("\n")
 }
 
 /// Teksty kolumn listy (`cell` w FileView.svelte).
@@ -1302,6 +1497,7 @@ fn start_search(s: &Shared, q: &str) {
     });
     if let Some(ui) = s.borrow().ui.upgrade() {
         ui.set_query(SharedString::new());
+        ui.set_query_chips(ModelRc::default());
     }
     set_scroll(s, 0.0);
     refresh(s);
@@ -1317,6 +1513,7 @@ fn clear_search(s: &Shared) {
     });
     if let Some(ui) = s.borrow().ui.upgrade() {
         ui.set_query(SharedString::new());
+        ui.set_query_chips(ModelRc::default());
     }
     refresh(s);
     if had {
@@ -1595,9 +1792,28 @@ pub fn render_side(s: &Shared) {
     let t = &b.tabs[b.active];
     let scale = ui.window().scale_factor();
     let px = (18.0 * scale) as u32;
-    let items: Vec<SideItem> = side_items(&t.path, &b.drives)
-        .into_iter()
+    // Zapisane wyszukiwania – nad szybkim dostępem, jak w Sidebar.svelte.
+    let saved = b.prefs.saved_searches.iter().enumerate().map(|(i, v)| SideItem {
+        tip: format!("{}\nw {}", v.query, v.root).into(),
+        section: if i == 0 { "Zapisane wyszukiwania".into() } else { SharedString::new() },
+        name: v.name.clone().into(),
+        icon: ic("search"),
+        path: format!("{SAVED}{}", v.id).into(),
+        detail: SharedString::new(),
+        usage: 0.0,
+        active: t.search.as_ref().is_some_and(|x| x.query == v.query) && same(&t.path, &v.root),
+        img: Default::default(),
+        has_img: false,
+    });
+    let items: Vec<SideItem> = saved
+        .chain(side_items(&t.path, &b.drives))
         .map(|mut it| {
+            if it.path.starts_with("ofp:") {
+                return it;
+            }
+            if it.tip.is_empty() {
+                it.tip = it.path.clone();
+            }
             if let Some(img) = thumbs::get(it.path.as_str(), px, true) {
                 it.img = img;
                 it.has_img = true;
@@ -1633,6 +1849,7 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
             usage: 0.0,
             img: Default::default(),
             has_img: false,
+            tip: SharedString::new(),
         });
     }
     let mut first = true;
@@ -1653,6 +1870,8 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
             usage: if d.total > 0 { used as f32 / d.total as f32 } else { 0.0 },
             img: Default::default(),
             has_img: false,
+            tip: if d.total > 0 { format!("{}
+{} wolne z {} · zajęte {:.0}%", d.path, fmt::size(d.free), fmt::size(d.total), used as f64 * 100.0 / d.total as f64).into() } else { d.path.clone().into() },
         });
     }
     v

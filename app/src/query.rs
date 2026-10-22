@@ -109,6 +109,20 @@ fn date_range(v: &str) -> Option<(i64, i64)> {
     }
 }
 
+/// Podpowiedzi pokazywane pod polem wyszukiwania.
+pub const HINTS: [(&str, &str); 10] = [
+    ("typ:zdjęcia", "Tylko zdjęcia"),
+    ("typ:wideo", "Tylko filmy"),
+    ("typ:dokumenty", "Dokumenty"),
+    ("typ:folder", "Tylko foldery"),
+    ("rozmiar:>100mb", "Większe niż 100 MB"),
+    ("rozmiar:<1mb", "Mniejsze niż 1 MB"),
+    ("data:dziś", "Zmienione dziś"),
+    ("data:tydzień", "W ostatnim tygodniu"),
+    ("data:2024", "W roku 2024"),
+    ("ext:jpg,png", "Rozszerzenia"),
+];
+
 pub fn parse(q: &str) -> Parsed {
     let mut words: Vec<&str> = Vec::new();
     let mut tests: Vec<Test> = Vec::new();

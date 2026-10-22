@@ -87,7 +87,7 @@ pub fn is_media(e: &Entry) -> bool {
 }
 
 /// Kategoria pliku – ta sama tabela rozszerzeń co `kindOf` w util.ts.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     Folder,
     Image,

@@ -479,3 +479,20 @@ pub fn column_menu(s: &Shared, x: f32, y: f32) {
     }));
     show(s, v, x, y);
 }
+
+/// Menu zapisanego wyszukiwania w panelu bocznym (savedMenu w Sidebar.svelte).
+pub fn saved_menu(s: &Shared, id: String, x: f32, y: f32) {
+    let (a, b, c) = (id.clone(), id.clone(), id);
+    show(
+        s,
+        vec![
+            it("Uruchom", "search", move |s| crate::run_saved(s, &a, false)),
+            it("Uruchom w nowej karcie", "plus", move |s| crate::run_saved(s, &b, true)),
+            sep(),
+            it("Zmień nazwę", "edit", |_| {}).later(),
+            it("Usuń", "trash", move |s| crate::remove_saved(s, &c)).danger(),
+        ],
+        x,
+        y,
+    );
+}

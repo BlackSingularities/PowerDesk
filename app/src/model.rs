@@ -304,6 +304,17 @@ pub enum KindFilter {
 
 impl KindFilter {
     pub const ALL: [KindFilter; 7] = [KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc, KindFilter::Audio, KindFilter::Archive];
+    pub fn label(self) -> &'static str {
+        match self {
+            KindFilter::All => "Wszystko",
+            KindFilter::Media => "Media (zdjęcia i wideo)",
+            KindFilter::Image => "Zdjęcia",
+            KindFilter::Video => "Wideo",
+            KindFilter::Doc => "Dokumenty",
+            KindFilter::Audio => "Audio",
+            KindFilter::Archive => "Archiwa",
+        }
+    }
     /// Czy kategoria pliku należy do grupy (KIND_GROUPS w state.svelte.ts).
     pub fn has(self, k: Kind) -> bool {
         match self {
@@ -347,6 +358,9 @@ pub struct Tab {
     pub desc: bool,
     pub filter: String,
     pub kind_filter: KindFilter,
+    /// Wybrane filtry dopasowane do zawartości (id z facets.rs) i ręczne otwarcie ich paska.
+    pub facets: std::collections::BTreeSet<String>,
+    pub facets_open: Option<bool>,
     pub group: GroupKey,
     /// Grupy bieżącej listy (None – bez grupowania) i zwinięte grupy (etykiety).
     pub groups: Option<Vec<Group>>,
@@ -382,6 +396,8 @@ impl Tab {
             desc: false,
             filter: String::new(),
             kind_filter: KindFilter::All,
+            facets: Default::default(),
+            facets_open: None,
             group: GroupKey::None,
             groups: None,
             collapsed: Default::default(),
@@ -433,6 +449,7 @@ impl Tab {
             .filter(|e| self.kind_filter == KindFilter::All || (!e.dir && self.kind_filter.has(kind_of(e))))
             .filter(|e| f.is_empty() || if wild { wildcard(&f, &e.name.to_lowercase()) } else { e.name.to_lowercase().contains(&f) })
             .filter(|e| pq.test.as_ref().map_or(true, |t| t(e)) && sq.as_ref().map_or(true, |t| t(e)))
+            .filter(|e| self.facets.is_empty() || crate::facets::matches(self.facets.iter(), e, media(e)))
             .cloned()
             .collect();
         let key = self.sort;
@@ -507,6 +524,25 @@ impl Tab {
         self.selected.retain(|p| alive.contains(p.as_str()));
     }
 
+    /// Fasety dla plików bieżącej kategorii (bez ukrytych).
+    pub fn facet_list(&self, show_hidden: bool, media: impl Fn(&Entry) -> Option<MediaInfo>) -> Vec<crate::facets::Facet> {
+        let source = match &self.search {
+            Some(s) => &s.results,
+            None => &self.entries,
+        };
+        let base: Vec<Entry> = source
+            .iter()
+            .filter(|e| !e.dir && (show_hidden || !(e.hidden || e.system)) && (self.kind_filter == KindFilter::All || self.kind_filter.has(kind_of(e))))
+            .cloned()
+            .collect();
+        crate::facets::facets_for(&base, media, &self.facets)
+    }
+
+    /// Panel faset otwiera się tylko na żądanie (wysuwa się nad listą, nie rozpycha interfejsu).
+    pub fn facets_shown(&self, any: bool) -> bool {
+        any && self.facets_open.unwrap_or(false)
+    }
+
     /// Zapamiętuje zaznaczenie bieżącego folderu przed wyjściem z niego.
     pub fn remember_selection(&mut self) {
         if self.search.is_some() || self.special() {
@@ -528,7 +564,7 @@ impl Tab {
     }
 
     /// Kategorie, które mają sens w tym folderze – „Wszystko” zawsze, „Media” tylko gdy są i zdjęcia, i filmy.
-    pub fn shown_filters(&self, show_hidden: bool) -> Vec<KindFilter> {
+    pub fn shown_filters(&self, show_hidden: bool) -> Vec<(KindFilter, usize)> {
         let source = match &self.search {
             Some(s) => &s.results,
             None => &self.entries,
@@ -546,7 +582,7 @@ impl Tab {
             .iter()
             .zip(counts)
             .filter(|(f, n)| **f == KindFilter::All || (*n > 0 && !(**f == KindFilter::Media && (counts[2] == 0 || counts[3] == 0))))
-            .map(|(f, _)| *f)
+            .map(|(f, n)| (*f, n))
             .collect()
     }
 
@@ -756,11 +792,21 @@ pub struct Prefs {
     pub list_col_w: HashMap<Col, f32>,
     /// Rozmiary folderów liczone w tle w kolumnie Rozmiar (bez dysków sieciowych).
     pub folder_sizes: bool,
+    pub saved_searches: Vec<SavedSearch>,
+}
+
+/// Wyszukiwanie zapisane w panelu bocznym.
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SavedSearch {
+    pub id: String,
+    pub name: String,
+    pub root: String,
+    pub query: String,
 }
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new() }
     }
 }
 
@@ -838,7 +884,7 @@ mod tests {
     fn kind_filters() {
         let mut t = Tab::new("C:/t");
         t.entries = vec![entry("a.jpg", false), entry("b.mp4", false), entry("c.pdf", false), entry("Folder", true)];
-        assert_eq!(t.shown_filters(false), vec![KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc]);
+        assert_eq!(t.shown_filters(false).into_iter().map(|x| x.0).collect::<Vec<_>>(), vec![KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc]);
         t.kind_filter = KindFilter::Media;
         t.rebuild(false, true, |e| e.size as i64, |_| None);
         assert_eq!(t.items.iter().map(|e| e.name.as_str()).collect::<Vec<_>>(), ["a.jpg", "b.mp4"]);

@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, IconButton, Label } from "components.slint";
+import { Icon, IconButton, Label, TipArea } from "components.slint";
 
 export struct Crumb {
     name: string,
@@ -10,8 +10,24 @@ export struct Crumb {
 /// Przycisk filtra kategorii (fchip): `id` to indeks KindFilter::ALL.
 export struct FilterChip {
     id: int,
+    tip: string,
     icon: string,
     on: bool,
+}
+
+/// Element paska faset: 0 – nazwa grupy, 1 – filtr, 2 – „Wyczyść filtry”, 3 – liczba wyników.
+export struct FacetChip {
+    kind: int,
+    tip: string,
+    id: string,
+    label: string,
+    count: string,
+    on: bool,
+}
+
+/// Wiersz paska faset – Rust układa filtry w wiersze według szerokości (zawijanie jak flex-wrap).
+export struct FacetRow {
+    items: [FacetChip],
 }
 
 /// Pasek narzędzi (Toolbar.svelte): nawigacja, okruszki z podfolderami, filtr/wyszukiwanie,
@@ -28,6 +44,14 @@ export component Toolbar inherits Rectangle {
     in property <bool> search-active;
     in property <string> sort-label;
     in property <[FilterChip]> filters;
+    /// Przycisk „więcej filtrów”: są fasety, pasek otwarty, liczba wybranych.
+    in property <bool> has-facets;
+    in property <bool> facets-open;
+    in property <int> facets-chosen;
+    in property <bool> can-save-search;
+    out property <bool> search-focused: search-input.has-focus;
+    out property <length> search-right: sbox.absolute-position.x + sbox.width;
+    out property <length> search-bottom: sbox.absolute-position.y + sbox.height;
     in property <int> view;
     in-out property <float> zoom;
     in property <float> zoom-min: 84;
@@ -49,6 +73,10 @@ export component Toolbar inherits Rectangle {
     callback new-menu(length, length);
     callback command(string);
     callback set-kind(int);
+    callback toggle-facets;
+    callback toggle-facet(string);
+    callback clear-facets;
+    callback save-search;
 
     property <bool> editing;
 
@@ -77,6 +105,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.back;
+                tooltip: "Wstecz (Alt+←)";
                 icon-size: 18px;
                 enabled: root.can-back;
                 clicked => {
@@ -86,6 +115,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.fwd;
+                tooltip: "Dalej (Alt+→)";
                 icon-size: 18px;
                 enabled: root.can-forward;
                 clicked => {
@@ -95,6 +125,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.up;
+                tooltip: "W górę (Alt+↑)";
                 icon-size: 18px;
                 enabled: !root.special;
                 clicked => {
@@ -104,6 +135,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.refresh;
+                tooltip: "Odśwież (F5)";
                 icon-size: 17px;
                 clicked => {
                     root.refresh();
@@ -120,7 +152,8 @@ export component Toolbar inherits Rectangle {
                 background: root.editing ? Theme.higher : Theme.high;
                 clip: true;
 
-                if !root.editing: TouchArea {
+                if !root.editing: TipArea {
+                    tip: "Kliknij, aby wpisać ścieżkę (Ctrl+L)";
                     clicked => {
                         root.edit-address();
                     }
@@ -152,7 +185,8 @@ export component Toolbar inherits Rectangle {
                                 color: i == root.crumbs.length - 1 || crumb-ta.has-hover ? Theme.text : Theme.dim;
                                 font-weight: i == root.crumbs.length - 1 ? 600 : 400;
                             }
-                            crumb-ta := TouchArea {
+                            crumb-ta := TipArea {
+                                tip: c.path;
                                 clicked => {
                                     root.navigate(c.path);
                                 }
@@ -169,7 +203,8 @@ export component Toolbar inherits Rectangle {
                                 size: 13px;
                                 color: sep-ta.has-hover ? Theme.text : Theme.faint;
                             }
-                            sep-ta := TouchArea {
+                            sep-ta := TipArea {
+                                tip: "Podfoldery";
                                 clicked => {
                                     root.crumb-menu(c.path, self.absolute-position.x, self.absolute-position.y + 30px);
                                 }
@@ -210,7 +245,7 @@ export component Toolbar inherits Rectangle {
             }
 
             // Filtr / wyszukiwanie.
-            Rectangle {
+            sbox := Rectangle {
                 width: search-input.has-focus || root.search-active ? 380px : 300px;
                 animate width { duration: 200ms; easing: cubic-bezier(0.2, 0.8, 0.2, 1); }
                 border-radius: Theme.r;
@@ -260,6 +295,16 @@ export component Toolbar inherits Rectangle {
                             color: Theme.faint;
                         }
                     }
+                    if root.can-save-search: IconButton {
+                        y: (parent.height - self.height) / 2;
+                        size: 24px;
+                        icon: Icons.star;
+                        tooltip: "Zapisz wyszukiwanie w panelu bocznym";
+                        icon-size: 14px;
+                        clicked => {
+                            root.save-search();
+                        }
+                    }
                     if root.searching: Rectangle {
                         y: (parent.height - 6px) / 2;
                         width: 6px;
@@ -271,6 +316,7 @@ export component Toolbar inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                         size: 24px;
                         icon: Icons.close;
+                        tooltip: "Wyczyść (Esc)";
                         icon-size: 13px;
                         clicked => {
                             root.query = "";
@@ -307,7 +353,8 @@ export component Toolbar inherits Rectangle {
                         font-weight: 600;
                     }
                 }
-                new-ta := TouchArea {
+                new-ta := TipArea {
+                    tip: "Nowy folder, plik lub dokument";
                     clicked => {
                         root.new-menu(self.absolute-position.x, self.absolute-position.y + 34px);
                     }
@@ -322,13 +369,14 @@ export component Toolbar inherits Rectangle {
                 }
             }
             for c in [
-                { id: "cut", icon: Icons.cut, sel: true },
-                { id: "copy", icon: Icons.copy, sel: true },
-                { id: "paste", icon: Icons.paste, sel: false },
-                { id: "rename", icon: Icons.edit, sel: true },
-                { id: "trash", icon: Icons.trash, sel: true },
-                { id: "props", icon: Icons.info, sel: true },
+                { id: "cut", icon: Icons.cut, sel: true, tip: "Wytnij (Ctrl+X)" },
+                { id: "copy", icon: Icons.copy, sel: true, tip: "Kopiuj (Ctrl+C)" },
+                { id: "paste", icon: Icons.paste, sel: false, tip: "Wklej (Ctrl+V)" },
+                { id: "rename", icon: Icons.edit, sel: true, tip: "Zmień nazwę (F2)" },
+                { id: "trash", icon: Icons.trash, sel: true, tip: "Do Kosza (Del)" },
+                { id: "props", icon: Icons.info, sel: true, tip: "Właściwości (Alt+Enter)" },
             ]: IconButton {
+                tooltip: c.tip;
                 y: 2px;
                 icon: c.icon;
                 icon-size: 18px;
@@ -341,7 +389,7 @@ export component Toolbar inherits Rectangle {
                 horizontal-stretch: 1;
             }
             // Filtry kategorii – tylko gdy w folderze są co najmniej dwie różne.
-            if root.filters.length > 2: HorizontalLayout {
+            if root.filters.length > 2 || root.has-facets: HorizontalLayout {
                 spacing: 4px;
                 for f in root.filters: Rectangle {
                     y: 3px;
@@ -354,9 +402,40 @@ export component Toolbar inherits Rectangle {
                         size: 15px;
                         color: f.on ? Theme.on-accent : chip-ta.has-hover ? Theme.text : Theme.faint;
                     }
-                    chip-ta := TouchArea {
+                    chip-ta := TipArea {
+                        tip: f.tip;
                         clicked => {
                             root.set-kind(f.id);
+                        }
+                    }
+                }
+                // Filtry dopasowane do zawartości (fchip more).
+                if root.has-facets: Rectangle {
+                    y: 3px;
+                    height: 28px;
+                    width: max(30px, more-row.preferred-width + 12px);
+                    border-radius: Theme.r-s;
+                    background: root.facets-open ? Theme.accent : root.facets-chosen > 0 ? Theme.sel : more-ta.has-hover ? Theme.hover : transparent;
+                    more-row := HorizontalLayout {
+                        alignment: center;
+                        spacing: 4px;
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: Icons.sort;
+                            size: 15px;
+                            color: root.facets-open ? Theme.on-accent : root.facets-chosen > 0 || more-ta.has-hover ? Theme.text : Theme.faint;
+                        }
+                        if root.facets-chosen > 0: Label {
+                            text: root.facets-chosen;
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.facets-open ? Theme.on-accent : Theme.text;
+                        }
+                    }
+                    more-ta := TipArea {
+                        tip: "Filtry dopasowane do zawartości";
+                        clicked => {
+                            root.toggle-facets();
                         }
                     }
                 }
@@ -382,7 +461,8 @@ export component Toolbar inherits Rectangle {
                         color: Theme.dim;
                     }
                 }
-                sort-ta := TouchArea {
+                sort-ta := TipArea {
+                    tip: "Sortowanie i grupowanie";
                     clicked => {
                         root.sort-menu(self.absolute-position.x, self.absolute-position.y + 34px);
                     }
@@ -413,7 +493,8 @@ export component Toolbar inherits Rectangle {
                     border-radius: 7px;
                     background: Theme.text;
                 }
-                TouchArea {
+                TipArea {
+                    tip: "Wielkość miniatur (Ctrl+kółko)";
                     moved => {
                         if (self.pressed) {
                             root.zoom = clamp(root.zoom-min + (self.mouse-x - 8px) / (self.width - 16px) * (root.zoom-max - root.zoom-min), root.zoom-min, root.zoom-max);
@@ -450,10 +531,102 @@ export component Toolbar inherits Rectangle {
                             size: v.size;
                             color: root.view == i ? Theme.text : Theme.dim;
                         }
-                        seg-ta := TouchArea {
+                        seg-ta := TipArea {
+                            tip: i == 0 ? "Lista (Ctrl+1)" : i == 1 ? "Siatka (Ctrl+2)" : "Galeria (Ctrl+3)";
                             clicked => {
                                 root.set-view(i);
                             }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Panel faset (facets) – wysuwa się nad listą zamiast rozpychać pasek narzędzi.
+export component FacetPanel inherits Rectangle {
+    in property <[FacetRow]> facet-rows;
+    callback toggle-facet(string);
+    callback clear-facets;
+    height: rows.preferred-height;
+    border-radius: Theme.r-l;
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.line;
+    drop-shadow-blur: 50px;
+    drop-shadow-offset-y: 20px;
+    drop-shadow-color: Theme.shadow;
+    TouchArea { }
+    rows := VerticalLayout {
+        padding: 12px;
+        spacing: 5px;
+        for row in root.facet-rows: HorizontalLayout {
+            height: 26px;
+            spacing: 5px;
+            alignment: start;
+            for c in row.items: Rectangle {
+                // Szerokość z niewidocznych miar (elementów w `if` nie można mierzyć z zewnątrz).
+                m-label := Label {
+                    visible: false;
+                    text: c.label;
+                    font-size: c.kind == 0 ? 11px : 12px;
+                    font-weight: c.kind == 0 || c.on ? 600 : 400;
+                }
+                m-count := Label {
+                    visible: false;
+                    text: c.count;
+                    font-size: 11px;
+                }
+                width: c.kind == 0 ? m-label.preferred-width + 10px : c.kind == 3 ? m-label.preferred-width + 4px : c.kind == 2 ? m-label.preferred-width + 12px + 6px + 22px : m-label.preferred-width + 6px + m-count.preferred-width + 22px;
+                border-radius: Theme.r-s;
+                border-width: c.kind == 2 ? 1px : 0;
+                border-color: Theme.line-strong;
+                background: c.kind == 0 || c.kind == 3 ? transparent : c.on ? Theme.accent : fc-ta.has-hover ? Theme.press : c.kind == 2 ? transparent : Theme.card;
+                if c.kind == 0: Label {
+                    x: 6px;
+                    text: c.label;
+                    font-size: 11px;
+                    font-weight: 600;
+                    letter-spacing: 0.44px;
+                    color: Theme.ghost;
+                }
+                if c.kind == 3: Label {
+                    x: 4px;
+                    text: c.label;
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+                if c.kind == 1 || c.kind == 2: HorizontalLayout {
+                    x: 11px;
+                    spacing: 6px;
+                    if c.kind == 2: Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.close;
+                        size: 12px;
+                        color: fc-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    Label {
+                        text: c.label;
+                        font-size: 12px;
+                        font-weight: c.on ? 600 : 400;
+                        color: c.on ? Theme.on-accent : fc-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    if c.kind == 1: Label {
+                        text: c.count;
+                        font-size: 11px;
+                        color: c.on ? Theme.on-accent : Theme.dim;
+                        opacity: 0.55;
+                    }
+                }
+                fc-ta := TipArea {
+                    tip: c.tip;
+                    enabled: c.kind == 1 || c.kind == 2;
+                    clicked => {
+                        if (c.kind == 1) {
+                            root.toggle-facet(c.id);
+                        } else {
+                            root.clear-facets();
                         }
                     }
                 }

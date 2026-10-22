@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, Label } from "components.slint";
+import { Icon, Label, TipArea } from "components.slint";
 import { ScrollView } from "std-widgets.slint";
 
 /// Pole zmiany nazwy w miejscu: Enter zatwierdza, Esc anuluje, Tab / Shift+Tab przechodzi do sąsiada,
@@ -96,6 +96,8 @@ export struct VisItem {
     selected: bool,
     focused: bool,
     renaming: bool,
+    /// Podpowiedź jak w Eksploratorze: typ, rozmiar, daty, wymiary.
+    tip: string,
     icon: image,
     has-icon: bool,
     thumb: image,
@@ -219,7 +221,8 @@ export component FileView inherits Rectangle {
                             color: Theme.dim;
                         }
                     }
-                    name-ta := TouchArea {
+                    name-ta := TipArea {
+                        tip: "Sortuj według nazwy";
                         clicked => {
                             root.header-sort(-1);
                         }
@@ -250,7 +253,8 @@ export component FileView inherits Rectangle {
                             }
                         }
                     }
-                    head-ta := TouchArea {
+                    head-ta := TipArea {
+                        tip: "Kliknij, aby sortować · przeciągnij, aby przenieść · prawy przycisk: kolumny";
                         pointer-event(e) => {
                             if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
                                 root.drag-col = c.id;
@@ -286,7 +290,8 @@ export component FileView inherits Rectangle {
                             width: 1px;
                             background: grip-ta.has-hover || grip-ta.pressed ? Theme.line-strong : Theme.line;
                         }
-                        grip-ta := TouchArea {
+                        grip-ta := TipArea {
+                            tip: "Przeciągnij, aby zmienić szerokość · dwuklik: domyślna";
                             mouse-cursor: MouseCursor.col-resize;
                             property <length> w0;
                             pointer-event(e) => {
@@ -322,7 +327,8 @@ export component FileView inherits Rectangle {
                     size: 14px;
                     color: colbtn-ta.has-hover ? Theme.text : Theme.ghost;
                 }
-                colbtn-ta := TouchArea {
+                colbtn-ta := TipArea {
+                    tip: "Kolumny";
                     clicked => {
                         root.col-menu(self.absolute-position.x, self.absolute-position.y + 24px);
                     }
@@ -395,7 +401,8 @@ export component FileView inherits Rectangle {
                             size: 14px;
                             color: chev-ta.has-hover ? Theme.text : Theme.faint;
                         }
-                        chev-ta := TouchArea {
+                        chev-ta := TipArea {
+                            tip: g.shut ? "Rozwiń grupę" : "Zwiń grupę";
                             clicked => {
                                 root.toggle-group(g.index);
                             }
@@ -421,7 +428,8 @@ export component FileView inherits Rectangle {
                                 color: Theme.ghost;
                             }
                         }
-                        glabel-ta := TouchArea {
+                        glabel-ta := TipArea {
+                            tip: "Zaznacz elementy grupy (Ctrl – dodaj)";
                             pointer-event(e) => {
                                 if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
                                     root.select-group(g.index, e.modifiers.control);
@@ -459,7 +467,8 @@ export component FileView inherits Rectangle {
                 }
                 property <length> name-end: 12px + 18px + 10px + probe.preferred-width + 8px;
 
-                ta := TouchArea {
+                ta := TipArea {
+                    tip: it.tip;
                     moved => {
                         root.mq-move(it.x + self.mouse-x, it.y + self.mouse-y);
                     }

@@ -27,8 +27,8 @@ Zasady:
 | Etap | Zakres | Stan |
 |---|---|---|
 | 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | gotowe |
-| 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | **w toku** |
-| 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | – |
+| 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | gotowe |
+| 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | **następny** |
 | 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | – |
 | 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
 | 5 | Pulpit PowerDesk na wszystkich monitorach (tryb testowy i zastępujący) | – |
@@ -64,7 +64,8 @@ Zasady:
 - [x] Filtrowanie na żywo (z `*` i `?`), wyszukiwanie w podfolderach (Enter)
 - [x] Filtry kategorii (Wszystko, Media, Zdjęcia, Wideo, Dokumenty, Audio, Archiwa) – tylko obecne w folderze
 - [x] Składnia zapytań (typ:, ext:, rozmiar:, data:, utworzony:) w filtrze i wyszukiwaniu
-- [ ] Fasety (format, kadr, data…), zapisane wyszukiwania, podpowiedzi zapytań
+- [x] Fasety (format, kadr, rozdzielczość, długość, jakość, rodzaj, rozmiar, data), podpowiedzi zapytań, zapisane wyszukiwania w panelu bocznym
+- [ ] Zmiana nazwy zapisanego wyszukiwania (wymaga okien dialogowych – etap 2)
 - [x] Zaznaczanie ramką (z tła, na liście poza nazwą, w siatce/galerii z Altem; Ctrl/Shift rozszerza; samoczynne przewijanie)
 - [x] Zmiana nazwy w miejscu (F2, menu, nowy folder/plik; Enter/Esc/Tab), zaznaczenie zapamiętane per folder
 - [x] Rozmiary folderów w tle (2 wątki, bez dysków sieciowych, unieważniane po zmianach), metadane mediów w kolumnach

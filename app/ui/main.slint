@@ -1,13 +1,13 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Label } from "components.slint";
+import { Label, Tip, TipArea } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
-import { Toolbar, Crumb, FilterChip } from "toolbar.slint";
+import { Toolbar, Crumb, FilterChip, FacetChip, FacetRow, FacetPanel } from "toolbar.slint";
 import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 
-export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, VisItem, Column, GroupHead, MenuEntry }
+export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -38,6 +38,15 @@ export component MainWindow inherits Window {
     in property <bool> search-active;
     in property <string> sort-label;
     in property <[FilterChip]> filters;
+    in property <bool> has-facets;
+    in property <bool> facets-open;
+    in property <int> facets-chosen;
+    in property <[FacetRow]> facet-rows;
+    in property <bool> can-save-search;
+    /// Filtry rozpoznane w polu wyszukiwania i podpowiedzi (QUERY_HINTS).
+    in property <[string]> query-chips;
+    in property <[string]> hints;
+    in property <[string]> hint-tips;
     in-out property <string> query;
     in-out property <float> zoom;
     in property <float> zoom-min;
@@ -84,6 +93,12 @@ export component MainWindow inherits Window {
     callback new-menu(length, length);
     callback command(string);
     callback set-kind(int);
+    callback toggle-facets;
+    callback toggle-facet(string);
+    callback clear-facets;
+    callback save-search;
+    callback add-hint(string);
+    callback side-context(string, length, length);
     callback viewport-changed(length, length, length);
     callback select(int, bool, bool);
     callback open(int);
@@ -183,6 +198,22 @@ export component MainWindow inherits Window {
                         search-active: root.search-active;
                         sort-label: root.sort-label;
                         filters: root.filters;
+                        has-facets: root.has-facets;
+                        facets-open: root.facets-open;
+                        facets-chosen: root.facets-chosen;
+                        can-save-search: root.can-save-search;
+                        toggle-facets => {
+                            root.toggle-facets();
+                        }
+                        toggle-facet(id) => {
+                            root.toggle-facet(id);
+                        }
+                        clear-facets => {
+                            root.clear-facets();
+                        }
+                        save-search => {
+                            root.save-search();
+                        }
                         view: root.view;
                         zoom <=> root.zoom;
                         zoom-min: root.zoom-min;
@@ -249,6 +280,9 @@ export component MainWindow inherits Window {
                     items: root.side;
                     open(p) => {
                         root.navigate(p);
+                    }
+                    context(p, x, y) => {
+                        root.side-context(p, x, y);
                     }
                 }
                 // Panel (Pane.svelte).
@@ -350,6 +384,133 @@ export component MainWindow inherits Window {
                     }
                 }
             }
+        }
+    }
+
+    // Fasety: panel nad listą; klik obok zamyka.
+    if root.facets-open && !root.special: TouchArea {
+        clicked => {
+            root.toggle-facets();
+        }
+    }
+    if root.facets-open && !root.special: FacetPanel {
+        width: min(620px, toolbar.width - 24px);
+        x: toolbar.absolute-position.x + toolbar.width - self.width - 12px;
+        y: toolbar.absolute-position.y + toolbar.height + 2px;
+        facet-rows: root.facet-rows;
+        toggle-facet(id) => {
+            root.toggle-facet(id);
+        }
+        clear-facets => {
+            root.clear-facets();
+        }
+    }
+
+    // Pomoc do pola wyszukiwania: rozpoznane filtry i podpowiedzi (qhelp w Toolbar.svelte).
+    if toolbar.search-focused && !root.special: Rectangle {
+        x: toolbar.search-right - self.width;
+        y: toolbar.search-bottom + 6px;
+        width: 360px;
+        height: qhelp.preferred-height;
+        border-radius: Theme.r-l;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 50px;
+        drop-shadow-offset-y: 20px;
+        drop-shadow-color: Theme.shadow;
+        // Klik w panel nie może zabrać fokusu polu wyszukiwania.
+        TouchArea { }
+        qhelp := VerticalLayout {
+            padding: 12px;
+            spacing: 8px;
+            if root.query-chips.length > 0: HorizontalLayout {
+                spacing: 5px;
+                alignment: start;
+                Label {
+                    text: "Rozpoznane:";
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+                for c in root.query-chips: Rectangle {
+                    height: 22px;
+                    width: qc.preferred-width + 16px;
+                    border-radius: Theme.r-s;
+                    background: Theme.accent;
+                    qc := Label {
+                        text: c;
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: Theme.on-accent;
+                    }
+                }
+            }
+            Text {
+                text: "Pisz, aby filtrować ten folder · Enter szuka także w podfolderach · dodaj filtr:";
+                wrap: word-wrap;
+                font-family: Theme.font;
+                font-size: 12px;
+                color: Theme.faint;
+            }
+            Rectangle {
+                height: 5 * 26px + 4 * 5px;
+                for h[i] in root.hints: Rectangle {
+                    x: mod(i, 2) * (parent.width + 5px) / 2;
+                    y: floor(i / 2) * 31px;
+                    width: (parent.width - 5px) / 2;
+                    height: 26px;
+                    border-radius: Theme.r-s;
+                    background: hint-ta.has-hover ? Theme.press : Theme.card;
+                    Label {
+                        x: 10px;
+                        width: parent.width - 20px;
+                        text: h;
+                        font-family: Theme.mono;
+                        font-size: 11px;
+                        color: hint-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    hint-ta := TipArea {
+                        tip: root.hint-tips[i];
+                        clicked => {
+                            root.add-hint(h);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Dymek z podpowiedzią – po 0,6 s bez ruchu na tym samym elemencie, zawsze w oknie.
+    property <int> tip-shown: -1;
+    Timer {
+        interval: 600ms;
+        running: Tip.text != "" && root.tip-shown != Tip.serial;
+        triggered => {
+            root.tip-shown = Tip.serial;
+        }
+    }
+    if Tip.text != "" && root.tip-shown == Tip.serial: Rectangle {
+        property <length> below: Tip.y + 22px;
+        x: max(8px, min(Tip.x - 8px, root.width - self.width - 8px));
+        y: self.below + self.height > root.height - 8px ? Tip.y - self.height - 10px : self.below;
+        width: min(tip-text.preferred-width, 340px) + 20px;
+        height: tip-text.preferred-height + 12px;
+        border-radius: Theme.r-s;
+        background: Theme.higher;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-color: Theme.shadow;
+        tip-text := Text {
+            x: 10px;
+            y: 6px;
+            width: parent.width - 20px;
+            text: Tip.text;
+            wrap: word-wrap;
+            font-family: Theme.font;
+            font-size: 12px;
+            color: Theme.text;
         }
     }
 }
