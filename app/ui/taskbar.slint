@@ -28,6 +28,8 @@ export struct TaskButton {
     has-img: bool,
     active: bool,
     minimized: bool,
+    /// Okna programu pod tym przyciskiem.
+    count: int,
 }
 
 /// Pasek zadań PowerDesk na jednym monitorze – tryb testowy: leży na wierzchu,
@@ -109,6 +111,23 @@ export component TaskbarWindow inherits Window {
                             size: 18px;
                             color: Theme.dim;
                         }
+                        // Kilka okien programu – licznik w rogu ikony.
+                        if b.count > 1: Rectangle {
+                            x: parent.width - 6px;
+                            y: (parent.height - 20px) / 2 - 5px;
+                            width: max(14px, cnt.preferred-width + 6px);
+                            height: 14px;
+                            border-radius: 7px;
+                            background: Theme.accent;
+                            cnt := Text {
+                                text: b.count;
+                                font-size: 9.5px;
+                                font-weight: 700;
+                                color: white;
+                                horizontal-alignment: center;
+                                vertical-alignment: center;
+                            }
+                        }
                     }
                     if parent.width >= 80px: Text {
                         vertical-alignment: center;
@@ -130,7 +149,7 @@ export component TaskbarWindow inherits Window {
                     animate width { duration: 120ms; }
                 }
                 tb-ta := TipArea {
-                    tip: b.title;
+                    tip: b.count > 1 ? b.title + " · okien: " + b.count : b.title;
                     clicked => {
                         root.activate(i);
                     }

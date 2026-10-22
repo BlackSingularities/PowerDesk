@@ -1,6 +1,6 @@
 //! Pasek zadań PowerDesk – na razie tryb testowy: na dole każdego monitora okno na wierzchu
 //! (nad paskiem Windows, który działa dalej) z przyciskiem Start, oknami z tego monitora
-//! i zegarem. Lista okien odświeża się co sekundę.
+//! i zegarem. Lista okien odświeża się co sekundę; okna jednego programu dzielą przycisk.
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -30,8 +30,10 @@ struct Bar {
     pos: (i32, i32),
     /// Ułożone na dole monitora i ukryte z paska Windows.
     placed: bool,
-    /// Okna w kolejności przycisków.
+    /// Okna w kolejności pojawiania się na pasku.
     wins: Vec<Win>,
+    /// Przyciski: okna jednego programu razem, w kolejności `wins`.
+    groups: Vec<Vec<Win>>,
     fg: isize,
 }
 
@@ -80,8 +82,8 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         }
         w.on_start(taskwin::open_start);
         w.on_activate(move |i| {
-            if let Some(h) = hwnd_at(n, i as usize) {
-                taskwin::click(h);
+            if let Some(group) = group_at(n, i as usize) {
+                click_group(&group);
                 // Stan (aktywne / zminimalizowane) od razu, bez czekania na zegar.
                 slint::Timer::single_shot(Duration::from_millis(150), refresh);
             }
@@ -89,7 +91,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_context(move |i, x, y| context(n, i as usize, x, y));
         w.on_close_test(|| slint::Timer::single_shot(Duration::ZERO, close));
         let _ = w.show();
-        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), fg: 0 });
+        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
     refresh();
@@ -107,28 +109,70 @@ pub fn close() {
     }
 }
 
-fn hwnd_at(bar: usize, i: usize) -> Option<isize> {
-    BARS.with(|b| b.borrow().get(bar).and_then(|b| b.wins.get(i)).map(|w| w.hwnd))
+fn group_at(bar: usize, i: usize) -> Option<Vec<Win>> {
+    BARS.with(|b| b.borrow().get(bar).and_then(|b| b.groups.get(i).cloned()))
 }
 
-/// Prawy przycisk na oknie – menu PowerDesk nad paskiem.
+/// Klik w przycisk: jedno okno – jak na pasku Windows (przełącz / zminimalizuj). Kilka okien –
+/// gdy aktywne jest jedno z nich, przechodzi do następnego w kolejności z paska; inaczej
+/// wysuwa to, które było ostatnio na wierzchu.
+fn click_group(group: &[Win]) {
+    match group {
+        [] => {}
+        [one] => taskwin::click(one.hwnd),
+        _ => {
+            let fg = taskwin::foreground();
+            if let Some(i) = group.iter().position(|w| w.hwnd == fg) {
+                taskwin::activate(group[(i + 1) % group.len()].hwnd);
+            } else {
+                // list() idzie od góry – pierwsze z grupy było ostatnio najwyżej.
+                let z = taskwin::list();
+                let top = z.iter().find(|w| group.iter().any(|g| g.hwnd == w.hwnd)).map_or(group[0].hwnd, |w| w.hwnd);
+                taskwin::activate(top);
+            }
+        }
+    }
+}
+
+/// Prawy przycisk na przycisku – menu PowerDesk nad paskiem. Przy kilku oknach programu
+/// najpierw lista okien do wyboru, potem polecenia dla całej grupy.
 fn context(bar: usize, i: usize, x: f32, _y: f32) {
-    let Some(win) = BARS.with(|b| b.borrow().get(bar).and_then(|b| b.wins.get(i).cloned())) else { return };
-    let target = win.hwnd;
-    let mut items = vec![it("Przełącz na to okno", "open", move |_| taskwin::activate(target))];
-    items.push(if win.minimized {
-        it("Przywróć", "eye", move |_| taskwin::activate(target))
+    let Some(group) = group_at(bar, i) else { return };
+    let Some(first) = group.first().cloned() else { return };
+    let mut items = Vec::new();
+    if group.len() == 1 {
+        let target = first.hwnd;
+        items.push(it("Przełącz na to okno", "open", move |_| taskwin::activate(target)));
+        items.push(if first.minimized {
+            it("Przywróć", "eye", move |_| taskwin::activate(target))
+        } else {
+            it("Zminimalizuj", "minus", move |_| taskwin::minimize(target))
+        });
     } else {
-        it("Zminimalizuj", "minus", move |_| taskwin::minimize(target))
-    });
-    if !win.exe.is_empty() {
-        let exe = win.exe.clone();
+        for w in &group {
+            let target = w.hwnd;
+            items.push(it(&w.title, if w.minimized { "minus" } else { "open" }, move |_| taskwin::activate(target)));
+        }
+        items.push(sep());
+        let all: Vec<isize> = group.iter().map(|w| w.hwnd).collect();
+        items.push(it("Zminimalizuj wszystkie", "minus", move |_| all.iter().for_each(|&h| taskwin::minimize(h))));
+    }
+    if !first.exe.is_empty() {
+        let exe = first.exe.clone();
         // Nowe okno tego samego programu (jak środkowy przycisk na pasku Windows).
         items.push(it("Nowe okno programu", "plus", move |_| {
             let _ = std::process::Command::new(&exe).spawn();
         }));
     }
-    items.extend([sep(), it("Zamknij okno", "close", move |_| taskwin::close(target)).danger()]);
+    items.push(sep());
+    if group.len() == 1 {
+        let target = first.hwnd;
+        items.push(it("Zamknij okno", "close", move |_| taskwin::close(target)).danger());
+    } else {
+        let all: Vec<isize> = group.iter().map(|w| w.hwnd).collect();
+        let label = format!("Zamknij wszystkie okna ({})", all.len());
+        items.push(it(&label, "close", move |_| all.iter().for_each(|&h| taskwin::close(h))).danger());
+    }
     show_menu(bar, items, x);
 }
 
@@ -214,11 +258,33 @@ fn keep_order(prev: &[Win], now: Vec<Win>) -> Vec<Win> {
     out
 }
 
-fn buttons(wins: &[Win], fg: isize, px: u32) -> Vec<TaskButton> {
-    wins.iter()
-        .map(|w| {
+/// Okna tego samego programu razem – grupa stoi tam, gdzie jej pierwsze okno.
+/// Okna bez znanego pliku programu zostają osobno.
+fn group(wins: &[Win]) -> Vec<Vec<Win>> {
+    let mut out: Vec<Vec<Win>> = Vec::new();
+    for w in wins {
+        match out.iter_mut().find(|g| !w.exe.is_empty() && g[0].exe.eq_ignore_ascii_case(&w.exe)) {
+            Some(g) => g.push(w.clone()),
+            None => out.push(vec![w.clone()]),
+        }
+    }
+    out
+}
+
+fn buttons(groups: &[Vec<Win>], fg: isize, px: u32) -> Vec<TaskButton> {
+    groups
+        .iter()
+        .map(|g| {
+            let w = g.iter().find(|w| w.hwnd == fg).unwrap_or(&g[0]);
             let img = if w.exe.is_empty() { None } else { crate::thumbs::get(&w.exe, px, true) };
-            TaskButton { title: w.title.clone().into(), has_img: img.is_some(), img: img.unwrap_or_default(), active: w.hwnd == fg, minimized: w.minimized }
+            TaskButton {
+                title: w.title.clone().into(),
+                has_img: img.is_some(),
+                img: img.unwrap_or_default(),
+                active: w.hwnd == fg,
+                minimized: g.iter().all(|w| w.minimized),
+                count: g.len() as i32,
+            }
         })
         .collect()
 }
@@ -236,7 +302,8 @@ fn refresh() {
             // Model tylko przy zmianie – inaczej co sekundę migałyby podpowiedzi.
             if wins != bar.wins || fg != bar.fg {
                 let px = (20.0 * bar.w.window().scale_factor()) as u32;
-                bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&wins, fg, px))));
+                bar.groups = group(&wins);
+                bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, fg, px))));
                 bar.wins = wins;
                 bar.fg = fg;
             }
@@ -252,7 +319,7 @@ pub fn thumbs_arrived(paths: &HashSet<String>) {
         for bar in b.borrow().iter() {
             if bar.wins.iter().any(|w| paths.contains(&w.exe)) {
                 let px = (20.0 * bar.w.window().scale_factor()) as u32;
-                bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.wins, bar.fg, px))));
+                bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, bar.fg, px))));
             }
         }
     });
