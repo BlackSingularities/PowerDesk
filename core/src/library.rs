@@ -11,10 +11,10 @@ use windows::Win32::UI::Shell::{
 
 #[derive(Serialize)]
 pub struct Library {
-    name: String,
+    pub name: String,
     /// Ścieżka pliku .library-ms.
-    path: String,
-    folders: Vec<String>,
+    pub path: String,
+    pub folders: Vec<String>,
 }
 
 fn libs_dir() -> std::path::PathBuf {

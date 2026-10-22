@@ -346,7 +346,15 @@ fn wire(ui: &MainWindow, st: &Shared) {
     ui.on_side_context(move |p, x, y| {
         if let Some(id) = p.strip_prefix(SAVED) {
             menus::saved_menu(&s, id.to_string(), x, y);
+        } else if !p.starts_with("ofp:") {
+            menus::side_menu(&s, p.to_string(), x, y);
         }
+    });
+    let s = st.clone();
+    ui.on_side_resized(move |w| {
+        let mut b = s.borrow_mut();
+        b.prefs.side_width = w.clamp(180.0, 420.0);
+        b.prefs.save();
     });
     let s = st.clone();
     ui.on_search(move |q| start_search(&s, q.as_str()));
@@ -2273,7 +2281,10 @@ struct SearchBatch {
 
 fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
     match name {
-        "sync-status" => syncview::on_status(s),
+        "sync-status" => {
+            syncview::on_status(s);
+            render_side(s);
+        }
         "space-progress" => spaceview::on_progress(s, payload),
         "term-data" => termview::on_data(s, payload),
         "term-exit" => termview::on_exit(s, payload),
@@ -2668,8 +2679,17 @@ pub fn render_side(s: &Shared) {
         shut: false,
         header_only: false,
     });
+    let (extra, syncs) = side_extra(&t.path, &b.prefs.favorites);
+    // Kolejność: zapisane, szybki dostęp, przypięte, biblioteki, dyski, sieć, synchronizacja.
+    let base = side_items(&t.path, &b.drives);
+    let quick = base.iter().take_while(|i| !i.section.starts_with("Dyski") && !i.section.starts_with("Sieć")).count();
+    let mut base = base.into_iter();
+    let quick: Vec<SideItem> = base.by_ref().take(quick).collect();
     let items: Vec<SideItem> = saved
-        .chain(side_items(&t.path, &b.drives))
+        .chain(quick)
+        .chain(extra)
+        .chain(base)
+        .chain(syncs)
         .map(|mut it| {
             if it.path.starts_with("ofp:") {
                 return it;
@@ -2703,10 +2723,31 @@ pub fn render_side(s: &Shared) {
         items_out.push(it);
     }
     ui.set_side_mini(b.prefs.side_mini);
+    ui.set_side_width(b.prefs.side_width.clamp(180.0, 420.0));
     ui.set_side(ModelRc::new(VecModel::from(items_out)));
     ui.set_folder_icon(thumbs::get(&t.path, (16.0 * scale) as u32, true).unwrap_or_default());
     drop(b);
     s.borrow_mut().side_paths = paths;
+}
+
+pub fn is_favorite(s: &Shared, path: &str) -> bool {
+    s.borrow().prefs.favorites.iter().any(|f| same(f, path))
+}
+
+/// Przypina folder w panelu bocznym albo go odpina.
+pub fn toggle_favorite(s: &Shared, path: &str) {
+    {
+        let mut b = s.borrow_mut();
+        let fav = &mut b.prefs.favorites;
+        match fav.iter().position(|f| same(f, path)) {
+            Some(i) => {
+                fav.remove(i);
+            }
+            None => fav.push(path.to_string()),
+        }
+        b.prefs.save();
+    }
+    render_side(s);
 }
 
 fn toggle_section(s: &Shared, name: &str) {
@@ -2731,6 +2772,87 @@ fn toggle_side_mini(s: &Shared) {
         b.prefs.save();
     }
     render_side(s);
+}
+
+fn side_item(section: &mut bool, title: &str, name: String, icon: SharedString, path: String, current: &str) -> SideItem {
+    SideItem {
+        section: if std::mem::take(section) { title.into() } else { SharedString::new() },
+        name: name.into(),
+        icon,
+        active: same(&path, current),
+        path: path.into(),
+        detail: SharedString::new(),
+        usage: 0.0,
+        img: Default::default(),
+        has_img: false,
+        tip: SharedString::new(),
+        shut: false,
+        header_only: false,
+    }
+}
+
+thread_local! {
+    /// Biblioteki Windows – wczytywane raz w tle (COM bywa wolny).
+    static LIBS: RefCell<Option<Vec<powerdesk_core::library::Library>>> = const { RefCell::new(None) };
+    static LIBS_ASKED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static SYNC_LOADED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Przypięte, biblioteki i synchronizacje – sekcje panelu poza szybkim dostępem i dyskami.
+fn side_extra(current: &str, favorites: &[String]) -> (Vec<SideItem>, Vec<SideItem>) {
+    let mut v = Vec::new();
+    let mut first = true;
+    for f in favorites {
+        let name = Path::new(f).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| f.clone());
+        v.push(side_item(&mut first, "Przypięte", name, ic("pin"), f.clone(), current));
+    }
+    if !LIBS_ASKED.with(|x| x.replace(true)) {
+        std::thread::spawn(|| {
+            let libs = powerdesk_core::library::list();
+            let _ = slint::invoke_from_event_loop(move || {
+                LIBS.with(|l| *l.borrow_mut() = Some(libs));
+                with_state(render_side);
+            });
+        });
+    }
+    let mut first = true;
+    LIBS.with(|l| {
+        for lib in l.borrow().iter().flatten().filter(|l| !l.folders.is_empty()) {
+            let mut it = side_item(&mut first, "Biblioteki", lib.name.clone(), ic("archive"), lib.folders[0].clone(), current);
+            it.tip = format!("{}
+{}", lib.name, lib.folders.join("
+")).into();
+            if lib.folders.len() > 1 {
+                it.detail = format!("{} folderów", lib.folders.len()).into();
+            }
+            v.push(it);
+        }
+    });
+    // Synchronizacje – sam odczyt profili z dysku, silnik startuje dopiero na ekranie synchronizacji.
+    if !SYNC_LOADED.with(|x| x.replace(true)) {
+        powerdesk_core::sync::load();
+    }
+    let mut tail = Vec::new();
+    let mut first = true;
+    let (profiles, status) = powerdesk_core::sync::profiles();
+    let on_sync = current == syncview::TAB;
+    for (p, st) in profiles.iter().zip(status.iter()) {
+        let name = if p.name.is_empty() { p.source.clone() } else { p.name.clone() };
+        let mut it = side_item(&mut first, "Synchronizacja", name, ic("sync"), syncview::TAB.to_string(), "");
+        it.active = on_sync;
+        it.detail = match st.state.as_str() {
+            "syncing" => format!("synchronizuję {:.0}%", st.progress * 100.0),
+            "scanning" => "porównuję…".into(),
+            "offline" => "cel odłączony".into(),
+            "error" => "błąd".into(),
+            _ if !p.enabled => "wstrzymana".into(),
+            _ => String::new(),
+        }
+        .into();
+        it.tip = format!("{} → {}", p.source, p.target.path).into();
+        tail.push(it);
+    }
+    (v, tail)
 }
 
 fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
@@ -2762,12 +2884,18 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
             header_only: false,
         });
     }
-    let mut first = true;
-    for d in drives.iter().filter(|d| d.online) {
+    // Dyski lokalne, potem sieciowe we własnej sekcji (jak w Sidebar.svelte).
+    let mut first_local = true;
+    let mut first_net = true;
+    let mut order: Vec<&drives::Drive> = drives.iter().filter(|d| d.online).collect();
+    order.sort_by_key(|d| d.kind == "network");
+    for d in order {
         let name = if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
         let used = d.total.saturating_sub(d.free);
+        let first = if d.kind == "network" { &mut first_net } else { &mut first_local };
+        let title = if d.kind == "network" { "Sieć" } else { "Dyski" };
         v.push(SideItem {
-            section: if std::mem::take(&mut first) { "Dyski".into() } else { SharedString::new() },
+            section: if std::mem::take(first) { title.into() } else { SharedString::new() },
             name: name.into(),
             icon: match d.kind.as_str() {
                 "removable" => ic("usb"),

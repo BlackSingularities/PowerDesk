@@ -74,7 +74,8 @@ Zasady:
 
 ### Panel boczny
 - [x] Szybki dostęp (znane foldery), dyski z zajętością
-- [ ] Ulubione, biblioteki, zapisane wyszukiwania, lokalizacje sieciowe, synchronizacja, zwijanie sekcji, zmiana szerokości
+- [x] Przypięte foldery (menu folderu i tła, menu panelu), biblioteki (otwiera pierwszy folder), dyski sieciowe w sekcji Sieć, synchronizacje ze stanem, zwijanie sekcji, zmiana szerokości przeciąganiem
+- [ ] Panel boczny: widok całej biblioteki naraz, dodawanie lokalizacji sieciowych, przeciąganie na „Przypięte”
 
 ### Operacje
 - [x] Kopiowanie/przenoszenie w tle: pasek transferów w oknie (postęp, prędkość, czas, wstrzymanie, anulowanie, błędy) zamiast okienek Windows; konflikty w oknie aplikacji; cofanie/ponawianie (Ctrl+Z/Ctrl+Y, „Cofnij” w powiadomieniu)

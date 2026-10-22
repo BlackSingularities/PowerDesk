@@ -225,7 +225,9 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     v.push(it("Usuń trwale", "trash", move |s| crate::transfers::delete_permanently(s, p3.clone())).kbd("Shift+Del").danger());
     v.push(sep());
     if let Some(e) = one.as_ref().filter(|e| e.dir) {
-        v.push(it("Przypnij w panelu bocznym", "pin", |_| {}).later());
+        let p = e.path.clone();
+        let pinned = crate::is_favorite(s, &p);
+        v.push(it(if pinned { "Odepnij z panelu bocznego" } else { "Przypnij w panelu bocznym" }, "pin", move |s| crate::toggle_favorite(s, &p)));
         v.push(it("Pokaż na ekranie Komputer", "grid", |_| {}).later());
         let p = e.path.clone();
         v.push(it("Terminal tutaj", "terminal", move |_| terminal(&p)));
@@ -271,7 +273,11 @@ pub fn background_menu(s: &Shared, x: f32, y: f32) {
     v.push(it("Odśwież", "refresh", |s| crate::load(s, true)).kbd("F5"));
     v.push(it("Zaznacz wszystko", "check", crate::select_all).kbd("Ctrl+A"));
     v.push(sep());
-    v.push(it("Przypnij ten folder", "pin", |_| {}).later());
+    if !path.starts_with("ofp:") {
+        let p = path.clone();
+        let pinned = crate::is_favorite(s, &p);
+        v.push(it(if pinned { "Odepnij ten folder" } else { "Przypnij ten folder" }, "pin", move |s| crate::toggle_favorite(s, &p)));
+    }
     let p = path.clone();
     v.push(it("Terminal tutaj", "terminal", move |_| terminal(&p)));
     v.push(it("Zajętość i porządki", "grid", crate::spaceview::open_here));
@@ -542,6 +548,24 @@ pub fn column_menu(s: &Shared, x: f32, y: f32) {
 }
 
 /// Menu zapisanego wyszukiwania w panelu bocznym (savedMenu w Sidebar.svelte).
+/// Menu pozycji panelu bocznego (folder, dysk, przypięty folder).
+pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
+    let (a, b, c) = (path.clone(), path.clone(), path.clone());
+    let pinned = crate::is_favorite(s, &path);
+    show(
+        s,
+        vec![
+            it("Otwórz", "folder", move |s| crate::navigate(s, &a, true)),
+            it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &b, false)),
+            sep(),
+            it(if pinned { "Odepnij" } else { "Przypnij w panelu bocznym" }, "pin", move |s| crate::toggle_favorite(s, &c)),
+            it("Terminal tutaj", "terminal", move |_| terminal(&path)),
+        ],
+        x,
+        y,
+    );
+}
+
 pub fn saved_menu(s: &Shared, id: String, x: f32, y: f32) {
     let (a, b, c, d) = (id.clone(), id.clone(), id.clone(), id);
     show(

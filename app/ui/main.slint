@@ -157,6 +157,9 @@ export component MainWindow inherits Window {
     callback save-search;
     callback add-hint(string);
     callback side-context(string, length, length);
+    /// Koniec przeciągania krawędzi panelu bocznego – nowa szerokość do zapisu.
+    callback side-resized(float);
+    in-out property <length> side-width: 248px;
     callback toggle-section(string);
     callback toggle-side-mini;
     callback toggle-transfers;
@@ -373,9 +376,10 @@ export component MainWindow inherits Window {
                 padding-right: 8px;
                 padding-bottom: 8px;
                 spacing: 8px;
-                Sidebar {
+                side-bar := Sidebar {
                     items: root.side;
                     mini: root.side-mini;
+                    panel-width: root.side-width;
                     toggle-section(n) => {
                         root.toggle-section(n);
                     }
@@ -387,6 +391,22 @@ export component MainWindow inherits Window {
                     }
                     context(p, x, y) => {
                         root.side-context(p, x, y);
+                    }
+                    // Uchwyt szerokości na prawej krawędzi (w odstępie przed listą).
+                    if !root.side-mini: TouchArea {
+                        x: parent.width - 2px;
+                        width: 8px;
+                        mouse-cursor: MouseCursor.col-resize;
+                        moved => {
+                            if (self.pressed) {
+                                root.side-width = clamp(root.side-width + self.mouse-x - self.pressed-x, 180px, 420px);
+                            }
+                        }
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.up) {
+                                root.side-resized(root.side-width / 1px);
+                            }
+                        }
                     }
                 }
                 // Panele (Pane.svelte): przy podziale dwa obok siebie, z uchwytem szerokości.
