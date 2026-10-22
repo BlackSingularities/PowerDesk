@@ -30,6 +30,16 @@ export global Theme {
     out property <color> warn: light ? #c77d00 : #ffb547;
     out property <color> info: light ? #1f7ae0 : #5aa9ff;
 
+    // Podświetlanie składni w panelu podglądu (kolejność jak `Tok` w syntax.rs).
+    out property <color> syn-comment: light ? #6a737d : #7f8c98;
+    out property <color> syn-string: light ? #0a7d4c : #7ec699;
+    out property <color> syn-num: light ? #b45309 : #e5a663;
+    out property <color> syn-key: light ? #9a1b8f : #d08fd6;
+    out property <color> syn-type: light ? #1f6feb : #6cb6ff;
+    out property <color> syn-punct: light ? #5c5c63 : #a8a8ae;
+    out property <color> syn-tag: light ? #c0341d : #f08c7a;
+    out property <color> syn-attr: light ? #946800 : #e6c07b;
+
     // Skala zaokrągleń: element wewnątrz ma promień = promień rodzica − odstęp.
     out property <length> r-xs: 4px;
     out property <length> r-s: 6px;

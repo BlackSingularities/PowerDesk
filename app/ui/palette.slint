@@ -1,0 +1,159 @@
+import { Theme } from "theme.slint";
+import { Icon, Label } from "components.slint";
+import { ScrollView } from "std-widgets.slint";
+
+/// Wiersz palety: `index` to numer polecenia w rejestrze (palette.rs), nie w tej liście.
+export struct PaletteRow {
+    index: int,
+    label: string,
+    group: string,
+    icon: string,
+    kbd: string,
+}
+
+/// Stan palety poleceń – listę i wskazanie podaje palette.rs.
+export global Palette {
+    in-out property <bool> open;
+    in-out property <string> query;
+    in-out property <int> sel;
+    /// Podpowiedź w pustym polu – zależy od tego, która paleta jest otwarta.
+    in-out property <string> hint: "Wpisz polecenie…";
+    in-out property <[PaletteRow]> rows;
+    callback typed(string);
+    callback step(int);
+    /// Wykonanie polecenia: numer wiersza listy albo -1 dla wskazanego.
+    callback run(int);
+    callback close();
+}
+
+/// Paleta poleceń (Ctrl+Shift+P): pole u góry, pod nim pasujące czynności.
+export component PaletteDialog inherits Rectangle {
+    background: #00000066;
+    TouchArea {
+        clicked => {
+            Palette.close();
+        }
+    }
+    Rectangle {
+        y: 90px;
+        width: min(560px, root.width - 48px);
+        height: box.preferred-height;
+        border-radius: Theme.r-xl;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        drop-shadow-blur: 60px;
+        drop-shadow-offset-y: 24px;
+        drop-shadow-color: Theme.shadow;
+        clip: true;
+        TouchArea { }
+        box := VerticalLayout {
+            padding: 10px;
+            spacing: 8px;
+            // Pole wpisywania.
+            Rectangle {
+                height: 38px;
+                border-radius: Theme.r-s;
+                background: Theme.card;
+                HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
+                    spacing: 8px;
+                    input := TextInput {
+                        horizontal-stretch: 1;
+                        y: 0;
+                        height: parent.height;
+                        text: Palette.query;
+                        single-line: true;
+                        vertical-alignment: center;
+                        font-family: Theme.font;
+                        font-size: 14px;
+                        color: Theme.text;
+                        selection-background-color: Theme.sel-strong;
+                        selection-foreground-color: Theme.text;
+                        init => {
+                            self.focus();
+                            self.select-all();
+                        }
+                        edited => {
+                            Palette.typed(self.text);
+                        }
+                        accepted => {
+                            Palette.run(-1);
+                        }
+                        key-pressed(e) => {
+                            if (e.text == Key.Escape) {
+                                Palette.close();
+                                return accept;
+                            }
+                            if (e.text == Key.UpArrow) {
+                                Palette.step(-1);
+                                return accept;
+                            }
+                            if (e.text == Key.DownArrow) {
+                                Palette.step(1);
+                                return accept;
+                            }
+                            reject
+                        }
+                    }
+                }
+                if Palette.query == "": Label {
+                    x: 12px;
+                    text: Palette.hint;
+                    color: Theme.ghost;
+                    font-size: 14px;
+                }
+            }
+            // Lista pasujących poleceń.
+            if Palette.rows.length == 0: Label {
+                height: 48px;
+                horizontal-alignment: center;
+                text: "Nic nie pasuje";
+                color: Theme.faint;
+            }
+            if Palette.rows.length > 0: ScrollView {
+                height: min(Palette.rows.length * 34px, 374px);
+                VerticalLayout {
+                    alignment: start;
+                    for r[i] in Palette.rows: Rectangle {
+                        height: 34px;
+                        border-radius: Theme.r-s;
+                        background: i == Palette.sel ? Theme.sel-strong : row-ta.has-hover ? Theme.hover : transparent;
+                        HorizontalLayout {
+                            padding-left: 10px;
+                            padding-right: 10px;
+                            spacing: 10px;
+                            Icon {
+                                y: (parent.height - self.height) / 2;
+                                commands: r.icon;
+                                size: 15px;
+                                color: i == Palette.sel ? Theme.text : Theme.dim;
+                            }
+                            Label {
+                                horizontal-stretch: 1;
+                                text: r.label;
+                                color: Theme.text;
+                            }
+                            Label {
+                                text: r.group;
+                                font-size: 11.5px;
+                                color: Theme.faint;
+                            }
+                            Label {
+                                text: r.kbd;
+                                font-size: 11.5px;
+                                color: Theme.ghost;
+                            }
+                        }
+                        row-ta := TouchArea {
+                            clicked => {
+                                Palette.run(i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

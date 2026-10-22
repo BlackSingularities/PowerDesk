@@ -15,8 +15,24 @@ export struct PropSection {
     rows: [PropRow],
 }
 
+/// Jedna skala ekspozycji: `pos` 0–1 to miejsce znacznika, `lo`/`hi` – podpisy końców.
+export struct Gauge {
+    label: string,
+    value: string,
+    pos: float,
+    lo: string,
+    hi: string,
+}
+
 /// Stan okna właściwości – dane podaje props.rs, część dochodzi w tle.
 export global Props {
+    /// Skale ekspozycji (przysłona, czas, ISO, ogniskowa) – puste, gdy to nie zdjęcie.
+    in-out property <[Gauge]> gauges;
+    /// Mapa z GPS – dochodzi w tle, gdy zdjęcie ma współrzędne.
+    in-out property <image> map;
+    in-out property <bool> has-map;
+    in-out property <string> coords;
+    callback open-map();
     in-out property <bool> open;
     in-out property <string> title;
     in-out property <string> subtitle;
@@ -68,6 +84,88 @@ component Row inherits HorizontalLayout {
             tip: "Kliknij, aby skopiować";
             clicked => {
                 Props.copy(root.value);
+            }
+        }
+    }
+}
+
+/// Nagłówek sekcji: ikona, tytuł i linia do końca szerokości.
+component SecHead inherits HorizontalLayout {
+    in property <string> title;
+    in property <string> icon;
+    spacing: 8px;
+    Icon {
+        y: (parent.height - self.height) / 2;
+        commands: root.icon;
+        size: 15px;
+        color: Theme.dim;
+    }
+    Label {
+        text: root.title;
+        font-size: 12px;
+        font-weight: 600;
+        color: Theme.text;
+    }
+    Rectangle {
+        horizontal-stretch: 1;
+        Rectangle {
+            y: parent.height / 2;
+            height: 1px;
+            background: Theme.line;
+        }
+    }
+}
+
+/// Skala z znacznikiem: etykieta, tor z podpisanymi końcami i odczytaną wartością.
+component GaugeRow inherits HorizontalLayout {
+    in property <Gauge> data;
+    spacing: 14px;
+    Text {
+        width: 130px;
+        text: root.data.label;
+        font-family: Theme.font;
+        font-size: 12.5px;
+        color: Theme.dim;
+    }
+    VerticalLayout {
+        horizontal-stretch: 1;
+        spacing: 3px;
+        HorizontalLayout {
+            Label {
+                text: root.data.value;
+                font-size: 12.5px;
+                color: Theme.text;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+        }
+        track := Rectangle {
+            height: 6px;
+            border-radius: 3px;
+            background: Theme.card;
+            Rectangle {
+                x: clamp(root.data.pos, 0, 1) * (parent.width - 10px);
+                y: -2px;
+                width: 10px;
+                height: 10px;
+                border-radius: 5px;
+                background: Theme.accent;
+            }
+        }
+        HorizontalLayout {
+            Label {
+                text: root.data.lo;
+                font-size: 10.5px;
+                color: Theme.dim;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+            Label {
+                text: root.data.hi;
+                font-size: 10.5px;
+                color: Theme.dim;
             }
         }
     }
@@ -213,31 +311,70 @@ export component PropsDialog inherits Rectangle {
                                 }
                             }
                         }
+                        if Props.gauges.length > 0: VerticalLayout {
+                            spacing: 8px;
+                            padding-top: 10px;
+                            SecHead {
+                                title: "Ekspozycja";
+                                icon: Icons.image;
+                            }
+                            for g in Props.gauges: GaugeRow {
+                                data: g;
+                            }
+                        }
+                        if Props.has-map: VerticalLayout {
+                            spacing: 8px;
+                            padding-top: 10px;
+                            SecHead {
+                                title: "Na mapie";
+                                icon: Icons.pin;
+                            }
+                            Rectangle {
+                                height: 180px;
+                                border-radius: Theme.r-s;
+                                border-width: 1px;
+                                border-color: Theme.line;
+                                clip: true;
+                                Image {
+                                    width: parent.width;
+                                    height: parent.height;
+                                    image-fit: cover;
+                                    source: Props.map;
+                                }
+                                // Znacznik dokładnie w środku – mapa jest wyśrodkowana na punkcie.
+                                Rectangle {
+                                    width: 14px;
+                                    height: 14px;
+                                    border-radius: 7px;
+                                    background: Theme.accent;
+                                    border-width: 2px;
+                                    border-color: #ffffff;
+                                }
+                                map-ta := TipArea {
+                                    tip: "Otwórz w mapach (OpenStreetMap)";
+                                    clicked => {
+                                        Props.open-map();
+                                    }
+                                }
+                                Rectangle {
+                                    y: parent.height - self.height;
+                                    height: cc.preferred-height + 6px;
+                                    background: #00000099;
+                                    opacity: map-ta.has-hover ? 1.0 : 0.85;
+                                    cc := Label {
+                                        text: Props.coords;
+                                        font-size: 11px;
+                                        color: #ffffff;
+                                    }
+                                }
+                            }
+                        }
                         for sec in Props.sections: VerticalLayout {
                             spacing: 8px;
                             padding-top: 10px;
-                            HorizontalLayout {
-                                spacing: 8px;
-                                Icon {
-                                    y: (parent.height - self.height) / 2;
-                                    commands: sec.icon;
-                                    size: 15px;
-                                    color: Theme.dim;
-                                }
-                                Label {
-                                    text: sec.title;
-                                    font-size: 12px;
-                                    font-weight: 600;
-                                    color: Theme.text;
-                                }
-                                Rectangle {
-                                    horizontal-stretch: 1;
-                                    Rectangle {
-                                        y: parent.height / 2;
-                                        height: 1px;
-                                        background: Theme.line;
-                                    }
-                                }
+                            SecHead {
+                                title: sec.title;
+                                icon: sec.icon;
                             }
                             for r in sec.rows: Row {
                                 label: r.label;

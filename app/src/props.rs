@@ -7,15 +7,17 @@ use std::path::Path;
 
 use chrono::{Local, TimeZone};
 use powerdesk_core::fsx::{self, Entry};
-use powerdesk_core::{clip, shell};
+use powerdesk_core::{clip, maps, shell};
 use slint::{ComponentHandle, ModelRc, SharedString, VecModel};
 
 use crate::transfers::{self, Kind};
-use crate::{PropRow, PropSection, Props, Shared};
+use crate::{Gauge, PropRow, PropSection, Props, Shared};
 
 thread_local! {
     /// Numer otwarcia okna – wynik z tła pasuje tylko do okna, dla którego go liczono.
     static GEN: Cell<u64> = const { Cell::new(0) };
+    /// Współrzędne pokazanego zdjęcia – do otwarcia w przeglądarce.
+    static COORDS: Cell<Option<(f64, f64)>> = const { Cell::new(None) };
 }
 
 /// Metadane pokazywane osobno (nazwa, rozmiar, daty pliku) albo nic niemówiące.
@@ -52,7 +54,7 @@ const SECTIONS: &[(&str, &str, fn(&str) -> bool)] = &[
     ("Inne", "info", |_| true),
 ];
 
-fn row(label: &str, value: impl Into<SharedString>) -> PropRow {
+pub fn row(label: &str, value: impl Into<SharedString>) -> PropRow {
     PropRow { label: label.into(), value: value.into() }
 }
 
@@ -72,7 +74,7 @@ fn size_text(n: u64) -> String {
     format!("{} ({grouped} B)", crate::fmt::size(n))
 }
 
-fn plural(n: u64, one: &str, few: &str, many: &str) -> String {
+pub fn plural(n: u64, one: &str, few: &str, many: &str) -> String {
     let w = if n == 1 {
         one
     } else if (2..=4).contains(&(n % 10)) && !(12..=14).contains(&(n % 100)) {
@@ -103,6 +105,85 @@ fn exposure(props: &[shell::Prop]) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
+/// Skale ekspozycji: przysłona, czas, ISO i ogniskowa na torach w typowych zakresach.
+/// Położenie liczone logarytmicznie, bo tak działa każda z tych skal.
+pub fn gauges(props: &[shell::Prop]) -> Vec<Gauge> {
+    let num = |k: &str| props.iter().find(|p| p.key == k).and_then(|p| p.num).filter(|n| *n > 0.0);
+    let pos = |v: f64, lo: f64, hi: f64| ((v.ln() - lo.ln()) / (hi.ln() - lo.ln())).clamp(0.0, 1.0) as f32;
+    let mut v = Vec::new();
+    if let Some(f) = num("System.Photo.FNumber") {
+        v.push(Gauge {
+            label: "Przysłona".into(),
+            value: format!("f/{}", (f * 10.0).round() / 10.0).into(),
+            // Większa liczba f to mniejszy otwór – skala rośnie w prawo wraz z liczbą.
+            pos: pos(f, 1.0, 32.0),
+            lo: "f/1".into(),
+            hi: "f/32".into(),
+        });
+    }
+    if let Some(t) = num("System.Photo.ExposureTime") {
+        v.push(Gauge {
+            label: "Czas".into(),
+            value: if t >= 1.0 { format!("{} s", (t * 10.0).round() / 10.0) } else { format!("1/{} s", (1.0 / t).round()) }.into(),
+            pos: pos(t, 1.0 / 8000.0, 30.0),
+            lo: "1/8000 s".into(),
+            hi: "30 s".into(),
+        });
+    }
+    if let Some(iso) = num("System.Photo.ISOSpeed") {
+        v.push(Gauge { label: "Czułość".into(), value: format!("ISO {iso}").into(), pos: pos(iso, 50.0, 25600.0), lo: "ISO 50".into(), hi: "ISO 25600".into() });
+    }
+    if let Some(fl) = num("System.Photo.FocalLength") {
+        v.push(Gauge {
+            label: "Ogniskowa".into(),
+            value: format!("{} mm", (fl * 10.0).round() / 10.0).into(),
+            pos: pos(fl, 8.0, 600.0),
+            lo: "8 mm".into(),
+            hi: "600 mm".into(),
+        });
+    }
+    v
+}
+
+/// Współrzędne zdjęcia: najpierw gotowe wartości dziesiętne, inaczej stopnie, minuty i sekundy.
+pub fn gps(props: &[shell::Prop]) -> Option<(f64, f64)> {
+    let find = |k: &str| props.iter().find(|p| p.key == k);
+    let dec = |k: &str| find(k).and_then(|p| p.num.or_else(|| p.value.replace(',', ".").trim().parse().ok()));
+    let sign = |k: &str, neg: char| if find(k).map(|p| p.value.to_uppercase().starts_with(neg)).unwrap_or(false) { -1.0 } else { 1.0 };
+    // „52; 13; 45,6” albo „52° 13' 45,6"” – bierzemy po kolei liczby.
+    let dms = |k: &str| {
+        let p = find(k)?;
+        let nums: Vec<f64> = p
+            .value
+            .split(|c: char| !(c.is_ascii_digit() || c == ',' || c == '.'))
+            .filter(|s| !s.is_empty())
+            .filter_map(|s| s.replace(',', ".").parse::<f64>().ok())
+            .collect();
+        match nums.as_slice() {
+            [d] => Some(*d),
+            [d, m] => Some(d + m / 60.0),
+            [d, m, sec, ..] => Some(d + m / 60.0 + sec / 3600.0),
+            _ => None,
+        }
+    };
+    let lat = dec("System.GPS.LatitudeDecimal").or_else(|| dms("System.GPS.Latitude").map(|v| v * sign("System.GPS.LatitudeRef", 'S')))?;
+    let lon = dec("System.GPS.LongitudeDecimal").or_else(|| dms("System.GPS.Longitude").map(|v| v * sign("System.GPS.LongitudeRef", 'W')))?;
+    (lat.abs() <= 90.0 && lon.abs() <= 180.0 && (lat != 0.0 || lon != 0.0)).then_some((lat, lon))
+}
+
+/// PNG mapy na bufor pikseli dla Slint (dekodowanie w tle, poza wątkiem UI).
+pub fn decode_png(png: &[u8]) -> Option<slint::SharedPixelBuffer<slint::Rgba8Pixel>> {
+    let img = image::load_from_memory_with_format(png, image::ImageFormat::Png).ok()?.to_rgba8();
+    Some(slint::SharedPixelBuffer::clone_from_slice(img.as_raw(), img.width(), img.height()))
+}
+
+/// Otwiera ostatnio pokazany punkt w przeglądarce (OpenStreetMap).
+pub fn open_map() {
+    if let Some((lat, lon)) = COORDS.with(|c| c.get()) {
+        let _ = open::that(maps::web_url(lat, lon));
+    }
+}
+
 /// Wymiary obrazu albo kadru wideo z liczbą megapikseli.
 fn dims(props: &[shell::Prop]) -> Option<String> {
     let num = |a: &str, b: &str| props.iter().find(|p| p.key == a || p.key == b).and_then(|p| p.num).filter(|n| *n > 0.0);
@@ -111,7 +192,7 @@ fn dims(props: &[shell::Prop]) -> Option<String> {
 }
 
 /// Metadane w sekcjach; pierwsze wiersze to wyliczona ekspozycja i wymiary.
-fn sections(props: &[shell::Prop]) -> Vec<PropSection> {
+pub fn sections(props: &[shell::Prop]) -> Vec<PropSection> {
     let mut groups: Vec<Vec<PropRow>> = vec![Vec::new(); SECTIONS.len()];
     if let Some(e) = exposure(props) {
         groups[0].push(row("Ekspozycja", e));
@@ -229,6 +310,9 @@ fn show(s: &Shared, entries: Vec<Entry>) {
         g.set_hashing(false);
         g.set_basic(ModelRc::new(VecModel::from(basic(&entries, None))));
         g.set_sections(ModelRc::default());
+        g.set_gauges(ModelRc::default());
+        g.set_has_map(false);
+        g.set_coords("".into());
         g.set_open(true);
     });
     // Rozmiar z zawartością folderów.
@@ -249,7 +333,22 @@ fn show(s: &Shared, entries: Vec<Entry>) {
     if let Some(e) = one.filter(|_| !packed) {
         std::thread::spawn(move || {
             let props = shell::properties(&e.path);
-            deliver(gen, move |_, g| g.set_sections(ModelRc::new(VecModel::from(sections(&props)))));
+            let coords = gps(&props);
+            deliver(gen, move |_, g| {
+                g.set_gauges(ModelRc::new(VecModel::from(gauges(&props))));
+                g.set_sections(ModelRc::new(VecModel::from(sections(&props))));
+            });
+            // Mapa dochodzi osobno – kafelki trzeba pobrać z sieci.
+            let Some((lat, lon)) = coords else { return };
+            deliver(gen, move |_, g| {
+                COORDS.with(|c| c.set(Some((lat, lon))));
+                g.set_coords(format!("{lat:.5}, {lon:.5}").into());
+            });
+            let Some(buf) = maps::map_png(lat, lon, 15, 1024, 360).and_then(|png| decode_png(&png)) else { return };
+            deliver(gen, move |_, g| {
+                g.set_map(slint::Image::from_rgba8(buf));
+                g.set_has_map(true);
+            });
         });
     }
 }

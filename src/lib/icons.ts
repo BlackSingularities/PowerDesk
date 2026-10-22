@@ -7,6 +7,7 @@ export const I = {
   search: 'M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14zM21 21l-4.35-4.35',
   close: 'M18 6 6 18M6 6l12 12',
   plus: 'M12 5v14M5 12h14',
+  minus: 'M5 12h14',
   min: 'M5 12h14',
   max: 'M5 5h14v14H5z',
   restore: 'M8 8h11v11H8zM5 16V5h11',

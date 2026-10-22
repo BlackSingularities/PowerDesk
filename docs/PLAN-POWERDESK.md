@@ -29,7 +29,7 @@ Zasady:
 | 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | gotowe |
 | 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | gotowe |
 | 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | gotowe |
-| 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | – |
+| 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | **w toku** |
 | 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
 | 5 | Pulpit PowerDesk na wszystkich monitorach (tryb testowy i zastępujący) | – |
 | 6 | Pasek zadań: AppBar na każdym monitorze, lista okien, zegar, Start | – |
@@ -41,12 +41,13 @@ Zasady:
 ### Okno i nawigacja
 - [x] Okno bez ramki, przeciąganie, minimalizacja/maksymalizacja/zamknięcie
 - [x] Karty: nowa, zamknij, przełączanie, zamknięcie środkowym przyciskiem
-- [ ] Karty: przypinanie, przeciąganie, przywracanie zamkniętych (Ctrl+Shift+T), menu karty, upuszczanie plików na kartę
-- [ ] Podział na dwa panele (Ctrl+\\)
+- [x] Karty: przypinanie (wracają po uruchomieniu), przeciąganie, przywracanie zamkniętych (Ctrl+Shift+T), menu karty, upuszczanie plików na kartę
+- [x] Podział na dwa panele (Ctrl+\\): dwie karty obok siebie, uchwyt szerokości, F6 przenosi wskazanie; pasek adresu i polecenia są jedne – dla wskazanego panelu
 - [x] Wstecz / dalej / w górę / odśwież, Alt+strzałki, Backspace, F5
 - [x] Okruszki z rozwijanymi podfolderami, edycja ścieżki (Ctrl+L, Alt+D)
 - [ ] Podpowiedzi przy edycji ścieżki
-- [ ] Paleta szybkiego przejścia (Ctrl+K) i poleceń (Ctrl+Shift+P)
+- [x] Paleta poleceń (Ctrl+Shift+P): czynności programu z grupami i skrótami, szukanie bez polskich znaków
+- [x] Paleta szybkiego przejścia (Ctrl+K): podfoldery, szybki dostęp, dyski, historia, wpisana ścieżka
 - [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
 - [ ] Boczne przyciski myszy, F6 między obszarami, wpisywanie nazwy
 - [ ] Mica / Acrylic, akcent systemowy i własny, krycie okienek
@@ -85,13 +86,17 @@ Zasady:
 - [x] „Wypakuj do…” z wyborem folderu
 - [ ] Przeciąganie z archiwum do innych programów
 - [x] Właściwości: metadane systemowe w sekcjach, rozmiar folderu, SHA-256, systemowe okno właściwości
-- [ ] Właściwości: mapa GPS i graficzne skale ekspozycji (z podglądem – etap 3)
+- [x] Właściwości: mapa GPS (kafelki OpenStreetMap) i graficzne skale ekspozycji
 - [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)
 - [x] Półka (Shelf): dodawanie (Ctrl+Shift+S, menu, przeciąganie), kopiowanie i przenoszenie do otwartego folderu, przeciąganie z półki, zapamiętywanie
 
 ### Podgląd
-- [ ] Panel podglądu: zdjęcia, wideo, audio, PDF, tekst/kod z podświetlaniem, DOCX/XLSX/PPTX/ODT/EPUB, ZIP, metadane, mapa GPS
-- [ ] Pełnoekranowa przeglądarka: zoom do kursora, obrót, pokaz slajdów, pasek miniatur, EXIF, dotyk, osobne okno
+- [x] Panel podglądu: obraz z powłoki (zdjęcia, RAW, klatka wideo, strona PDF, dokumenty), tekst i kod, spis archiwum, metadane, folder i dysk, zmiana szerokości, Alt+P
+- [x] Panel podglądu: tekst z DOCX/XLSX/PPTX/ODT/EPUB (arkusz wiersz po wierszu), mapa GPS, podświetlanie składni
+- [ ] Panel podglądu: odtwarzanie wideo i audio, przewijanie stron PDF
+- [x] Przeglądarka zdjęć w osobnej karcie tego samego okna (pasek tytułu z kartami i przyciskami okna zostaje, minimalizacja działa; pełny ekran tylko przyciskiem albo F11): zoom do kursora, przesuwanie, obrót, pokaz slajdów, pasek miniatur, EXIF
+- [x] Przeglądarka: przesuwanie palcem (w bok – następne i poprzednie, w dół – zamknięcie)
+- [ ] Przeglądarka: szczypanie (Slint nie daje jeszcze wielodotyku), odtwarzanie wideo w środku
 
 ### Ekrany specjalne
 - [ ] Ten komputer (Home): dyski, foldery, ostatnie pliki, informacje o systemie

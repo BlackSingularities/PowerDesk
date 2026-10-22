@@ -52,6 +52,7 @@ export component Toolbar inherits Rectangle {
     /// Półka: liczba pozycji i czy panel jest otwarty.
     in property <int> shelf-count;
     in property <bool> shelf-open;
+    in property <bool> preview-open;
     in-out property <float> zoom;
     in property <float> zoom-min: 84;
     in property <float> zoom-max: 280;
@@ -71,6 +72,7 @@ export component Toolbar inherits Rectangle {
     callback zoom-changed(float);
     callback toggle-facets;
     callback toggle-shelf;
+    callback toggle-preview;
     callback toggle-facet(string);
     callback clear-facets;
     callback save-search;
@@ -424,6 +426,25 @@ export component Toolbar inherits Rectangle {
                         drop: "ofp:shelf";
                         clicked => {
                             root.toggle-shelf();
+                        }
+                    }
+                }
+                // Panel podglądu.
+                Rectangle {
+                    y: 2px;
+                    width: 30px;
+                    height: 30px;
+                    border-radius: Theme.r-s;
+                    background: root.preview-open ? Theme.sel : pv-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: Icons.panel;
+                        size: 16px;
+                        color: root.preview-open || pv-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    pv-ta := TipArea {
+                        tip: root.preview-open ? "Ukryj podgląd (Alt+P)" : "Pokaż podgląd (Alt+P)";
+                        clicked => {
+                            root.toggle-preview();
                         }
                     }
                 }

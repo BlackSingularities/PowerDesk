@@ -8,10 +8,13 @@ import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog, PromptDialog, Prompt } from "overlays.slint";
 import { BulkDialog, Bulk, BulkRow } from "bulk.slint";
-import { PropsDialog, Props, PropRow, PropSection } from "props.slint";
+import { PropsDialog, Props, PropRow, PropSection, Gauge } from "props.slint";
 import { ShelfPanel, ShelfState, ShelfItem } from "shelf.slint";
+import { PreviewPane, PreviewState, CodeTok, CodeLine } from "preview.slint";
+import { ViewerView, ViewerState, ViewerThumb } from "viewer.slint";
+import { PaletteDialog, Palette, PaletteRow } from "palette.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, ShelfState, ShelfItem, Prompt }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, Gauge, ShelfState, ShelfItem, Prompt, PreviewState, CodeTok, CodeLine, ViewerState, ViewerThumb, Palette, PaletteRow }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -72,6 +75,26 @@ export component MainWindow inherits Window {
     in property <[GroupHead]> heads;
     in property <bool> desc;
     in-out property <length> scroll-y;
+
+    // Drugi panel (podział Ctrl+\): te same dane dla karty obok.
+    in property <bool> split;
+    /// Udział lewego panelu w szerokości obszaru.
+    in property <float> split-ratio: 0.5;
+    /// Wskazany panel – obramowanie pokazuje, która strona słucha klawiatury.
+    in property <int> focused-pane;
+    in property <[VisItem]> items2;
+    in property <int> view2;
+    in property <length> total-height2;
+    in property <string> empty-text2;
+    in property <bool> sort-name2;
+    in property <string> folder2;
+    in property <[Column]> columns2;
+    in property <[GroupHead]> heads2;
+    in property <bool> desc2;
+    in-out property <length> scroll-y2;
+    callback focus-pane(int);
+    /// Przeciągnięcie uchwytu między panelami – nowy udział lewego panelu.
+    callback split-resize(float);
     in property <string> status;
     // Transfery i powiadomienia.
     in property <[OpItem]> ops;
@@ -100,6 +123,8 @@ export component MainWindow inherits Window {
 
     callback activate-tab(int);
     callback close-tab(int);
+    callback move-tab(int, length);
+    callback tab-menu(int, length, length);
     callback new-tab;
     callback minimize;
     callback toggle-maximize;
@@ -120,6 +145,7 @@ export component MainWindow inherits Window {
     callback new-menu(length, length);
     callback command(string);
     callback toggle-facets;
+    callback toggle-preview;
     callback toggle-facet(string);
     callback clear-facets;
     callback save-search;
@@ -135,7 +161,7 @@ export component MainWindow inherits Window {
     callback toast-close(int);
     callback conflict-pick(int);
     callback confirm-answer(bool);
-    callback viewport-changed(length, length, length);
+    callback viewport-changed(int, length, length, length);
     callback select(int, bool, bool);
     callback open(int);
     callback context(int, length, length, bool);
@@ -193,7 +219,7 @@ export component MainWindow inherits Window {
         }
 
         VerticalLayout {
-            TitleBar {
+            tbar := TitleBar {
                 tabs: root.tabs;
                 maximized: root.is-maximized;
                 activate(i) => {
@@ -201,6 +227,12 @@ export component MainWindow inherits Window {
                 }
                 close-tab(i) => {
                     root.close-tab(i);
+                }
+                move-tab(i, x) => {
+                    root.move-tab(i, x);
+                }
+                tab-menu(i, x, y) => {
+                    root.tab-menu(i, x, y);
                 }
                 new-tab => {
                     root.new-tab();
@@ -247,6 +279,10 @@ export component MainWindow inherits Window {
                         gallery-ok: root.gallery-ok;
                         shelf-count: ShelfState.count;
                         shelf-open: ShelfState.open;
+                        preview-open: PreviewState.open;
+                        toggle-preview => {
+                            root.toggle-preview();
+                        }
                         toggle-shelf => {
                             ShelfState.toggle();
                         }
@@ -334,94 +370,231 @@ export component MainWindow inherits Window {
                         root.side-context(p, x, y);
                     }
                 }
-                // Panel (Pane.svelte).
+                // Panele (Pane.svelte): przy podziale dwa obok siebie, z uchwytem szerokości.
                 Rectangle {
                     horizontal-stretch: 1;
                     background: Theme.bg;
                     border-radius: Theme.r-l;
                     clip: true;
                     VerticalLayout {
-                        FileView {
+                        panes := HorizontalLayout {
                             vertical-stretch: 1;
-                            items: root.items;
-                            view: root.view;
-                            total-height: root.total-height;
-                            empty-text: root.empty-text;
-                            sort-name: root.sort-name;
-                            folder: root.folder;
-                            drag-start(i) => {
-                                root.drag-start(i);
+                            // Lewy (albo jedyny) panel.
+                            Rectangle {
+                                horizontal-stretch: root.split ? root.split-ratio * 100 : 1;
+                                border-width: root.split && root.focused-pane == 0 ? 1px : 0px;
+                                border-color: Theme.line-strong;
+                                border-radius: Theme.r;
+                                VerticalLayout {
+                                FileView {
+                                    vertical-stretch: 1;
+                                    items: root.items;
+                                    view: root.view;
+                                    total-height: root.total-height;
+                                    empty-text: root.empty-text;
+                                    sort-name: root.sort-name;
+                                    folder: root.folder;
+                                    drag-start(i) => {
+                                        root.drag-start(i);
+                                    }
+                                    rename-sel: root.rename-sel;
+                                    rename-commit(t) => {
+                                        root.rename-commit(t);
+                                        keys.focus();
+                                    }
+                                    rename-cancel => {
+                                        root.rename-cancel();
+                                        keys.focus();
+                                    }
+                                    rename-next(t, back) => {
+                                        root.rename-next(t, back);
+                                    }
+                                    columns: root.columns;
+                                    heads: root.heads;
+                                    toggle-group(i) => {
+                                        root.toggle-group(i);
+                                    }
+                                    select-group(i, c) => {
+                                        keys.focus();
+                                        root.select-group(i, c);
+                                    }
+                                    desc: root.desc;
+                                    scroll-y <=> root.scroll-y;
+                                    viewport-changed(t, w, h) => {
+                                        root.viewport-changed(0, t, w, h);
+                                    }
+                                    select(i, c, s) => {
+                                        keys.focus();
+                                        root.select(i, c, s);
+                                    }
+                                    open(i) => {
+                                        root.open(i);
+                                    }
+                                    context(i, x, y, shift) => {
+                                        root.context(i, x, y, shift);
+                                    }
+                                    background-context(x, y, shift) => {
+                                        keys.focus();
+                                        root.background-context(x, y, shift);
+                                    }
+                                    marquee-begin(additive) => {
+                                        keys.focus();
+                                        root.marquee-begin(additive);
+                                    }
+                                    marquee-update(x0, y0, x1, y1) => {
+                                        root.marquee-update(x0, y0, x1, y1);
+                                    }
+                                    marquee-end => {
+                                        root.marquee-end();
+                                    }
+                                    header-sort(id) => {
+                                        root.header-sort(id);
+                                    }
+                                    col-move(id, dx) => {
+                                        root.col-move(id, dx);
+                                    }
+                                    col-resize(id, w) => {
+                                        root.col-resize(id, w);
+                                    }
+                                    col-resize-end => {
+                                        root.col-resize-end();
+                                    }
+                                    col-reset(id) => {
+                                        root.col-reset(id);
+                                    }
+                                    col-menu(x, y) => {
+                                        root.col-menu(x, y);
+                                    }
+                                    zoom(d) => {
+                                        root.zoom-step(d);
+                                    }
+                                }
+                                }
                             }
-                            rename-sel: root.rename-sel;
-                            rename-commit(t) => {
-                                root.rename-commit(t);
-                                keys.focus();
+                            // Uchwyt szerokości między panelami.
+                            if root.split: Rectangle {
+                                width: 6px;
+                                background: h-ta.has-hover || h-ta.pressed ? Theme.line-strong : transparent;
+                                h-ta := TouchArea {
+                                    mouse-cursor: ew-resize;
+                                    moved => {
+                                        if (self.pressed) {
+                                            root.split-resize((self.absolute-position.x + self.mouse-x - panes.absolute-position.x) / panes.width);
+                                        }
+                                    }
+                                }
                             }
-                            rename-cancel => {
-                                root.rename-cancel();
-                                keys.focus();
-                            }
-                            rename-next(t, back) => {
-                                root.rename-next(t, back);
-                            }
-                            columns: root.columns;
-                            heads: root.heads;
-                            toggle-group(i) => {
-                                root.toggle-group(i);
-                            }
-                            select-group(i, c) => {
-                                keys.focus();
-                                root.select-group(i, c);
-                            }
-                            desc: root.desc;
-                            scroll-y <=> root.scroll-y;
-                            viewport-changed(t, w, h) => {
-                                root.viewport-changed(t, w, h);
-                            }
-                            select(i, c, s) => {
-                                keys.focus();
-                                root.select(i, c, s);
-                            }
-                            open(i) => {
-                                root.open(i);
-                            }
-                            context(i, x, y, shift) => {
-                                root.context(i, x, y, shift);
-                            }
-                            background-context(x, y, shift) => {
-                                keys.focus();
-                                root.background-context(x, y, shift);
-                            }
-                            marquee-begin(additive) => {
-                                keys.focus();
-                                root.marquee-begin(additive);
-                            }
-                            marquee-update(x0, y0, x1, y1) => {
-                                root.marquee-update(x0, y0, x1, y1);
-                            }
-                            marquee-end => {
-                                root.marquee-end();
-                            }
-                            header-sort(id) => {
-                                root.header-sort(id);
-                            }
-                            col-move(id, dx) => {
-                                root.col-move(id, dx);
-                            }
-                            col-resize(id, w) => {
-                                root.col-resize(id, w);
-                            }
-                            col-resize-end => {
-                                root.col-resize-end();
-                            }
-                            col-reset(id) => {
-                                root.col-reset(id);
-                            }
-                            col-menu(x, y) => {
-                                root.col-menu(x, y);
-                            }
-                            zoom(d) => {
-                                root.zoom-step(d);
+                            // Prawy panel – karta obok.
+                            if root.split: Rectangle {
+                                horizontal-stretch: (1 - root.split-ratio) * 100;
+                                border-width: root.focused-pane == 1 ? 1px : 0px;
+                                border-color: Theme.line-strong;
+                                border-radius: Theme.r;
+                                VerticalLayout {
+                                FileView {
+                                    vertical-stretch: 1;
+                                    items: root.items2;
+                                    view: root.view2;
+                                    total-height: root.total-height2;
+                                    empty-text: root.empty-text2;
+                                    sort-name: root.sort-name2;
+                                    folder: root.folder2;
+                                    drag-start(i) => {
+                                        root.focus-pane(1);
+                                        root.drag-start(i);
+                                    }
+                                    rename-sel: root.rename-sel;
+                                    rename-commit(t) => {
+                                        root.focus-pane(1);
+                                        root.rename-commit(t);
+                                        keys.focus();
+                                    }
+                                    rename-cancel => {
+                                        root.focus-pane(1);
+                                        root.rename-cancel();
+                                        keys.focus();
+                                    }
+                                    rename-next(t, back) => {
+                                        root.focus-pane(1);
+                                        root.rename-next(t, back);
+                                    }
+                                    columns: root.columns2;
+                                    heads: root.heads2;
+                                    toggle-group(i) => {
+                                        root.focus-pane(1);
+                                        root.toggle-group(i);
+                                    }
+                                    select-group(i, c) => {
+                                        keys.focus();
+                                        root.focus-pane(1);
+                                        root.select-group(i, c);
+                                    }
+                                    desc: root.desc2;
+                                    scroll-y <=> root.scroll-y2;
+                                    viewport-changed(t, w, h) => {
+                                        root.viewport-changed(1, t, w, h);
+                                    }
+                                    select(i, c, s) => {
+                                        keys.focus();
+                                        root.focus-pane(1);
+                                        root.select(i, c, s);
+                                    }
+                                    open(i) => {
+                                        root.focus-pane(1);
+                                        root.open(i);
+                                    }
+                                    context(i, x, y, shift) => {
+                                        root.focus-pane(1);
+                                        root.context(i, x, y, shift);
+                                    }
+                                    background-context(x, y, shift) => {
+                                        keys.focus();
+                                        root.focus-pane(1);
+                                        root.background-context(x, y, shift);
+                                    }
+                                    marquee-begin(additive) => {
+                                        keys.focus();
+                                        root.focus-pane(1);
+                                        root.marquee-begin(additive);
+                                    }
+                                    marquee-update(x0, y0, x1, y1) => {
+                                        root.focus-pane(1);
+                                        root.marquee-update(x0, y0, x1, y1);
+                                    }
+                                    marquee-end => {
+                                        root.focus-pane(1);
+                                        root.marquee-end();
+                                    }
+                                    header-sort(id) => {
+                                        root.focus-pane(1);
+                                        root.header-sort(id);
+                                    }
+                                    col-move(id, dx) => {
+                                        root.focus-pane(1);
+                                        root.col-move(id, dx);
+                                    }
+                                    col-resize(id, w) => {
+                                        root.focus-pane(1);
+                                        root.col-resize(id, w);
+                                    }
+                                    col-resize-end => {
+                                        root.focus-pane(1);
+                                        root.col-resize-end();
+                                    }
+                                    col-reset(id) => {
+                                        root.focus-pane(1);
+                                        root.col-reset(id);
+                                    }
+                                    col-menu(x, y) => {
+                                        root.focus-pane(1);
+                                        root.col-menu(x, y);
+                                    }
+                                    zoom(d) => {
+                                        root.focus-pane(1);
+                                        root.zoom-step(d);
+                                    }
+                                }
+                                }
                             }
                         }
                         // Pasek stanu (StatusBar.svelte); po prawej podsumowanie transferów – klik chowa/pokazuje pasek.
@@ -467,11 +640,28 @@ export component MainWindow inherits Window {
                         }
                     }
                 }
+                // Podgląd (PreviewPane.svelte).
+                if PreviewState.open && !root.special: PreviewPane { }
             }
         }
     }
 
+    // Paleta poleceń – nad całym oknem, pod paskiem tytułu.
+    if Palette.open: PaletteDialog {
+        x: 0;
+        y: 0;
+        width: root.width;
+        height: root.height;
+    }
+
     // Pasek transferów i powiadomienia – prawy dolny róg, nad paskiem stanu.
+    // Przeglądarka zdjęć – pod paskiem tytułu (przyciski okna zostają), w pełnym ekranie całe okno.
+    if ViewerState.open: ViewerView {
+        x: 0;
+        y: ViewerState.fullscreen ? 0 : tbar.height;
+        width: root.width;
+        height: root.height - self.y;
+    }
     // Półka – prawy dolny róg; pasek transferów odsuwa się wtedy w lewo.
     if ShelfState.open && !root.special: ShelfPanel {
         x: root.width - self.width - 22px;

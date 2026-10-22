@@ -308,9 +308,11 @@ pub fn office_text(path: &str, limit: usize) -> Result<TextPreview, String> {
     let f = std::fs::File::open(path).map_err(|e| io_err(&e))?;
     let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| "To nie jest prawidłowy dokument".to_string())?;
     let ext = Path::new(path).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
+    if ext == "xlsx" || ext == "xlsm" {
+        return Ok(xlsx_text(&mut z, limit));
+    }
     let mut names: Vec<String> = match ext.as_str() {
         "docx" | "docm" | "dotx" => vec!["word/document.xml".into()],
-        "xlsx" | "xlsm" => vec!["xl/sharedStrings.xml".into()],
         "pptx" | "ppsx" => {
             let mut v: Vec<String> = z.file_names().filter(|n| n.starts_with("ppt/slides/slide") && n.ends_with(".xml")).map(|s| s.to_string()).collect();
             v.sort_by_key(|n| n.trim_start_matches("ppt/slides/slide").trim_end_matches(".xml").parse::<u32>().unwrap_or(0));
@@ -341,6 +343,87 @@ pub fn office_text(path: &str, limit: usize) -> Result<TextPreview, String> {
     }
     let truncated = text.len() >= limit;
     Ok(TextPreview { text, truncated, kind: "document".into() })
+}
+
+/// Arkusz: pierwsza zakładka wiersz po wierszu (komórki rozdzielone tabulatorem),
+/// z tekstami rozwiązanymi z `sharedStrings.xml`.
+fn xlsx_text<R: Read + std::io::Seek>(z: &mut zip::ZipArchive<R>, limit: usize) -> TextPreview {
+    use quick_xml::events::Event;
+    let shared = xlsx_shared(z);
+    let mut sheets: Vec<String> = z.file_names().filter(|n| n.starts_with("xl/worksheets/sheet") && n.ends_with(".xml")).map(|s| s.to_string()).collect();
+    sheets.sort_by_key(|n| n.trim_start_matches("xl/worksheets/sheet").trim_end_matches(".xml").parse::<u32>().unwrap_or(0));
+    let mut xml = String::new();
+    if let Some(n) = sheets.first() {
+        if let Ok(mut f) = z.by_name(n) {
+            let _ = f.read_to_string(&mut xml);
+        }
+    }
+    let mut out = String::new();
+    let mut r = quick_xml::Reader::from_str(&xml);
+    let (mut cell, mut shared_cell, mut in_value) = (String::new(), false, false);
+    loop {
+        match r.read_event() {
+            Ok(Event::Start(e)) => match e.local_name().as_ref() {
+                b"row" => {
+                    if !out.is_empty() {
+                        out.push('\n');
+                    }
+                }
+                b"c" => {
+                    cell.clear();
+                    shared_cell = e.try_get_attribute("t").ok().flatten().map(|a| a.value.as_ref() == b"s").unwrap_or(false);
+                }
+                b"v" | b"t" => in_value = true,
+                _ => {}
+            },
+            Ok(Event::Text(t)) if in_value => {
+                if let Ok(s) = t.unescape() {
+                    cell.push_str(&s);
+                }
+            }
+            Ok(Event::End(e)) => match e.local_name().as_ref() {
+                b"v" | b"t" => in_value = false,
+                b"c" => {
+                    let v = if shared_cell { cell.parse::<usize>().ok().and_then(|i| shared.get(i)).cloned().unwrap_or_default() } else { cell.clone() };
+                    out.push_str(&v);
+                    out.push('\t');
+                }
+                _ => {}
+            },
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
+        }
+        if out.len() >= limit {
+            break;
+        }
+    }
+    let truncated = out.len() >= limit;
+    TextPreview { text: out, truncated, kind: "document".into() }
+}
+
+fn xlsx_shared<R: Read + std::io::Seek>(z: &mut zip::ZipArchive<R>) -> Vec<String> {
+    use quick_xml::events::Event;
+    let mut xml = String::new();
+    let Ok(mut f) = z.by_name("xl/sharedStrings.xml") else { return Vec::new() };
+    if f.read_to_string(&mut xml).is_err() {
+        return Vec::new();
+    }
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut r = quick_xml::Reader::from_str(&xml);
+    loop {
+        match r.read_event() {
+            Ok(Event::Text(t)) => {
+                if let Ok(s) = t.unescape() {
+                    cur.push_str(&s);
+                }
+            }
+            Ok(Event::End(e)) if e.local_name().as_ref() == b"si" => out.push(std::mem::take(&mut cur)),
+            Ok(Event::Eof) | Err(_) => break,
+            _ => {}
+        }
+    }
+    out
 }
 
 fn xml_text(xml: &str, out: &mut String, limit: usize) {

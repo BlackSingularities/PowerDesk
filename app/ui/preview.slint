@@ -1,0 +1,460 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label, TipArea } from "components.slint";
+import { ScrollView } from "std-widgets.slint";
+import { PropRow, PropSection } from "props.slint";
+
+/// Kawałek wiersza kodu: `kind` to numer koloru (`Tok` w syntax.rs).
+export struct CodeTok {
+    text: string,
+    kind: int,
+}
+
+/// Wiersz kodu z pokolorowanymi kawałkami.
+export struct CodeLine {
+    toks: [CodeTok],
+}
+
+/// Stan panelu podglądu – dane podaje preview.rs. `mode`: 0 – folder (nic nie zaznaczono),
+/// 1 – jeden element, 2 – kilka elementów.
+export global PreviewState {
+    in-out property <bool> open;
+    in-out property <length> width: 340px;
+    in-out property <int> mode;
+    in-out property <string> title;
+    in-out property <string> subtitle;
+    in-out property <image> img;
+    in-out property <bool> has-img;
+    in-out property <string> text;
+    /// Kod z podświetloną składnią; gdy puste, pokazujemy `text` jednym kolorem.
+    in-out property <[CodeLine]> code;
+    /// Spis archiwum: nazwa i rozmiar.
+    in-out property <[PropRow]> list;
+    in-out property <[PropRow]> rows;
+    in-out property <[PropSection]> sections;
+    in-out property <string> path;
+    in-out property <bool> is-dir;
+    /// Zajętość dysku 0–1 (ujemna – brak) i opis.
+    in-out property <float> usage: -1;
+    in-out property <string> drive;
+    /// Mapa z GPS zdjęcia – dochodzi w tle.
+    in-out property <image> map;
+    in-out property <bool> has-map;
+    in-out property <string> coords;
+    callback open-map();
+    callback resize(length);
+    callback resize-done;
+    callback open-item;
+    callback open-with;
+    callback properties;
+    callback copy-path;
+}
+
+/// Kod z podświetloną składnią: wiersz po wierszu, każdy kawałek osobnym polem tekstu.
+/// Długie wiersze nie są zawijane (przycina je ramka), bo kod czyta się po wcięciach.
+component CodeView inherits Rectangle {
+    in property <[CodeLine]> lines;
+    border-radius: Theme.r;
+    background: Theme.panel;
+    border-width: 1px;
+    border-color: Theme.line;
+    height: min(body.preferred-height + 20px, 520px);
+    clip: true;
+    pure function tok-color(k: int) -> color {
+        k == 1 ? Theme.syn-comment
+            : k == 2 ? Theme.syn-string
+            : k == 3 ? Theme.syn-num
+            : k == 4 ? Theme.syn-key
+            : k == 5 ? Theme.syn-type
+            : k == 6 ? Theme.syn-punct
+            : k == 7 ? Theme.syn-tag
+            : k == 8 ? Theme.syn-attr
+            : Theme.text
+    }
+    body := VerticalLayout {
+        x: 10px;
+        y: 10px;
+        width: parent.width - 20px;
+        alignment: start;
+        for ln in root.lines: HorizontalLayout {
+            alignment: start;
+            height: 15px;
+            for t in ln.toks: Text {
+                text: t.text;
+                font-family: Theme.mono;
+                font-size: 11.5px;
+                color: root.tok-color(t.kind);
+                vertical-alignment: center;
+            }
+        }
+    }
+}
+
+/// Przycisk akcji pod podglądem (act w PreviewPane.svelte): ikona nad podpisem.
+component Act inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <bool> main;
+    callback clicked;
+    height: 54px;
+    horizontal-stretch: 1;
+    border-radius: Theme.r;
+    background: root.main ? (a-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent) : (a-ta.has-hover ? Theme.press : Theme.card);
+    VerticalLayout {
+        alignment: center;
+        spacing: 4px;
+        Icon {
+            x: (parent.width - self.width) / 2;
+            commands: root.icon;
+            size: 17px;
+            color: root.main ? Theme.on-accent : Theme.text;
+        }
+        Label {
+            horizontal-alignment: center;
+            text: root.text;
+            font-size: 11.5px;
+            color: root.main ? Theme.on-accent : Theme.text;
+        }
+    }
+    a-ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component Row inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <length> label-width: 104px;
+    spacing: 10px;
+    Text {
+        width: root.label-width;
+        text: root.label;
+        wrap: word-wrap;
+        font-family: Theme.font;
+        font-size: 12px;
+        color: Theme.dim;
+    }
+    Text {
+        horizontal-stretch: 1;
+        text: root.value;
+        wrap: word-wrap;
+        font-family: Theme.font;
+        font-size: 12px;
+        color: Theme.text;
+    }
+}
+
+/// Panel podglądu po prawej stronie listy; lewa krawędź zmienia szerokość.
+export component PreviewPane inherits Rectangle {
+    width: PreviewState.width;
+    background: Theme.bg;
+    border-radius: Theme.r-l;
+    clip: true;
+
+    ScrollView {
+        content := VerticalLayout {
+            padding: 16px;
+            spacing: 12px;
+            alignment: start;
+
+            // Obraz: zdjęcie, klatka wideo, strona PDF, miniatura dokumentu albo duża ikona.
+            if PreviewState.has-img && PreviewState.text == "" && PreviewState.list.length == 0: Rectangle {
+                height: min(PreviewState.width - 32px, 420px);
+                border-radius: Theme.r;
+                Image {
+                    width: parent.width;
+                    height: parent.height;
+                    source: PreviewState.img;
+                    image-fit: contain;
+                }
+                TouchArea {
+                    double-clicked => {
+                        PreviewState.open-item();
+                    }
+                }
+            }
+            if PreviewState.has-img && (PreviewState.text != "" || PreviewState.list.length > 0): Image {
+                height: 56px;
+                source: PreviewState.img;
+                image-fit: contain;
+                horizontal-alignment: left;
+            }
+            if !PreviewState.has-img && PreviewState.mode != 1: Icon {
+                x: (parent.width - self.width) / 2;
+                commands: Icons.folder;
+                size: 40px;
+                color: Theme.dim;
+            }
+
+            // Kod z podświetloną składnią.
+            if PreviewState.code.length > 0: CodeView {
+                lines: PreviewState.code;
+            }
+
+            // Tekst bez podświetlania (zwykły tekst, dokumenty).
+            if PreviewState.code.length == 0 && PreviewState.text != "": Rectangle {
+                border-radius: Theme.r;
+                background: Theme.panel;
+                border-width: 1px;
+                border-color: Theme.line;
+                height: min(t.preferred-height + 20px, 520px);
+                clip: true;
+                t := Text {
+                    x: 10px;
+                    y: 10px;
+                    width: parent.width - 20px;
+                    text: PreviewState.text;
+                    wrap: char-wrap;
+                    font-family: Theme.mono;
+                    font-size: 11.5px;
+                    color: Theme.text;
+                }
+            }
+
+            // Spis archiwum.
+            if PreviewState.list.length > 0: VerticalLayout {
+                spacing: 2px;
+                for z in PreviewState.list: HorizontalLayout {
+                    height: 22px;
+                    spacing: 8px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: z.value == "" ? Icons.folder : Icons.file;
+                        size: 14px;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        horizontal-stretch: 1;
+                        text: z.label;
+                        font-size: 12px;
+                    }
+                    Label {
+                        text: z.value;
+                        font-size: 11px;
+                        color: Theme.dim;
+                    }
+                }
+            }
+
+            // Nazwa i typ.
+            VerticalLayout {
+                spacing: 3px;
+                Text {
+                    text: PreviewState.title;
+                    wrap: word-wrap;
+                    horizontal-alignment: PreviewState.mode == 1 ? left : center;
+                    font-family: Theme.font;
+                    font-size: 15px;
+                    font-weight: 600;
+                    color: Theme.text;
+                }
+                Text {
+                    text: PreviewState.subtitle;
+                    wrap: word-wrap;
+                    horizontal-alignment: PreviewState.mode == 1 ? left : center;
+                    font-family: Theme.font;
+                    font-size: 12px;
+                    color: Theme.dim;
+                }
+            }
+
+            // Dysk bieżącego folderu.
+            if PreviewState.usage >= 0: VerticalLayout {
+                spacing: 5px;
+                Rectangle {
+                    height: 4px;
+                    border-radius: 2px;
+                    background: Theme.line;
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * PreviewState.usage;
+                        border-radius: 2px;
+                        background: PreviewState.usage > 0.9 ? Theme.rec : PreviewState.usage > 0.75 ? Theme.warn : Theme.ok;
+                    }
+                }
+                Label {
+                    horizontal-alignment: center;
+                    text: PreviewState.drive;
+                    font-size: 11.5px;
+                    color: Theme.dim;
+                }
+            }
+            if PreviewState.mode == 0: Label {
+                horizontal-alignment: center;
+                text: "Zaznacz plik, aby zobaczyć podgląd";
+                font-size: 12px;
+                color: Theme.faint;
+            }
+
+            // Akcje.
+            if PreviewState.mode == 1: HorizontalLayout {
+                spacing: 6px;
+                Act {
+                    icon: Icons.open;
+                    text: "Otwórz";
+                    main: true;
+                    clicked => {
+                        PreviewState.open-item();
+                    }
+                }
+                if !PreviewState.is-dir: Act {
+                    icon: Icons.app;
+                    text: "Otwórz w…";
+                    clicked => {
+                        PreviewState.open-with();
+                    }
+                }
+                Act {
+                    icon: Icons.info;
+                    text: "Właściwości";
+                    clicked => {
+                        PreviewState.properties();
+                    }
+                }
+            }
+            if PreviewState.mode == 2: HorizontalLayout {
+                alignment: center;
+                Act {
+                    width: 120px;
+                    icon: Icons.info;
+                    text: "Właściwości";
+                    clicked => {
+                        PreviewState.properties();
+                    }
+                }
+            }
+
+            // Daty, zawartość folderu, metadane.
+            for r in PreviewState.rows: Row {
+                label: r.label;
+                value: r.value;
+            }
+            for sec in PreviewState.sections: VerticalLayout {
+                spacing: 6px;
+                padding-top: 6px;
+                HorizontalLayout {
+                    spacing: 7px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: sec.icon;
+                        size: 14px;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        text: sec.title;
+                        font-size: 12px;
+                        font-weight: 600;
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        Rectangle {
+                            y: parent.height / 2;
+                            height: 1px;
+                            background: Theme.line;
+                        }
+                    }
+                }
+                for r in sec.rows: Row {
+                    label: r.label;
+                    value: r.value;
+                }
+            }
+
+            // Mapa z GPS – klik otwiera w przeglądarce.
+            if PreviewState.has-map: Rectangle {
+                height: 150px;
+                border-radius: Theme.r-s;
+                border-width: 1px;
+                border-color: Theme.line;
+                clip: true;
+                Image {
+                    width: parent.width;
+                    height: parent.height;
+                    image-fit: cover;
+                    source: PreviewState.map;
+                }
+                Rectangle {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    background: Theme.accent;
+                    border-width: 2px;
+                    border-color: #ffffff;
+                }
+                pm-ta := TipArea {
+                    tip: "Otwórz w mapach (OpenStreetMap)";
+                    clicked => {
+                        PreviewState.open-map();
+                    }
+                }
+                Rectangle {
+                    y: parent.height - self.height;
+                    height: pc.preferred-height + 6px;
+                    background: #00000099;
+                    opacity: pm-ta.has-hover ? 1.0 : 0.85;
+                    pc := Label {
+                        text: PreviewState.coords;
+                        font-size: 11px;
+                        color: #ffffff;
+                    }
+                }
+            }
+
+            // Ścieżka – klik kopiuje.
+            if PreviewState.mode == 1: Rectangle {
+                border-radius: Theme.r-s;
+                background: path-ta.has-hover ? Theme.press : Theme.card;
+                height: path-row.preferred-height;
+                path-row := HorizontalLayout {
+                    padding: 8px;
+                    spacing: 8px;
+                    Text {
+                        horizontal-stretch: 1;
+                        text: PreviewState.path;
+                        wrap: char-wrap;
+                        font-family: Theme.font;
+                        font-size: 11.5px;
+                        color: Theme.dim;
+                    }
+                    Icon {
+                        commands: Icons.copy;
+                        size: 14px;
+                        color: Theme.dim;
+                    }
+                }
+                path-ta := TipArea {
+                    tip: "Kliknij, aby skopiować ścieżkę";
+                    clicked => {
+                        PreviewState.copy-path();
+                    }
+                }
+            }
+        }
+    }
+
+    // Uchwyt zmiany szerokości na lewej krawędzi.
+    Rectangle {
+        x: 0;
+        width: 6px;
+        background: handle.has-hover || handle.pressed ? Theme.line-strong : transparent;
+        handle := TouchArea {
+            mouse-cursor: ew-resize;
+            property <length> w0;
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.down) {
+                    self.w0 = PreviewState.width;
+                }
+                if (e.kind == PointerEventKind.up) {
+                    PreviewState.resize-done();
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    PreviewState.resize(self.w0 - (self.mouse-x - self.pressed-x));
+                }
+            }
+        }
+    }
+}

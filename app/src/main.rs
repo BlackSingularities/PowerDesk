@@ -8,8 +8,12 @@ mod facets;
 mod fmt;
 mod menus;
 mod model;
+mod preview;
 mod props;
+mod viewer;
+mod palette;
 mod shelf;
+mod syntax;
 mod query;
 mod thumbs;
 mod transfers;
@@ -38,7 +42,14 @@ pub struct State {
     prefs: Prefs,
     ui: Weak<MainWindow>,
     /// Okno widoku: przesunięcie, szerokość, wysokość (piksele logiczne).
-    viewport: (f32, f32, f32),
+    /// Karty pokazane w panelach: [lewy] albo [lewy, prawy] po podziale (Ctrl+\).
+    panes: Vec<usize>,
+    /// Wskazany panel – jego karta jest tą „aktywną”, na której działa cała reszta programu.
+    focused: usize,
+    /// Udział lewego panelu w szerokości obszaru plików.
+    split_ratio: f32,
+    /// Widok każdego panelu: przewinięcie, szerokość, wysokość.
+    viewports: [(f32, f32, f32); 2],
     /// Metadane zdjęć i filmów: proporcje w galerii, kolumny Wymiary / Data wykonania / Czas trwania.
     media: HashMap<String, shell::MediaInfo>,
     media_pending: HashSet<String>,
@@ -52,16 +63,19 @@ pub struct State {
     marquee: Option<HashSet<String>>,
     /// Pasek transferów, powiadomienia, okna konfliktu i potwierdzenia.
     transfers: transfers::Transfers,
-    /// Wiersze modelu widoku: (indeks elementu, epoka) w każdym slocie; epoka rośnie przy zmianie danych.
-    slots: Vec<Option<(usize, u64)>>,
+    /// Wiersze modelu widoku każdego panelu: (indeks elementu, epoka) w slocie;
+    /// epoka rośnie przy zmianie danych.
+    slots: [Vec<Option<(usize, u64)>>; 2],
     epoch: u64,
-    /// Narysowany pas treści (y od–do).
-    painted: (f32, f32),
+    /// Narysowany pas treści (y od–do) w każdym panelu.
+    painted: [(f32, f32); 2],
     /// Ścieżki pozycji panelu bocznego (żeby wiedzieć, czy nowa ikona go dotyczy).
     side_paths: HashSet<String>,
     /// Elementy w otwartym oknie masowej zmiany nazw.
     bulk: Option<Vec<fsx::Entry>>,
     shelf: shelf::Shelf,
+    /// Ścieżki ostatnio zamkniętych kart – Ctrl+Shift+T przywraca po kolei.
+    closed: Vec<String>,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -88,7 +102,10 @@ fn main() -> Result<(), slint::PlatformError> {
         active: 0,
         prefs: Prefs::load(),
         ui: ui.as_weak(),
-        viewport: (0.0, 900.0, 600.0),
+        panes: vec![0],
+        focused: 0,
+        split_ratio: 0.5,
+        viewports: [(0.0, 900.0, 600.0); 2],
         media: HashMap::new(),
         media_pending: HashSet::new(),
         dir_sizes: HashMap::new(),
@@ -96,12 +113,13 @@ fn main() -> Result<(), slint::PlatformError> {
         menu: None,
         marquee: None,
         transfers: Default::default(),
-        slots: Vec::new(),
+        slots: [Vec::new(), Vec::new()],
         epoch: 0,
-        painted: (0.0, 0.0),
+        painted: [(0.0, 0.0); 2],
         side_paths: HashSet::new(),
         bulk: None,
         shelf: Default::default(),
+        closed: Vec::new(),
         drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
@@ -115,6 +133,7 @@ fn main() -> Result<(), slint::PlatformError> {
 
     wire(&ui, &st);
     shelf::restore(&st);
+    restore_pinned(&st);
     load(&st, false);
     // „Wklej” pokazuje się tylko, gdy w schowku są pliki – także skopiowane w innym programie.
     let paste_timer = slint::Timer::default();
@@ -214,19 +233,23 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     ui.on_marquee_end(move || s.borrow_mut().marquee = None);
     let s = st.clone();
-    ui.on_viewport_changed(move |top, w, h| {
+    ui.on_viewport_changed(move |pane, top, w, h| {
+        let pane = (pane as usize).min(1);
         let relayout = {
             let mut b = s.borrow_mut();
-            let changed = (b.viewport.1 - w).abs() > 0.5;
-            b.viewport = (top, w, h);
+            if pane >= b.panes.len() {
+                return;
+            }
+            let changed = (b.viewports[pane].1 - w).abs() > 0.5;
+            b.viewports[pane] = (top, w, h);
             changed
         };
         if relayout {
-            layout(&s);
+            layout_pane(&s, pane);
             render_chrome(&s);
             render_items(&s);
         } else {
-            scroll_items(&s);
+            scroll_items(&s, pane);
         }
     });
     let s = st.clone();
@@ -385,6 +408,39 @@ fn wire(ui: &MainWindow, st: &Shared) {
     g.on_cancel(move || bulk::close(&s));
     let s = st.clone();
     ui.global::<Prompt>().on_answer(move |ok, t| transfers::prompt_answer(&s, ok.then_some(t.as_str())));
+    let s = st.clone();
+    ui.on_toggle_preview(move || preview::toggle(&s));
+    let g = ui.global::<PreviewState>();
+    let s = st.clone();
+    g.on_resize(move |w| preview::resize(&s, w));
+    let s = st.clone();
+    g.on_resize_done(move || preview::resize_done(&s));
+    let s = st.clone();
+    g.on_open_item(move || preview::open_item(&s));
+    let s = st.clone();
+    g.on_open_with(move || preview::open_with(&s));
+    let s = st.clone();
+    g.on_properties(move || props::open(&s));
+    let s = st.clone();
+    g.on_copy_path(move || preview::copy_path(&s));
+    g.on_open_map(|| preview::open_map());
+    let g = ui.global::<ViewerState>();
+    let s = st.clone();
+    g.on_close(move || viewer::close(&s));
+    let s = st.clone();
+    g.on_escape(move || viewer::escape(&s));
+    let s = st.clone();
+    g.on_step(move |d| viewer::step(&s, d));
+    let s = st.clone();
+    g.on_go(move |i| viewer::go(&s, i as usize));
+    let s = st.clone();
+    g.on_first_last(move |last| viewer::first_last(&s, last));
+    let s = st.clone();
+    g.on_toggle_fullscreen(move || viewer::toggle_fullscreen(&s));
+    let s = st.clone();
+    g.on_toggle_info(move || viewer::toggle_info(&s));
+    let s = st.clone();
+    g.on_open_external(move || viewer::open_external(&s));
     let g = ui.global::<ShelfState>();
     let s = st.clone();
     g.on_close(move || shelf::set_open(&s, false));
@@ -409,6 +465,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     g.on_copy(move |t| props::copy(&s, t.as_str()));
     let s = st.clone();
     g.on_system(move || props::system(&s));
+    g.on_open_map(|| props::open_map());
     let s = st.clone();
     ui.on_toggle_section(move |n| toggle_section(&s, n.as_str()));
     let s = st.clone();
@@ -452,11 +509,38 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     ui.on_activate_tab(move |i| {
         save_scroll(&s);
-        s.borrow_mut().active = i as usize;
+        {
+            let mut b = s.borrow_mut();
+            let i = i as usize;
+            // Karta otwarta w drugim panelu – klik w nią przenosi tam wskazanie.
+            if b.panes.len() == 2 && b.panes[1 - b.focused] == i {
+                b.focused = 1 - b.focused;
+            }
+            b.active = i;
+            let f = b.focused;
+            b.panes[f] = i;
+        }
         show_tab(&s);
     });
     let s = st.clone();
     ui.on_close_tab(move |i| close_tab(&s, i as usize));
+    let g = ui.global::<Palette>();
+    let s = st.clone();
+    g.on_typed(move |t| palette::query(&s, t.as_str()));
+    let s = st.clone();
+    g.on_step(move |d| palette::step(&s, d));
+    let s = st.clone();
+    g.on_run(move |row| palette::run(&s, (row >= 0).then_some(row)));
+    let s = st.clone();
+    g.on_close(move || palette::close(&s));
+    let s = st.clone();
+    ui.on_focus_pane(move |p| focus_pane(&s, p as usize));
+    let s = st.clone();
+    ui.on_split_resize(move |r| split_resize(&s, r));
+    let s = st.clone();
+    ui.on_move_tab(move |i, x| move_tab(&s, i as usize, x));
+    let s = st.clone();
+    ui.on_tab_menu(move |i, x, y| menus::tab_menu(&s, i as usize, x, y));
 }
 
 // ---------- Karty i nawigacja ----------
@@ -476,10 +560,12 @@ fn new_tab(s: &Shared) {
 fn new_tab_at(s: &Shared, path: &str, activate: bool) {
     save_scroll(s);
     let prev = s.borrow().active;
+    let loose = first_loose(s);
     {
         let mut b = s.borrow_mut();
-        let at = b.active + 1;
+        let at = (b.active + 1).max(loose);
         b.tabs.insert(at, Tab::new(path));
+        panes_inserted(&mut b, at);
         b.active = at;
     }
     apply_prefs(s);
@@ -490,29 +576,334 @@ fn new_tab_at(s: &Shared, path: &str, activate: bool) {
     }
 }
 
+/// Karta z przeglądarką zdjęć obok bieżącej – bez wczytywania jakiegokolwiek folderu.
+fn new_viewer_tab(s: &Shared, v: viewer::Viewer) {
+    save_scroll(s);
+    {
+        let mut b = s.borrow_mut();
+        let at = b.active + 1;
+        // Następne zdjęcie z tej samej karty wraca do już otwartej przeglądarki, zamiast mnożyć karty.
+        match b.tabs.get_mut(at).filter(|t| t.viewer.is_some()) {
+            Some(t) => t.viewer = Some(v),
+            None => {
+                let mut t = Tab::new(viewer::TAB);
+                t.viewer = Some(v);
+                b.tabs.insert(at, t);
+                panes_inserted(&mut b, at);
+            }
+        }
+        b.active = at;
+    }
+    show_tab(s);
+}
+
 fn close_tab(s: &Shared, i: usize) {
     {
         let mut b = s.borrow_mut();
+        if b.tabs.get(i).is_none_or(|t| t.pinned) {
+            return;
+        }
         if b.tabs.len() == 1 {
             drop(b);
             let _ = slint::quit_event_loop();
             return;
         }
-        b.tabs.remove(i);
+        let gone = b.tabs.remove(i);
+        // Zwykłe karty wracają przez Ctrl+Shift+T; przeglądarka zdjęć nie.
+        if gone.viewer.is_none() && !gone.special() {
+            b.closed.push(gone.path.clone());
+            if b.closed.len() > 20 {
+                b.closed.remove(0);
+            }
+        }
         if b.active >= b.tabs.len() || b.active > i {
             b.active = b.active.saturating_sub(1);
+        }
+        panes_removed(&mut b, i);
+    }
+    show_tab(s);
+}
+
+/// Przypięte karty z poprzedniego uruchomienia wracają po lewej; ich zawartość wczytuje się w tle.
+fn restore_pinned(s: &Shared) {
+    let paths: Vec<String> = s.borrow().prefs.pinned_tabs.clone();
+    let paths: Vec<String> = paths.into_iter().filter(|p| Path::new(p).is_dir()).collect();
+    if paths.is_empty() {
+        return;
+    }
+    {
+        let mut b = s.borrow_mut();
+        for (i, p) in paths.iter().enumerate() {
+            let mut t = Tab::new(p);
+            t.pinned = true;
+            b.tabs.insert(i, t);
+            panes_inserted(&mut b, i);
+        }
+        b.active = paths.len();
+    }
+    // Zawartość przypiętych kart doczyta się, gdy użytkownik na nie przejdzie.
+    render_chrome(s);
+}
+
+
+// ---------- Podział na dwa panele ----------
+
+/// Numery kart w panelach po wstawieniu karty na miejscu `at`.
+fn panes_inserted(b: &mut State, at: usize) {
+    for p in b.panes.iter_mut() {
+        if *p >= at {
+            *p += 1;
+        }
+    }
+}
+
+/// Numery kart w panelach po usunięciu karty `at`; panel, który ją pokazywał,
+/// bierze kartę obok, a gdy nie ma czego pokazać – podział się kończy.
+fn panes_removed(b: &mut State, at: usize) {
+    let last = b.tabs.len().saturating_sub(1);
+    for p in b.panes.iter_mut() {
+        if *p > at {
+            *p -= 1;
+        } else if *p == at {
+            *p = at.min(last);
+        }
+    }
+    if b.panes.len() == 2 && b.panes[0] == b.panes[1] {
+        let keep = b.panes[b.focused];
+        b.panes = vec![keep];
+        b.focused = 0;
+    }
+    b.active = b.panes[b.focused];
+}
+
+/// Numery kart w panelach po przeniesieniu karty z `from` na `to`.
+fn panes_moved(b: &mut State, from: usize, to: usize) {
+    for p in b.panes.iter_mut() {
+        if *p == from {
+            *p = to;
+        } else if from < *p && *p <= to {
+            *p -= 1;
+        } else if to <= *p && *p < from {
+            *p += 1;
+        }
+    }
+}
+
+/// Karta wskazanego panelu jest tą „aktywną” – tak widzi ją cała reszta programu.
+fn sync_panes(s: &Shared) {
+    let mut b = s.borrow_mut();
+    let f = b.focused;
+    let active = b.active.min(b.tabs.len() - 1);
+    b.active = active;
+    b.panes[f] = active;
+    if b.panes.len() == 2 {
+        let other = b.panes[1 - f].min(b.tabs.len() - 1);
+        b.panes[1 - f] = other;
+    }
+}
+
+/// Ctrl+\ – podział obszaru plików na dwa panele i powrót do jednego.
+fn toggle_split(s: &Shared) {
+    save_scroll(s);
+    let make_tab = {
+        let mut b = s.borrow_mut();
+        if b.panes.len() == 2 {
+            let keep = b.panes[b.focused];
+            b.panes = vec![keep];
+            b.focused = 0;
+            b.active = keep;
+            None
+        } else {
+            let cur = b.active;
+            // Obok staje inna otwarta karta, a gdy jej nie ma – nowa z tym samym folderem.
+            match (0..b.tabs.len()).find(|i| *i != cur && b.tabs[*i].viewer.is_none()) {
+                Some(other) => {
+                    b.panes = vec![cur, other];
+                    b.focused = 0;
+                    None
+                }
+                None => Some(b.tabs[cur].path.clone()),
+            }
+        }
+    };
+    if let Some(path) = make_tab {
+        let cur = s.borrow().active;
+        new_tab_at(s, &path, false);
+        let mut b = s.borrow_mut();
+        let other = (0..b.tabs.len()).find(|i| *i != cur && b.tabs[*i].viewer.is_none()).unwrap_or(cur);
+        b.panes = vec![cur, other];
+        b.focused = 0;
+        b.active = cur;
+    }
+    // Panele mają inną szerokość niż jeden obszar – układ liczymy od nowa.
+    for pane in 0..s.borrow().panes.len() {
+        layout_pane(s, pane);
+    }
+    show_tab(s);
+}
+
+/// Przeniesienie wskazania do panelu (klik w jego zawartość, F6).
+fn focus_pane(s: &Shared, pane: usize) {
+    {
+        let b = s.borrow();
+        if pane >= b.panes.len() || pane == b.focused {
+            return;
+        }
+    }
+    save_scroll(s);
+    {
+        let mut b = s.borrow_mut();
+        b.focused = pane;
+        b.active = b.panes[pane];
+    }
+    show_tab(s);
+}
+
+/// Nowy udział lewego panelu po przeciągnięciu uchwytu.
+fn split_resize(s: &Shared, r: f32) {
+    {
+        let mut b = s.borrow_mut();
+        if b.panes.len() < 2 {
+            return;
+        }
+        b.split_ratio = r.clamp(0.2, 0.8);
+    }
+    render_chrome(s);
+}
+
+/// Pierwsze miejsce za przypiętymi kartami – nowe karty nie wchodzą między nie.
+fn first_loose(s: &Shared) -> usize {
+    s.borrow().tabs.iter().take_while(|t| t.pinned).count()
+}
+
+/// Przypięcie i odpięcie karty: przypięta idzie na koniec przypiętych, odpięta za nie.
+fn pin_tab(s: &Shared, i: usize) {
+    save_scroll(s);
+    {
+        let mut b = s.borrow_mut();
+        let Some(t) = b.tabs.get_mut(i) else { return };
+        if t.viewer.is_some() {
+            return;
+        }
+        t.pinned = !t.pinned;
+        // Przypięta trafia na koniec przypiętych, odpięta – zaraz za nie.
+        let to = b.tabs.iter().enumerate().filter(|(j, t)| *j != i && t.pinned).count();
+        let t = b.tabs.remove(i);
+        b.tabs.insert(to, t);
+        panes_moved(&mut b, i, to);
+        b.active = to;
+        let paths: Vec<String> = b.tabs.iter().filter(|t| t.pinned && !t.special()).map(|t| t.path.clone()).collect();
+        b.prefs.pinned_tabs = paths;
+        b.prefs.save();
+    }
+    show_tab(s);
+}
+
+/// Nowe miejsce karty po przeciągnięciu; `x` – wskaźnik w pikselach logicznych paska.
+fn move_tab(s: &Shared, from: usize, x: f32) {
+    let to = {
+        let b = s.borrow();
+        if from >= b.tabs.len() {
+            return;
+        }
+        // Szerokości jak w titlebar.slint: przypięta 40 px, zwykła 210 px, odstęp 4 px, wcięcie 8 px.
+        let mut edge = 8.0;
+        let mut to = b.tabs.len() - 1;
+        for (i, t) in b.tabs.iter().enumerate() {
+            let w = if t.pinned { 40.0 } else { 210.0 };
+            if x < edge + w / 2.0 {
+                to = i;
+                break;
+            }
+            edge += w + 4.0;
+        }
+        // Przypięte zostają przed zwykłymi.
+        let pinned = b.tabs.iter().take_while(|t| t.pinned).count();
+        if b.tabs[from].pinned {
+            to.min(pinned.saturating_sub(1))
+        } else {
+            to.max(pinned)
+        }
+    };
+    if to == from {
+        return;
+    }
+    {
+        let mut b = s.borrow_mut();
+        let t = b.tabs.remove(from);
+        b.tabs.insert(to, t);
+        panes_moved(&mut b, from, to);
+        if b.active == from {
+            b.active = to;
+        } else if b.active > from && b.active <= to {
+            b.active -= 1;
+        } else if b.active < from && b.active >= to {
+            b.active += 1;
+        }
+        if b.tabs[to].pinned {
+            let paths: Vec<String> = b.tabs.iter().filter(|t| t.pinned && !t.special()).map(|t| t.path.clone()).collect();
+            b.prefs.pinned_tabs = paths;
+            b.prefs.save();
         }
     }
     show_tab(s);
 }
 
+/// Ctrl+Shift+T – ostatnio zamknięta karta wraca na koniec.
+fn reopen_closed(s: &Shared) {
+    let Some(path) = s.borrow_mut().closed.pop() else { return };
+    save_scroll(s);
+    {
+        let mut b = s.borrow_mut();
+        b.tabs.push(Tab::new(&path));
+        b.active = b.tabs.len() - 1;
+        let f = b.focused;
+        b.panes[f] = b.active;
+    }
+    apply_prefs(s);
+    load(s, false);
+}
+
+/// Zamyka wszystkie karty poza `i` (przypięte zostają).
+fn close_others(s: &Shared, i: usize) {
+    // Od końca, żeby numery kart przed `i` się nie przesuwały.
+    for j in (0..s.borrow().tabs.len()).rev() {
+        if j != i && !s.borrow().tabs[j].pinned {
+            close_tab(s, j);
+        }
+    }
+    let at = s.borrow().tabs.iter().take(i).filter(|t| t.pinned).count();
+    let last = s.borrow().tabs.len() - 1;
+    s.borrow_mut().active = at.min(last);
+    show_tab(s);
+}
+
+/// Zamyka karty po prawej stronie `i`.
+fn close_right(s: &Shared, i: usize) {
+    while s.borrow().tabs.len() > i + 1 {
+        let last = s.borrow().tabs.len() - 1;
+        if s.borrow().tabs[last].pinned {
+            break;
+        }
+        close_tab(s, last);
+    }
+}
+
 fn save_scroll(s: &Shared) {
-    let top = s.borrow().viewport.0;
+    let top = { let b = s.borrow(); b.viewports[b.focused].0 };
     tab_mut(s, |t| t.scroll = top);
 }
 
-/// Przełączenie karty: zawartość jest już wczytana, tylko odświeżamy widok.
+/// Przełączenie karty: zawartość zwykle jest już wczytana, tylko odświeżamy widok.
+/// Przypięte karty z poprzedniego uruchomienia wczytują się przy pierwszym wejściu.
 fn show_tab(s: &Shared) {
+    sync_panes(s);
+    if !tab_mut(s, |t| t.loaded || t.special()) {
+        viewer::sync_tab(s);
+        apply_prefs(s);
+        load(s, false);
+        return;
+    }
     let (scroll, filter) = tab_mut(s, |t| (t.scroll, t.filter.clone()));
     if let Some(ui) = s.borrow().ui.upgrade() {
         ui.set_query(filter.into());
@@ -521,6 +912,7 @@ fn show_tab(s: &Shared) {
     render_all(s);
     set_scroll(s, scroll);
     watch(s);
+    viewer::sync_tab(s);
 }
 
 fn navigate(s: &Shared, path: &str, push: bool) {
@@ -664,6 +1056,7 @@ fn load(s: &Shared, keep_selection: bool) {
         b.prefs.auto_gallery && !b.prefs.folders.contains_key(&path.to_lowercase())
     };
     tab_mut(s, |t| {
+        t.loaded = true;
         match res {
             Ok(list) => {
                 t.entries = list;
@@ -719,13 +1112,21 @@ fn refresh(s: &Shared) {
     render_all(s);
 }
 
-fn layout(s: &Shared) {
+/// Układ elementów we wskazanym panelu (szerokość bierze z jego widoku).
+fn layout_pane(s: &Shared, pane: usize) {
     let mut b = s.borrow_mut();
     let b = &mut *b;
-    let (w, g, r) = (b.viewport.1, b.prefs.grid_size, b.prefs.gallery_row);
+    let Some(&tab) = b.panes.get(pane) else { return };
+    let (w, g, r) = (b.viewports[pane].1, b.prefs.grid_size, b.prefs.gallery_row);
     let media = &b.media;
-    let t = &mut b.tabs[b.active];
+    let t = &mut b.tabs[tab];
     t.layout(w, g, r, |e| ratio_of(media, e));
+}
+
+/// Układ panelu wskazanego – tak działa cała reszta programu, która nie wie o podziale.
+fn layout(s: &Shared) {
+    let pane = s.borrow().focused;
+    layout_pane(s, pane);
 }
 
 /// Jak `ratioOf` w FileView.svelte.
@@ -963,6 +1364,38 @@ fn render_all(s: &Shared) {
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
+/// Napis na pustym widoku: błąd, wynik filtra albo pusty folder.
+fn empty_text(t: &Tab) -> String {
+    if !t.error.is_empty() {
+        return t.error.clone();
+    }
+    if !t.items.is_empty() {
+        return String::new();
+    }
+    match &t.search {
+        Some(x) if x.running => "Szukam…".into(),
+        Some(_) => "Nic nie znaleziono".into(),
+        None if !t.filter.is_empty() || t.kind_filter != KindFilter::All => "Brak elementów pasujących do filtra".into(),
+        None => "Ten folder jest pusty".into(),
+    }
+}
+
+/// Kolumny listy: kolejność i szerokości są wspólne, podświetlone sortowanie bierze się z karty.
+fn columns_of(prefs: &Prefs, t: &Tab) -> Vec<Column> {
+    let has_type = prefs.list_cols.contains(&Col::Type);
+    prefs
+        .list_cols
+        .iter()
+        .map(|&c| Column {
+            id: Col::ALL.iter().position(|x| *x == c).unwrap_or(0) as i32,
+            label: c.label().into(),
+            w: prefs.col_w(c),
+            right: c.right(),
+            sorted: c.sort() == Some(t.sort) && (c != Col::Ext || !has_type),
+        })
+        .collect()
+}
+
 fn render_chrome(s: &Shared) {
     let b = s.borrow();
     let Some(ui) = b.ui.upgrade() else { return };
@@ -996,20 +1429,7 @@ fn render_chrome(s: &Shared) {
         Some(x) => !x.running && !b.prefs.saved_searches.iter().any(|v| v.query == x.query && same(&v.root, &t.path)),
         None => false,
     });
-    let has_type = b.prefs.list_cols.contains(&Col::Type);
-    ui.set_columns(ModelRc::new(VecModel::from(
-        b.prefs
-            .list_cols
-            .iter()
-            .map(|&c| Column {
-                id: Col::ALL.iter().position(|x| *x == c).unwrap_or(0) as i32,
-                label: c.label().into(),
-                w: b.prefs.col_w(c),
-                right: c.right(),
-                sorted: c.sort() == Some(t.sort) && (c != Col::Ext || !has_type),
-            })
-            .collect::<Vec<_>>(),
-    )));
+    ui.set_columns(ModelRc::new(VecModel::from(columns_of(&b.prefs, t))));
     ui.set_sort_label(
         if t.group == GroupKey::None { t.sort.label().to_string() } else { format!("{} · {}", t.sort.label(), t.group.label()) }.into(),
     );
@@ -1023,21 +1443,7 @@ fn render_chrome(s: &Shared) {
     ui.set_searching(t.search.as_ref().map(|x| x.running).unwrap_or(false));
     ui.set_search_active(t.search.is_some());
     ui.set_total_height(t.total_h);
-    ui.set_empty_text(
-        if !t.error.is_empty() {
-            t.error.clone()
-        } else if t.items.is_empty() {
-            match &t.search {
-                Some(x) if x.running => "Szukam…".into(),
-                Some(_) => "Nic nie znaleziono".into(),
-                None if !t.filter.is_empty() || t.kind_filter != KindFilter::All => "Brak elementów pasujących do filtra".into(),
-                None => "Ten folder jest pusty".into(),
-            }
-        } else {
-            String::new()
-        }
-        .into(),
-    );
+    ui.set_empty_text(empty_text(t).into());
     ui.set_tabs(ModelRc::new(VecModel::from(
         b.tabs
             .iter()
@@ -1048,14 +1454,38 @@ fn render_chrome(s: &Shared) {
                 title: t.title().into(),
                 icon: tab_icon(t),
                 active: i == b.active,
-                pinned: false,
+                pinned: t.pinned,
                 loading: t.search.as_ref().map(|x| x.running).unwrap_or(false),
             })
             .collect::<Vec<_>>(),
     )));
     drop(b);
+    render_pane2(s);
     render_side(s);
     render_status(s);
+}
+
+/// Drugi panel: te same dane co pasek narzędzi daje wskazanemu, ale dla karty obok.
+/// Pasek adresu i polecenia zostają jedne – pracują na wskazanym panelu.
+fn render_pane2(s: &Shared) {
+    let b = s.borrow();
+    let Some(ui) = b.ui.upgrade() else { return };
+    let split = b.panes.len() == 2;
+    ui.set_split(split);
+    ui.set_split_ratio(b.split_ratio);
+    ui.set_focused_pane(b.focused as i32);
+    if !split {
+        return;
+    }
+    let t = &b.tabs[b.panes[1]];
+    ui.set_view2(t.view.index());
+    ui.set_sort_name2(t.sort == SortKey::Name);
+    ui.set_desc2(t.desc);
+    ui.set_folder2(if t.special() || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
+    ui.set_total_height2(t.total_h);
+    ui.set_empty_text2(empty_text(t).into());
+    ui.set_scroll_y2(-b.viewports[1].0);
+    ui.set_columns2(ModelRc::new(VecModel::from(columns_of(&b.prefs, t))));
 }
 
 fn render_status(s: &Shared) {
@@ -1088,50 +1518,61 @@ pub fn render_items(s: &Shared) {
     s.borrow_mut().epoch += 1;
     paint_items(s);
     render_status(s);
+    // Podgląd nadąża za zaznaczeniem (sam pomija, gdy nic się nie zmieniło).
+    preview::sync(s);
 }
 
 /// Przewinięcie: rysujemy z zapasem (ekran wyżej i dwa niżej), a ponownie dopiero,
 /// gdy widok zbliży się do krawędzi narysowanego obszaru – Slint sam przesuwa treść.
-fn scroll_items(s: &Shared) {
+fn scroll_items(s: &Shared, pane: usize) {
     let skip = {
         let b = s.borrow();
-        let (top, _, h) = b.viewport;
-        let (lo, hi) = b.painted;
+        let (top, _, h) = b.viewports[pane];
+        let (lo, hi) = b.painted[pane];
         top - h * 0.3 >= lo && top + h * 1.3 <= hi
     };
     if !skip {
-        paint_items(s);
+        paint_pane(s, pane);
     }
 }
 
 /// Stałe sloty: element i zawsze trafia do wiersza i % pojemność, więc przy przewijaniu
 /// zmieniają się tylko wiersze, które weszły w zakres – reszta zostaje nietknięta.
-fn paint_items(s: &Shared) {
+fn paint_pane(s: &Shared, pane: usize) {
     let Some(ui) = s.borrow().ui.upgrade() else { return };
-    let (lo, hi, range) = {
+    let Some((lo, hi, range)) = ({
         let b = s.borrow();
-        let (top, _, h) = b.viewport;
-        let (lo, hi) = (top - h, top + h * 2.0);
-        (lo, hi, b.tabs[b.active].visible_in(lo, hi))
+        b.panes.get(pane).map(|&tab| {
+            let (top, _, h) = b.viewports[pane];
+            let (lo, hi) = (top - h, top + h * 2.0);
+            (lo, hi, b.tabs[tab].visible_in(lo, hi))
+        })
+    }) else {
+        return;
     };
-    let model = ui.get_items();
-    let fits = s.borrow().slots.len();
+    let model = if pane == 0 { ui.get_items() } else { ui.get_items2() };
+    let fits = s.borrow().slots[pane].len();
     let vm = match model.as_any().downcast_ref::<VecModel<VisItem>>() {
         Some(vm) if fits >= range.len() && vm.row_count() == fits && fits > 0 => vm,
         _ => {
             let cap = (range.len() + 64).next_multiple_of(32);
-            s.borrow_mut().slots = vec![None; cap];
-            ui.set_items(ModelRc::new(VecModel::from(vec![VisItem::default(); cap])));
-            return paint_items(s);
+            s.borrow_mut().slots[pane] = vec![None; cap];
+            let fresh = ModelRc::new(VecModel::from(vec![VisItem::default(); cap]));
+            if pane == 0 {
+                ui.set_items(fresh);
+            } else {
+                ui.set_items2(fresh);
+            }
+            return paint_pane(s, pane);
         }
     };
     let scale = ui.window().scale_factor();
     let mut b = s.borrow_mut();
-    let cap = b.slots.len();
+    let cap = b.slots[pane].len();
     let epoch = b.epoch;
-    let mut slots = std::mem::take(&mut b.slots);
+    let mut slots = std::mem::take(&mut b.slots[pane]);
     let st: &State = &*b;
-    let t = &st.tabs[st.active];
+    let t = &st.tabs[st.panes[pane]];
     for (slot, cur) in slots.iter_mut().enumerate() {
         // Indeks z zakresu, który wypada na ten slot (najwyżej jeden, bo zakres ≤ pojemność).
         let want = {
@@ -1171,7 +1612,7 @@ fn paint_items(s: &Shared) {
                 index: hd.group as i32,
                 x: pad,
                 y: hd.y,
-                w: (st.viewport.1 - pad * 2.0).max(100.0),
+                w: (st.viewports[pane].1 - pad * 2.0).max(100.0),
                 label: groups[hd.group].label.clone().into(),
                 count: (groups[hd.group].end - groups[hd.group].start) as i32,
                 shut: hd.shut,
@@ -1179,12 +1620,24 @@ fn paint_items(s: &Shared) {
             .collect(),
         None => Vec::new(),
     };
-    let old = ui.get_heads();
+    let old = if pane == 0 { ui.get_heads() } else { ui.get_heads2() };
     if old.row_count() != heads.len() || old.iter().zip(&heads).any(|(a, b)| a != *b) {
-        ui.set_heads(ModelRc::new(VecModel::from(heads)));
+        let fresh = ModelRc::new(VecModel::from(heads));
+        if pane == 0 {
+            ui.set_heads(fresh);
+        } else {
+            ui.set_heads2(fresh);
+        }
     }
-    b.slots = slots;
-    b.painted = (lo, hi);
+    b.slots[pane] = slots;
+    b.painted[pane] = (lo, hi);
+}
+
+/// Rysuje oba panele (drugi tylko przy podziale).
+fn paint_items(s: &Shared) {
+    for pane in 0..s.borrow().panes.len() {
+        paint_pane(s, pane);
+    }
 }
 
 /// Dotarły miniatury lub ikony: odświeżamy tylko wiersze tych plików, a panel boczny – gdy dotyczy.
@@ -1193,21 +1646,25 @@ pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     let side = s.borrow().side_paths.iter().any(|p| paths.contains(p));
     {
         let b = s.borrow();
-        let model = ui.get_items();
-        let Some(vm) = model.as_any().downcast_ref::<VecModel<VisItem>>() else { return };
-        let t = &b.tabs[b.active];
         let scale = ui.window().scale_factor();
-        for (slot, cur) in b.slots.iter().enumerate() {
-            let Some((i, _)) = cur else { continue };
-            let (Some(e), Some(bx)) = (t.items.get(*i), t.boxes.get(*i)) else { continue };
-            if paths.contains(&e.path) && slot < vm.row_count() {
-                vm.set_row_data(slot, vis_item(&b, t, *i, e, *bx, scale));
+        for pane in 0..b.panes.len() {
+            let model = if pane == 0 { ui.get_items() } else { ui.get_items2() };
+            let Some(vm) = model.as_any().downcast_ref::<VecModel<VisItem>>() else { continue };
+            let t = &b.tabs[b.panes[pane]];
+            for (slot, cur) in b.slots[pane].iter().enumerate() {
+                let Some((i, _)) = cur else { continue };
+                let (Some(e), Some(bx)) = (t.items.get(*i), t.boxes.get(*i)) else { continue };
+                if paths.contains(&e.path) && slot < vm.row_count() {
+                    vm.set_row_data(slot, vis_item(&b, t, *i, e, *bx, scale));
+                }
             }
         }
     }
     if side {
         render_side(s);
     }
+    preview::thumbs_arrived(s, paths);
+    viewer::thumbs_arrived(s, paths);
     if shelf::shows_any(s, paths) {
         shelf::render(s);
     }
@@ -1376,8 +1833,17 @@ fn cells(b: &State, e: &fsx::Entry) -> Vec<SharedString> {
 fn set_scroll(s: &Shared, top: f32) {
     let ui = s.borrow().ui.upgrade();
     if let Some(ui) = ui {
-        s.borrow_mut().viewport.0 = top;
-        ui.set_scroll_y(-top);
+        let pane = {
+            let mut b = s.borrow_mut();
+            let pane = b.focused;
+            b.viewports[pane].0 = top;
+            pane
+        };
+        if pane == 0 {
+            ui.set_scroll_y(-top);
+        } else {
+            ui.set_scroll_y2(-top);
+        }
         render_items(s);
     }
 }
@@ -1386,7 +1852,7 @@ fn set_scroll(s: &Shared, top: f32) {
 fn reveal(s: &Shared, i: usize) {
     let (top, h, bx) = {
         let b = s.borrow();
-        (b.viewport.0, b.viewport.2, b.tabs[b.active].boxes.get(i).copied())
+        (b.viewports[b.focused].0, b.viewports[b.focused].2, b.tabs[b.active].boxes.get(i).copied())
     };
     let Some(bx) = bx else { return };
     if bx.y < top {
@@ -1426,11 +1892,20 @@ fn select(s: &Shared, i: usize, ctrl: bool, shift: bool) {
     render_items(s);
 }
 
+/// Otwiera element listy po ścieżce (menu, panel podglądu).
+pub fn open_path(s: &Shared, path: &str) {
+    if let Some(i) = tab_mut(s, |t| t.items.iter().position(|e| e.path == path)) {
+        open(s, i);
+    }
+}
+
 fn open(s: &Shared, i: usize) {
     let e = tab_mut(s, |t| t.items.get(i).cloned());
     let Some(e) = e else { return };
     if e.dir || archives::browsable(&e) {
         navigate(s, &e.path, true);
+    } else if fmt::is_media(&e) && !archives::inside(&e.path) && viewer::open(s, i) {
+        // Zdjęcia i filmy – w przeglądarce w oknie aplikacji.
     } else if archives::inside(&e.path) {
         archives::open_file(&e.path);
     } else {
@@ -1799,6 +2274,16 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
 fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     use slint::platform::Key;
     let is = |key: Key| k == SharedString::from(key).as_str();
+    // Przy otwartej palecie klawisze obsługuje ona sama; skrót zamyka ją z powrotem.
+    if palette::is_open(s) {
+        // Skrót tej samej palety zamyka, skrót drugiej przełącza na nią.
+        if ctrl && shift && k.eq_ignore_ascii_case("p") {
+            palette::toggle(s, false);
+        } else if ctrl && k.eq_ignore_ascii_case("k") {
+            palette::toggle(s, true);
+        }
+        return;
+    }
     if alt && is(Key::LeftArrow) {
         return back(s);
     }
@@ -1811,11 +2296,33 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     if alt && is(Key::Return) {
         return command(s, "props");
     }
+    if alt && k.eq_ignore_ascii_case("p") {
+        return preview::toggle(s);
+    }
     if ctrl && shift && k.eq_ignore_ascii_case("s") {
         return shelf::shortcut(s);
     }
     if ctrl && shift && k.eq_ignore_ascii_case("n") {
         return create(s, true);
+    }
+    if ctrl && shift && k.eq_ignore_ascii_case("t") {
+        return reopen_closed(s);
+    }
+    if ctrl && k == "\\" {
+        return toggle_split(s);
+    }
+    if ctrl && shift && k.eq_ignore_ascii_case("p") {
+        return palette::open(s);
+    }
+    if ctrl && k.eq_ignore_ascii_case("k") {
+        return palette::open_places(s);
+    }
+    if is(Key::F6) {
+        let (panes, focused) = { let b = s.borrow(); (b.panes.len(), b.focused) };
+        if panes == 2 {
+            return focus_pane(s, 1 - focused);
+        }
+        return;
     }
     if ctrl && k.eq_ignore_ascii_case("b") {
         return toggle_side_mini(s);
@@ -1833,6 +2340,8 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
             let mut b = s.borrow_mut();
             let n = b.tabs.len();
             b.active = (b.active + if shift { n - 1 } else { 1 }) % n;
+            let f = b.focused;
+            b.panes[f] = b.active;
         }
         return show_tab(s);
     }
@@ -1878,6 +2387,13 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     }
     if is(Key::F5) {
         return load(s, true);
+    }
+    // Spacja – zdjęcie albo film pod kursorem w przeglądarce (Podgląd).
+    if k == " " && !ctrl && !alt {
+        if let Some(i) = tab_mut(s, |t| t.focus.filter(|i| t.items.get(*i).is_some_and(|e| fmt::is_media(e)))) {
+            viewer::open(s, i);
+            return;
+        }
     }
     if is(Key::F2) {
         return command(s, "rename");
@@ -1983,7 +2499,9 @@ fn ic(name: &str) -> SharedString {
 
 fn tab_icon(t: &Tab) -> SharedString {
     let path = &t.path;
-    if t.search.is_some() {
+    if t.viewer.is_some() {
+        ic("gallery")
+    } else if t.search.is_some() {
         ic("search")
     } else if path == HOME {
         ic("pc")

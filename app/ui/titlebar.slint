@@ -18,6 +18,9 @@ export component TitleBar inherits Rectangle {
     in property <bool> maximized;
     callback activate(int);
     callback close-tab(int);
+    /// Przeciągnięcie karty: numer karty i wskaźnik w poziomie (piksele paska).
+    callback move-tab(int, length);
+    callback tab-menu(int, length, length);
     callback new-tab;
     callback minimize;
     callback toggle-maximize;
@@ -49,7 +52,7 @@ export component TitleBar inherits Rectangle {
         padding-left: 8px;
         spacing: 6px;
 
-        HorizontalLayout {
+        strip := HorizontalLayout {
             spacing: 4px;
             alignment: start;
             for t[i] in root.tabs: Rectangle {
@@ -60,7 +63,7 @@ export component TitleBar inherits Rectangle {
                 background: Drag.active && Drag.target == t.path ? Theme.sel-strong : t.active ? Theme.higher : tab-ta.has-hover ? Theme.hover : transparent;
                 animate background { duration: 120ms; }
                 tab-ta := TipArea {
-                    tip: t.tip;
+                    tip: t.pinned ? t.title + " – karta przypięta" : t.tip;
                     drop: t.path;
                     clicked => {
                         root.activate(i);
@@ -68,6 +71,13 @@ export component TitleBar inherits Rectangle {
                     pointer-event(e) => {
                         if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
                             root.close-tab(i);
+                        }
+                        if (e.kind == PointerEventKind.down && e.button == PointerEventButton.right) {
+                            root.tab-menu(i, self.absolute-position.x + self.mouse-x, 38px);
+                        }
+                        // Puszczenie po przeciągnięciu w bok – karta ląduje w nowym miejscu.
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && abs((self.mouse-x - self.pressed-x) / 1px) > 12) {
+                            root.move-tab(i, self.absolute-position.x + self.mouse-x - strip.absolute-position.x);
                         }
                     }
                 }

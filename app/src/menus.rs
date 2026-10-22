@@ -50,6 +50,11 @@ impl Item {
         self.danger = true;
         self
     }
+    /// Pozycja nieczynna w tym miejscu (np. zamknięcie jedynej karty).
+    fn disabled(mut self) -> Item {
+        self.disabled = true;
+        self
+    }
     /// Pozycja widoczna jak w wersji webowej, ale jeszcze nieprzeniesiona.
     fn later(mut self) -> Item {
         self.disabled = true;
@@ -153,15 +158,11 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
         }
         Some(e) => {
             let p = e.path.clone();
-            v.push(it("Otwórz", "open", move |_| {
-                if crate::archives::inside(&p) {
-                    crate::archives::open_file(&p);
-                } else {
-                    let _ = open::that_detached(&p);
-                }
-            })
-            .kbd("Enter"));
-            v.push(it("Podgląd", "eye", |_| {}).kbd("Spacja").later());
+            v.push(it("Otwórz", "open", move |s| crate::open_path(s, &p)).kbd("Enter"));
+            if crate::fmt::is_media(e) && !crate::archives::inside(&e.path) {
+                let p = e.path.clone();
+                v.push(it("Podgląd", "eye", move |s| crate::open_path(s, &p)).kbd("Spacja"));
+            }
             let p = e.path.clone();
             v.push(it("Otwórz za pomocą…", "app", move |s| {
                 shell::open_with(crate::hwnd(s), &p);
@@ -535,4 +536,40 @@ pub fn saved_menu(s: &Shared, id: String, x: f32, y: f32) {
         x,
         y,
     );
+}
+
+/// Menu karty (prawy przycisk na karcie): nowa, duplikat, przypięcie i zamykanie.
+pub fn tab_menu(s: &Shared, i: usize, x: f32, y: f32) {
+    let (pinned, path, viewer, closable, right) = {
+        let b = s.borrow();
+        let Some(t) = b.tabs.get(i) else { return };
+        (t.pinned, t.path.clone(), t.viewer.is_some(), b.tabs.len() > 1 && !t.pinned, b.tabs.len() > i + 1)
+    };
+    let others = s.borrow().tabs.iter().enumerate().any(|(j, t)| j != i && !t.pinned);
+    let can_reopen = !s.borrow().closed.is_empty();
+    let mut v = vec![it("Nowa karta", "plus", |s| crate::new_tab(s)).kbd("Ctrl+T")];
+    if !viewer {
+        v.push(it("Duplikuj kartę", "copy", move |s| crate::new_tab_at(s, &path, true)));
+    }
+    v.push(sep());
+    if !viewer {
+        v.push(it(if pinned { "Odepnij kartę" } else { "Przypnij kartę" }, "pin", move |s| crate::pin_tab(s, i)));
+    }
+    v.push(it("Przywróć zamkniętą kartę", "refresh", |s| crate::reopen_closed(s)).kbd("Ctrl+Shift+T"));
+    if !can_reopen {
+        v.pop();
+    }
+    v.push(sep());
+    let mut close = it("Zamknij kartę", "close", move |s| crate::close_tab(s, i)).kbd("Ctrl+W");
+    if !closable {
+        close = close.disabled();
+    }
+    v.push(close);
+    if others {
+        v.push(it("Zamknij pozostałe karty", "close", move |s| crate::close_others(s, i)));
+    }
+    if right {
+        v.push(it("Zamknij karty po prawej", "close", move |s| crate::close_right(s, i)));
+    }
+    show(s, v, x, y);
 }

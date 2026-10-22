@@ -387,6 +387,12 @@ pub struct Tab {
     /// Zaznaczenie zapamiętane dla każdego folderu (ścieżki i element z fokusem) – wraca po powrocie.
     pub sel_memory: HashMap<String, (Vec<String>, Option<String>)>,
     /// Element, któremu właśnie zmieniamy nazwę.
+    /// Karta przypięta: wąska, bez krzyżyka, zawsze po lewej, wraca po uruchomieniu.
+    pub pinned: bool,
+    /// Zawartość już wczytana – przypięte karty z poprzedniego uruchomienia czekają na pierwsze wejście.
+    pub loaded: bool,
+    /// Przeglądarka zdjęć tej karty (karta `ofp:viewer`).
+    pub viewer: Option<crate::viewer::Viewer>,
     pub renaming: Option<String>,
 }
 
@@ -420,6 +426,9 @@ impl Tab {
             generation: 0,
             sel_memory: HashMap::new(),
             renaming: None,
+            pinned: false,
+            loaded: false,
+            viewer: None,
         }
     }
 
@@ -428,6 +437,9 @@ impl Tab {
     }
 
     pub fn title(&self) -> String {
+        if let Some(v) = &self.viewer {
+            return v.list[v.index].name.clone();
+        }
         if let Some(s) = &self.search {
             return format!("„{}”", s.query);
         }
@@ -805,6 +817,13 @@ pub struct Prefs {
     /// Ścieżki na półce i czy jest otwarta.
     pub shelf: Vec<String>,
     pub shelf_open: bool,
+    /// Panel podglądu: widoczny i szerokość.
+    pub preview_open: bool,
+    pub preview_width: f32,
+    /// Panel informacji (EXIF) w przeglądarce.
+    pub viewer_info: bool,
+    /// Przypięte karty – wracają przy uruchomieniu.
+    pub pinned_tabs: Vec<String>,
 }
 
 /// Wyszukiwanie zapisane w panelu bocznym.
@@ -818,7 +837,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new() }
     }
 }
 
