@@ -26,8 +26,8 @@ Zasady:
 
 | Etap | Zakres | Stan |
 |---|---|---|
-| 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | **w toku** |
-| 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | – |
+| 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | gotowe |
+| 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | **w toku** |
 | 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | – |
 | 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | – |
 | 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
@@ -44,18 +44,23 @@ Zasady:
 - [ ] Karty: przypinanie, przeciąganie, przywracanie zamkniętych (Ctrl+Shift+T), menu karty, upuszczanie plików na kartę
 - [ ] Podział na dwa panele (Ctrl+\\)
 - [x] Wstecz / dalej / w górę / odśwież, Alt+strzałki, Backspace, F5
-- [ ] Okruszki z rozwijanymi podfolderami, edycja ścieżki z podpowiedziami
+- [x] Okruszki z rozwijanymi podfolderami, edycja ścieżki (Ctrl+L, Alt+D)
+- [ ] Podpowiedzi przy edycji ścieżki
 - [ ] Paleta szybkiego przejścia (Ctrl+K) i poleceń (Ctrl+Shift+P)
-- [ ] Boczne przyciski myszy, F6 między obszarami, pełna obsługa klawiatury
+- [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
+- [ ] Boczne przyciski myszy, F6 między obszarami, wpisywanie nazwy, zaznaczanie ramką
 - [ ] Mica / Acrylic, akcent systemowy i własny, krycie okienek
 
 ### Widoki plików
 - [x] Lista (podstawowe kolumny), ikony systemowe
-- [ ] Siatka i galeria z wirtualnym przewijaniem (dziesiątki tysięcy plików)
-- [ ] Miniatury z pamięci podręcznej Windows (w tym RAW/HEIC), miniatury PDF
-- [ ] Kolumny konfigurowalne, szerokości, sortowanie, grupowanie, foldery na górze
-- [ ] Widok i sortowanie zapamiętywane per folder, auto-galeria
-- [ ] Filtrowanie na żywo, filtry typów i faset, wyszukiwanie w podfolderach, zapisane wyszukiwania
+- [x] Siatka i galeria z wirtualnym przewijaniem (układ liczony w Rust, rysowane tylko widoczne)
+- [x] Miniatury z pamięci podręcznej Windows (w tym RAW/HEIC)
+- [ ] Miniatury PDF renderowane, gdy Windows ich nie ma
+- [x] Sortowanie (menu i nagłówki kolumn), foldery na górze, sortowanie naturalne
+- [ ] Kolumny konfigurowalne, szerokości, grupowanie
+- [x] Widok i sortowanie zapamiętywane per folder, auto-galeria, wielkość miniatur (suwak, Ctrl+kółko)
+- [x] Filtrowanie na żywo (z `*` i `?`), wyszukiwanie w podfolderach (Enter)
+- [ ] Filtry typów i faset, składnia zapytań (typ:, rozmiar…), zapisane wyszukiwania
 - [ ] Zaznaczanie ramką, zmiana nazwy w miejscu, zaznaczenie zapamiętane per folder
 - [ ] Rozmiary folderów, metadane mediów (wymiary, czas trwania, data wykonania)
 

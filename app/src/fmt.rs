@@ -69,3 +69,8 @@ pub fn items(n: usize) -> String {
     };
     format!("{n} {w}")
 }
+
+/// Zdjęcia, RAW i wideo – mają miniatury i własne proporcje w galerii.
+pub fn is_media(e: &Entry) -> bool {
+    !e.dir && matches!(kind_label(&e.ext.to_lowercase()), "Obraz" | "Zdjęcie RAW" | "Wideo")
+}

@@ -4881,6 +4881,9 @@ dependencies = [
  "image",
  "open",
  "powerdesk-core",
+ "raw-window-handle",
+ "serde",
+ "serde_json",
  "slint",
  "slint-build",
 ]

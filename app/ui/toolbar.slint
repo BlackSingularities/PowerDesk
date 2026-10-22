@@ -1,0 +1,433 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label } from "components.slint";
+
+export struct Crumb {
+    name: string,
+    path: string,
+}
+
+/// Pasek narzędzi (Toolbar.svelte): nawigacja, okruszki z podfolderami, filtr/wyszukiwanie,
+/// polecenia, sortowanie, wielkość miniatur i przełącznik widoków.
+export component Toolbar inherits Rectangle {
+    in property <[Crumb]> crumbs;
+    in property <string> path;
+    in property <image> folder-icon;
+    in property <bool> special;
+    in property <bool> can-back;
+    in property <bool> can-forward;
+    in property <bool> has-selection;
+    in property <bool> searching;
+    in property <bool> search-active;
+    in property <string> sort-label;
+    in property <int> view;
+    in-out property <float> zoom;
+    in property <float> zoom-min: 84;
+    in property <float> zoom-max: 280;
+    in-out property <string> query;
+
+    callback back;
+    callback forward;
+    callback up;
+    callback refresh;
+    callback navigate(string);
+    callback crumb-menu(string, length, length);
+    callback filter-changed(string);
+    callback search(string);
+    callback clear-search;
+    callback sort-menu(length, length);
+    callback set-view(int);
+    callback zoom-changed(float);
+    callback new-menu(length, length);
+    callback command(string);
+
+    property <bool> editing;
+
+    public function edit-address() {
+        editing = true;
+        addr.text = root.path;
+        addr.focus();
+        addr.select-all();
+    }
+    public function focus-search() {
+        search-input.focus();
+        search-input.select-all();
+    }
+
+    VerticalLayout {
+        padding-left: 12px;
+        padding-right: 12px;
+        padding-top: 8px;
+        padding-bottom: 6px;
+        spacing: 6px;
+
+        // Wiersz nawigacji.
+        HorizontalLayout {
+            height: 36px;
+            spacing: 2px;
+            IconButton {
+                y: 3px;
+                icon: Icons.back;
+                icon-size: 18px;
+                enabled: root.can-back;
+                clicked => {
+                    root.back();
+                }
+            }
+            IconButton {
+                y: 3px;
+                icon: Icons.fwd;
+                icon-size: 18px;
+                enabled: root.can-forward;
+                clicked => {
+                    root.forward();
+                }
+            }
+            IconButton {
+                y: 3px;
+                icon: Icons.up;
+                icon-size: 18px;
+                enabled: !root.special;
+                clicked => {
+                    root.up();
+                }
+            }
+            IconButton {
+                y: 3px;
+                icon: Icons.refresh;
+                icon-size: 17px;
+                clicked => {
+                    root.refresh();
+                }
+            }
+            Rectangle {
+                width: 6px;
+            }
+
+            // Pasek adresu: okruszki albo pole edycji.
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: Theme.r;
+                background: root.editing ? Theme.higher : Theme.high;
+                clip: true;
+
+                if !root.editing: TouchArea {
+                    clicked => {
+                        root.edit-address();
+                    }
+                }
+                if !root.editing: HorizontalLayout {
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    alignment: start;
+                    Image {
+                        y: (parent.height - 16px) / 2;
+                        width: 16px;
+                        height: 16px;
+                        source: root.folder-icon;
+                    }
+                    Rectangle {
+                        width: 4px;
+                    }
+                    for c[i] in root.crumbs: HorizontalLayout {
+                        Rectangle {
+                            y: 4px;
+                            height: 28px;
+                            width: crumb-text.preferred-width + 16px;
+                            border-radius: Theme.r-s;
+                            background: crumb-ta.has-hover ? Theme.press : transparent;
+                            crumb-text := Label {
+                                x: 8px;
+                                width: min(self.preferred-width, 260px);
+                                text: c.name;
+                                color: i == root.crumbs.length - 1 || crumb-ta.has-hover ? Theme.text : Theme.dim;
+                                font-weight: i == root.crumbs.length - 1 ? 600 : 400;
+                            }
+                            crumb-ta := TouchArea {
+                                clicked => {
+                                    root.navigate(c.path);
+                                }
+                            }
+                        }
+                        if i < root.crumbs.length - 1: Rectangle {
+                            y: 5px;
+                            width: 18px;
+                            height: 26px;
+                            border-radius: Theme.r-xs;
+                            background: sep-ta.has-hover ? Theme.press : transparent;
+                            Icon {
+                                commands: Icons.chevron;
+                                size: 13px;
+                                color: sep-ta.has-hover ? Theme.text : Theme.faint;
+                            }
+                            sep-ta := TouchArea {
+                                clicked => {
+                                    root.crumb-menu(c.path, self.absolute-position.x, self.absolute-position.y + 30px);
+                                }
+                            }
+                        }
+                    }
+                }
+                addr := TextInput {
+                    visible: root.editing;
+                    x: 14px;
+                    width: parent.width - 28px;
+                    color: Theme.text;
+                    font-family: Theme.font;
+                    font-size: Theme.font-size;
+                    vertical-alignment: center;
+                    single-line: true;
+                    selection-background-color: Theme.sel-strong;
+                    accepted => {
+                        root.editing = false;
+                        root.navigate(self.text);
+                    }
+                    key-pressed(e) => {
+                        if (e.text == Key.Escape) {
+                            root.editing = false;
+                            return accept;
+                        }
+                        reject
+                    }
+                    changed has-focus => {
+                        if (!self.has-focus) {
+                            root.editing = false;
+                        }
+                    }
+                }
+            }
+            Rectangle {
+                width: 6px;
+            }
+
+            // Filtr / wyszukiwanie.
+            Rectangle {
+                width: search-input.has-focus || root.search-active ? 380px : 300px;
+                animate width { duration: 200ms; easing: cubic-bezier(0.2, 0.8, 0.2, 1); }
+                border-radius: Theme.r;
+                background: search-input.has-focus || root.search-active ? Theme.higher : Theme.high;
+                HorizontalLayout {
+                    padding-left: 12px;
+                    padding-right: 8px;
+                    spacing: 8px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.search;
+                        size: 16px;
+                        color: search-input.has-focus || root.search-active ? Theme.text : Theme.faint;
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        search-input := TextInput {
+                            width: 100%;
+                            text <=> root.query;
+                            enabled: !root.special;
+                            color: Theme.text;
+                            font-family: Theme.font;
+                            font-size: Theme.font-size;
+                            vertical-alignment: center;
+                            single-line: true;
+                            selection-background-color: Theme.sel-strong;
+                            edited => {
+                                root.filter-changed(self.text);
+                            }
+                            accepted => {
+                                if (self.text != "") {
+                                    root.search(self.text);
+                                }
+                            }
+                            key-pressed(e) => {
+                                if (e.text == Key.Escape) {
+                                    root.query = "";
+                                    root.clear-search();
+                                    return accept;
+                                }
+                                reject
+                            }
+                        }
+                        Label {
+                            visible: root.query == "";
+                            text: root.special ? "Szukaj…" : "Filtruj · Enter: szukaj w podfolderach";
+                            color: Theme.faint;
+                        }
+                    }
+                    if root.searching: Rectangle {
+                        y: (parent.height - 6px) / 2;
+                        width: 6px;
+                        height: 6px;
+                        border-radius: 3px;
+                        background: Theme.accent;
+                    }
+                    if root.query != "" || root.search-active: IconButton {
+                        y: (parent.height - self.height) / 2;
+                        size: 24px;
+                        icon: Icons.close;
+                        icon-size: 13px;
+                        clicked => {
+                            root.query = "";
+                            root.clear-search();
+                        }
+                    }
+                }
+            }
+        }
+
+        // Wiersz poleceń.
+        if !root.special: HorizontalLayout {
+            height: 34px;
+            spacing: 2px;
+            // Przycisk „Nowy” (btn primary sm).
+            Rectangle {
+                y: 2px;
+                height: 30px;
+                width: new-row.preferred-width + 24px;
+                border-radius: Theme.r-s;
+                background: new-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
+                new-row := HorizontalLayout {
+                    x: 10px;
+                    spacing: 6px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.plus;
+                        size: 16px;
+                        color: Theme.on-accent;
+                    }
+                    Label {
+                        text: "Nowy";
+                        color: Theme.on-accent;
+                        font-weight: 600;
+                    }
+                }
+                new-ta := TouchArea {
+                    clicked => {
+                        root.new-menu(self.absolute-position.x, self.absolute-position.y + 34px);
+                    }
+                }
+            }
+            Rectangle {
+                width: 13px;
+                Rectangle {
+                    width: 1px;
+                    height: 18px;
+                    background: Theme.line;
+                }
+            }
+            for c in [
+                { id: "cut", icon: Icons.cut, sel: true },
+                { id: "copy", icon: Icons.copy, sel: true },
+                { id: "paste", icon: Icons.paste, sel: false },
+                { id: "rename", icon: Icons.edit, sel: true },
+                { id: "trash", icon: Icons.trash, sel: true },
+                { id: "props", icon: Icons.info, sel: true },
+            ]: IconButton {
+                y: 2px;
+                icon: c.icon;
+                icon-size: 18px;
+                enabled: !c.sel || root.has-selection;
+                clicked => {
+                    root.command(c.id);
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+            // Sortowanie (btn ghost sm).
+            Rectangle {
+                y: 2px;
+                height: 30px;
+                width: sort-row.preferred-width + 20px;
+                border-radius: Theme.r-s;
+                background: sort-ta.has-hover ? Theme.hover : transparent;
+                sort-row := HorizontalLayout {
+                    x: 10px;
+                    spacing: 6px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.sort;
+                        size: 16px;
+                        color: Theme.dim;
+                    }
+                    Label {
+                        text: root.sort-label;
+                        color: Theme.dim;
+                    }
+                }
+                sort-ta := TouchArea {
+                    clicked => {
+                        root.sort-menu(self.absolute-position.x, self.absolute-position.y + 34px);
+                    }
+                }
+            }
+            // Wielkość miniatur.
+            if root.view != 0: Rectangle {
+                width: 110px;
+                Rectangle {
+                    x: 8px;
+                    y: (parent.height - 4px) / 2;
+                    width: parent.width - 16px;
+                    height: 4px;
+                    border-radius: 2px;
+                    background: Theme.line-strong;
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * (root.zoom - root.zoom-min) / (root.zoom-max - root.zoom-min);
+                        border-radius: 2px;
+                        background: Theme.dim;
+                    }
+                }
+                Rectangle {
+                    x: 8px + (parent.width - 16px) * (root.zoom - root.zoom-min) / (root.zoom-max - root.zoom-min) - 7px;
+                    y: (parent.height - 14px) / 2;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 7px;
+                    background: Theme.text;
+                }
+                TouchArea {
+                    moved => {
+                        if (self.pressed) {
+                            root.zoom = clamp(root.zoom-min + (self.mouse-x - 8px) / (self.width - 16px) * (root.zoom-max - root.zoom-min), root.zoom-min, root.zoom-max);
+                            root.zoom-changed(root.zoom);
+                        }
+                    }
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down) {
+                            root.zoom = clamp(root.zoom-min + (self.mouse-x - 8px) / (self.width - 16px) * (root.zoom-max - root.zoom-min), root.zoom-min, root.zoom-max);
+                            root.zoom-changed(root.zoom);
+                        }
+                    }
+                }
+            }
+            // Przełącznik widoków (seg).
+            Rectangle {
+                y: 2px;
+                height: 30px;
+                width: 3 * 30px + 4px;
+                border-radius: Theme.r-s;
+                background: Theme.high;
+                HorizontalLayout {
+                    padding: 2px;
+                    for v[i] in [
+                        { icon: Icons.list, size: 17px },
+                        { icon: Icons.grid, size: 16px },
+                        { icon: Icons.gallery, size: 16px },
+                    ]: Rectangle {
+                        width: 30px;
+                        border-radius: Theme.r-xs;
+                        background: root.view == i ? Theme.higher : seg-ta.has-hover ? Theme.hover : transparent;
+                        Icon {
+                            commands: v.icon;
+                            size: v.size;
+                            color: root.view == i ? Theme.text : Theme.dim;
+                        }
+                        seg-ta := TouchArea {
+                            clicked => {
+                                root.set-view(i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

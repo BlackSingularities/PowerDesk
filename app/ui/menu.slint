@@ -1,0 +1,84 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label } from "components.slint";
+
+export struct MenuEntry {
+    label: string,
+    icon: string,
+    kbd: string,
+    checked: bool,
+    sep: bool,
+    disabled: bool,
+}
+
+/// Wyskakujące menu (ContextMenu.svelte): tło high, obwódka line, cień, pozycje 32 px.
+export component MenuPopup inherits PopupWindow {
+    in property <[MenuEntry]> entries;
+    in property <length> menu-width: 240px;
+    callback chosen(int);
+
+    width: menu-width;
+    close-policy: close-on-click-outside;
+
+    Rectangle {
+        drop-shadow-blur: 40px;
+        drop-shadow-offset-y: 16px;
+        drop-shadow-color: Theme.shadow;
+        background: Theme.high;
+        border-radius: Theme.r-l;
+        border-width: 1px;
+        border-color: Theme.line;
+
+        VerticalLayout {
+            padding: 6px;
+            for e[i] in root.entries: Rectangle {
+                height: e.sep ? 9px : 32px;
+                if e.sep: Rectangle {
+                    height: 1px;
+                    x: 6px;
+                    width: parent.width - 12px;
+                    background: Theme.line;
+                }
+                if !e.sep: Rectangle {
+                    border-radius: Theme.r-s;
+                    background: ta.has-hover && !e.disabled ? Theme.press : transparent;
+                    ta := TouchArea {
+                        enabled: !e.disabled;
+                        clicked => {
+                            root.chosen(i);
+                            root.close();
+                        }
+                    }
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 10px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 16px;
+                            if e.checked: Icon {
+                                commands: Icons.check;
+                                size: 15px;
+                                color: Theme.text;
+                            }
+                            if !e.checked && e.icon != "": Icon {
+                                commands: e.icon;
+                                size: 16px;
+                                color: e.disabled ? Theme.ghost : Theme.dim;
+                            }
+                        }
+                        Label {
+                            horizontal-stretch: 1;
+                            text: e.label;
+                            color: e.disabled ? Theme.ghost : ta.has-hover ? Theme.text : Theme.dim;
+                        }
+                        if e.kbd != "": Label {
+                            text: e.kbd;
+                            font-size: 11px;
+                            color: Theme.faint;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

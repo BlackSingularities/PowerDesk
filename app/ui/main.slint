@@ -1,13 +1,15 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, IconButton, Label } from "components.slint";
+import { Label } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
-import { FileList, FileRow } from "filelist.slint";
+import { Toolbar, Crumb } from "toolbar.slint";
+import { FileView, VisItem } from "fileview.slint";
+import { MenuPopup, MenuEntry } from "menu.slint";
 
-export { Theme, Icons, TabData, SideItem, FileRow }
+export { Theme, Icons, TabData, SideItem, Crumb, VisItem, MenuEntry }
 
-/// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek adresu, panel boczny, panel plików.
+/// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
     title: "PowerDesk";
     icon: @image-url("../../src-tauri/icons/128x128.png");
@@ -22,12 +24,39 @@ export component MainWindow inherits Window {
 
     in property <[TabData]> tabs;
     in property <[SideItem]> side;
-    in property <[FileRow]> rows;
+    in property <bool> is-maximized;
+
+    // Pasek narzędzi.
+    in property <[Crumb]> crumbs;
     in property <string> path;
-    in property <string> status;
+    in property <image> folder-icon;
+    in property <bool> special;
     in property <bool> can-back;
     in property <bool> can-forward;
-    in property <bool> is-maximized;
+    in property <bool> has-selection;
+    in property <bool> searching;
+    in property <bool> search-active;
+    in property <string> sort-label;
+    in-out property <string> query;
+    in-out property <float> zoom;
+    in property <float> zoom-min;
+    in property <float> zoom-max;
+
+    // Widok plików.
+    in property <[VisItem]> items;
+    in property <int> view;
+    in property <length> total-height;
+    in property <string> empty-text;
+    in property <string> sort-id;
+    in property <bool> desc;
+    in-out property <length> scroll-y;
+    in property <string> status;
+
+    // Menu.
+    in property <[MenuEntry]> menu-entries;
+    in property <length> menu-x;
+    in property <length> menu-y;
+    in property <length> menu-width: 240px;
 
     callback activate-tab(int);
     callback close-tab(int);
@@ -41,38 +70,56 @@ export component MainWindow inherits Window {
     callback forward;
     callback up;
     callback refresh;
+    callback crumb-menu(string, length, length);
+    callback filter-changed(string);
+    callback search(string);
+    callback clear-search;
+    callback sort-menu(length, length);
+    callback set-view(int);
+    callback zoom-changed(float);
+    callback new-menu(length, length);
+    callback command(string);
+    callback viewport-changed(length, length, length);
     callback select(int, bool, bool);
     callback open(int);
     callback context(int, length, length);
+    callback background-click;
+    callback header-sort(string);
+    callback zoom-step(int);
+    callback menu-chosen(int);
+    callback key(string, bool, bool, bool);
+
+    public function show-menu() {
+        menu.show();
+    }
+
+    menu := MenuPopup {
+        x: root.menu-x;
+        y: root.menu-y;
+        menu-width: root.menu-width;
+        entries: root.menu-entries;
+        chosen(i) => {
+            root.menu-chosen(i);
+        }
+    }
 
     forward-focus: keys;
     keys := FocusScope {
         key-pressed(e) => {
-            if (e.modifiers.alt && e.text == Key.LeftArrow) {
-                root.back();
+            if (e.modifiers.control && e.text == "l") {
+                toolbar.edit-address();
                 return accept;
             }
-            if (e.modifiers.alt && e.text == Key.RightArrow) {
-                root.forward();
+            if (e.modifiers.alt && e.text == "d") {
+                toolbar.edit-address();
                 return accept;
             }
-            if (e.modifiers.alt && e.text == Key.UpArrow) {
-                root.up();
+            if ((e.modifiers.control && e.text == "f") || e.text == Key.F3) {
+                toolbar.focus-search();
                 return accept;
             }
-            if (e.text == Key.Backspace) {
-                root.up();
-                return accept;
-            }
-            if (e.text == Key.F5) {
-                root.refresh();
-                return accept;
-            }
-            if (e.modifiers.control && e.text == "t") {
-                root.new-tab();
-                return accept;
-            }
-            reject
+            root.key(e.text, e.modifiers.control, e.modifiers.shift, e.modifiers.alt);
+            accept
         }
 
         VerticalLayout {
@@ -102,58 +149,71 @@ export component MainWindow inherits Window {
                 }
             }
 
-            // Pasek adresu (Toolbar.svelte – wersja podstawowa).
+            // Bez podziału pasek adresu i poleceń jest jeden, na całą szerokość okna (jak w Eksploratorze).
             HorizontalLayout {
-                height: 46px;
                 padding-left: 8px;
                 padding-right: 8px;
-                padding-bottom: 8px;
-                spacing: 4px;
-                IconButton {
-                    icon: Icons.back;
-                    enabled: root.can-back;
-                    clicked => {
-                        root.back();
-                    }
-                }
-                IconButton {
-                    icon: Icons.fwd;
-                    enabled: root.can-forward;
-                    clicked => {
-                        root.forward();
-                    }
-                }
-                IconButton {
-                    icon: Icons.up;
-                    clicked => {
-                        root.up();
-                    }
-                }
-                IconButton {
-                    icon: Icons.refresh;
-                    clicked => {
-                        root.refresh();
-                    }
-                }
-                Rectangle {
-                    horizontal-stretch: 1;
-                    border-radius: Theme.r;
-                    background: Theme.card;
-                    TextInput {
-                        x: 12px;
-                        width: parent.width - 24px;
-                        text: root.path;
-                        color: Theme.text;
-                        font-size: Theme.font-size;
-                        vertical-alignment: center;
-                        single-line: true;
-                        selection-background-color: Theme.sel-strong;
-                        accepted => {
-                            root.navigate(self.text);
+                    toolbar := Toolbar {
+                        crumbs: root.crumbs;
+                        path: root.path;
+                        folder-icon: root.folder-icon;
+                        special: root.special;
+                        can-back: root.can-back;
+                        can-forward: root.can-forward;
+                        has-selection: root.has-selection;
+                        searching: root.searching;
+                        search-active: root.search-active;
+                        sort-label: root.sort-label;
+                        view: root.view;
+                        zoom <=> root.zoom;
+                        zoom-min: root.zoom-min;
+                        zoom-max: root.zoom-max;
+                        query <=> root.query;
+                        back => {
+                            root.back();
+                        }
+                        forward => {
+                            root.forward();
+                        }
+                        up => {
+                            root.up();
+                        }
+                        refresh => {
+                            root.refresh();
+                        }
+                        navigate(p) => {
+                            root.navigate(p);
                             keys.focus();
                         }
+                        crumb-menu(p, x, y) => {
+                            root.crumb-menu(p, x, y);
+                        }
+                        filter-changed(q) => {
+                            root.filter-changed(q);
+                        }
+                        search(q) => {
+                            root.search(q);
+                        }
+                        clear-search => {
+                            root.clear-search();
+                            keys.focus();
+                        }
+                        sort-menu(x, y) => {
+                            root.sort-menu(x, y);
+                        }
+                        set-view(v) => {
+                            root.set-view(v);
+                        }
+                        zoom-changed(z) => {
+                            root.zoom-changed(z);
+                        }
+                        new-menu(x, y) => {
+                            root.new-menu(x, y);
+                        }
+                        command(c) => {
+                            root.command(c);
+                        }
                     }
-                }
             }
 
             HorizontalLayout {
@@ -168,17 +228,28 @@ export component MainWindow inherits Window {
                         root.navigate(p);
                     }
                 }
+                // Panel (Pane.svelte).
                 Rectangle {
                     horizontal-stretch: 1;
                     background: Theme.bg;
                     border-radius: Theme.r-l;
-                    border-width: 1px;
-                    border-color: Theme.line;
                     clip: true;
                     VerticalLayout {
-                        FileList {
+                        FileView {
                             vertical-stretch: 1;
-                            rows: root.rows;
+                            items: root.items;
+                            view: root.view;
+                            total-height: root.total-height;
+                            empty-text: root.empty-text;
+                            sort-name: root.sort-id == "name";
+                            sort-modified: root.sort-id == "modified";
+                            sort-type: root.sort-id == "type";
+                            sort-size: root.sort-id == "size";
+                            desc: root.desc;
+                            scroll-y <=> root.scroll-y;
+                            viewport-changed(t, w, h) => {
+                                root.viewport-changed(t, w, h);
+                            }
                             select(i, c, s) => {
                                 keys.focus();
                                 root.select(i, c, s);
@@ -189,14 +260,26 @@ export component MainWindow inherits Window {
                             context(i, x, y) => {
                                 root.context(i, x, y);
                             }
+                            background-click => {
+                                keys.focus();
+                                root.background-click();
+                            }
+                            header-sort(id) => {
+                                root.header-sort(id);
+                            }
+                            zoom(d) => {
+                                root.zoom-step(d);
+                            }
                         }
                         // Pasek stanu (StatusBar.svelte).
-                        Label {
+                        Rectangle {
                             height: 28px;
-                            x: 14px;
-                            text: root.status;
-                            font-size: 12px;
-                            color: Theme.faint;
+                            Label {
+                                x: 14px;
+                                text: root.status;
+                                font-size: 12px;
+                                color: Theme.faint;
+                            }
                         }
                     }
                 }

@@ -21,7 +21,7 @@ const ATTR_REPARSE: u32 = 0x400;
 const ATTR_OFFLINE: u32 = 0x1000;
 const ATTR_RECALL: u32 = 0x400000 | 0x40000;
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, serde::Deserialize, Clone, Debug)]
 pub struct Entry {
     pub name: String,
     pub path: String,
