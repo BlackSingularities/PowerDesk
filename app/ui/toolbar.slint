@@ -26,6 +26,20 @@ export struct FacetRow {
 
 /// Pasek narzędzi (Toolbar.svelte): nawigacja, okruszki z podfolderami, filtr/wyszukiwanie,
 /// polecenia, sortowanie, wielkość miniatur i przełącznik widoków.
+/// Podpowiedzi przy edycji ścieżki – lista rysowana nad oknem (main.slint), dane w addr.rs.
+export global AddrSugg {
+    in-out property <[string]> items;
+    /// Wskazana strzałkami pozycja; -1 – żadna.
+    in-out property <int> index: -1;
+    /// Pole ścieżki w edycji i jego miejsce w oknie.
+    in-out property <bool> show;
+    in-out property <length> x;
+    in-out property <length> y;
+    in-out property <length> width;
+    callback query(string);
+    callback clear;
+}
+
 export component Toolbar inherits Rectangle {
     in property <[Crumb]> crumbs;
     in property <string> path;
@@ -80,12 +94,26 @@ export component Toolbar inherits Rectangle {
     callback save-search;
 
     property <bool> editing;
+    changed editing => {
+        AddrSugg.show = self.editing;
+        if (!self.editing) {
+            AddrSugg.clear();
+        }
+    }
 
     public function edit-address() {
         editing = true;
         addr.text = root.path;
         addr.focus();
         addr.select-all();
+        AddrSugg.x = addr-box.absolute-position.x;
+        AddrSugg.y = addr-box.absolute-position.y + addr-box.height + 4px;
+        AddrSugg.width = addr-box.width;
+    }
+    /// Kliknięta podpowiedź.
+    public function pick-suggestion(p: string) {
+        editing = false;
+        root.navigate(p);
     }
     public function focus-search() {
         search-input.focus();
@@ -147,7 +175,7 @@ export component Toolbar inherits Rectangle {
             }
 
             // Pasek adresu: okruszki albo pole edycji.
-            Rectangle {
+            addr-box := Rectangle {
                 horizontal-stretch: 1;
                 border-radius: Theme.r;
                 background: root.editing ? Theme.higher : Theme.high;
@@ -273,14 +301,33 @@ export component Toolbar inherits Rectangle {
                     vertical-alignment: center;
                     single-line: true;
                     selection-background-color: Theme.sel-strong;
+                    edited => {
+                        AddrSugg.query(self.text);
+                    }
                     accepted => {
                         root.editing = false;
-                        root.navigate(self.text);
+                        root.navigate(AddrSugg.index >= 0 ? AddrSugg.items[AddrSugg.index] : self.text);
                     }
                     key-pressed(e) => {
                         if (e.text == Key.Escape) {
                             root.editing = false;
                             return accept;
+                        }
+                        if (AddrSugg.items.length > 0) {
+                            if (e.text == Key.DownArrow) {
+                                AddrSugg.index = Math.mod(AddrSugg.index + 1, AddrSugg.items.length);
+                                return accept;
+                            }
+                            if (e.text == Key.UpArrow) {
+                                AddrSugg.index = Math.mod(AddrSugg.index - 1 + AddrSugg.items.length, AddrSugg.items.length);
+                                return accept;
+                            }
+                            if (e.text == Key.Tab && !e.modifiers.shift) {
+                                self.text = AddrSugg.items[max(0, AddrSugg.index)] + "\\";
+                                self.set-selection-offsets(self.text.character-count * 4, self.text.character-count * 4);
+                                AddrSugg.query(self.text);
+                                return accept;
+                            }
                         }
                         reject
                     }

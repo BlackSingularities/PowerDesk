@@ -11,6 +11,7 @@ mod settings;
 mod syncview;
 mod spaceview;
 mod termview;
+mod addr;
 mod menus;
 mod model;
 mod preview;
@@ -440,6 +441,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     syncview::bind(&ui, &st);
     spaceview::bind(&ui, &st);
     termview::bind(&ui, &st);
+    addr::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));

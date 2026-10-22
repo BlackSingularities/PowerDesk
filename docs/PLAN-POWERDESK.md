@@ -45,7 +45,7 @@ Zasady:
 - [x] Podział na dwa panele (Ctrl+\\): dwie karty obok siebie, uchwyt szerokości, F6 przenosi wskazanie; pasek adresu i polecenia są jedne – dla wskazanego panelu
 - [x] Wstecz / dalej / w górę / odśwież, Alt+strzałki, Backspace, F5
 - [x] Okruszki z rozwijanymi podfolderami, edycja ścieżki (Ctrl+L, Alt+D)
-- [ ] Podpowiedzi przy edycji ścieżki
+- [x] Podpowiedzi przy edycji ścieżki: podfoldery pasujące do wpisanego początku (do 12), strzałki, Tab uzupełnia, Enter i klik przechodzą
 - [x] Paleta poleceń (Ctrl+Shift+P): czynności programu z grupami i skrótami, szukanie bez polskich znaków
 - [x] Paleta szybkiego przejścia (Ctrl+K): podfoldery, szybki dostęp, dyski, historia, wpisana ścieżka
 - [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
