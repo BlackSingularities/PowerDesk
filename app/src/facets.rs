@@ -52,6 +52,25 @@ fn group_of(id: &str) -> &'static str {
     }
 }
 
+thread_local! {
+    static BOUNDS: std::cell::Cell<Option<(std::time::Instant, i64, i64)>> = const { std::cell::Cell::new(None) };
+}
+
+/// Początek dzisiejszego dnia i bieżącego roku (ms). Strefa czasowa Windows jest droga, a test
+/// leci dla każdego pliku i każdego filtra – liczymy najwyżej raz na minutę.
+fn day_bounds() -> (i64, i64) {
+    BOUNDS.with(|b| {
+        if let Some((_, today, year)) = b.get().filter(|(at, _, _)| at.elapsed().as_secs() < 60) {
+            return (today, year);
+        }
+        let now = Local::now();
+        let today = now.date_naive().and_hms_opt(0, 0, 0).and_then(|d| Local.from_local_datetime(&d).earliest()).map(|d| d.timestamp_millis()).unwrap_or(0);
+        let year = Local.with_ymd_and_hms(now.year(), 1, 1, 0, 0, 0).earliest().map(|d| d.timestamp_millis()).unwrap_or(0);
+        b.set(Some((std::time::Instant::now(), today, year)));
+        (today, year)
+    })
+}
+
 /// Test filtra; `m` – metadane zdjęcia/filmu, jeśli już są.
 pub fn test(id: &str, e: &Entry, m: Option<MediaInfo>) -> bool {
     let k = kind_of(e);
@@ -76,9 +95,7 @@ pub fn test(id: &str, e: &Entry, m: Option<MediaInfo>) -> bool {
         _ if id.starts_with("date:") => {
             // Zdjęcia i filmy według daty wykonania, reszta według modyfikacji.
             let when = if is_media(k) { m.map(|m| m.taken).filter(|t| *t > 0).unwrap_or(e.modified) } else { e.modified };
-            let now = Local::now();
-            let today = now.date_naive().and_hms_opt(0, 0, 0).and_then(|d| Local.from_local_datetime(&d).earliest()).map(|d| d.timestamp_millis()).unwrap_or(0);
-            let year = Local.with_ymd_and_hms(now.year(), 1, 1, 0, 0, 0).earliest().map(|d| d.timestamp_millis()).unwrap_or(0);
+            let (today, year) = day_bounds();
             match &id[5..] {
                 "today" => when >= today,
                 "week" => when >= today - 6 * DAY,

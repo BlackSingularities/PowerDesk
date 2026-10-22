@@ -315,6 +315,13 @@ impl KindFilter {
             KindFilter::Archive => "Archiwa",
         }
     }
+    /// Krótka nazwa do panelu filtrów i paska adresu.
+    pub fn short(self) -> &'static str {
+        match self {
+            KindFilter::Media => "Media",
+            f => f.label(),
+        }
+    }
     /// Czy kategoria pliku należy do grupy (KIND_GROUPS w state.svelte.ts).
     pub fn has(self, k: Kind) -> bool {
         match self {

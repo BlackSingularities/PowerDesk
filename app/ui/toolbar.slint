@@ -7,14 +7,6 @@ export struct Crumb {
     path: string,
 }
 
-/// Przycisk filtra kategorii (fchip): `id` to indeks KindFilter::ALL.
-export struct FilterChip {
-    id: int,
-    tip: string,
-    icon: string,
-    on: bool,
-}
-
 /// Element paska faset: 0 – nazwa grupy, 1 – filtr, 2 – „Wyczyść filtry”, 3 – liczba wyników.
 export struct FacetChip {
     kind: int,
@@ -25,8 +17,10 @@ export struct FacetChip {
     on: bool,
 }
 
-/// Wiersz paska faset – Rust układa filtry w wiersze według szerokości (zawijanie jak flex-wrap).
+/// Wiersz panelu filtrów – Rust układa filtry grupy w wiersze według szerokości (zawijanie jak flex-wrap).
+/// `group` – nazwa grupy w pierwszym wierszu grupy, w kolejnych pusta.
 export struct FacetRow {
+    group: string,
     items: [FacetChip],
 }
 
@@ -42,7 +36,8 @@ export component Toolbar inherits Rectangle {
     in property <bool> searching;
     in property <bool> search-active;
     in property <string> sort-label;
-    in property <[FilterChip]> filters;
+    /// Opis aktywnych filtrów (rodzaj, fasety) – w pasku adresu, od prawej.
+    in property <string> filter-summary;
     /// Przycisk „więcej filtrów”: są fasety, pasek otwarty, liczba wybranych.
     in property <bool> has-facets;
     in property <bool> facets-open;
@@ -52,6 +47,8 @@ export component Toolbar inherits Rectangle {
     out property <length> search-right: sbox.absolute-position.x + sbox.width;
     out property <length> search-bottom: sbox.absolute-position.y + sbox.height;
     in property <int> view;
+    /// Galeria tylko tam, gdzie przeważają zdjęcia i filmy (albo gdy jest już włączona).
+    in property <bool> gallery-ok;
     in-out property <float> zoom;
     in property <float> zoom-min: 84;
     in property <float> zoom-max: 280;
@@ -69,7 +66,6 @@ export component Toolbar inherits Rectangle {
     callback sort-menu(length, length);
     callback set-view(int);
     callback zoom-changed(float);
-    callback set-kind(int);
     callback toggle-facets;
     callback toggle-facet(string);
     callback clear-facets;
@@ -210,6 +206,55 @@ export component Toolbar inherits Rectangle {
                         }
                     }
                 }
+                // Aktywne filtry – przy prawej krawędzi paska, nad okruszkami.
+                if !root.editing && root.filter-summary != "": Rectangle {
+                    x: parent.width - self.width;
+                    width: min(fs-row.preferred-width + 16px, parent.width * 0.5);
+                    background: Theme.high;
+                    fs-row := HorizontalLayout {
+                        padding-left: 12px;
+                        padding-right: 4px;
+                        spacing: 6px;
+                        alignment: end;
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: Icons.filter;
+                            size: 13px;
+                            color: Theme.dim;
+                        }
+                        Label {
+                            horizontal-alignment: right;
+                            text: root.filter-summary;
+                            font-size: 12px;
+                            color: Theme.text;
+                        }
+                        Rectangle {
+                            y: (parent.height - self.height) / 2;
+                            width: 22px;
+                            height: 22px;
+                            border-radius: Theme.r-xs;
+                            background: fs-ta.has-hover ? Theme.press : transparent;
+                            Icon {
+                                commands: Icons.close;
+                                size: 12px;
+                                color: fs-ta.has-hover ? Theme.text : Theme.dim;
+                            }
+                            fs-ta := TipArea {
+                                tip: "Wyłącz filtry";
+                                clicked => {
+                                    root.clear-facets();
+                                }
+                            }
+                        }
+                    }
+                    TipArea {
+                        z: -1;
+                        tip: "Filtry: " + root.filter-summary;
+                        clicked => {
+                            root.toggle-facets();
+                        }
+                    }
+                }
                 addr := TextInput {
                     visible: root.editing;
                     x: 14px;
@@ -245,55 +290,33 @@ export component Toolbar inherits Rectangle {
             // Kontrolki widoku: filtry kategorii, fasety, sortowanie, miniatury, przełącznik widoków.
             if !root.special: HorizontalLayout {
                 spacing: 2px;
-                // Filtry kategorii – tylko gdy w folderze są co najmniej dwie różne.
-                if root.filters.length > 2 || root.has-facets: HorizontalLayout {
-                    spacing: 4px;
-                    for f in root.filters: Rectangle {
-                        y: 3px;
-                        width: 30px;
-                        height: 28px;
-                        border-radius: Theme.r-s;
-                        background: f.on ? Theme.accent : chip-ta.has-hover ? Theme.hover : transparent;
+                // Jeden przycisk filtrów: rodzaj plików i filtry dopasowane do zawartości są w panelu.
+                if root.has-facets || root.facets-chosen > 0: Rectangle {
+                    y: 2px;
+                    height: 30px;
+                    width: max(30px, more-row.preferred-width + 14px);
+                    border-radius: Theme.r-s;
+                    background: root.facets-open ? Theme.accent : root.facets-chosen > 0 ? Theme.sel : more-ta.has-hover ? Theme.hover : transparent;
+                    more-row := HorizontalLayout {
+                        alignment: center;
+                        spacing: 4px;
                         Icon {
-                            commands: f.icon;
+                            y: (parent.height - self.height) / 2;
+                            commands: Icons.filter;
                             size: 15px;
-                            color: f.on ? Theme.on-accent : chip-ta.has-hover ? Theme.text : Theme.faint;
+                            color: root.facets-open ? Theme.on-accent : root.facets-chosen > 0 || more-ta.has-hover ? Theme.text : Theme.dim;
                         }
-                        chip-ta := TipArea {
-                            tip: f.tip;
-                            clicked => {
-                                root.set-kind(f.id);
-                            }
+                        if root.facets-chosen > 0: Label {
+                            text: root.facets-chosen;
+                            font-size: 11px;
+                            font-weight: 600;
+                            color: root.facets-open ? Theme.on-accent : Theme.text;
                         }
                     }
-                    // Filtry dopasowane do zawartości (fchip more).
-                    if root.has-facets: Rectangle {
-                        y: 3px;
-                        height: 28px;
-                        width: max(30px, more-row.preferred-width + 12px);
-                        border-radius: Theme.r-s;
-                        background: root.facets-open ? Theme.accent : root.facets-chosen > 0 ? Theme.sel : more-ta.has-hover ? Theme.hover : transparent;
-                        more-row := HorizontalLayout {
-                            alignment: center;
-                            spacing: 4px;
-                            Icon {
-                                y: (parent.height - self.height) / 2;
-                                commands: Icons.sort;
-                                size: 15px;
-                                color: root.facets-open ? Theme.on-accent : root.facets-chosen > 0 || more-ta.has-hover ? Theme.text : Theme.faint;
-                            }
-                            if root.facets-chosen > 0: Label {
-                                text: root.facets-chosen;
-                                font-size: 11px;
-                                font-weight: 600;
-                                color: root.facets-open ? Theme.on-accent : Theme.text;
-                            }
-                        }
-                        more-ta := TipArea {
-                            tip: "Filtry dopasowane do zawartości";
-                            clicked => {
-                                root.toggle-facets();
-                            }
+                    more-ta := TipArea {
+                        tip: "Filtry";
+                        clicked => {
+                            root.toggle-facets();
                         }
                     }
                 }
@@ -370,7 +393,7 @@ export component Toolbar inherits Rectangle {
                 Rectangle {
                     y: 2px;
                     height: 30px;
-                    width: 3 * 30px + 4px;
+                    width: (root.gallery-ok ? 3 : 2) * 30px + 4px;
                     border-radius: Theme.r-s;
                     background: Theme.high;
                     HorizontalLayout {
@@ -380,6 +403,7 @@ export component Toolbar inherits Rectangle {
                             { icon: Icons.grid, size: 16px },
                             { icon: Icons.gallery, size: 16px },
                         ]: Rectangle {
+                            visible: i < 2 || root.gallery-ok;
                             width: 30px;
                             border-radius: Theme.r-xs;
                             background: root.view == i ? Theme.higher : seg-ta.has-hover ? Theme.hover : transparent;
@@ -495,12 +519,14 @@ export component Toolbar inherits Rectangle {
     }
 }
 
-/// Panel faset (facets) – wysuwa się nad listą zamiast rozpychać pasek narzędzi.
+/// Panel filtrów – wysuwa się nad listą zamiast rozpychać pasek narzędzi. Każda grupa od nowego
+/// wiersza z nazwą w kolumnie po lewej; na dole liczba wyników i „Wyczyść filtry”, gdy coś wybrano.
 export component FacetPanel inherits Rectangle {
     in property <[FacetRow]> facet-rows;
+    in property <string> results;
     callback toggle-facet(string);
     callback clear-facets;
-    height: rows.preferred-height;
+    height: box.preferred-height;
     border-radius: Theme.r-l;
     background: Theme.panel;
     border-width: 1px;
@@ -509,76 +535,89 @@ export component FacetPanel inherits Rectangle {
     drop-shadow-offset-y: 20px;
     drop-shadow-color: Theme.shadow;
     TouchArea { }
-    rows := VerticalLayout {
-        padding: 12px;
-        spacing: 5px;
-        for row in root.facet-rows: HorizontalLayout {
-            height: 26px;
-            spacing: 5px;
-            alignment: start;
-            for c in row.items: Rectangle {
-                // Szerokość z niewidocznych miar (elementów w `if` nie można mierzyć z zewnątrz).
-                m-label := Label {
-                    visible: false;
-                    text: c.label;
-                    font-size: c.kind == 0 ? 11px : 12px;
-                    font-weight: c.kind == 0 || c.on ? 600 : 400;
+    box := VerticalLayout {
+        padding: 14px;
+        padding-top: 12px;
+        spacing: 6px;
+        for row[r] in root.facet-rows: HorizontalLayout {
+            spacing: 8px;
+            padding-top: row.group != "" && r > 0 ? 6px : 0;
+            Label {
+                width: 76px;
+                height: 28px;
+                text: row.group;
+                font-size: 12px;
+                color: Theme.dim;
+            }
+            HorizontalLayout {
+                spacing: 5px;
+                alignment: start;
+                for c in row.items: Rectangle {
+                    height: 28px;
+                    width: chip.preferred-width;
+                    border-radius: Theme.r-s;
+                    background: c.on ? Theme.accent : fc-ta.has-hover ? Theme.press : Theme.card;
+                    chip := HorizontalLayout {
+                        padding-left: 11px;
+                        padding-right: 11px;
+                        spacing: 7px;
+                        Label {
+                            text: c.label;
+                            font-size: 12px;
+                            font-weight: c.on ? 600 : 400;
+                            color: c.on ? Theme.on-accent : Theme.text;
+                        }
+                        Label {
+                            text: c.count;
+                            font-size: 11px;
+                            color: c.on ? Theme.on-accent : Theme.faint;
+                        }
+                    }
+                    fc-ta := TipArea {
+                        tip: c.tip;
+                        clicked => {
+                            root.toggle-facet(c.id);
+                        }
+                    }
                 }
-                m-count := Label {
-                    visible: false;
-                    text: c.count;
-                    font-size: 11px;
-                }
-                width: c.kind == 0 ? m-label.preferred-width + 10px : c.kind == 3 ? m-label.preferred-width + 4px : c.kind == 2 ? m-label.preferred-width + 12px + 6px + 22px : m-label.preferred-width + 6px + m-count.preferred-width + 22px;
+            }
+        }
+        if root.results != "": Rectangle {
+            height: 1px;
+            background: Theme.line;
+        }
+        if root.results != "": HorizontalLayout {
+            padding-top: 2px;
+            Label {
+                text: root.results;
+                font-size: 12px;
+                color: Theme.dim;
+            }
+            Rectangle {
+                height: 28px;
+                width: clr-row.preferred-width;
                 border-radius: Theme.r-s;
-                border-width: c.kind == 2 ? 1px : 0;
-                border-color: Theme.line-strong;
-                background: c.kind == 0 || c.kind == 3 ? transparent : c.on ? Theme.accent : fc-ta.has-hover ? Theme.press : c.kind == 2 ? transparent : Theme.card;
-                if c.kind == 0: Label {
-                    x: 6px;
-                    text: c.label;
-                    font-size: 11px;
-                    font-weight: 600;
-                    letter-spacing: 0.44px;
-                    color: Theme.ghost;
-                }
-                if c.kind == 3: Label {
-                    x: 4px;
-                    text: c.label;
-                    font-size: 12px;
-                    color: Theme.faint;
-                }
-                if c.kind == 1 || c.kind == 2: HorizontalLayout {
-                    x: 11px;
+                background: clr-ta.has-hover ? Theme.press : transparent;
+                clr-row := HorizontalLayout {
+                    padding-left: 10px;
+                    padding-right: 10px;
                     spacing: 6px;
-                    if c.kind == 2: Icon {
+                    Icon {
                         y: (parent.height - self.height) / 2;
                         commands: Icons.close;
                         size: 12px;
-                        color: fc-ta.has-hover ? Theme.text : Theme.dim;
+                        color: clr-ta.has-hover ? Theme.text : Theme.dim;
                     }
                     Label {
-                        text: c.label;
+                        text: "Wyczyść filtry";
                         font-size: 12px;
-                        font-weight: c.on ? 600 : 400;
-                        color: c.on ? Theme.on-accent : fc-ta.has-hover ? Theme.text : Theme.dim;
-                    }
-                    if c.kind == 1: Label {
-                        text: c.count;
-                        font-size: 11px;
-                        color: c.on ? Theme.on-accent : Theme.dim;
-                        opacity: 0.55;
+                        color: clr-ta.has-hover ? Theme.text : Theme.dim;
                     }
                 }
-                fc-ta := TipArea {
-                    tip: c.tip;
-                    enabled: c.kind == 1 || c.kind == 2;
+                clr-ta := TipArea {
+                    tip: "Wyłącz wszystkie filtry";
                     clicked => {
-                        if (c.kind == 1) {
-                            root.toggle-facet(c.id);
-                        } else {
-                            root.clear-facets();
-                        }
+                        root.clear-facets();
                     }
                 }
             }

@@ -3,13 +3,13 @@ import { Icons } from "icons.slint";
 import { Icon, Label, Tip, TipArea, Drag } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
-import { Toolbar, Crumb, FilterChip, FacetChip, FacetRow, FacetPanel } from "toolbar.slint";
+import { Toolbar, Crumb, FacetChip, FacetRow, FacetPanel } from "toolbar.slint";
 import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog } from "overlays.slint";
 import { BulkDialog, Bulk, BulkRow } from "bulk.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -41,11 +41,13 @@ export component MainWindow inherits Window {
     in property <bool> searching;
     in property <bool> search-active;
     in property <string> sort-label;
-    in property <[FilterChip]> filters;
+    in property <string> filter-summary;
+    in property <bool> gallery-ok;
     in property <bool> has-facets;
     in property <bool> facets-open;
     in property <int> facets-chosen;
     in property <[FacetRow]> facet-rows;
+    in property <string> facet-results;
     in property <bool> can-save-search;
     /// Filtry rozpoznane w polu wyszukiwania i podpowiedzi (QUERY_HINTS).
     in property <[string]> query-chips;
@@ -115,7 +117,6 @@ export component MainWindow inherits Window {
     callback zoom-changed(float);
     callback new-menu(length, length);
     callback command(string);
-    callback set-kind(int);
     callback toggle-facets;
     callback toggle-facet(string);
     callback clear-facets;
@@ -240,7 +241,8 @@ export component MainWindow inherits Window {
                         searching: root.searching;
                         search-active: root.search-active;
                         sort-label: root.sort-label;
-                        filters: root.filters;
+                        filter-summary: root.filter-summary;
+                        gallery-ok: root.gallery-ok;
                         has-facets: root.has-facets;
                         facets-open: root.facets-open;
                         facets-chosen: root.facets-chosen;
@@ -299,10 +301,6 @@ export component MainWindow inherits Window {
                         }
                         zoom-changed(z) => {
                             root.zoom-changed(z);
-                        }
-                        set-kind(k) => {
-                            root.set-kind(k);
-                            keys.focus();
                         }
                     }
             }
@@ -521,6 +519,7 @@ export component MainWindow inherits Window {
         x: toolbar.absolute-position.x + toolbar.width - self.width - 12px;
         y: toolbar.absolute-position.y + toolbar.height + 2px;
         facet-rows: root.facet-rows;
+        results: root.facet-results;
         toggle-facet(id) => {
             root.toggle-facet(id);
         }

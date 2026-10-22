@@ -244,17 +244,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     // Filtr na żywo i wyszukiwanie w podfolderach.
     let s = st.clone();
     ui.on_filter_changed(move |q| set_filter(&s, q.as_str()));
-    let s = st.clone();
-    ui.on_set_kind(move |k| {
-        let f = KindFilter::ALL.get(k as usize).copied().unwrap_or_default();
-        tab_mut(&s, |t| {
-            t.kind_filter = if t.kind_filter == f { KindFilter::All } else { f };
-            t.facets.clear();
-        });
-        set_scroll(&s, 0.0);
-        refresh(&s);
-    });
-    // Fasety, podpowiedzi zapytań, zapisane wyszukiwania.
+    // Fasety (z rodzajem plików jako pierwszą grupą), podpowiedzi zapytań, zapisane wyszukiwania.
     let s = st.clone();
     ui.on_toggle_facets(move || {
         tab_mut(&s, |t| t.facets_open = Some(!t.facets_shown(true)));
@@ -264,7 +254,11 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     ui.on_toggle_facet(move |id| {
         tab_mut(&s, |t| {
-            if !t.facets.remove(id.as_str()) {
+            // Zmiana rodzaju zmienia też dostępne fasety, więc wybrane się zerują.
+            if let Some(f) = id.strip_prefix("kind:").and_then(|i| i.parse::<usize>().ok()).and_then(|i| KindFilter::ALL.get(i).copied()) {
+                t.kind_filter = if t.kind_filter == f { KindFilter::All } else { f };
+                t.facets.clear();
+            } else if !t.facets.remove(id.as_str()) {
                 t.facets.insert(id.to_string());
             }
         });
@@ -273,7 +267,10 @@ fn wire(ui: &MainWindow, st: &Shared) {
     });
     let s = st.clone();
     ui.on_clear_facets(move || {
-        tab_mut(&s, |t| t.facets.clear());
+        tab_mut(&s, |t| {
+            t.facets.clear();
+            t.kind_filter = KindFilter::All;
+        });
         refresh(&s);
     });
     let s = st.clone();
@@ -721,6 +718,28 @@ fn size_of(sizes: &HashMap<String, u64>, e: &fsx::Entry) -> i64 {
     }
 }
 
+thread_local! {
+    static MEDIA_REDRAW: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Po partii metadanych – jedno przerysowanie na 150 ms, nawet gdy partie przychodzą szybciej.
+fn media_redraw(s: &Shared) {
+    if MEDIA_REDRAW.with(|r| r.replace(true)) {
+        return;
+    }
+    let s = s.clone();
+    slint::Timer::single_shot(std::time::Duration::from_millis(150), move || {
+        MEDIA_REDRAW.with(|r| r.set(false));
+        // Sortowanie po metadanych – kolejność zmienia się wraz z kolejnymi partiami.
+        if tab_mut(&s, |t| t.sort.media() || t.group == GroupKey::Taken || !t.facets.is_empty()) {
+            refresh(&s);
+        } else {
+            layout(&s);
+            render_all(&s);
+        }
+    });
+}
+
 /// Metadane zdjęć i filmów – partiami w tle (galeria albo kolumny z metadanymi), potem ponowny układ.
 fn request_media(s: &Shared) {
     let todo: Vec<(String, i64)> = {
@@ -759,13 +778,7 @@ fn request_media(s: &Shared) {
                             b.media.insert(p, m);
                         }
                     }
-                    // Sortowanie po metadanych – kolejność zmienia się wraz z kolejnymi partiami.
-                    if tab_mut(s, |t| t.sort.media() || t.group == GroupKey::Taken || !t.facets.is_empty()) {
-                        refresh(s);
-                    } else {
-                        layout(s);
-                        render_all(s);
-                    }
+                    media_redraw(s);
                 })
             });
         }
@@ -905,17 +918,25 @@ fn render_chrome(s: &Shared) {
     ui.set_can_forward(t.h_index + 1 < t.history.len());
     ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path, &b.drives))));
     ui.set_view(t.view.index());
+    ui.set_gallery_ok(t.view == View::Gallery || mostly_media(t));
     ui.set_sort_name(t.sort == SortKey::Name);
     ui.set_folder(if t.special() || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
     ui.set_desc(t.desc);
     let flist = if t.special() { Vec::new() } else { t.facet_list(b.prefs.show_hidden, |e| b.media.get(&e.path).copied()) };
-    let shown = t.facets_shown(!flist.is_empty());
-    ui.set_has_facets(!flist.is_empty());
+    // Kategorie są w panelu filtrów jako grupa „Rodzaj” – tylko gdy w folderze są co najmniej dwie.
+    let kinds: Vec<(KindFilter, usize)> = if t.special() { Vec::new() } else { t.shown_filters(b.prefs.show_hidden).into_iter().filter(|(f, _)| *f != KindFilter::All).collect() };
+    let kinds = if kinds.len() > 1 || t.kind_filter != KindFilter::All { kinds } else { Vec::new() };
+    let any = !flist.is_empty() || !kinds.is_empty();
+    let shown = t.facets_shown(any);
+    ui.set_has_facets(any);
     ui.set_facets_open(shown);
-    ui.set_facets_chosen(t.facets.len() as i32);
+    ui.set_facets_chosen(t.facets.len() as i32 + (t.kind_filter != KindFilter::All) as i32);
+    ui.set_filter_summary(filter_summary(t, &flist).into());
+    let filtered = !t.facets.is_empty() || t.kind_filter != KindFilter::All;
+    ui.set_facet_results(if filtered { format!("{} wyników", t.items.len()).into() } else { SharedString::new() });
     // Panel faset: do 620 px szerokości, minus wewnętrzne marginesy.
     let width = (ui.window().size().to_logical(ui.window().scale_factor()).width - 48.0).min(620.0) - 24.0;
-    ui.set_facet_rows(ModelRc::new(VecModel::from(if shown { facet_rows(&flist, &t.facets, t.items.len(), width) } else { Vec::new() })));
+    ui.set_facet_rows(ModelRc::new(VecModel::from(if shown { facet_rows(&kinds, t.kind_filter, &flist, &t.facets, width) } else { Vec::new() })));
     ui.set_can_save_search(match &t.search {
         Some(x) => !x.running && !b.prefs.saved_searches.iter().any(|v| v.query == x.query && same(&v.root, &t.path)),
         None => false,
@@ -937,25 +958,6 @@ fn render_chrome(s: &Shared) {
     ui.set_sort_label(
         if t.group == GroupKey::None { t.sort.label().to_string() } else { format!("{} · {}", t.sort.label(), t.group.label()) }.into(),
     );
-    ui.set_filters(ModelRc::new(VecModel::from(
-        t.shown_filters(b.prefs.show_hidden)
-            .into_iter()
-            .map(|(f, n)| FilterChip {
-                tip: if f == KindFilter::All { f.label().into() } else { format!("{} ({n})", f.label()).into() },
-                id: KindFilter::ALL.iter().position(|x| *x == f).unwrap_or(0) as i32,
-                icon: ic(match f {
-                    KindFilter::All => "filter",
-                    KindFilter::Media => "gallery",
-                    KindFilter::Image => "image",
-                    KindFilter::Video => "video",
-                    KindFilter::Doc => "doc",
-                    KindFilter::Audio => "music",
-                    KindFilter::Archive => "archive",
-                }),
-                on: t.kind_filter == f,
-            })
-            .collect::<Vec<_>>(),
-    )));
     let (zmin, zmax, z) = match t.view {
         View::Gallery => (120.0, 420.0, b.prefs.gallery_row),
         _ => (84.0, 280.0, b.prefs.grid_size),
@@ -1183,42 +1185,65 @@ fn vis_item(b: &State, t: &Tab, i: usize, e: &fsx::Entry, bx: model::BoxR, scale
     }
 }
 
-/// Fasety w wierszach o zadanej szerokości: nazwa grupy, potem jej filtry; na końcu „Wyczyść filtry”.
-fn facet_rows(list: &[facets::Facet], chosen: &std::collections::BTreeSet<String>, results: usize, width: f32) -> Vec<FacetRow> {
-    // Szacunek szerokości tekstu 12 px (Segoe UI) – wystarczy do zawijania.
-    let est = |s: &str, px: f32| s.chars().count() as f32 * px * 0.56;
-    let mut chips: Vec<(FacetChip, f32)> = Vec::new();
-    let mut group = "";
+/// Zdjęcia i filmy to ponad połowa plików na liście (foldery się nie liczą).
+fn mostly_media(t: &Tab) -> bool {
+    let (files, media) = t.items.iter().filter(|e| !e.dir).fold((0, 0), |(f, m), e| (f + 1, m + fmt::is_media(e) as usize));
+    files > 0 && media * 2 > files
+}
+
+/// Opis aktywnych filtrów do paska adresu: rodzaj, potem wybrane fasety.
+fn filter_summary(t: &Tab, flist: &[facets::Facet]) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if t.kind_filter != KindFilter::All {
+        parts.push(t.kind_filter.short().into());
+    }
+    parts.extend(t.facets.iter().map(|id| flist.iter().find(|f| &f.id == id).map(|f| f.label.clone()).unwrap_or_else(|| id.clone())));
+    parts.join(" · ")
+}
+
+/// Fasety po grupach: każda grupa od nowego wiersza, z nazwą w kolumnie po lewej; filtry grupy
+/// zawijają się w obrębie dostępnej szerokości. Pierwsza grupa to rodzaj plików.
+fn facet_rows(kinds: &[(KindFilter, usize)], kind: KindFilter, list: &[facets::Facet], chosen: &std::collections::BTreeSet<String>, width: f32) -> Vec<FacetRow> {
+    // Szacunek szerokości żetonu (Segoe UI 12 px, licznik 11 px, marginesy) – wystarczy do zawijania.
+    let est = |label: &str, count: &str| (label.chars().count() as f32 * 12.0 + count.chars().count() as f32 * 11.0) * 0.56 + 26.0;
+    let chip = |id: String, label: &str, count: usize, on: bool, tip: String| FacetChip { kind: 1, tip: tip.into(), id: id.into(), label: label.into(), count: count.to_string().into(), on };
+    let mut groups: Vec<(String, Vec<FacetChip>)> = Vec::new();
+    if !kinds.is_empty() {
+        let v = kinds
+            .iter()
+            .map(|(f, n)| {
+                let i = KindFilter::ALL.iter().position(|x| x == f).unwrap_or(0);
+                chip(format!("kind:{i}"), f.short(), *n, *f == kind, format!("{} ({n})", f.label()))
+            })
+            .collect();
+        groups.push(("Rodzaj".into(), v));
+    }
     for f in list {
-        if f.group != group {
-            group = f.group;
-            let l = f.group.to_uppercase();
-            let w = est(&l, 11.0) + 14.0;
-            chips.push((FacetChip { kind: 0, tip: SharedString::new(), id: SharedString::new(), label: l.into(), count: SharedString::new(), on: false }, w));
+        let c = chip(f.id.clone(), &f.label, f.count, chosen.contains(&f.id), format!("{}: {} ({})", f.group, f.label, f.count));
+        match groups.last_mut().filter(|(g, _)| g == f.group) {
+            Some((_, v)) => v.push(c),
+            None => groups.push((f.group.to_string(), vec![c])),
         }
-        let count = f.count.to_string();
-        let w = est(&f.label, 12.0) + est(&count, 11.0) + 30.0;
-        chips.push((FacetChip { kind: 1, tip: format!("{}: {} ({})", f.group, f.label, f.count).into(), id: f.id.clone().into(), label: f.label.clone().into(), count: count.into(), on: chosen.contains(&f.id) }, w));
     }
-    if !chosen.is_empty() {
-        chips.push((FacetChip { kind: 2, tip: "Wyłącz wszystkie filtry".into(), id: SharedString::new(), label: "Wyczyść filtry".into(), count: SharedString::new(), on: false }, est("Wyczyść filtry", 12.0) + 42.0));
-        let l = format!("{results} wyników");
-        let w = est(&l, 12.0) + 6.0;
-        chips.push((FacetChip { kind: 3, tip: SharedString::new(), id: SharedString::new(), label: l.into(), count: SharedString::new(), on: false }, w));
-    }
-    let mut rows: Vec<Vec<FacetChip>> = vec![Vec::new()];
-    let mut x = 0.0;
-    for (i, (c, w)) in chips.iter().enumerate() {
-        // Nazwa grupy nie zostaje sama na końcu wiersza.
-        let need = if c.kind == 0 { w + chips.get(i + 1).map(|n| n.1).unwrap_or(0.0) } else { *w };
-        if x > 0.0 && x + need > width {
-            rows.push(Vec::new());
-            x = 0.0;
+    // Kolumna nazw grup: 76 px plus odstęp.
+    let room = (width - 84.0).max(120.0);
+    let mut rows = Vec::new();
+    for (group, chips) in groups {
+        let mut line: Vec<FacetChip> = Vec::new();
+        let mut x = 0.0;
+        let mut first = true;
+        for c in chips {
+            let w = est(&c.label, &c.count);
+            if !line.is_empty() && x + w > room {
+                rows.push(FacetRow { group: if std::mem::take(&mut first) { group.clone().into() } else { SharedString::new() }, items: ModelRc::new(VecModel::from(std::mem::take(&mut line))) });
+                x = 0.0;
+            }
+            x += w + 5.0;
+            line.push(c);
         }
-        rows.last_mut().unwrap().push(c.clone());
-        x += w + 5.0;
+        rows.push(FacetRow { group: if first { group.into() } else { SharedString::new() }, items: ModelRc::new(VecModel::from(line)) });
     }
-    rows.into_iter().map(|items| FacetRow { items: ModelRc::new(VecModel::from(items)) }).collect()
+    rows
 }
 
 /// Podpowiedź elementu jak w Eksploratorze (tip w FileView.svelte).
