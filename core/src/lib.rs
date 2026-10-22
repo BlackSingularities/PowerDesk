@@ -20,3 +20,4 @@ pub mod sync_core;
 pub mod sysmon;
 pub mod system;
 pub mod terminal;
+pub mod winkey;

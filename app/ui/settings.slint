@@ -25,6 +25,8 @@ export global SettingsState {
     in-out property <bool> preview-open;
     in-out property <bool> viewer-info;
     in-out property <bool> confirm-trash;
+    /// Win+E otwiera PowerDesk (stan z rejestru).
+    in-out property <bool> win-e;
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
@@ -693,6 +695,15 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.confirm-trash;
                         toggled => {
                             SettingsState.toggle("confirm-trash");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.folder;
+                        text: "Win+E otwiera PowerDesk";
+                        hint: "Zamiast Eksploratora Windows; tylko dla Twojego konta, wyłączenie przywraca Eksplorator";
+                        on: SettingsState.win-e;
+                        toggled => {
+                            SettingsState.toggle("win-e");
                         }
                     }
                 }

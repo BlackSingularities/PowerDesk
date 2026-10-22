@@ -135,6 +135,7 @@ fn render(s: &Shared) {
     g.set_preview_open(p.preview_open);
     g.set_viewer_info(p.viewer_info);
     g.set_confirm_trash(p.confirm_trash);
+    g.set_win_e(powerdesk_core::winkey::enabled());
     g.set_remembered(p.folders.len() as i32);
     g.set_version(env!("CARGO_PKG_VERSION").into());
     g.set_prefs_path(prefs_path().into());
@@ -215,6 +216,16 @@ pub fn toggle(s: &Shared, key: &str) {
         "folder-sizes" => change(s, |p| p.folder_sizes = !p.folder_sizes),
         "viewer-info" => change(s, |p| p.viewer_info = !p.viewer_info),
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),
+        // Stan żyje w rejestrze, nie w prefs.json.
+        "win-e" => {
+            let on = !powerdesk_core::winkey::enabled();
+            match powerdesk_core::winkey::set(on) {
+                Ok(()) => crate::transfers::toast(s, if on { "Win+E otwiera teraz PowerDesk" } else { "Win+E znowu otwiera Eksplorator" }, crate::transfers::Kind::Ok, None),
+                Err(e) => crate::transfers::toast(s, format!("Nie udało się zmienić Win+E: {e}"), crate::transfers::Kind::Error, None),
+            }
+            with_ui(s, |g| g.set_win_e(powerdesk_core::winkey::enabled()));
+            return;
+        }
         _ => return,
     }
     // Karty z folderami wczytają się od nowa przy następnym wejściu.
