@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! PowerDesk – natywny interfejs (Slint) nad backendem `powerdesk-core`.
 
+mod bulk;
 mod dragdrop;
 mod facets;
 mod fmt;
@@ -55,6 +56,8 @@ pub struct State {
     painted: (f32, f32),
     /// Ścieżki pozycji panelu bocznego (żeby wiedzieć, czy nowa ikona go dotyczy).
     side_paths: HashSet<String>,
+    /// Elementy w otwartym oknie masowej zmiany nazw.
+    bulk: Option<Vec<fsx::Entry>>,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -93,6 +96,7 @@ fn main() -> Result<(), slint::PlatformError> {
         epoch: 0,
         painted: (0.0, 0.0),
         side_paths: HashSet::new(),
+        bulk: None,
         drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
@@ -369,6 +373,17 @@ fn wire(ui: &MainWindow, st: &Shared) {
     ui.on_conflict_pick(move |i| transfers::conflict_pick(&s, i));
     let s = st.clone();
     ui.on_confirm_answer(move |yes| transfers::confirm_answer(&s, yes));
+    let g = ui.global::<Bulk>();
+    let s = st.clone();
+    g.on_changed(move || bulk::refresh(&s));
+    let s = st.clone();
+    g.on_apply(move || bulk::apply(&s));
+    let s = st.clone();
+    g.on_cancel(move || bulk::close(&s));
+    let s = st.clone();
+    ui.on_toggle_section(move |n| toggle_section(&s, n.as_str()));
+    let s = st.clone();
+    ui.on_toggle_side_mini(move || toggle_side_mini(&s));
     let s = st.clone();
     ui.on_toggle_group(move |i| toggle_group(&s, i as usize));
     let s = st.clone();
@@ -1393,7 +1408,7 @@ fn command(s: &Shared, c: &str) {
             shell::show_properties(hwnd(s), &p);
         }
         "rename" if sel.len() == 1 => start_rename(s),
-        // Masowa zmiana nazw – etap 2.
+        "rename" if sel.len() > 1 => bulk::open(s),
         _ => {}
     }
 }
@@ -1705,6 +1720,9 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
     if ctrl && shift && k.eq_ignore_ascii_case("n") {
         return create(s, true);
     }
+    if ctrl && k.eq_ignore_ascii_case("b") {
+        return toggle_side_mini(s);
+    }
     if ctrl && k == "t" {
         return new_tab(s);
     }
@@ -1928,6 +1946,8 @@ pub fn render_side(s: &Shared) {
         active: t.search.as_ref().is_some_and(|x| x.query == v.query) && same(&t.path, &v.root),
         img: Default::default(),
         has_img: false,
+        shut: false,
+        header_only: false,
     });
     let items: Vec<SideItem> = saved
         .chain(side_items(&t.path, &b.drives))
@@ -1946,10 +1966,52 @@ pub fn render_side(s: &Shared) {
         })
         .collect();
     let paths: HashSet<String> = items.iter().map(|i| i.path.to_string()).collect();
-    ui.set_side(ModelRc::new(VecModel::from(items)));
+    // Zwinięta sekcja zostawia sam nagłówek; w pasku ikon nagłówków nie ma, więc pokazuje wszystko.
+    let mut section = SharedString::new();
+    let mut items_out = Vec::with_capacity(items.len());
+    for mut it in items {
+        if !it.section.is_empty() {
+            section = it.section.clone();
+            it.shut = b.prefs.side_shut.iter().any(|x| x == section.as_str());
+            if it.shut && !b.prefs.side_mini {
+                it.header_only = true;
+                items_out.push(it);
+                continue;
+            }
+        } else if b.prefs.side_shut.iter().any(|x| x == section.as_str()) && !b.prefs.side_mini {
+            continue;
+        }
+        items_out.push(it);
+    }
+    ui.set_side_mini(b.prefs.side_mini);
+    ui.set_side(ModelRc::new(VecModel::from(items_out)));
     ui.set_folder_icon(thumbs::get(&t.path, (16.0 * scale) as u32, true).unwrap_or_default());
     drop(b);
     s.borrow_mut().side_paths = paths;
+}
+
+fn toggle_section(s: &Shared, name: &str) {
+    {
+        let mut b = s.borrow_mut();
+        let shut = &mut b.prefs.side_shut;
+        if let Some(i) = shut.iter().position(|x| x == name) {
+            shut.remove(i);
+        } else {
+            shut.push(name.to_string());
+        }
+        b.prefs.save();
+    }
+    render_side(s);
+}
+
+/// Panel boczny jako pasek samych ikon (Ctrl+B).
+fn toggle_side_mini(s: &Shared) {
+    {
+        let mut b = s.borrow_mut();
+        b.prefs.side_mini = !b.prefs.side_mini;
+        b.prefs.save();
+    }
+    render_side(s);
 }
 
 fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
@@ -1977,6 +2039,8 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
             img: Default::default(),
             has_img: false,
             tip: SharedString::new(),
+            shut: false,
+            header_only: false,
         });
     }
     let mut first = true;
@@ -1999,6 +2063,8 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
             has_img: false,
             tip: if d.total > 0 { format!("{}
 {} wolne z {} · zajęte {:.0}%", d.path, fmt::size(d.free), fmt::size(d.total), used as f64 * 100.0 / d.total as f64).into() } else { d.path.clone().into() },
+            shut: false,
+            header_only: false,
         });
     }
     v

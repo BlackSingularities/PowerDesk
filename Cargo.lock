@@ -4882,6 +4882,7 @@ dependencies = [
  "open",
  "powerdesk-core",
  "raw-window-handle",
+ "regex",
  "serde",
  "serde_json",
  "slint",

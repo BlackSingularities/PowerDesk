@@ -7,8 +7,9 @@ import { Toolbar, Crumb, FilterChip, FacetChip, FacetRow, FacetPanel } from "too
 import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog } from "overlays.slint";
+import { BulkDialog, Bulk, BulkRow } from "bulk.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -25,6 +26,7 @@ export component MainWindow inherits Window {
 
     in property <[TabData]> tabs;
     in property <[SideItem]> side;
+    in property <bool> side-mini;
     in property <bool> is-maximized;
 
     // Pasek narzędzi.
@@ -120,6 +122,8 @@ export component MainWindow inherits Window {
     callback save-search;
     callback add-hint(string);
     callback side-context(string, length, length);
+    callback toggle-section(string);
+    callback toggle-side-mini;
     callback toggle-transfers;
     callback op-pause(int, bool);
     callback op-cancel(int);
@@ -311,6 +315,13 @@ export component MainWindow inherits Window {
                 spacing: 8px;
                 Sidebar {
                     items: root.side;
+                    mini: root.side-mini;
+                    toggle-section(n) => {
+                        root.toggle-section(n);
+                    }
+                    toggle-mini => {
+                        root.toggle-side-mini();
+                    }
                     open(p) => {
                         root.navigate(p);
                     }
@@ -497,6 +508,7 @@ export component MainWindow inherits Window {
             root.confirm-answer(yes);
         }
     }
+    if Bulk.open: BulkDialog { }
 
     // Fasety: panel nad listą; klik obok zamyka.
     if root.facets-open && !root.special: TouchArea {

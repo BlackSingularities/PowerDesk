@@ -1,4 +1,5 @@
 import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
 import { Icon, Label, TipArea, Drag } from "components.slint";
 
 export struct SideItem {
@@ -12,49 +13,109 @@ export struct SideItem {
     img: image,
     has-img: bool,
     tip: string,
+    /// Sekcja zwinięta (ustawione na pozycji z nagłówkiem).
+    shut: bool,
+    /// Sam nagłówek zwiniętej sekcji – bez wiersza pozycji.
+    header-only: bool,
 }
 
-/// Panel boczny (Sidebar.svelte): sekcje z nagłówkami, pozycje 34 px, dyski z paskiem zajętości.
+/// Panel boczny (Sidebar.svelte): sekcje z nagłówkami (klik zwija), pozycje 34 px, dyski z paskiem zajętości.
+/// `mini` – pasek samych ikon; nazwy w dymkach.
 export component Sidebar inherits Rectangle {
     in property <[SideItem]> items;
+    in property <bool> mini;
     in property <length> panel-width: 248px;
     callback open(string);
     callback context(string, length, length);
+    callback toggle-section(string);
+    callback toggle-mini;
 
-    width: panel-width;
+    width: mini ? 52px : panel-width;
+    animate width { duration: 160ms; easing: ease-out; }
     background: Theme.panel;
     border-radius: Theme.r-l;
     clip: true;
 
     Flickable {
         VerticalLayout {
-            padding: 8px;
-            padding-top: 10px;
+            padding: root.mini ? 6px : 8px;
+            padding-top: 8px;
             padding-bottom: 12px;
             alignment: start;
-            for it[i] in root.items: VerticalLayout {
-                if it.section != "": Label {
-                    height: 36px;
-                    vertical-alignment: bottom;
-                    text: it.section;
-                    font-size: 11px;
-                    font-weight: 600;
-                    letter-spacing: 0.66px;
-                    color: Theme.faint;
-                    x: 8px;
-                }
-                if it.section != "": Rectangle {
-                    height: 6px;
-                }
+            // Zwijanie całego panelu.
+            HorizontalLayout {
+                alignment: root.mini ? center : end;
                 Rectangle {
-                    height: it.detail != "" ? 52px : 34px;
+                    width: 30px;
+                    height: 28px;
+                    border-radius: Theme.r-s;
+                    background: mini-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: Icons.sidebar;
+                        size: 16px;
+                        color: mini-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    mini-ta := TipArea {
+                        tip: root.mini ? "Rozwiń panel boczny (Ctrl+B)" : "Zwiń panel boczny (Ctrl+B)";
+                        clicked => {
+                            root.toggle-mini();
+                        }
+                    }
+                }
+            }
+            for it[i] in root.items: VerticalLayout {
+                if it.section != "" && root.mini && i > 0: Rectangle {
+                    height: 13px;
+                    Rectangle {
+                        y: 6px;
+                        height: 1px;
+                        x: 8px;
+                        width: parent.width - 16px;
+                        background: Theme.line;
+                    }
+                }
+                if it.section != "" && !root.mini: Rectangle {
+                    height: 32px;
+                    border-radius: Theme.r-s;
+                    background: sec-ta.has-hover ? Theme.hover : transparent;
+                    HorizontalLayout {
+                        padding-left: 8px;
+                        padding-right: 8px;
+                        spacing: 6px;
+                        Label {
+                            text: it.section;
+                            font-size: 11px;
+                            font-weight: 600;
+                            letter-spacing: 0.66px;
+                            color: sec-ta.has-hover ? Theme.text : Theme.faint;
+                        }
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: it.shut ? Icons.chevron : Icons.chevron-down;
+                            size: 12px;
+                            color: sec-ta.has-hover ? Theme.text : Theme.faint;
+                            opacity: sec-ta.has-hover || it.shut ? 1 : 0;
+                        }
+                    }
+                    sec-ta := TipArea {
+                        tip: it.shut ? "Rozwiń sekcję" : "Zwiń sekcję";
+                        clicked => {
+                            root.toggle-section(it.section);
+                        }
+                    }
+                }
+                if it.section != "" && !root.mini && !it.header-only: Rectangle {
+                    height: 2px;
+                }
+                if !it.header-only: Rectangle {
+                    height: it.detail != "" && !root.mini ? 52px : 34px;
                     border-radius: Theme.r;
                     background: Drag.active && Drag.target == it.path ? Theme.sel-strong : it.active ? Theme.sel : ta.has-hover ? Theme.hover : transparent;
                     border-width: Drag.active && Drag.target == it.path ? 2px : 0;
                     border-color: Theme.accent;
                     animate background { duration: 100ms; }
                     ta := TipArea {
-                        tip: it.tip;
+                        tip: root.mini ? (it.detail != "" ? it.name + "\n" + it.detail : it.name) : it.tip;
                         drop: it.path;
                         clicked => {
                             root.open(it.path);
@@ -66,9 +127,10 @@ export component Sidebar inherits Rectangle {
                         }
                     }
                     HorizontalLayout {
-                        padding-left: 10px;
-                        padding-right: 10px;
+                        padding-left: root.mini ? 0 : 10px;
+                        padding-right: root.mini ? 0 : 10px;
                         spacing: 11px;
+                        alignment: root.mini ? center : stretch;
                         // Ikona systemowa (jak w Eksploratorze); liniowa tylko do czasu jej wczytania.
                         if it.has-img: Image {
                             y: (parent.height - 18px) / 2;
@@ -81,7 +143,7 @@ export component Sidebar inherits Rectangle {
                             commands: it.icon;
                             color: it.active || ta.has-hover ? Theme.text : Theme.dim;
                         }
-                        VerticalLayout {
+                        if !root.mini: VerticalLayout {
                             alignment: center;
                             spacing: 3px;
                             Label {

@@ -80,7 +80,8 @@ Zasady:
 - [x] Przeciąganie (OLE jak w Eksploratorze): na foldery, tło listy, panel boczny, okruszki i karty; do i z innych programów; Ctrl kopiuj, Shift przenieś
 - [ ] Menu kontekstowe własne + pełne menu Eksploratora (Shift)
 - [x] Nowy folder/plik: menu „Nowy” (folder z datą, z zaznaczonych, dokumenty, pliki programisty), cofanie, przeniesienie zaznaczonych do nowego folderu
-- [ ] Masowa zmiana nazwy, archiwa (ZIP/7z: przeglądanie, wypakowanie, tworzenie)
+- [x] Masowa zmiana nazwy (wzorzec, numeracja, znajdź i zamień, podgląd, cofanie)
+- [ ] Archiwa (ZIP/7z: przeglądanie, wypakowanie, tworzenie)
 - [ ] Właściwości: metadane systemowe, rozmiar folderu, SHA-256, systemowe okno właściwości
 - [x] Powiadomienia (toasty z akcją), okna potwierdzenia, trwałe usuwanie (Shift+Del)
 - [ ] Półka (Shelf), pozostałe okna dialogowe (właściwości, masowa zmiana nazw, nazwa zapisanego wyszukiwania)

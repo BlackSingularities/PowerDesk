@@ -188,7 +188,7 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     if one.is_some() {
         v.push(it("Zmień nazwę", "edit", crate::start_rename).kbd("F2"));
     } else {
-        v.push(it(format!("Zmień nazwy ({})…", sel.len()), "edit", |_| {}).kbd("F2").later());
+        v.push(it(format!("Zmień nazwy ({})…", sel.len()), "edit", crate::bulk::open).kbd("F2"));
     }
     let p2 = ps.clone();
     v.push(it("Spakuj do ZIP…", "archive", move |s| zip(s, &p2)));

@@ -1,0 +1,462 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label, TipArea } from "components.slint";
+import { ListView } from "std-widgets.slint";
+
+/// Wiersz podglądu masowej zmiany nazw.
+export struct BulkRow {
+    old: string,
+    new: string,
+    problem: string,
+    same: bool,
+}
+
+/// Stan okna masowej zmiany nazw – pola edytuje okno, podgląd liczy Rust (bulk.rs) po `changed`.
+export global Bulk {
+    in-out property <bool> open;
+    in-out property <string> pattern;
+    in-out property <string> find;
+    in-out property <string> replace;
+    in-out property <bool> regex;
+    in-out property <bool> match-case;
+    in-out property <string> start;
+    in-out property <string> pad;
+    /// 0 – bez zmian, 1 – małe, 2 – wielkie, 3 – jak w tytule.
+    in-out property <int> case-mode;
+    /// 0 – bez zmian, 1 – małe, 2 – wielkie.
+    in-out property <int> ext-mode;
+    /// 0 – jak na liście, 1 – po nazwie, 2 – po dacie wykonania, 3 – po dacie modyfikacji.
+    in-out property <int> order;
+    in-out property <string> subtitle;
+    in-out property <string> summary;
+    in-out property <string> error;
+    in-out property <string> ok-label;
+    in-out property <bool> can-apply;
+    in-out property <[BulkRow]> rows;
+    callback changed;
+    callback apply;
+    callback cancel;
+}
+
+/// Pole tekstowe z etykietą nad nim.
+component Field inherits VerticalLayout {
+    in property <string> label;
+    in property <string> placeholder;
+    in property <bool> mono;
+    in property <bool> focus-first;
+    in-out property <string> text;
+    callback edited;
+    callback accepted;
+    spacing: 5px;
+    Label {
+        text: root.label;
+        font-size: 12px;
+        color: Theme.dim;
+    }
+    Rectangle {
+        height: 32px;
+        border-radius: Theme.r-s;
+        background: Theme.card;
+        border-width: 1px;
+        border-color: input.has-focus ? Theme.line-strong : Theme.line;
+        if input.text == "" && root.placeholder != "": Label {
+            x: 10px;
+            width: parent.width - 20px;
+            text: root.placeholder;
+            color: Theme.faint;
+        }
+        input := TextInput {
+            x: 10px;
+            width: parent.width - 20px;
+            text <=> root.text;
+            single-line: true;
+            vertical-alignment: center;
+            font-family: root.mono ? Theme.mono : Theme.font;
+            font-size: Theme.font-size;
+            color: Theme.text;
+            selection-background-color: Theme.sel-strong;
+            selection-foreground-color: Theme.text;
+            init => {
+                if (root.focus-first) {
+                    self.focus();
+                    self.select-all();
+                }
+            }
+            edited => {
+                root.edited();
+            }
+            accepted => {
+                root.accepted();
+            }
+        }
+    }
+}
+
+/// Mały przycisk-żeton (tokeny, gotowe wzorce, przełączniki).
+component Chip inherits Rectangle {
+    in property <string> text;
+    in property <string> tip;
+    in property <bool> on;
+    in property <bool> mono;
+    callback clicked;
+    height: 26px;
+    width: chip-l.preferred-width + 18px;
+    border-radius: Theme.r-s;
+    background: root.on ? Theme.accent : chip-ta.has-hover ? Theme.press : Theme.card;
+    chip-l := Label {
+        text: root.text;
+        font-family: root.mono ? Theme.mono : Theme.font;
+        font-size: 12px;
+        color: root.on ? Theme.on-accent : Theme.text;
+    }
+    chip-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Wybór jednej z kilku opcji – zamiast listy rozwijanej.
+component Choice inherits VerticalLayout {
+    in property <string> label;
+    in property <[string]> options;
+    in-out property <int> value;
+    callback picked;
+    spacing: 5px;
+    Label {
+        text: root.label;
+        font-size: 12px;
+        color: Theme.dim;
+    }
+    HorizontalLayout {
+        spacing: 4px;
+        alignment: start;
+        for o[i] in root.options: Chip {
+            text: o;
+            on: root.value == i;
+            clicked => {
+                root.value = i;
+                root.picked();
+            }
+        }
+    }
+}
+
+/// Masowa zmiana nazw (BulkRename.svelte): ustawienia po lewej, podgląd na żywo po prawej.
+export component BulkDialog inherits Rectangle {
+    background: #00000099;
+    TouchArea {
+        clicked => {
+            Bulk.cancel();
+        }
+    }
+    FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                Bulk.cancel();
+                return accept;
+            }
+            reject
+        }
+        Rectangle {
+            width: min(980px, root.width - 48px);
+            height: min(680px, root.height - 48px);
+            border-radius: Theme.r-xl;
+            background: Theme.panel;
+            border-width: 1px;
+            border-color: Theme.line;
+            drop-shadow-blur: 80px;
+            drop-shadow-offset-y: 30px;
+            drop-shadow-color: Theme.shadow;
+            TouchArea { }
+            VerticalLayout {
+                padding: 20px;
+                padding-bottom: 16px;
+                spacing: 14px;
+                HorizontalLayout {
+                    spacing: 12px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.edit;
+                    }
+                    VerticalLayout {
+                        Text {
+                            text: "Zmień nazwy";
+                            font-family: Theme.font;
+                            font-size: 17px;
+                            font-weight: 600;
+                            color: Theme.text;
+                        }
+                        Label {
+                            text: Bulk.subtitle;
+                            font-size: 12px;
+                            color: Theme.dim;
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 16px;
+                    VerticalLayout {
+                        width: 340px;
+                        spacing: 10px;
+                        Field {
+                            label: "Wzorzec nazwy";
+                            mono: true;
+                            focus-first: true;
+                            text <=> Bulk.pattern;
+                            edited => {
+                                Bulk.changed();
+                            }
+                            accepted => {
+                                Bulk.apply();
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 5px;
+                            alignment: start;
+                            for t in [
+                                { t: "{nazwa}", d: "Obecna nazwa" },
+                                { t: "{nr}", d: "Numer kolejny" },
+                                { t: "{data}", d: "Data wykonania (EXIF) lub modyfikacji" },
+                                { t: "{czas}", d: "Godzina" },
+                                { t: "{folder}", d: "Nazwa folderu" },
+                                { t: "{rozmiar}", d: "Wymiary zdjęcia" },
+                            ]: Chip {
+                                text: t.t;
+                                tip: t.d;
+                                mono: true;
+                                clicked => {
+                                    Bulk.pattern += (Bulk.pattern != "" && !Bulk.pattern.ends-with(" ") && !Bulk.pattern.ends-with("_") ? "_" : "") + t.t;
+                                    Bulk.changed();
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 5px;
+                            alignment: start;
+                            for p in [
+                                { l: "Data + numer", p: "{data}_{nr}" },
+                                { l: "Data i godzina", p: "{data} {czas}" },
+                                { l: "Folder + numer", p: "{folder} {nr}" },
+                                { l: "Numer + nazwa", p: "{nr} {nazwa}" },
+                            ]: Chip {
+                                text: p.l;
+                                tip: p.p;
+                                on: Bulk.pattern == p.p;
+                                clicked => {
+                                    Bulk.pattern = p.p;
+                                    Bulk.changed();
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Field {
+                                label: "Numer od";
+                                text <=> Bulk.start;
+                                edited => {
+                                    Bulk.changed();
+                                }
+                            }
+                            Field {
+                                label: "Cyfr";
+                                text <=> Bulk.pad;
+                                edited => {
+                                    Bulk.changed();
+                                }
+                            }
+                        }
+                        Choice {
+                            label: "Kolejność numeracji";
+                            options: ["Jak na liście", "Nazwa", "Wykonanie", "Modyfikacja"];
+                            value <=> Bulk.order;
+                            picked => {
+                                Bulk.changed();
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 8px;
+                            Field {
+                                label: "Znajdź";
+                                placeholder: "np. DSC0";
+                                mono: true;
+                                text <=> Bulk.find;
+                                edited => {
+                                    Bulk.changed();
+                                }
+                            }
+                            Field {
+                                label: "Zamień na";
+                                mono: true;
+                                text <=> Bulk.replace;
+                                edited => {
+                                    Bulk.changed();
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: start;
+                            Chip {
+                                text: ".*";
+                                mono: true;
+                                tip: "Wyrażenie regularne";
+                                on: Bulk.regex;
+                                clicked => {
+                                    Bulk.regex = !Bulk.regex;
+                                    Bulk.changed();
+                                }
+                            }
+                            Chip {
+                                text: "Aa";
+                                tip: "Uwzględniaj wielkość liter";
+                                on: Bulk.match-case;
+                                clicked => {
+                                    Bulk.match-case = !Bulk.match-case;
+                                    Bulk.changed();
+                                }
+                            }
+                            if Bulk.error != "": Label {
+                                text: Bulk.error;
+                                font-size: 12px;
+                                color: Theme.rec;
+                            }
+                        }
+                        Choice {
+                            label: "Wielkość liter";
+                            options: ["Bez zmian", "małe", "WIELKIE", "Jak W Tytule"];
+                            value <=> Bulk.case-mode;
+                            picked => {
+                                Bulk.changed();
+                            }
+                        }
+                        Choice {
+                            label: "Rozszerzenie";
+                            options: ["Bez zmian", ".jpg", ".JPG"];
+                            value <=> Bulk.ext-mode;
+                            picked => {
+                                Bulk.changed();
+                            }
+                        }
+                        Rectangle { }
+                    }
+                    Rectangle {
+                        border-radius: Theme.r-l;
+                        background: Theme.bg;
+                        border-width: 1px;
+                        border-color: Theme.line;
+                        clip: true;
+                        VerticalLayout {
+                            HorizontalLayout {
+                                height: 38px;
+                                padding-left: 14px;
+                                padding-right: 14px;
+                                Label {
+                                    text: "Podgląd";
+                                    font-size: 12px;
+                                    font-weight: 600;
+                                    color: Theme.dim;
+                                }
+                                Label {
+                                    horizontal-alignment: right;
+                                    text: Bulk.summary;
+                                    font-size: 12px;
+                                    color: Theme.dim;
+                                }
+                            }
+                            Rectangle {
+                                height: 1px;
+                                background: Theme.line;
+                            }
+                            ListView {
+                                for r in Bulk.rows: Rectangle {
+                                    height: 30px;
+                                    background: row-ta.has-hover ? Theme.hover : transparent;
+                                    row-ta := TipArea {
+                                        tip: r.problem;
+                                    }
+                                    HorizontalLayout {
+                                        padding-left: 14px;
+                                        padding-right: 14px;
+                                        spacing: 8px;
+                                        Label {
+                                            text: r.old;
+                                            font-size: 12.5px;
+                                            color: Theme.dim;
+                                        }
+                                        Icon {
+                                            y: (parent.height - self.height) / 2;
+                                            commands: Icons.chevron;
+                                            size: 12px;
+                                            color: Theme.dim;
+                                        }
+                                        Label {
+                                            text: r.new;
+                                            font-size: 12.5px;
+                                            font-weight: r.same ? 400 : 600;
+                                            color: r.problem != "" ? Theme.rec : r.same ? Theme.dim : Theme.text;
+                                        }
+                                        if r.problem != "": Rectangle {
+                                            y: (parent.height - self.height) / 2;
+                                            height: 20px;
+                                            width: tag-l.preferred-width + 14px;
+                                            border-radius: 10px;
+                                            background: Theme.rec.transparentize(0.82);
+                                            tag-l := Label {
+                                                text: r.problem;
+                                                font-size: 11px;
+                                                color: Theme.rec;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    Label {
+                        text: "Ctrl+Z cofa całą operację";
+                        font-size: 12px;
+                        color: Theme.dim;
+                    }
+                    Rectangle {
+                        height: 32px;
+                        width: bc-l.preferred-width + 24px;
+                        border-radius: Theme.r-s;
+                        background: bc-ta.has-hover ? Theme.hover : transparent;
+                        bc-l := Label {
+                            text: "Anuluj";
+                            color: Theme.dim;
+                        }
+                        bc-ta := TouchArea {
+                            clicked => {
+                                Bulk.cancel();
+                            }
+                        }
+                    }
+                    Rectangle {
+                        height: 32px;
+                        width: max(90px, bo-l.preferred-width + 24px);
+                        border-radius: Theme.r-s;
+                        opacity: Bulk.can-apply ? 1 : 0.4;
+                        background: bo-ta.has-hover && Bulk.can-apply ? Theme.accent.darker(0.1) : Theme.accent;
+                        bo-l := Label {
+                            text: Bulk.ok-label;
+                            font-weight: 600;
+                            color: Theme.on-accent;
+                        }
+                        bo-ta := TouchArea {
+                            enabled: Bulk.can-apply;
+                            clicked => {
+                                Bulk.apply();
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

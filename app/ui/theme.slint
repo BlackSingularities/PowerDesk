@@ -17,8 +17,9 @@ export global Theme {
     out property <color> line: light ? #00000014 : #ffffff17;
     out property <color> line-strong: light ? #0000002e : #ffffff2e;
     out property <color> text: light ? #111111 : #ffffff;
-    out property <color> dim: light ? #000000b3 : #ffffffb3;
-    out property <color> faint: light ? #00000075 : #ffffff6b;
+    // Kryjące kolory zamiast przezroczystości – półprzezroczysty tekst wygładza się blado i nierówno.
+    out property <color> dim: light ? #2e2e33 : #dcdce0;
+    out property <color> faint: light ? #5c5c63 : #a8a8ae;
     out property <color> ghost: light ? #0000003d : #ffffff38;
     out property <color> accent: accent-override.alpha > 0 ? accent-override : (light ? #111111 : #ffffff);
     out property <color> on-accent: light ? #ffffff : #000000;

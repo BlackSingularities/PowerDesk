@@ -27,6 +27,8 @@ struct Cache {
     order: VecDeque<(String, u32, bool)>,
     pending: HashSet<(String, u32, bool)>,
     missing: HashSet<(String, u32, bool)>,
+    /// Nieudane próby – powłoka przy starcie bywa zajęta i chwilowo nie oddaje ikony.
+    failed: HashMap<(String, u32, bool), u8>,
     redraw: bool,
     /// Ścieżki, których obrazy dotarły od ostatniego przerysowania.
     arrived: HashSet<String>,
@@ -81,7 +83,11 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
                 }
             }
             None => {
-                c.missing.insert(key);
+                let n = c.failed.entry(key.clone()).or_default();
+                *n += 1;
+                if *n >= 3 {
+                    c.missing.insert(key);
+                }
             }
         }
         // Wiele miniatur naraz – jedno przerysowanie na klatkę.

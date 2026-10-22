@@ -791,6 +791,10 @@ pub struct Prefs {
     /// Rozmiary folderów liczone w tle w kolumnie Rozmiar (bez dysków sieciowych).
     pub folder_sizes: bool,
     pub saved_searches: Vec<SavedSearch>,
+    /// Zwinięte sekcje panelu bocznego (nazwy nagłówków).
+    pub side_shut: Vec<String>,
+    /// Panel boczny zwinięty do paska ikon.
+    pub side_mini: bool,
 }
 
 /// Wyszukiwanie zapisane w panelu bocznym.
@@ -804,7 +808,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new() }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false }
     }
 }
 
