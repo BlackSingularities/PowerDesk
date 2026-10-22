@@ -41,7 +41,8 @@ export component FileView inherits Rectangle {
     callback viewport-changed(length, length, length);
     callback select(int, bool, bool);
     callback open(int);
-    callback context(int, length, length);
+    callback context(int, length, length, bool);
+    callback background-context(length, length, bool);
     callback background-click;
     callback header-sort(string);
     callback zoom(int);
@@ -116,6 +117,11 @@ export component FileView inherits Rectangle {
                 clicked => {
                     root.background-click();
                 }
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                        root.background-context(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y, e.modifiers.shift);
+                    }
+                }
                 scroll-event(e) => {
                     if (e.modifiers.control) {
                         root.zoom(e.delta-y > 0 ? 1 : -1);
@@ -142,7 +148,7 @@ export component FileView inherits Rectangle {
                             root.select(it.index, e.modifiers.control, e.modifiers.shift);
                         }
                         if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
-                            root.context(it.index, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                            root.context(it.index, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y, e.modifiers.shift);
                         }
                     }
                     double-clicked => {

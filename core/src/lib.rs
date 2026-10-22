@@ -2,6 +2,7 @@
 //! Bez zależności od warstwy UI; zdarzenia wychodzą przez [`events`].
 
 pub mod archive;
+pub mod clip;
 pub mod drives;
 pub mod events;
 pub mod fsx;

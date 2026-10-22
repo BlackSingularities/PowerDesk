@@ -9,9 +9,11 @@ export struct MenuEntry {
     checked: bool,
     sep: bool,
     disabled: bool,
+    danger: bool,
+    has-sub: bool,
 }
 
-/// Wyskakujące menu (ContextMenu.svelte): tło high, obwódka line, cień, pozycje 32 px.
+/// Wyskakujące menu (ContextMenu.svelte): tło high, obwódka line, promień r, cień 0 24px 60px, pozycje 32 px.
 export component MenuPopup inherits PopupWindow {
     in property <[MenuEntry]> entries;
     in property <length> menu-width: 240px;
@@ -21,18 +23,18 @@ export component MenuPopup inherits PopupWindow {
     close-policy: close-on-click-outside;
 
     Rectangle {
-        drop-shadow-blur: 40px;
-        drop-shadow-offset-y: 16px;
+        drop-shadow-blur: 60px;
+        drop-shadow-offset-y: 24px;
         drop-shadow-color: Theme.shadow;
         background: Theme.high;
-        border-radius: Theme.r-l;
+        border-radius: Theme.r;
         border-width: 1px;
         border-color: Theme.line;
 
         VerticalLayout {
             padding: 6px;
             for e[i] in root.entries: Rectangle {
-                height: e.sep ? 9px : 32px;
+                height: e.sep ? 11px : 32px;
                 if e.sep: Rectangle {
                     height: 1px;
                     x: 6px;
@@ -63,13 +65,19 @@ export component MenuPopup inherits PopupWindow {
                             if !e.checked && e.icon != "": Icon {
                                 commands: e.icon;
                                 size: 16px;
-                                color: e.disabled ? Theme.ghost : Theme.dim;
+                                color: e.disabled ? Theme.ghost : e.danger ? #ff7a82 : ta.has-hover ? Theme.text : Theme.dim;
                             }
                         }
                         Label {
                             horizontal-stretch: 1;
                             text: e.label;
-                            color: e.disabled ? Theme.ghost : ta.has-hover ? Theme.text : Theme.dim;
+                            color: e.disabled ? Theme.ghost : e.danger ? #ff7a82 : ta.has-hover ? Theme.text : Theme.dim;
+                        }
+                        if e.has-sub: Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: Icons.chevron;
+                            size: 13px;
+                            color: Theme.faint;
                         }
                         if e.kbd != "": Label {
                             text: e.kbd;

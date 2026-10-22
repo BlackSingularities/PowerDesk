@@ -87,7 +87,10 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
     if schedule {
         slint::Timer::single_shot(std::time::Duration::from_millis(16), || {
             CACHE.with(|c| c.borrow_mut().redraw = false);
-            crate::with_state(|s| crate::render_items(s));
+            crate::with_state(|s| {
+                crate::render_items(s);
+                crate::render_side(s);
+            });
         });
     }
 }

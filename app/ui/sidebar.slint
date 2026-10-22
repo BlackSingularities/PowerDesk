@@ -9,6 +9,8 @@ export struct SideItem {
     detail: string,
     usage: float,
     active: bool,
+    img: image,
+    has-img: bool,
 }
 
 /// Panel boczny (Sidebar.svelte): sekcje z nagłówkami, pozycje 34 px, dyski z paskiem zajętości.
@@ -56,7 +58,14 @@ export component Sidebar inherits Rectangle {
                         padding-left: 10px;
                         padding-right: 10px;
                         spacing: 11px;
-                        Icon {
+                        // Ikona systemowa (jak w Eksploratorze); liniowa tylko do czasu jej wczytania.
+                        if it.has-img: Image {
+                            y: it.detail != "" ? 8px : (parent.height - 18px) / 2;
+                            width: 18px;
+                            height: 18px;
+                            source: it.img;
+                        }
+                        if !it.has-img: Icon {
                             y: it.detail != "" ? 8px : (parent.height - self.height) / 2;
                             commands: it.icon;
                             color: it.active || ta.has-hover ? Theme.text : Theme.dim;

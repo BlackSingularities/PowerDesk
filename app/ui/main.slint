@@ -82,7 +82,8 @@ export component MainWindow inherits Window {
     callback viewport-changed(length, length, length);
     callback select(int, bool, bool);
     callback open(int);
-    callback context(int, length, length);
+    callback context(int, length, length, bool);
+    callback background-context(length, length, bool);
     callback background-click;
     callback header-sort(string);
     callback zoom-step(int);
@@ -257,8 +258,12 @@ export component MainWindow inherits Window {
                             open(i) => {
                                 root.open(i);
                             }
-                            context(i, x, y) => {
-                                root.context(i, x, y);
+                            context(i, x, y, shift) => {
+                                root.context(i, x, y, shift);
+                            }
+                            background-context(x, y, shift) => {
+                                keys.focus();
+                                root.background-context(x, y, shift);
                             }
                             background-click => {
                                 keys.focus();

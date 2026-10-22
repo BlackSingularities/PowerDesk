@@ -2,6 +2,7 @@
 //! PowerDesk – natywny interfejs (Slint) nad backendem `powerdesk-core`.
 
 mod fmt;
+mod menus;
 mod model;
 mod thumbs;
 mod icons {
@@ -21,13 +22,6 @@ use slint::{ComponentHandle, ModelRc, SharedString, VecModel, Weak};
 
 slint::include_modules!();
 
-/// Na co czeka otwarte menu – wybór pozycji trafia do tej akcji.
-enum MenuAction {
-    Sort,
-    Crumb(Vec<String>),
-    New,
-}
-
 pub struct State {
     tabs: Vec<Tab>,
     active: usize,
@@ -38,7 +32,9 @@ pub struct State {
     /// Proporcje zdjęć i filmów (szer./wys.) dla galerii.
     ratios: HashMap<String, f32>,
     ratio_pending: HashSet<String>,
-    menu: Option<MenuAction>,
+    menu: Option<menus::Open>,
+    /// Dyski – odświeżane po zmianie (podłączenie pendrive'a), nie przy każdym rysowaniu.
+    drives: Vec<drives::Drive>,
 }
 
 type Shared = Rc<RefCell<State>>;
@@ -69,6 +65,7 @@ fn main() -> Result<(), slint::PlatformError> {
         ratios: HashMap::new(),
         ratio_pending: HashSet::new(),
         menu: None,
+        drives: drives::list(),
     }));
     STATE.with(|s| *s.borrow_mut() = Some(st.clone()));
 
@@ -77,6 +74,7 @@ fn main() -> Result<(), slint::PlatformError> {
         let _ = slint::invoke_from_event_loop(move || with_state(|s| on_event(s, &name, payload)));
     });
     fsx::init_watcher(Core);
+    drives::init_watch(Core);
 
     wire(&ui, &st);
     load(&st, false);
@@ -150,7 +148,21 @@ fn wire(ui: &MainWindow, st: &Shared) {
         render_items(&s);
     });
     let s = st.clone();
-    ui.on_context(move |i, x, y| context(&s, i as usize, x, y));
+    ui.on_context(move |i, x, y, shift| context(&s, i as usize, x, y, shift));
+    let s = st.clone();
+    ui.on_background_context(move |x, y, shift| {
+        tab_mut(&s, |t| t.selected.clear());
+        render_items(&s);
+        let path = tab_mut(&s, |t| t.path.clone());
+        if path.starts_with("ofp:") {
+            return;
+        }
+        if shift {
+            native_menu(&s, &[path], x, y);
+        } else {
+            menus::background_menu(&s, x, y);
+        }
+    });
 
     // Filtr na żywo i wyszukiwanie w podfolderach.
     let s = st.clone();
@@ -165,7 +177,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
 
     // Sortowanie, widoki, wielkość miniatur.
     let s = st.clone();
-    ui.on_sort_menu(move |x, y| sort_menu(&s, x, y));
+    ui.on_sort_menu(move |x, y| menus::sort_menu(&s, x, y));
     let s = st.clone();
     ui.on_header_sort(move |id| {
         let k = match id.as_str() {
@@ -193,14 +205,11 @@ fn wire(ui: &MainWindow, st: &Shared) {
         }
     });
     let s = st.clone();
-    ui.on_crumb_menu(move |p, x, y| crumb_menu(&s, p.as_str(), x, y));
+    ui.on_crumb_menu(move |p, x, y| menus::crumb_menu(&s, p.as_str(), x, y));
     let s = st.clone();
-    ui.on_new_menu(move |x, y| {
-        let entries = vec![entry("Folder", "folderPlus", "Ctrl+Shift+N", false), entry("Dokument tekstowy", "filePlus", "", false)];
-        show_menu(&s, MenuAction::New, entries, x, y, 220.0);
-    });
+    ui.on_new_menu(move |x, y| menus::new_menu(&s, x, y));
     let s = st.clone();
-    ui.on_menu_chosen(move |i| menu_chosen(&s, i as usize));
+    ui.on_menu_chosen(move |i| menus::chosen(&s, i as usize));
     let s = st.clone();
     ui.on_command(move |c| command(&s, c.as_str()));
     let s = st.clone();
@@ -228,15 +237,26 @@ fn tab_mut<R>(s: &Shared, f: impl FnOnce(&mut Tab) -> R) -> R {
 }
 
 fn new_tab(s: &Shared) {
-    save_scroll(s);
     let p = tab_mut(s, |t| t.path.clone());
+    new_tab_at(s, &p, true);
+}
+
+/// Nowa karta obok bieżącej; w tle (`activate == false`) jak „Otwórz w nowej karcie”.
+fn new_tab_at(s: &Shared, path: &str, activate: bool) {
+    save_scroll(s);
+    let prev = s.borrow().active;
     {
         let mut b = s.borrow_mut();
-        b.tabs.push(Tab::new(&p));
-        b.active = b.tabs.len() - 1;
+        let at = b.active + 1;
+        b.tabs.insert(at, Tab::new(path));
+        b.active = at;
     }
     apply_prefs(s);
     load(s, false);
+    if !activate {
+        s.borrow_mut().active = prev;
+        show_tab(s);
+    }
 }
 
 fn close_tab(s: &Shared, i: usize) {
@@ -532,8 +552,7 @@ fn render_chrome(s: &Shared) {
     ui.set_special(t.special());
     ui.set_can_back(t.h_index > 0 || t.search.is_some());
     ui.set_can_forward(t.h_index + 1 < t.history.len());
-    ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path))));
-    ui.set_folder_icon(thumbs::get(&t.path, 16, true).unwrap_or_default());
+    ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path, &b.drives))));
     ui.set_view(t.view.index());
     ui.set_sort_id(
         match t.sort {
@@ -585,8 +604,8 @@ fn render_chrome(s: &Shared) {
             })
             .collect::<Vec<_>>(),
     )));
-    ui.set_side(ModelRc::new(VecModel::from(side_items(&t.path))));
     drop(b);
+    render_side(s);
     render_status(s);
 }
 
@@ -727,8 +746,8 @@ fn hwnd(s: &Shared) -> isize {
         .unwrap_or(0)
 }
 
-/// Menu Eksploratora dla zaznaczenia (własne menu dojdzie w etapie 2).
-fn context(s: &Shared, i: usize, x: f32, y: f32) {
+/// Prawy przycisk na elemencie: własne menu, z Shift – od razu menu Eksploratora.
+fn context(s: &Shared, i: usize, x: f32, y: f32, shift: bool) {
     let paths = tab_mut(s, |t| {
         let Some(e) = t.items.get(i) else { return Vec::new() };
         if !t.selected.contains(&e.path) {
@@ -743,21 +762,63 @@ fn context(s: &Shared, i: usize, x: f32, y: f32) {
     if paths.is_empty() {
         return;
     }
+    if shift {
+        native_menu(s, &paths, x, y);
+    } else {
+        menus::item_menu(s, x, y);
+    }
+}
+
+/// Pełne menu Eksploratora (IContextMenu) w miejscu kliknięcia.
+fn native_menu(s: &Shared, paths: &[String], x: f32, y: f32) {
     let scale = s.borrow().ui.upgrade().map(|u| u.window().scale_factor()).unwrap_or(1.0);
     let h = hwnd(s);
-    if let Ok(true) = shell::native_menu(h, &paths, (x * scale) as i32, (y * scale) as i32, false) {
+    if let Ok(true) = shell::native_menu(h, paths, (x * scale) as i32, (y * scale) as i32, false) {
         load(s, true);
     }
 }
 
+fn selected_paths(s: &Shared) -> Vec<String> {
+    tab_mut(s, |t| t.items.iter().filter(|e| t.selected.contains(&e.path)).map(|e| e.path.clone()).collect())
+}
+
 fn command(s: &Shared, c: &str) {
-    let sel: Vec<String> = tab_mut(s, |t| t.items.iter().filter(|e| t.selected.contains(&e.path)).map(|e| e.path.clone()).collect());
-    // Wytnij, kopiuj, wklej, zmiana nazwy i Kosz – etap 2 (operacje na plikach).
-    if c == "props" {
-        if let Some(p) = sel.first() {
-            shell::show_properties(hwnd(s), p);
+    let sel = selected_paths(s);
+    match c {
+        "cut" => menus::copy(&sel, true),
+        "copy" => menus::copy(&sel, false),
+        "paste" => menus::paste(s, None),
+        "trash" => menus::trash(&sel),
+        "props" => {
+            let p = sel.first().cloned().unwrap_or_else(|| tab_mut(s, |t| t.path.clone()));
+            shell::show_properties(hwnd(s), &p);
         }
+        // Zmiana nazwy w miejscu – etap 2.
+        _ => {}
     }
+}
+
+fn select_all(s: &Shared) {
+    tab_mut(s, |t| t.selected = t.items.iter().map(|e| e.path.clone()).collect());
+    render_items(s);
+}
+
+/// Zaznacza element o podanej ścieżce (np. cel skrótu) i przewija do niego.
+fn select_path(s: &Shared, path: &str) {
+    let i = tab_mut(s, |t| {
+        let i = t.items.iter().position(|e| same(&e.path, path));
+        if let Some(i) = i {
+            t.selected.clear();
+            t.selected.insert(t.items[i].path.clone());
+            t.focus = Some(i);
+            t.anchor = Some(i);
+        }
+        i
+    });
+    if let Some(i) = i {
+        reveal(s, i);
+    }
+    render_items(s);
 }
 
 fn create(s: &Shared, folder: bool) {
@@ -895,6 +956,10 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
                 refresh(s);
             }
         }
+        "drives-changed" => {
+            s.borrow_mut().drives = drives::list();
+            render_side(s);
+        }
         "fs-changed" => {
             let Ok(dirs) = serde_json::from_value::<Vec<String>>(payload) else { return };
             let (path, searching) = tab_mut(s, |t| (t.path.clone(), t.search.is_some()));
@@ -903,86 +968,6 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
             }
         }
         _ => {}
-    }
-}
-
-// ---------- Menu ----------
-
-fn entry(label: &str, icon: &str, kbd: &str, checked: bool) -> MenuEntry {
-    MenuEntry { label: label.into(), icon: icons::icon(icon).into(), kbd: kbd.into(), checked, sep: false, disabled: false }
-}
-
-fn sep() -> MenuEntry {
-    MenuEntry { label: SharedString::new(), icon: SharedString::new(), kbd: SharedString::new(), checked: false, sep: true, disabled: false }
-}
-
-fn show_menu(s: &Shared, action: MenuAction, entries: Vec<MenuEntry>, x: f32, y: f32, width: f32) {
-    s.borrow_mut().menu = Some(action);
-    let Some(ui) = s.borrow().ui.upgrade() else { return };
-    // Menu nie wychodzi poza okno.
-    let size = ui.window().size().to_logical(ui.window().scale_factor());
-    let h: f32 = entries.iter().map(|e| if e.sep { 9.0 } else { 32.0 }).sum::<f32>() + 14.0;
-    ui.set_menu_x(x.min(size.width - width - 8.0).max(8.0));
-    ui.set_menu_y(if y + h > size.height - 8.0 { (y - h - 40.0).max(8.0) } else { y });
-    ui.set_menu_width(width);
-    ui.set_menu_entries(ModelRc::new(VecModel::from(entries)));
-    ui.invoke_show_menu();
-}
-
-fn sort_menu(s: &Shared, x: f32, y: f32) {
-    let (sort, desc, ff) = {
-        let b = s.borrow();
-        let t = &b.tabs[b.active];
-        (t.sort, t.desc, b.prefs.folders_first)
-    };
-    let mut v: Vec<MenuEntry> = SortKey::ALL.iter().map(|k| entry(k.label(), "", "", *k == sort)).collect();
-    v.push(sep());
-    v.push(entry("Malejąco", "", "", desc));
-    v.push(entry("Foldery na górze", "", "", ff));
-    show_menu(s, MenuAction::Sort, v, x, y, 230.0);
-}
-
-fn crumb_menu(s: &Shared, path: &str, x: f32, y: f32) {
-    let mut dirs: Vec<_> = fsx::list_dir(path).unwrap_or_default().into_iter().filter(|e| e.dir && !(e.hidden || e.system)).collect();
-    dirs.sort_by(|a, b| model::natural(&a.name, &b.name));
-    dirs.truncate(60);
-    if dirs.is_empty() {
-        return;
-    }
-    let entries = dirs.iter().map(|e| entry(&e.name, "folder", "", false)).collect();
-    let paths = dirs.into_iter().map(|e| e.path).collect();
-    show_menu(s, MenuAction::Crumb(paths), entries, x, y, 260.0);
-}
-
-fn menu_chosen(s: &Shared, i: usize) {
-    let Some(action) = s.borrow_mut().menu.take() else { return };
-    let n = SortKey::ALL.len();
-    match action {
-        MenuAction::Sort if i < n => {
-            tab_mut(s, |t| t.sort = SortKey::ALL[i]);
-            save_prefs(s);
-            refresh(s);
-        }
-        MenuAction::Sort if i == n + 1 => {
-            tab_mut(s, |t| t.desc = !t.desc);
-            save_prefs(s);
-            refresh(s);
-        }
-        MenuAction::Sort if i == n + 2 => {
-            {
-                let mut b = s.borrow_mut();
-                b.prefs.folders_first = !b.prefs.folders_first;
-                b.prefs.save();
-            }
-            refresh(s);
-        }
-        MenuAction::Sort => {}
-        MenuAction::Crumb(paths) => {
-            if let Some(p) = paths.get(i) {
-                navigate(s, p, true);
-            }
-        }
-        MenuAction::New => create(s, i == 0),
     }
 }
 
@@ -1034,8 +1019,24 @@ fn key(s: &Shared, k: &str, ctrl: bool, shift: bool, alt: bool) {
         return refresh(s);
     }
     if ctrl && k == "a" {
-        tab_mut(s, |t| t.selected = t.items.iter().map(|e| e.path.clone()).collect());
-        return render_items(s);
+        return select_all(s);
+    }
+    if ctrl && shift && k.eq_ignore_ascii_case("c") {
+        let sel = selected_paths(s);
+        let _ = powerdesk_core::clip::set_text(&sel.iter().map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join("\n"));
+        return;
+    }
+    if ctrl && k == "c" {
+        return command(s, "copy");
+    }
+    if ctrl && k == "x" {
+        return command(s, "cut");
+    }
+    if ctrl && k == "v" {
+        return command(s, "paste");
+    }
+    if is(Key::Delete) && !shift {
+        return command(s, "trash");
     }
     if is(Key::F5) {
         return load(s, true);
@@ -1146,7 +1147,7 @@ fn tab_icon(t: &Tab) -> SharedString {
 }
 
 /// Okruszki: Dysk (C:) → Users → redzi.
-fn crumbs(path: &str) -> Vec<Crumb> {
+fn crumbs(path: &str, drives: &[drives::Drive]) -> Vec<Crumb> {
     if path.starts_with("ofp:") {
         return Vec::new();
     }
@@ -1159,7 +1160,7 @@ fn crumbs(path: &str) -> Vec<Crumb> {
             std::path::Component::RootDir => {
                 let root = acc.to_string_lossy().to_string();
                 let letter = root.trim_end_matches('\\').to_string();
-                let label = drives::list().into_iter().find(|d| same(&d.path, &root)).map(|d| d.label).unwrap_or_default();
+                let label = drives.iter().find(|d| same(&d.path, &root)).map(|d| d.label.clone()).unwrap_or_default();
                 if label.is_empty() {
                     format!("Dysk ({letter})")
                 } else {
@@ -1173,7 +1174,28 @@ fn crumbs(path: &str) -> Vec<Crumb> {
     v
 }
 
-fn side_items(current: &str) -> Vec<SideItem> {
+/// Panel boczny z ikonami systemowymi (te same co w Eksploratorze).
+pub fn render_side(s: &Shared) {
+    let b = s.borrow();
+    let Some(ui) = b.ui.upgrade() else { return };
+    let t = &b.tabs[b.active];
+    let scale = ui.window().scale_factor();
+    let px = (18.0 * scale) as u32;
+    let items: Vec<SideItem> = side_items(&t.path, &b.drives)
+        .into_iter()
+        .map(|mut it| {
+            if let Some(img) = thumbs::get(it.path.as_str(), px, true) {
+                it.img = img;
+                it.has_img = true;
+            }
+            it
+        })
+        .collect();
+    ui.set_side(ModelRc::new(VecModel::from(items)));
+    ui.set_folder_icon(thumbs::get(&t.path, (16.0 * scale) as u32, true).unwrap_or_default());
+}
+
+fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
     let mut v = Vec::new();
     let known: [(&str, Option<PathBuf>, &str); 6] = [
         ("Pulpit", dirs::desktop_dir(), "desktop"),
@@ -1195,10 +1217,12 @@ fn side_items(current: &str) -> Vec<SideItem> {
             path: p.into(),
             detail: SharedString::new(),
             usage: 0.0,
+            img: Default::default(),
+            has_img: false,
         });
     }
     let mut first = true;
-    for d in drives::list().into_iter().filter(|d| d.online) {
+    for d in drives.iter().filter(|d| d.online) {
         let name = if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
         let used = d.total.saturating_sub(d.free);
         v.push(SideItem {
@@ -1213,6 +1237,8 @@ fn side_items(current: &str) -> Vec<SideItem> {
             path: d.path.clone().into(),
             detail: if d.total > 0 { format!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)).into() } else { SharedString::new() },
             usage: if d.total > 0 { used as f32 / d.total as f32 } else { 0.0 },
+            img: Default::default(),
+            has_img: false,
         });
     }
     v
