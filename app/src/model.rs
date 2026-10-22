@@ -449,6 +449,9 @@ impl Tab {
         if self.path == "ofp:settings" {
             return "Ustawienia".into();
         }
+        if self.path == "ofp:sync" {
+            return "Synchronizacja".into();
+        }
         Path::new(&self.path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| self.path.trim_end_matches('\\').to_string())
     }
 

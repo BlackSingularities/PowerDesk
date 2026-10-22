@@ -1,0 +1,811 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label, TipArea } from "components.slint";
+import { ScrollView, LineEdit, TextEdit } from "std-widgets.slint";
+
+export struct SyncHist {
+    when: string,
+    text: string,
+    ok: bool,
+}
+
+export struct SyncCard {
+    id: string,
+    name: string,
+    source: string,
+    target: string,
+    mode: string,
+    /// Kolor kropki: 0 – szara (wyłączona, odłączona), 1 – zielona, 2 – trwa, 3 – błąd / czeka na decyzję.
+    tone: int,
+    state: string,
+    detail: string,
+    enabled: bool,
+    busy: bool,
+    progress: float,
+    current: string,
+    /// Ochrona przed masowym usunięciem – opis i czy czeka na potwierdzenie.
+    confirm: string,
+    history: [SyncHist],
+}
+
+/// Ekran synchronizacji (SyncView.svelte) – dane w syncview.rs, silnik w powerdesk_core::sync.
+export global SyncState {
+    in-out property <bool> open;
+    in-out property <[SyncCard]> cards;
+    /// Stary OpenFilePower działa i sam synchronizuje – PowerDesk czeka.
+    in-out property <bool> blocked;
+    /// Rozwinięta historia (id profilu).
+    in-out property <string> expanded;
+
+    // Edytor profilu.
+    in-out property <bool> editing;
+    in-out property <string> e-id;
+    in-out property <string> e-name;
+    in-out property <string> e-source;
+    in-out property <string> e-target;
+    /// 0 – lustrzana, 1 – dwukierunkowa, 2 – kopia zapasowa.
+    in-out property <int> e-mode;
+    in-out property <bool> e-continuous: true;
+    in-out property <string> e-interval: "15";
+    in-out property <bool> e-versioning: true;
+    in-out property <bool> e-hidden;
+    in-out property <string> e-exclude;
+    in-out property <string> e-error;
+
+    // Podgląd planu.
+    in-out property <bool> preview-open;
+    in-out property <string> preview-title;
+    in-out property <string> preview-summary;
+    in-out property <[string]> preview-items;
+    in-out property <bool> preview-loading;
+
+    callback add;
+    callback edit(string);
+    callback pick-source;
+    callback pick-target;
+    callback save;
+    callback cancel-edit;
+    callback remove(string);
+    callback sync-now(string);
+    callback sync-all;
+    callback confirm(string);
+    callback toggle(string);
+    callback stop(string);
+    callback preview(string);
+    callback open-folder(string);
+    callback retry-start;
+}
+
+component Btn inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <bool> main;
+    in property <bool> danger;
+    in property <bool> enabled: true;
+    callback clicked;
+    height: 30px;
+    width: row.preferred-width + 20px;
+    border-radius: Theme.r-s;
+    opacity: root.enabled ? 1 : 0.45;
+    background: root.main ? (b-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent) : b-ta.has-hover ? Theme.press : Theme.card;
+    row := HorizontalLayout {
+        x: 10px;
+        spacing: 6px;
+        alignment: center;
+        if root.icon != "": Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.icon;
+            size: 14px;
+            color: root.main ? Theme.on-accent : root.danger ? Theme.rec : Theme.text;
+        }
+        Label {
+            text: root.text;
+            font-size: 12.5px;
+            color: root.main ? Theme.on-accent : root.danger ? Theme.rec : Theme.text;
+        }
+    }
+    b-ta := TouchArea {
+        enabled: root.enabled;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component IconBtn inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    callback clicked;
+    width: 30px;
+    height: 30px;
+    border-radius: Theme.r-s;
+    background: ib-ta.has-hover ? Theme.hover : transparent;
+    Icon {
+        commands: root.icon;
+        size: 15px;
+        color: Theme.dim;
+    }
+    ib-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component Check inherits Rectangle {
+    in property <string> text;
+    in property <string> hint;
+    in-out property <bool> on;
+    height: max(32px, cl.preferred-height);
+    cl := HorizontalLayout {
+        spacing: 10px;
+        Rectangle {
+            y: (parent.height - self.height) / 2;
+            width: 18px;
+            height: 18px;
+            border-radius: Theme.r-xs;
+            border-width: root.on ? 0 : 1.5px;
+            border-color: Theme.line-strong;
+            background: root.on ? Theme.accent : transparent;
+            if root.on: Icon {
+                commands: Icons.check;
+                size: 12px;
+                color: Theme.on-accent;
+            }
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Label {
+                text: root.text;
+                font-size: 12.5px;
+            }
+            if root.hint != "": Label {
+                text: root.hint;
+                font-size: 11px;
+                color: Theme.faint;
+            }
+        }
+    }
+    TouchArea {
+        clicked => {
+            root.on = !root.on;
+        }
+    }
+}
+
+/// Pole z wybranym folderem i przyciskiem „Wybierz…”.
+component FolderField inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    in property <string> placeholder;
+    callback pick;
+    spacing: 10px;
+    Label {
+        width: 110px;
+        text: root.label;
+        font-size: 12.5px;
+        color: Theme.dim;
+    }
+    Rectangle {
+        horizontal-stretch: 1;
+        height: 32px;
+        border-radius: Theme.r-s;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        Label {
+            x: 10px;
+            width: parent.width - 20px;
+            text: root.value != "" ? root.value : root.placeholder;
+            font-size: 12px;
+            color: root.value != "" ? Theme.text : Theme.faint;
+        }
+        TouchArea {
+            clicked => {
+                root.pick();
+            }
+        }
+    }
+    Btn {
+        text: "Wybierz…";
+        clicked => {
+            root.pick();
+        }
+    }
+}
+
+component ModeChoice inherits Rectangle {
+    in property <string> text;
+    in property <string> hint;
+    in property <bool> on;
+    callback clicked;
+    horizontal-stretch: 1;
+    height: 70px;
+    border-radius: Theme.r;
+    border-width: root.on ? 2px : 1px;
+    border-color: root.on ? Theme.accent : Theme.line;
+    background: mc-ta.has-hover ? Theme.hover : Theme.card;
+    VerticalLayout {
+        padding: 10px;
+        spacing: 3px;
+        Label {
+            text: root.text;
+            font-size: 12.5px;
+            font-weight: root.on ? 600 : 400;
+        }
+        Text {
+            text: root.hint;
+            wrap: word-wrap;
+            font-family: Theme.font;
+            font-size: 11px;
+            color: Theme.faint;
+        }
+    }
+    mc-ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Edytor profilu – nakładka nad listą.
+component Editor inherits Rectangle {
+    background: #00000080;
+    TouchArea { }
+    Rectangle {
+        width: min(parent.width - 40px, 640px);
+        height: min(parent.height - 40px, ed.preferred-height);
+        border-radius: Theme.r-l;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        clip: true;
+        ScrollView {
+            ed := VerticalLayout {
+                padding: 22px;
+                spacing: 12px;
+                Label {
+                    text: SyncState.e-id == "" ? "Nowa synchronizacja" : "Edytuj synchronizację";
+                    font-size: 17px;
+                    font-weight: 600;
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Label {
+                        width: 110px;
+                        text: "Nazwa";
+                        font-size: 12.5px;
+                        color: Theme.dim;
+                    }
+                    LineEdit {
+                        horizontal-stretch: 1;
+                        text <=> SyncState.e-name;
+                        placeholder-text: "np. Zdjęcia na dysk USB";
+                    }
+                }
+                FolderField {
+                    label: "Źródło";
+                    value: SyncState.e-source;
+                    placeholder: "Folder na tym komputerze";
+                    pick => {
+                        SyncState.pick-source();
+                    }
+                }
+                FolderField {
+                    label: "Cel";
+                    value: SyncState.e-target;
+                    placeholder: "Folder na dysku zewnętrznym albo w sieci";
+                    pick => {
+                        SyncState.pick-target();
+                    }
+                }
+                Label {
+                    text: "Tryb";
+                    font-size: 12.5px;
+                    color: Theme.dim;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    ModeChoice {
+                        text: "Kopia lustrzana";
+                        hint: "Cel jest dokładną kopią źródła, także usunięcia";
+                        on: SyncState.e-mode == 0;
+                        clicked => {
+                            SyncState.e-mode = 0;
+                        }
+                    }
+                    ModeChoice {
+                        text: "Dwukierunkowa";
+                        hint: "Zmiany z obu stron; konflikty zachowują obie wersje";
+                        on: SyncState.e-mode == 1;
+                        clicked => {
+                            SyncState.e-mode = 1;
+                        }
+                    }
+                    ModeChoice {
+                        text: "Kopia zapasowa";
+                        hint: "Tylko dopisywanie – nic nie znika z celu";
+                        on: SyncState.e-mode == 2;
+                        clicked => {
+                            SyncState.e-mode = 2;
+                        }
+                    }
+                }
+                Check {
+                    text: "Synchronizuj na bieżąco";
+                    hint: "Zmiany w źródle trafiają do celu zaraz po zapisaniu";
+                    on <=> SyncState.e-continuous;
+                }
+                HorizontalLayout {
+                    spacing: 10px;
+                    Label {
+                        text: "Pełne porównanie co";
+                        font-size: 12.5px;
+                        color: Theme.dim;
+                    }
+                    LineEdit {
+                        width: 70px;
+                        text <=> SyncState.e-interval;
+                        input-type: number;
+                    }
+                    Label {
+                        horizontal-stretch: 1;
+                        text: "min (wychwytuje zmiany po stronie celu)";
+                        font-size: 12px;
+                        color: Theme.faint;
+                    }
+                }
+                Check {
+                    text: "Wersjonowanie";
+                    hint: "Nadpisane i usunięte pliki trafiają do folderu z wersjami w celu";
+                    on <=> SyncState.e-versioning;
+                }
+                Check {
+                    text: "Także pliki ukryte i systemowe";
+                    on <=> SyncState.e-hidden;
+                }
+                Label {
+                    text: "Pomijaj (jeden wzorzec w wierszu, np. *.tmp, node_modules)";
+                    font-size: 12.5px;
+                    color: Theme.dim;
+                }
+                TextEdit {
+                    height: 80px;
+                    text <=> SyncState.e-exclude;
+                    font-size: 12px;
+                }
+                if SyncState.e-error != "": Text {
+                    text: SyncState.e-error;
+                    wrap: word-wrap;
+                    font-family: Theme.font;
+                    font-size: 12px;
+                    color: Theme.rec;
+                }
+                HorizontalLayout {
+                    spacing: 8px;
+                    alignment: end;
+                    Btn {
+                        text: "Anuluj";
+                        clicked => {
+                            SyncState.cancel-edit();
+                        }
+                    }
+                    Btn {
+                        main: true;
+                        text: "Zapisz";
+                        enabled: SyncState.e-source != "" && SyncState.e-target != "";
+                        clicked => {
+                            SyncState.save();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Podgląd planu – lista czynności, które wykona synchronizacja.
+component PreviewDialog inherits Rectangle {
+    background: #00000080;
+    TouchArea {
+        clicked => {
+            SyncState.preview-open = false;
+        }
+    }
+    Rectangle {
+        width: min(parent.width - 40px, 640px);
+        height: min(parent.height - 40px, 520px);
+        border-radius: Theme.r-l;
+        background: Theme.panel;
+        border-width: 1px;
+        border-color: Theme.line;
+        TouchArea { }
+        VerticalLayout {
+            padding: 20px;
+            spacing: 10px;
+            Label {
+                text: SyncState.preview-title;
+                font-size: 16px;
+                font-weight: 600;
+            }
+            Text {
+                text: SyncState.preview-loading ? "Porównuję foldery…" : SyncState.preview-summary;
+                wrap: word-wrap;
+                font-family: Theme.font;
+                font-size: 12.5px;
+                color: Theme.dim;
+            }
+            Rectangle {
+                vertical-stretch: 1;
+                border-radius: Theme.r;
+                background: Theme.card;
+                ScrollView {
+                    VerticalLayout {
+                        padding: 10px;
+                        spacing: 1px;
+                        alignment: start;
+                        for it in SyncState.preview-items: Label {
+                            height: 20px;
+                            text: it;
+                            font-size: 11.5px;
+                            font-family: Theme.mono;
+                        }
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                Btn {
+                    text: "Zamknij";
+                    clicked => {
+                        SyncState.preview-open = false;
+                    }
+                }
+            }
+        }
+    }
+}
+
+export component SyncView inherits Rectangle {
+    background: Theme.bg;
+
+    ScrollView {
+        VerticalLayout {
+            padding: 24px;
+            spacing: 14px;
+            alignment: start;
+
+            HorizontalLayout {
+                spacing: 8px;
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    spacing: 2px;
+                    Label {
+                        text: "Synchronizacja";
+                        font-size: 20px;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: "Foldery kopiowane na dysk zewnętrzny albo sieciowy – także pod inną literą dysku";
+                        font-size: 12.5px;
+                        color: Theme.faint;
+                    }
+                }
+                if SyncState.cards.length > 1: Btn {
+                    y: (parent.height - self.height) / 2;
+                    icon: Icons.sync;
+                    text: "Synchronizuj wszystko";
+                    enabled: !SyncState.blocked;
+                    clicked => {
+                        SyncState.sync-all();
+                    }
+                }
+                Btn {
+                    y: (parent.height - self.height) / 2;
+                    main: true;
+                    icon: Icons.plus;
+                    text: "Nowa synchronizacja";
+                    clicked => {
+                        SyncState.add();
+                    }
+                }
+            }
+
+            if SyncState.blocked: Rectangle {
+                border-radius: Theme.r;
+                background: Theme.warn.with-alpha(0.14);
+                border-width: 1px;
+                border-color: Theme.warn.with-alpha(0.5);
+                height: bl.preferred-height;
+                bl := HorizontalLayout {
+                    padding: 12px;
+                    spacing: 12px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.info;
+                        size: 17px;
+                        color: Theme.warn;
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        text: "Działa OpenFilePower i to on synchronizuje te profile. Zamknij go (także z zasobnika), aby PowerDesk przejął synchronizację – do tego czasu zmiany ustawień zapiszą się, ale nic się nie skopiuje.";
+                        wrap: word-wrap;
+                        font-family: Theme.font;
+                        font-size: 12.5px;
+                        color: Theme.text;
+                    }
+                    Btn {
+                        y: (parent.height - self.height) / 2;
+                        text: "Sprawdź ponownie";
+                        clicked => {
+                            SyncState.retry-start();
+                        }
+                    }
+                }
+            }
+
+            if SyncState.cards.length == 0: Rectangle {
+                height: 180px;
+                border-radius: Theme.r-l;
+                border-width: 1px;
+                border-color: Theme.line;
+                VerticalLayout {
+                    alignment: center;
+                    spacing: 8px;
+                    Icon {
+                        x: (parent.width - self.width) / 2;
+                        commands: Icons.sync;
+                        size: 32px;
+                        color: Theme.faint;
+                    }
+                    Label {
+                        horizontal-alignment: center;
+                        text: "Nie ma jeszcze żadnej synchronizacji";
+                        font-size: 13px;
+                    }
+                    Label {
+                        horizontal-alignment: center;
+                        text: "Dodaj folder i dysk, na który ma się kopiować";
+                        font-size: 12px;
+                        color: Theme.faint;
+                    }
+                }
+            }
+
+            for c in SyncState.cards: Rectangle {
+                border-radius: Theme.r-l;
+                background: Theme.card;
+                border-width: 1px;
+                border-color: c.confirm != "" ? Theme.warn : Theme.line;
+                height: card.preferred-height;
+                card := VerticalLayout {
+                    padding: 16px;
+                    spacing: 10px;
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Rectangle {
+                            y: (parent.height - self.height) / 2;
+                            width: 10px;
+                            height: 10px;
+                            border-radius: 5px;
+                            background: c.tone == 1 ? Theme.ok : c.tone == 2 ? Theme.info : c.tone == 3 ? Theme.warn : Theme.ghost;
+                        }
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Label {
+                                    text: c.name;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                }
+                                Label {
+                                    text: c.mode;
+                                    font-size: 11.5px;
+                                    color: Theme.faint;
+                                }
+                            }
+                            Label {
+                                text: c.state + (c.detail != "" ? "  ·  " + c.detail : "");
+                                font-size: 12px;
+                                color: Theme.dim;
+                            }
+                        }
+                        if c.busy: Btn {
+                            y: (parent.height - self.height) / 2;
+                            icon: Icons.close;
+                            text: "Zatrzymaj";
+                            clicked => {
+                                SyncState.stop(c.id);
+                            }
+                        }
+                        if !c.busy: Btn {
+                            y: (parent.height - self.height) / 2;
+                            icon: Icons.sync;
+                            text: "Synchronizuj teraz";
+                            enabled: c.enabled && !SyncState.blocked;
+                            clicked => {
+                                SyncState.sync-now(c.id);
+                            }
+                        }
+                        IconBtn {
+                            y: (parent.height - self.height) / 2;
+                            icon: Icons.eye;
+                            tip: "Podgląd: co się zmieni";
+                            clicked => {
+                                SyncState.preview(c.id);
+                            }
+                        }
+                        IconBtn {
+                            y: (parent.height - self.height) / 2;
+                            icon: c.enabled ? Icons.pause : Icons.play;
+                            tip: c.enabled ? "Wstrzymaj" : "Wznów";
+                            clicked => {
+                                SyncState.toggle(c.id);
+                            }
+                        }
+                        IconBtn {
+                            y: (parent.height - self.height) / 2;
+                            icon: Icons.edit;
+                            tip: "Edytuj";
+                            clicked => {
+                                SyncState.edit(c.id);
+                            }
+                        }
+                        IconBtn {
+                            y: (parent.height - self.height) / 2;
+                            icon: Icons.trash;
+                            tip: "Usuń synchronizację (pliki zostają)";
+                            clicked => {
+                                SyncState.remove(c.id);
+                            }
+                        }
+                    }
+                    // Skąd i dokąd – klik otwiera folder.
+                    HorizontalLayout {
+                        spacing: 8px;
+                        for p[i] in [c.source, c.target]: Rectangle {
+                            horizontal-stretch: 1;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: fp-ta.has-hover ? Theme.hover : Theme.panel;
+                            HorizontalLayout {
+                                padding-left: 8px;
+                                padding-right: 8px;
+                                spacing: 6px;
+                                Icon {
+                                    y: (parent.height - self.height) / 2;
+                                    commands: i == 0 ? Icons.folder : Icons.drive;
+                                    size: 14px;
+                                    color: Theme.dim;
+                                }
+                                Label {
+                                    horizontal-stretch: 1;
+                                    text: p;
+                                    font-size: 11.5px;
+                                    color: Theme.dim;
+                                }
+                            }
+                            fp-ta := TipArea {
+                                tip: i == 0 ? "Otwórz źródło" : "Otwórz cel";
+                                clicked => {
+                                    SyncState.open-folder(p);
+                                }
+                            }
+                        }
+                    }
+                    if c.busy: VerticalLayout {
+                        spacing: 4px;
+                        Rectangle {
+                            height: 4px;
+                            border-radius: 2px;
+                            background: Theme.line;
+                            Rectangle {
+                                x: 0;
+                                width: parent.width * clamp(c.progress, 0, 1);
+                                border-radius: 2px;
+                                background: Theme.accent;
+                            }
+                        }
+                        Label {
+                            text: c.current;
+                            font-size: 11px;
+                            color: Theme.faint;
+                        }
+                    }
+                    if c.confirm != "": HorizontalLayout {
+                        spacing: 10px;
+                        Text {
+                            horizontal-stretch: 1;
+                            text: c.confirm;
+                            wrap: word-wrap;
+                            font-family: Theme.font;
+                            font-size: 12.5px;
+                            color: Theme.warn;
+                        }
+                        Btn {
+                            y: (parent.height - self.height) / 2;
+                            text: "Podgląd";
+                            clicked => {
+                                SyncState.preview(c.id);
+                            }
+                        }
+                        Btn {
+                            y: (parent.height - self.height) / 2;
+                            main: true;
+                            text: "Potwierdź";
+                            clicked => {
+                                SyncState.confirm(c.id);
+                            }
+                        }
+                    }
+                    // Historia – ostatnie przebiegi.
+                    if c.history.length > 0: VerticalLayout {
+                        spacing: 4px;
+                        Rectangle {
+                            height: 22px;
+                            HorizontalLayout {
+                                spacing: 6px;
+                                alignment: start;
+                                Icon {
+                                    y: (parent.height - self.height) / 2;
+                                    commands: SyncState.expanded == c.id ? Icons.chevron-down : Icons.chevron;
+                                    size: 12px;
+                                    color: Theme.faint;
+                                }
+                                Label {
+                                    text: "Historia (" + c.history.length + ")";
+                                    font-size: 11.5px;
+                                    color: Theme.faint;
+                                }
+                            }
+                            TouchArea {
+                                clicked => {
+                                    SyncState.expanded = SyncState.expanded == c.id ? "" : c.id;
+                                }
+                            }
+                        }
+                        if SyncState.expanded == c.id: VerticalLayout {
+                            spacing: 2px;
+                            for h in c.history: HorizontalLayout {
+                                height: 20px;
+                                spacing: 8px;
+                                Rectangle {
+                                    y: (parent.height - self.height) / 2;
+                                    width: 6px;
+                                    height: 6px;
+                                    border-radius: 3px;
+                                    background: h.ok ? Theme.ok : Theme.rec;
+                                }
+                                Label {
+                                    width: 130px;
+                                    text: h.when;
+                                    font-size: 11.5px;
+                                    color: Theme.faint;
+                                }
+                                Label {
+                                    horizontal-stretch: 1;
+                                    text: h.text;
+                                    font-size: 11.5px;
+                                    color: Theme.dim;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if SyncState.editing: Editor {
+        width: parent.width;
+        height: parent.height;
+    }
+    if SyncState.preview-open: PreviewDialog {
+        width: parent.width;
+        height: parent.height;
+    }
+}

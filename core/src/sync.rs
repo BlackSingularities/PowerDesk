@@ -178,15 +178,21 @@ fn update<F: FnOnce(&mut Status)>(id: &str, f: F) {
     emit_status(&st);
 }
 
+/// Tylko wczytanie profili i stanu z dysku – do pokazania, bez uruchamiania synchronizacji.
+pub fn load() {
+    let mut rt = RT.lock();
+    if let Ok(s) = std::fs::read_to_string(store_path()) {
+        if let Ok(st) = serde_json::from_str::<Store>(&s) {
+            rt.store = st;
+        }
+    }
+}
+
 pub fn init(app: AppHandle) {
     *APP.lock() = Some(app);
+    load();
     {
         let mut rt = RT.lock();
-        if let Ok(s) = std::fs::read_to_string(store_path()) {
-            if let Ok(st) = serde_json::from_str::<Store>(&s) {
-                rt.store = st;
-            }
-        }
         for st in rt.store.status.values_mut() {
             if matches!(st.state.as_str(), "scanning" | "syncing") {
                 st.state = "idle".into();

@@ -16,8 +16,9 @@ import { PaletteDialog, Palette, PaletteRow } from "palette.slint";
 import { PlayerState } from "player.slint";
 import { HomeView, HomeState, HomeDrive, HomeFolder, HomeFile } from "home.slint";
 import { SettingsView, SettingsState } from "settings.slint";
+import { SyncView, SyncState, SyncCard, SyncHist } from "sync.slint";
 
-export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, Gauge, ShelfState, ShelfItem, Prompt, PreviewState, CodeTok, CodeLine, ViewerState, ViewerThumb, Palette, PaletteRow, PlayerState, HomeState, HomeDrive, HomeFolder, HomeFile, SettingsState }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow, Bulk, BulkRow, Props, PropRow, PropSection, Gauge, ShelfState, ShelfItem, Prompt, PreviewState, CodeTok, CodeLine, ViewerState, ViewerThumb, Palette, PaletteRow, PlayerState, HomeState, HomeDrive, HomeFolder, HomeFile, SettingsState, SyncState, SyncCard, SyncHist }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -477,6 +478,10 @@ export component MainWindow inherits Window {
                                     width: parent.width;
                                     height: parent.height;
                                 }
+                                if SyncState.open && (!root.split || root.focused-pane == 0): SyncView {
+                                    width: parent.width;
+                                    height: parent.height;
+                                }
                                 if SettingsState.open && (!root.split || root.focused-pane == 0): SettingsView {
                                     width: parent.width;
                                     height: parent.height;
@@ -607,6 +612,10 @@ export component MainWindow inherits Window {
                                 }
                                 }
                                 if HomeState.open && root.focused-pane == 1: HomeView {
+                                    width: parent.width;
+                                    height: parent.height;
+                                }
+                                if SyncState.open && root.focused-pane == 1: SyncView {
                                     width: parent.width;
                                     height: parent.height;
                                 }

@@ -92,6 +92,7 @@ fn all(s: &Shared) -> Vec<Cmd> {
     v.push(cmd("Panel podglądu", "Widok", "eye", "Alt+P", crate::preview::toggle));
     v.push(cmd("Półka", "Widok", "archive", "", crate::shelf::toggle));
     v.push(cmd("Ustawienia", "Program", "settings", "Ctrl+,", crate::settings::open));
+    v.push(cmd("Synchronizacja", "Program", "sync", "", crate::syncview::open));
     v.push(cmd(if sizes { "Nie licz rozmiarów folderów" } else { "Licz rozmiary folderów" }, "Widok", "drive", "", |s| {
         {
             let mut b = s.borrow_mut();

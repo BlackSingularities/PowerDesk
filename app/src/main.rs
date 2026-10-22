@@ -8,6 +8,7 @@ mod facets;
 mod fmt;
 mod home;
 mod settings;
+mod syncview;
 mod menus;
 mod model;
 mod preview;
@@ -433,6 +434,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     player::bind(&ui, &st);
     home::bind(&ui, &st);
     settings::bind(&ui, &st);
+    syncview::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));
@@ -1374,6 +1376,7 @@ fn render_all(s: &Shared) {
     // Ekran „Ten komputer” zamiast listy, gdy to jego karta.
     home::sync(s);
     settings::sync(s);
+    syncview::sync_tab(s);
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
@@ -2239,6 +2242,7 @@ struct SearchBatch {
 
 fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
     match name {
+        "sync-status" => syncview::on_status(s),
         "search" => {
             let Ok(batch) = serde_json::from_value::<SearchBatch>(payload) else { return };
             let hit = {
@@ -2524,6 +2528,8 @@ fn tab_icon(t: &Tab) -> SharedString {
         ic("pc")
     } else if path == settings::TAB {
         ic("settings")
+    } else if path == syncview::TAB {
+        ic("sync")
     } else if path.len() <= 3 && path.contains(':') {
         ic("drive")
     } else if path.starts_with("\\\\") {

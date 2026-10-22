@@ -104,7 +104,8 @@ Zasady:
 - [ ] Ten komputer: zmiana kolejności i zwijanie sekcji, ulubione, aktywność transferów i synchronizacji, wykres zmian z 14 dni
 - [x] Ustawienia (karta, Ctrl+,): motyw i akcent, start (folder domowy / Ten komputer / wybrany folder), domyślny widok, przeglądanie, podgląd, pytanie przed Koszem, skróty, o aplikacji
 - [ ] Ustawienia: jedno kliknięcie, sekcje panelu bocznego, tło okna i krycie, zasobnik, autostart, aktualizacje, integracja z Windows (razem z ich funkcjami)
-- [ ] Synchronizacja: profile, podgląd planu, historia, praca z zasobnika
+- [x] Synchronizacja (karta, paleta): profile ze stanem i postępem, edytor, podgląd planu, potwierdzanie masowych usunięć, historia; silnik startuje po wejściu na ekran i czeka, gdy działa stary OpenFilePower
+- [ ] Synchronizacja: praca z zasobnika i od startu systemu, wejście z panelu bocznego
 - [ ] Analiza miejsca i porządki
 - [ ] Wbudowany terminal
 
