@@ -66,6 +66,166 @@ impl SortKey {
     }
 }
 
+/// Grupowanie listy (GroupKey w state.svelte.ts).
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Debug, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum GroupKey {
+    #[default]
+    None,
+    Name,
+    Modified,
+    Created,
+    Taken,
+    Type,
+    Kind,
+    Size,
+}
+
+impl GroupKey {
+    pub const ALL: [GroupKey; 8] = [GroupKey::None, GroupKey::Name, GroupKey::Modified, GroupKey::Created, GroupKey::Taken, GroupKey::Type, GroupKey::Kind, GroupKey::Size];
+    pub fn label(self) -> &'static str {
+        match self {
+            GroupKey::None => "Brak",
+            GroupKey::Name => "Nazwa",
+            GroupKey::Modified => "Data modyfikacji",
+            GroupKey::Created => "Data utworzenia",
+            GroupKey::Taken => "Data wykonania",
+            GroupKey::Type => "Typ",
+            GroupKey::Kind => "Rodzaj",
+            GroupKey::Size => "Rozmiar",
+        }
+    }
+}
+
+/// Grupa w bieżącej liście: elementy `start..end`.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Group {
+    pub label: String,
+    pub start: usize,
+    pub end: usize,
+}
+
+/// Ranga grupy – ustala kolejność grup (rosnąco = „naturalna”).
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord)]
+enum Rank {
+    N(i64),
+    S(String),
+}
+
+const DAY: i64 = 86_400_000;
+const HEAD_H: f32 = 38.0;
+const MONTHS: [&str; 12] = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "Czerwiec", "Lipiec", "Sierpień", "Wrzesień", "Październik", "Listopad", "Grudzień"];
+
+/// Przedziały dat jak w Eksploratorze (dateGroup); ranga – im mniejsza, tym nowsze.
+fn date_group(t: i64, now: chrono::DateTime<chrono::Local>) -> (Rank, String) {
+    use chrono::{Datelike, TimeZone};
+    if t <= 0 {
+        return (Rank::N(99999), "Brak daty".into());
+    }
+    let ms = |y: i32, m: u32| {
+        let (y, m) = if m == 0 { (y - 1, 12) } else { (y, m) };
+        chrono::Local.with_ymd_and_hms(y, m, 1, 0, 0, 0).earliest().map(|d| d.timestamp_millis()).unwrap_or(0)
+    };
+    let today = chrono::Local
+        .with_ymd_and_hms(now.year(), now.month(), now.day(), 0, 0, 0)
+        .earliest()
+        .map(|d| d.timestamp_millis())
+        .unwrap_or(0);
+    let week_start = today - now.weekday().num_days_from_monday() as i64 * DAY;
+    let month_start = ms(now.year(), now.month());
+    let last_month = ms(now.year(), now.month() - 1);
+    let year_start = ms(now.year(), 1);
+    let r = |n: i64, l: &str| (Rank::N(n), l.to_string());
+    if t >= today + DAY {
+        return r(0, "W przyszłości");
+    }
+    if t >= today {
+        return r(1, "Dziś");
+    }
+    if t >= today - DAY {
+        return r(2, "Wczoraj");
+    }
+    if t >= week_start {
+        return r(3, "Wcześniej w tym tygodniu");
+    }
+    if t >= week_start - 7 * DAY {
+        return r(4, "W zeszłym tygodniu");
+    }
+    if t >= month_start {
+        return r(5, "Wcześniej w tym miesiącu");
+    }
+    if t >= last_month {
+        return r(6, "W zeszłym miesiącu");
+    }
+    let d = chrono::Local.timestamp_millis_opt(t).earliest().unwrap_or(now);
+    if t >= year_start {
+        return (Rank::N(10 + (11 - d.month0() as i64)), format!("{} {}", MONTHS[d.month0() as usize], d.year()));
+    }
+    (Rank::N(100 + (now.year() - d.year()) as i64), d.year().to_string())
+}
+
+const SIZE_GROUPS: [(u64, &str); 7] = [
+    (0, "Puste"),
+    (16 << 10, "Malutkie (do 16 KB)"),
+    (1 << 20, "Małe (16 KB – 1 MB)"),
+    (128 << 20, "Średnie (1 – 128 MB)"),
+    (1 << 30, "Duże (128 MB – 1 GB)"),
+    (4 << 30, "Ogromne (1 – 4 GB)"),
+    (u64::MAX, "Gigantyczne (ponad 4 GB)"),
+];
+
+fn group_of(e: &Entry, g: GroupKey, taken: i64, now: chrono::DateTime<chrono::Local>) -> (Rank, String) {
+    let r = |n: i64, l: &str| (Rank::N(n), l.to_string());
+    match g {
+        GroupKey::None => r(0, ""),
+        GroupKey::Name => match e.name.chars().next().map(|c| c.to_uppercase().next().unwrap_or(c)) {
+            Some(c @ 'A'..='H') if c.is_ascii() => r(1, "A – H"),
+            Some(c @ 'I'..='P') if c.is_ascii() => r(2, "I – P"),
+            Some(c @ 'Q'..='Z') if c.is_ascii() => r(3, "Q – Z"),
+            Some('0'..='9') => r(0, "0 – 9"),
+            _ => r(4, "Inne"),
+        },
+        GroupKey::Modified => date_group(e.modified, now),
+        GroupKey::Created => date_group(e.created, now),
+        GroupKey::Taken if e.dir => r(-1, "Foldery"),
+        GroupKey::Taken => date_group(taken, now),
+        GroupKey::Type => {
+            let l = crate::fmt::type_label(e);
+            (Rank::S(if e.dir { String::new() } else { l.to_lowercase() }), l)
+        }
+        GroupKey::Kind => {
+            const KINDS: [(&[Kind], &str); 8] = [
+                (&[Kind::Folder], "Foldery"),
+                (&[Kind::Image, Kind::Raw], "Zdjęcia"),
+                (&[Kind::Video], "Wideo"),
+                (&[Kind::Audio], "Muzyka"),
+                (&[Kind::Pdf, Kind::Doc, Kind::Sheet, Kind::Slides, Kind::Text], "Dokumenty"),
+                (&[Kind::Archive], "Archiwa"),
+                (&[Kind::Code], "Kod"),
+                (&[Kind::App], "Programy"),
+            ];
+            let k = kind_of(e);
+            match KINDS.iter().position(|(ks, _)| ks.contains(&k)) {
+                Some(i) => r(i as i64, KINDS[i].1),
+                None => r(50, "Inne"),
+            }
+        }
+        GroupKey::Size if e.dir => r(-1, "Foldery"),
+        GroupKey::Size => {
+            let i = SIZE_GROUPS.iter().position(|(max, _)| if *max == 0 { e.size == 0 } else { e.size < *max }).unwrap_or(6);
+            r(i as i64, SIZE_GROUPS[i].1)
+        }
+    }
+}
+
+/// Nagłówek grupy w układzie.
+#[derive(Clone, Copy, Default)]
+pub struct Head {
+    pub group: usize,
+    pub y: f32,
+    pub shut: bool,
+}
+
 /// Kolumna widoku listy (LIST_COLS w state.svelte.ts). Nazwa jest zawsze pierwsza i nie jest tu wymieniana.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "lowercase")]
@@ -187,6 +347,11 @@ pub struct Tab {
     pub desc: bool,
     pub filter: String,
     pub kind_filter: KindFilter,
+    pub group: GroupKey,
+    /// Grupy bieżącej listy (None – bez grupowania) i zwinięte grupy (etykiety).
+    pub groups: Option<Vec<Group>>,
+    pub collapsed: std::collections::HashSet<String>,
+    pub heads: Vec<Head>,
     pub search: Option<Search>,
     /// Elementy po filtrze i sortowaniu – to, co pokazuje widok.
     pub items: Vec<Entry>,
@@ -217,6 +382,10 @@ impl Tab {
             desc: false,
             filter: String::new(),
             kind_filter: KindFilter::All,
+            group: GroupKey::None,
+            groups: None,
+            collapsed: Default::default(),
+            heads: Vec::new(),
             search: None,
             items: Vec::new(),
             selected: Default::default(),
@@ -253,18 +422,22 @@ impl Tab {
             Some(s) => &s.results,
             None => &self.entries,
         };
-        let f = self.filter.trim().to_lowercase();
+        let pq = crate::query::parse(&self.filter);
+        let f = pq.text.trim().to_lowercase();
         let wild = f.contains('*') || f.contains('?');
+        // Filtry z zapytania wyszukiwania (typ:, rozmiar:…) sprawdzamy przy odbiorze wyników.
+        let sq = self.search.as_ref().and_then(|s| crate::query::parse(&s.query).test);
         let mut v: Vec<Entry> = source
             .iter()
             .filter(|e| show_hidden || !(e.hidden || e.system))
             .filter(|e| self.kind_filter == KindFilter::All || (!e.dir && self.kind_filter.has(kind_of(e))))
             .filter(|e| f.is_empty() || if wild { wildcard(&f, &e.name.to_lowercase()) } else { e.name.to_lowercase().contains(&f) })
+            .filter(|e| pq.test.as_ref().map_or(true, |t| t(e)) && sq.as_ref().map_or(true, |t| t(e)))
             .cloned()
             .collect();
         let key = self.sort;
         let desc = self.desc;
-        v.sort_by(|a, b| {
+        let base = |a: &Entry, b: &Entry| {
             if folders_first && a.dir != b.dir {
                 return b.dir.cmp(&a.dir);
             }
@@ -294,7 +467,41 @@ impl Tab {
             } else {
                 r
             }
-        });
+        };
+        let g = self.group;
+        if g == GroupKey::None {
+            v.sort_by(base);
+            self.groups = None;
+        } else {
+            // Grupy w kolejności rang, w środku zwykłe sortowanie. Sortowanie po tym samym kluczu odwraca grupy.
+            let now = chrono::Local::now();
+            let mut keyed: Vec<((Rank, String), Entry)> = v
+                .into_iter()
+                .map(|e| {
+                    let taken = media(&e).map(|m| m.taken).filter(|t| *t > 0).unwrap_or(e.modified);
+                    (group_of(&e, g, taken, now), e)
+                })
+                .collect();
+            let same_key = matches!(
+                (g, key),
+                (GroupKey::Name, SortKey::Name) | (GroupKey::Modified, SortKey::Modified) | (GroupKey::Created, SortKey::Created) | (GroupKey::Taken, SortKey::Taken) | (GroupKey::Type, SortKey::Type) | (GroupKey::Size, SortKey::Size)
+            );
+            let gdesc = (g == GroupKey::Size) != (same_key && desc);
+            keyed.sort_by(|x, y| {
+                let r = x.0 .0.cmp(&y.0 .0);
+                let r = if gdesc { r.reverse() } else { r };
+                r.then_with(|| base(&x.1, &y.1))
+            });
+            let mut groups: Vec<Group> = Vec::new();
+            for (i, ((_, label), _)) in keyed.iter().enumerate() {
+                match groups.last_mut() {
+                    Some(last) if last.label == *label => last.end = i + 1,
+                    _ => groups.push(Group { label: label.clone(), start: i, end: i + 1 }),
+                }
+            }
+            v = keyed.into_iter().map(|(_, e)| e).collect();
+            self.groups = Some(groups);
+        }
         self.items = v;
         let alive: std::collections::HashSet<&str> = self.items.iter().map(|e| e.path.as_str()).collect();
         self.selected.retain(|p| alive.contains(p.as_str()));
@@ -352,7 +559,7 @@ impl Tab {
                 break;
             }
             let bw = if self.view == View::List { b.w.min(420.0) } else { b.w };
-            if b.y + b.h >= y0 && b.x < x1 && b.x + bw > x0 {
+            if b.w > 0.0 && b.y + b.h >= y0 && b.x < x1 && b.x + bw > x0 {
                 out.push(i);
             }
         }
@@ -362,41 +569,71 @@ impl Tab {
     /// Układ jak w FileView.svelte: lista 32 px, siatka kafelków rozciągniętych do szerokości,
     /// galeria – wiersze o równej wysokości wypełnione co do piksela.
     pub fn layout(&mut self, width: f32, grid_size: f32, gallery_row: f32, ratio: impl Fn(&Entry) -> f32) {
-        const LIST_H: f32 = 32.0;
-        const GAP: f32 = 6.0;
         let pad = if self.view == View::List { 6.0 } else { 12.0 };
         let top0 = if self.view == View::List { 4.0 } else { pad };
         let avail = (width - pad * 2.0).max(100.0);
         let n = self.items.len();
         let mut boxes = vec![BoxR::default(); n];
         let mut y = top0;
+        let mut heads = Vec::new();
+        let all = [Group { label: String::new(), start: 0, end: n }];
+        let groups: &[Group] = self.groups.as_deref().unwrap_or(&all);
+        for (gi, grp) in groups.iter().enumerate() {
+            if self.groups.is_some() {
+                if !heads.is_empty() {
+                    y += if self.view == View::List { 6.0 } else { 10.0 };
+                }
+                let shut = self.collapsed.contains(&grp.label);
+                heads.push(Head { group: gi, y, shut });
+                y += HEAD_H;
+                if shut {
+                    // Zwinięte: elementy bez miejsca (szerokość 0) – widok je pomija.
+                    for b in boxes[grp.start..grp.end].iter_mut() {
+                        *b = BoxR { x: pad, y, w: 0.0, h: 0.0 };
+                    }
+                    continue;
+                }
+            }
+            self.layout_group(grp.start..grp.end, &mut boxes, &mut y, pad, avail, grid_size, gallery_row, &ratio);
+        }
+        self.heads = heads;
+        self.boxes = boxes;
+        self.total_h = y + pad;
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn layout_group(&self, range: std::ops::Range<usize>, boxes: &mut [BoxR], y: &mut f32, pad: f32, avail: f32, grid_size: f32, gallery_row: f32, ratio: &impl Fn(&Entry) -> f32) {
+        const LIST_H: f32 = 32.0;
+        const GAP: f32 = 6.0;
+        let (lo, n) = (range.start, range.end);
+        if lo >= n {
+            return;
+        }
         match self.view {
             View::List => {
-                for b in boxes.iter_mut() {
-                    *b = BoxR { x: pad, y, w: avail, h: LIST_H };
-                    y += LIST_H;
+                for b in boxes[lo..n].iter_mut() {
+                    *b = BoxR { x: pad, y: *y, w: avail, h: LIST_H };
+                    *y += LIST_H;
                 }
             }
             View::Grid => {
                 let cols = ((avail + GAP) / (grid_size + GAP)).floor().max(1.0) as usize;
                 let tile_w = ((avail - GAP * (cols as f32 - 1.0)) / cols as f32).floor();
                 let tile_h = tile_w + 40.0;
-                for (i, b) in boxes.iter_mut().enumerate() {
-                    let c = i % cols;
-                    if i > 0 && c == 0 {
-                        y += tile_h + GAP;
+                for (k, b) in boxes[lo..n].iter_mut().enumerate() {
+                    let c = k % cols;
+                    if k > 0 && c == 0 {
+                        *y += tile_h + GAP;
                     }
-                    *b = BoxR { x: pad + c as f32 * (tile_w + GAP), y, w: tile_w, h: tile_h };
+                    *b = BoxR { x: pad + c as f32 * (tile_w + GAP), y: *y, w: tile_w, h: tile_h };
                 }
-                if n > 0 {
-                    y += tile_h + GAP;
-                }
+                *y += tile_h + GAP;
             }
             View::Gallery => {
                 let h0 = gallery_row;
-                let mut start = 0;
+                let mut start = lo;
                 let mut sum = 0.0f32;
-                let flush = |start: usize, end: usize, sum: f32, last: bool, y: &mut f32, boxes: &mut Vec<BoxR>| {
+                let flush = |start: usize, end: usize, sum: f32, last: bool, y: &mut f32, boxes: &mut [BoxR]| {
                     let mut h = (avail - GAP * (end - start - 1) as f32) / sum;
                     if last && h > h0 {
                         h = h0;
@@ -411,21 +648,19 @@ impl Tab {
                     }
                     *y += h + GAP;
                 };
-                for i in 0..n {
+                for i in lo..n {
                     sum += ratio(&self.items[i]);
                     if sum * h0 + GAP * (i - start) as f32 >= avail {
-                        flush(start, i + 1, sum, false, &mut y, &mut boxes);
+                        flush(start, i + 1, sum, false, y, boxes);
                         start = i + 1;
                         sum = 0.0;
                     }
                 }
                 if start < n {
-                    flush(start, n, sum, true, &mut y, &mut boxes);
+                    flush(start, n, sum, true, y, boxes);
                 }
             }
         }
-        self.boxes = boxes;
-        self.total_h = y + pad;
     }
 
     /// Indeksy elementów widocznych w oknie [top, top+height] z zapasem.
@@ -500,10 +735,12 @@ pub fn wildcard(p: &str, s: &str) -> bool {
 
 /// Widok i sortowanie zapamiętane per folder.
 #[derive(Serialize, Deserialize, Clone, Copy, Default)]
+#[serde(default)]
 pub struct FolderPrefs {
     pub view: View,
     pub sort: SortKey,
     pub desc: bool,
+    pub group: GroupKey,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -640,6 +877,21 @@ mod tests {
         t.focus = None;
         assert_eq!(t.restore_selection(), Some(1));
         assert!(t.selected.contains("C:/t/b.txt"));
+    }
+
+    #[test]
+    fn grouping() {
+        let mut t = Tab::new("C:/t");
+        t.entries = vec![entry("b.jpg", false), entry("a.pdf", false), entry("Folder", true), entry("c.jpg", false)];
+        t.group = GroupKey::Kind;
+        t.rebuild(false, true, |e| e.size as i64, |_| None);
+        let g = t.groups.clone().unwrap();
+        assert_eq!(g.iter().map(|g| (g.label.as_str(), g.end - g.start)).collect::<Vec<_>>(), [("Foldery", 1), ("Zdjęcia", 2), ("Dokumenty", 1)]);
+        // Zwinięta grupa zajmuje tylko nagłówek, a jej elementy nie mają miejsca.
+        t.collapsed.insert("Zdjęcia".into());
+        t.layout(800.0, 132.0, 210.0, |_| 1.0);
+        assert_eq!(t.heads.len(), 3);
+        assert!(t.boxes[1].w == 0.0 && t.boxes[2].w == 0.0 && t.boxes[3].w > 0.0);
     }
 
     #[test]

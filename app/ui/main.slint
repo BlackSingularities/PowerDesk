@@ -4,10 +4,10 @@ import { Label } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
 import { Toolbar, Crumb, FilterChip } from "toolbar.slint";
-import { FileView, VisItem, Column } from "fileview.slint";
+import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 
-export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, VisItem, Column, MenuEntry }
+export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, VisItem, Column, GroupHead, MenuEntry }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -51,6 +51,7 @@ export component MainWindow inherits Window {
     in property <bool> sort-name;
     in property <int> rename-sel;
     in property <[Column]> columns;
+    in property <[GroupHead]> heads;
     in property <bool> desc;
     in-out property <length> scroll-y;
     in property <string> status;
@@ -98,6 +99,8 @@ export component MainWindow inherits Window {
     callback col-reset(int);
     callback col-menu(length, length);
     callback rename-commit(string);
+    callback toggle-group(int);
+    callback select-group(int, bool);
     callback rename-cancel;
     callback rename-next(string, bool);
     callback zoom-step(int);
@@ -275,6 +278,14 @@ export component MainWindow inherits Window {
                                 root.rename-next(t, back);
                             }
                             columns: root.columns;
+                            heads: root.heads;
+                            toggle-group(i) => {
+                                root.toggle-group(i);
+                            }
+                            select-group(i, c) => {
+                                keys.focus();
+                                root.select-group(i, c);
+                            }
                             desc: root.desc;
                             scroll-y <=> root.scroll-y;
                             viewport-changed(t, w, h) => {

@@ -4,6 +4,7 @@
 mod fmt;
 mod menus;
 mod model;
+mod query;
 mod thumbs;
 mod icons {
     include!(concat!(env!("OUT_DIR"), "/icons.rs"));
@@ -16,7 +17,7 @@ use std::rc::Rc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{LazyLock, Mutex};
 
-use model::{Col, KindFilter, Prefs, Search, SortKey, Tab, View, HOME};
+use model::{Col, GroupKey, KindFilter, Prefs, Search, SortKey, Tab, View, HOME};
 use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::{drives, fsx, shell};
 use slint::winit_030::WinitWindowAccessor;
@@ -279,6 +280,10 @@ fn wire(ui: &MainWindow, st: &Shared) {
         render_items(&s);
     });
     let s = st.clone();
+    ui.on_toggle_group(move |i| toggle_group(&s, i as usize));
+    let s = st.clone();
+    ui.on_select_group(move |i, ctrl| select_group(&s, i as usize, ctrl));
+    let s = st.clone();
     ui.on_rename_next(move |t, back| rename_next(&s, t.as_str(), back));
     let s = st.clone();
     ui.on_set_view(move |v| set_view(&s, View::from_index(v)));
@@ -492,6 +497,8 @@ fn apply_prefs(s: &Shared) {
     t.view = p.view;
     t.sort = p.sort;
     t.desc = p.desc;
+    t.group = p.group;
+    t.collapsed.clear();
 }
 
 fn save_prefs(s: &Shared) {
@@ -501,7 +508,7 @@ fn save_prefs(s: &Shared) {
     if t.special() || t.search.is_some() {
         return;
     }
-    let (key, fp) = (t.path.to_lowercase(), model::FolderPrefs { view: t.view, sort: t.sort, desc: t.desc });
+    let (key, fp) = (t.path.to_lowercase(), model::FolderPrefs { view: t.view, sort: t.sort, desc: t.desc, group: t.group });
     b.prefs.folders.insert(key, fp);
     b.prefs.save();
 }
@@ -609,7 +616,7 @@ fn request_media(s: &Shared) {
         let b = &mut *b;
         let t = &b.tabs[b.active];
         let cols = t.view == View::List && b.prefs.list_cols.iter().any(|c| c.media());
-        if t.view != View::Gallery && !cols && !t.sort.media() {
+        if t.view != View::Gallery && !cols && !t.sort.media() && t.group != GroupKey::Taken {
             return;
         }
         let v: Vec<(String, i64)> = t
@@ -640,7 +647,7 @@ fn request_media(s: &Shared) {
                         }
                     }
                     // Sortowanie po metadanych – kolejność zmienia się wraz z kolejnymi partiami.
-                    if tab_mut(s, |t| t.sort.media()) {
+                    if tab_mut(s, |t| t.sort.media() || t.group == GroupKey::Taken) {
                         refresh(s);
                     } else {
                         layout(s);
@@ -748,7 +755,9 @@ fn render_chrome(s: &Shared) {
             })
             .collect::<Vec<_>>(),
     )));
-    ui.set_sort_label(t.sort.label().into());
+    ui.set_sort_label(
+        if t.group == GroupKey::None { t.sort.label().to_string() } else { format!("{} · {}", t.sort.label(), t.group.label()) }.into(),
+    );
     ui.set_filters(ModelRc::new(VecModel::from(
         t.shown_filters(b.prefs.show_hidden)
             .into_iter()
@@ -821,6 +830,10 @@ fn render_status(s: &Shared) {
     let mut text = fmt::items(t.items.len());
     if let Some(x) = &t.search {
         text = format!("{text} · przeszukano {}", x.scanned);
+        let chips = query::parse(&x.query).chips;
+        if !chips.is_empty() {
+            text = format!("{text} · {}", chips.join(" · "));
+        }
     }
     let sel: Vec<_> = t.items.iter().filter(|e| t.selected.contains(&e.path)).collect();
     if !sel.is_empty() {
@@ -845,6 +858,9 @@ pub fn render_items(s: &Shared) {
     let mut v = Vec::with_capacity(range.len());
     for i in range {
         let (Some(e), Some(bx)) = (t.items.get(i), t.boxes.get(i)) else { continue };
+        if bx.w <= 0.0 {
+            continue;
+        }
         let media = fmt::is_media(e);
         let (thumb, icon) = match t.view {
             View::List => (None, thumbs::get(&e.path, (18.0 * scale) as u32, true)),
@@ -871,6 +887,25 @@ pub fn render_items(s: &Shared) {
             thumb: thumb.unwrap_or_default(),
         });
     }
+    let pad = if t.view == View::List { 6.0 } else { 12.0 };
+    let heads: Vec<GroupHead> = match &t.groups {
+        Some(groups) => t
+            .heads
+            .iter()
+            .filter(|hd| hd.y + 38.0 >= top - h * 0.5 && hd.y <= top + h * 1.5)
+            .map(|hd| GroupHead {
+                index: hd.group as i32,
+                x: pad,
+                y: hd.y,
+                w: (b.viewport.1 - pad * 2.0).max(100.0),
+                label: groups[hd.group].label.clone().into(),
+                count: (groups[hd.group].end - groups[hd.group].start) as i32,
+                shut: hd.shut,
+            })
+            .collect(),
+        None => Vec::new(),
+    };
+    ui.set_heads(ModelRc::new(VecModel::from(heads)));
     // Ten sam zakres (zmiana zaznaczenia) albo trwająca ramka: wiersze aktualizowane w miejscu,
     // żeby elementy Slint nie były tworzone od nowa – inaczej przeciąganie ramki z wiersza by się urwało.
     let model = ui.get_items();
@@ -1177,6 +1212,42 @@ fn notice(s: &Shared, text: String) {
 
 // ---------- Sortowanie, widoki, wyszukiwanie ----------
 
+pub fn set_group(s: &Shared, g: GroupKey) {
+    tab_mut(s, |t| {
+        t.group = g;
+        t.collapsed.clear();
+    });
+    save_prefs(s);
+    refresh(s);
+}
+
+fn toggle_group(s: &Shared, gi: usize) {
+    tab_mut(s, |t| {
+        let Some(label) = t.groups.as_ref().and_then(|g| g.get(gi)).map(|g| g.label.clone()) else { return };
+        if !t.collapsed.remove(&label) {
+            t.collapsed.insert(label);
+        }
+    });
+    layout(s);
+    render_all(s);
+}
+
+/// Klik w etykietę grupy zaznacza jej elementy (Ctrl – dokłada).
+fn select_group(s: &Shared, gi: usize, ctrl: bool) {
+    tab_mut(s, |t| {
+        let Some(g) = t.groups.as_ref().and_then(|g| g.get(gi)).cloned() else { return };
+        if !ctrl {
+            t.selected.clear();
+        }
+        for e in &t.items[g.start..g.end] {
+            t.selected.insert(e.path.clone());
+        }
+        t.focus = Some(g.start);
+        t.anchor = Some(g.start);
+    });
+    render_items(s);
+}
+
 fn set_sort(s: &Shared, k: SortKey) {
     tab_mut(s, |t| {
         if t.sort == k {
@@ -1221,7 +1292,8 @@ fn start_search(s: &Shared, q: &str) {
     if root.starts_with("ofp:") {
         return;
     }
-    let id = fsx::search(Core, root, q.to_string(), hidden);
+    // Słowa idą do wyszukiwarki, filtry (typ:, rozmiar:, data:…) sprawdzamy przy odbiorze wyników.
+    let id = fsx::search(Core, root, query::parse(q).text, hidden);
     tab_mut(s, |t| {
         t.filter.clear();
         t.selected.clear();
@@ -1431,14 +1503,14 @@ fn move_focus(s: &Shared, (dx, dy): (i32, i32), shift: bool, ctrl: bool) {
                     if j < 0 || j >= n as i32 {
                         return Some(f);
                     }
-                    if (t.boxes[j as usize].y - cy).abs() > 1.0 {
+                    if t.boxes[j as usize].w > 0.0 && (t.boxes[j as usize].y - cy).abs() > 1.0 {
                         break;
                     }
                 }
                 // …i w nim ten najbliższy w poziomie.
                 let row_y = t.boxes[j as usize].y;
                 let mut best = j as usize;
-                while j >= 0 && j < n as i32 && (t.boxes[j as usize].y - row_y).abs() < 1.0 {
+                while j >= 0 && j < n as i32 && t.boxes[j as usize].w > 0.0 && (t.boxes[j as usize].y - row_y).abs() < 1.0 {
                     if (center(j as usize) - cx).abs() < (center(best) - cx).abs() {
                         best = j as usize;
                     }
@@ -1446,6 +1518,15 @@ fn move_focus(s: &Shared, (dx, dy): (i32, i32), shift: bool, ctrl: bool) {
                 }
                 best
             }
+        })
+        // Elementy zwiniętych grup są pomijane – idziemy dalej w tym samym kierunku.
+        .map(|to| {
+            let back = (dx < 0 && dx != -9) || dy < 0 || dx == 9;
+            let mut k = to as i32;
+            while k >= 0 && k < n as i32 && t.boxes[k as usize].w <= 0.0 {
+                k += if back { -1 } else { 1 };
+            }
+            if k >= 0 && k < n as i32 { k as usize } else { f }
         })
     });
     let Some(to) = to else { return };

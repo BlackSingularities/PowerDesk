@@ -7,7 +7,7 @@ use powerdesk_core::events::AppHandle as Core;
 use powerdesk_core::{archive, clip, fsx, ops, shell};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
-use crate::model::{Col, SortKey, View};
+use crate::model::{Col, GroupKey, SortKey, View};
 use crate::{icons, MenuEntry, Shared};
 
 pub type Act = Rc<dyn Fn(&Shared)>;
@@ -247,6 +247,7 @@ pub fn background_menu(s: &Shared, x: f32, y: f32) {
         ),
     ];
     v.push(sort_sub(s));
+    v.push(group_sub(s));
     v.push(it("Odśwież", "refresh", |s| crate::load(s, true)).kbd("F5"));
     v.push(it("Zaznacz wszystko", "check", crate::select_all).kbd("Ctrl+A"));
     v.push(sep());
@@ -283,6 +284,13 @@ fn sort_sub(s: &Shared) -> Item {
         })
         .collect();
     sub("Sortuj według", "sort", items)
+}
+
+/// „Grupuj według” – ptaszek przy bieżącym grupowaniu.
+fn group_sub(s: &Shared) -> Item {
+    let g = crate::tab_mut(s, |t| t.group);
+    let items = GroupKey::ALL.iter().map(|&k| it(k.label(), "", move |s| crate::set_group(s, k)).checked(k == g)).collect();
+    sub("Grupuj według", "list", items)
 }
 
 /// Menu przycisku sortowania na pasku narzędzi.
@@ -323,6 +331,8 @@ pub fn sort_menu(s: &Shared, x: f32, y: f32) {
         })
         .checked(ff),
     );
+    v.push(sep());
+    v.push(group_sub(s));
     show(s, v, x, y);
 }
 

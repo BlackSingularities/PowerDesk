@@ -60,6 +60,17 @@ component RenameBox inherits Rectangle {
     }
 }
 
+/// Nagłówek grupy (ghead): strzałka zwija, etykieta zaznacza elementy grupy.
+export struct GroupHead {
+    index: int,
+    x: length,
+    y: length,
+    w: length,
+    label: string,
+    count: int,
+    shut: bool,
+}
+
 /// Kolumna listy: `id` to indeks w Col::ALL.
 export struct Column {
     id: int,
@@ -98,6 +109,7 @@ export component FileView inherits Rectangle {
     in property <length> total-height;
     in property <string> empty-text;
     in property <[Column]> columns;
+    in property <[GroupHead]> heads;
     in property <bool> sort-name;
     in property <int> rename-sel;
     in property <bool> desc;
@@ -118,6 +130,8 @@ export component FileView inherits Rectangle {
     callback col-reset(int);
     callback col-menu(length, length);
     callback rename-commit(string);
+    callback toggle-group(int);
+    callback select-group(int, bool);
     callback rename-cancel;
     callback rename-next(string, bool);
     callback zoom(int);
@@ -359,6 +373,71 @@ export component FileView inherits Rectangle {
                         return accept;
                     }
                     reject
+                }
+            }
+
+            for g in root.heads: Rectangle {
+                x: g.x;
+                y: g.y;
+                width: g.w;
+                height: 38px;
+                HorizontalLayout {
+                    spacing: 4px;
+                    alignment: start;
+                    Rectangle {
+                        y: 7px;
+                        width: 24px;
+                        height: 24px;
+                        border-radius: Theme.r-xs;
+                        background: chev-ta.has-hover ? Theme.hover : transparent;
+                        Icon {
+                            commands: g.shut ? Icons.chevron : Icons.chevron-down;
+                            size: 14px;
+                            color: chev-ta.has-hover ? Theme.text : Theme.faint;
+                        }
+                        chev-ta := TouchArea {
+                            clicked => {
+                                root.toggle-group(g.index);
+                            }
+                        }
+                    }
+                    Rectangle {
+                        y: 6px;
+                        height: 26px;
+                        width: glabel.preferred-width + 16px;
+                        border-radius: Theme.r-xs;
+                        background: glabel-ta.has-hover ? Theme.hover : transparent;
+                        glabel := HorizontalLayout {
+                            x: 8px;
+                            spacing: 8px;
+                            Label {
+                                text: g.label;
+                                font-weight: 600;
+                            }
+                            Label {
+                                text: g.count;
+                                font-size: 11px;
+                                font-weight: 500;
+                                color: Theme.ghost;
+                            }
+                        }
+                        glabel-ta := TouchArea {
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                    root.select-group(g.index, e.modifiers.control);
+                                }
+                            }
+                        }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                        Rectangle {
+                            x: 6px;
+                            width: parent.width - 6px;
+                            height: 1px;
+                            background: Theme.line;
+                        }
+                    }
                 }
             }
 

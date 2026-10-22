@@ -59,11 +59,12 @@ Zasady:
 - [x] Sortowanie (menu i nagłówki kolumn), foldery na górze, sortowanie naturalne
 - [x] Kolumny konfigurowalne (menu nagłówka i przycisk), szerokości (uchwyt, dwuklik przywraca), przenoszenie przeciąganiem
 - [x] Sortowanie po wymiarach, dacie wykonania i czasie trwania
-- [ ] Grupowanie
+- [x] Grupowanie (nazwa, daty, typ, rodzaj, rozmiar) z nagłówkami: zwijanie, zaznaczanie grupy
 - [x] Widok i sortowanie zapamiętywane per folder, auto-galeria, wielkość miniatur (suwak, Ctrl+kółko)
 - [x] Filtrowanie na żywo (z `*` i `?`), wyszukiwanie w podfolderach (Enter)
 - [x] Filtry kategorii (Wszystko, Media, Zdjęcia, Wideo, Dokumenty, Audio, Archiwa) – tylko obecne w folderze
-- [ ] Fasety (format, kadr, data…), składnia zapytań (typ:, rozmiar…), zapisane wyszukiwania
+- [x] Składnia zapytań (typ:, ext:, rozmiar:, data:, utworzony:) w filtrze i wyszukiwaniu
+- [ ] Fasety (format, kadr, data…), zapisane wyszukiwania, podpowiedzi zapytań
 - [x] Zaznaczanie ramką (z tła, na liście poza nazwą, w siatce/galerii z Altem; Ctrl/Shift rozszerza; samoczynne przewijanie)
 - [x] Zmiana nazwy w miejscu (F2, menu, nowy folder/plik; Enter/Esc/Tab), zaznaczenie zapamiętane per folder
 - [x] Rozmiary folderów w tle (2 wątki, bez dysków sieciowych, unieważniane po zmianach), metadane mediów w kolumnach
