@@ -259,6 +259,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
     let s = st.clone();
+    g.on_desktop_test(move || crate::desktop::toggle(&s));
+    let s = st.clone();
     g.on_set_accent(move |a| {
         let a = a.trim();
         // Własny kolor tylko jako #rrggbb – literówka nie psuje wyglądu.

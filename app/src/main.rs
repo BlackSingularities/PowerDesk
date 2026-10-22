@@ -3,6 +3,7 @@
 
 mod archives;
 mod bulk;
+mod desktop;
 mod dragdrop;
 mod facets;
 mod fmt;
@@ -166,6 +167,7 @@ fn tray_event(s: &Shared, e: powerdesk_core::tray::Event) {
             new_tab_at(s, &start, true);
             show_window(s);
         }
+        Event::Desktop => desktop::toggle(s),
         Event::Quit => quit(s),
     }
 }
@@ -199,6 +201,7 @@ fn close_window(s: &Shared) {
 }
 
 fn quit(_s: &Shared) {
+    desktop::close();
     powerdesk_core::tray::hide();
     let _ = slint::quit_event_loop();
 }
@@ -289,7 +292,12 @@ fn main() -> Result<(), slint::PlatformError> {
     let s3 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
     // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu.
-    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
+    // Z --desktop-test: od razu pulpit testowy, okno folderów schowane.
+    let desk_test = std::env::args().any(|a| a == desktop::TEST_FLAG);
+    let hidden = desk_test || std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
+    if desk_test {
+        desktop::open(&st);
+    }
     if !hidden {
         ui.show()?;
     }
@@ -1842,6 +1850,7 @@ fn paint_items(s: &Shared) {
 
 /// Dotarły miniatury lub ikony: odświeżamy tylko wiersze tych plików, a panel boczny – gdy dotyczy.
 pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
+    desktop::thumbs_arrived(paths);
     let Some(ui) = s.borrow().ui.upgrade() else { return };
     let side = s.borrow().side_paths.iter().any(|p| paths.contains(p));
     {
@@ -2115,9 +2124,14 @@ fn open(s: &Shared, i: usize) {
 }
 
 fn hwnd(s: &Shared) -> isize {
-    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
     let Some(ui) = s.borrow().ui.upgrade() else { return 0 };
-    ui.window()
+    window_hwnd(ui.window())
+}
+
+/// Uchwyt Win32 dowolnego okna Slint (główne, pulpit); 0 – okno jeszcze nie powstało.
+pub fn window_hwnd(win: &slint::Window) -> isize {
+    use raw_window_handle::{HasWindowHandle, RawWindowHandle};
+    win
         .with_winit_window(|w| match w.window_handle().map(|h| h.as_raw()) {
             Ok(RawWindowHandle::Win32(h)) => h.hwnd.get(),
             _ => 0,

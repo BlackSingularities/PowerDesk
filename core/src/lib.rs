@@ -4,6 +4,7 @@
 pub mod archive;
 pub mod autostart;
 pub mod clip;
+pub mod desktop;
 pub mod dnd;
 pub mod drives;
 pub mod events;

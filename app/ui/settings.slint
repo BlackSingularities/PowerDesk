@@ -35,6 +35,8 @@ export global SettingsState {
     /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
     in-out property <[SysItem]> system;
     callback repair-integration;
+    /// Włącza albo wyłącza pulpit testowy.
+    callback desktop-test;
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
@@ -708,10 +710,30 @@ export component SettingsView inherits Rectangle {
                         lead: "PowerDesk zastąpi pulpit Windows na każdym monitorze";
                     }
                     Label {
-                        text: "W przygotowaniu: tapeta i ikony z Pulpitu użytkownika i publicznego na każdym monitorze, układ ikon, siatka i ich wielkość. Pierwsza wersja ruszy w trybie testowym – jako nakładka, którą wyłącza Esc.";
+                        text: "Tryb testowy: na każdym monitorze okno z tapetą z ustawień Windows, a na głównym ikony z Pulpitu użytkownika i publicznego. Pulpit Windows zostaje nietknięty pod spodem. Esc albo menu ikony w zasobniku zamyka test. W przygotowaniu: własny układ ikon, ich wielkość i tryb zastępujący pulpit Windows.";
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Rectangle {
+                            width: dt.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: dt-ta.has-hover ? Theme.press : Theme.card;
+                            dt := Label {
+                                horizontal-alignment: center;
+                                text: "Uruchom pulpit testowy";
+                                font-size: 12.5px;
+                            }
+                            dt-ta := TipArea {
+                                tip: "Też: powerdesk.exe --desktop-test";
+                                clicked => {
+                                    SettingsState.desktop-test();
+                                }
+                            }
+                        }
                     }
                 }
 

@@ -1,0 +1,167 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon } from "components.slint";
+
+/// Ikona na pulpicie (plik lub folder z Pulpitu użytkownika albo publicznego).
+export struct DeskIcon {
+    name: string,
+    path: string,
+    img: image,
+    has-img: bool,
+    dir: bool,
+}
+
+/// Pulpit na jednym monitorze (desktop.rs): tapeta z ustawień Windows i ikony ułożone
+/// kolumnami od lewego górnego rogu, jak w Eksploratorze. Tryb testowy – Esc zamyka.
+export component DesktopWindow inherits Window {
+    no-frame: true;
+    title: "PowerDesk – pulpit";
+    background: root.bg;
+
+    in property <image> wallpaper;
+    in property <bool> has-wallpaper;
+    /// 0 – wypełnij, 1 – dopasuj, 2 – rozciągnij, 3 – wyśrodkuj, 4 – sąsiadująco.
+    in property <int> fit;
+    in property <color> bg: #000000;
+    in property <[DeskIcon]> icons;
+    in-out property <int> selected: -1;
+    /// Napis w rogu – przypomina, że to tryb testowy.
+    in property <bool> test: true;
+    callback open(int);
+    callback context(int, length, length);
+    callback close();
+    callback refresh();
+
+    property <length> cell-w: 84px;
+    property <length> cell-h: 96px;
+    property <int> rows: max(1, floor((root.height - 16px) / root.cell-h));
+
+    if root.has-wallpaper: Image {
+        width: parent.width;
+        height: parent.height;
+        source: root.wallpaper;
+        image-fit: root.fit == 1 ? contain : root.fit == 2 ? fill : root.fit == 3 ? preserve : cover;
+        horizontal-tiling: root.fit == 4 ? repeat : none;
+        vertical-tiling: root.fit == 4 ? repeat : none;
+    }
+
+    // Klik w puste miejsce zdejmuje zaznaczenie.
+    TouchArea {
+        clicked => {
+            root.selected = -1;
+            fs.focus();
+        }
+    }
+
+    for it[i] in root.icons: Rectangle {
+        x: 8px + floor(i / root.rows) * root.cell-w;
+        y: 8px + Math.mod(i, root.rows) * root.cell-h;
+        width: root.cell-w - 4px;
+        height: root.cell-h - 4px;
+        border-radius: Theme.r-s;
+        background: root.selected == i ? #ffffff40 : ic-ta.has-hover ? #ffffff22 : transparent;
+        border-width: root.selected == i ? 1px : 0;
+        border-color: #ffffff66;
+        VerticalLayout {
+            padding: 4px;
+            spacing: 4px;
+            alignment: start;
+            Rectangle {
+                height: 48px;
+                if it.has-img: Image {
+                    width: 48px;
+                    height: 48px;
+                    source: it.img;
+                    image-fit: contain;
+                }
+                if !it.has-img: Icon {
+                    commands: it.dir ? Icons.folder : Icons.file;
+                    size: 40px;
+                    color: #ffffff;
+                }
+            }
+            Text {
+                text: it.name;
+                color: #ffffff;
+                font-size: 12px;
+                horizontal-alignment: center;
+                wrap: word-wrap;
+                overflow: elide;
+                height: root.selected == i ? self.preferred-height : min(self.preferred-height, 32px);
+                stroke: #000000b0;
+                stroke-width: 1.5px;
+                stroke-style: outside;
+            }
+        }
+        ic-ta := TouchArea {
+            clicked => {
+                root.selected = i;
+                fs.focus();
+            }
+            double-clicked => {
+                root.open(i);
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                    root.selected = i;
+                    root.context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                }
+            }
+        }
+    }
+
+    if root.test: Rectangle {
+        x: parent.width - self.width - 16px;
+        y: parent.height - self.height - 16px;
+        width: tl.preferred-width + 24px;
+        height: 30px;
+        border-radius: 15px;
+        background: #000000a0;
+        tl := Text {
+            text: "PowerDesk – pulpit testowy · Esc zamyka";
+            color: #ffffff;
+            font-size: 12px;
+        }
+    }
+
+    fs := FocusScope {
+        width: 0;
+        height: 0;
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                root.close();
+                return accept;
+            }
+            if (e.text == Key.F5) {
+                root.refresh();
+                return accept;
+            }
+            if (e.text == Key.Return && root.selected >= 0) {
+                root.open(root.selected);
+                return accept;
+            }
+            // Strzałki: w górę/w dół w kolumnie, w bok o całą kolumnę.
+            if (e.text == Key.DownArrow) {
+                root.selected = min(root.icons.length - 1, root.selected + 1);
+                return accept;
+            }
+            if (e.text == Key.UpArrow) {
+                root.selected = max(0, root.selected - 1);
+                return accept;
+            }
+            if (e.text == Key.RightArrow) {
+                root.selected = min(root.icons.length - 1, root.selected + root.rows);
+                return accept;
+            }
+            if (e.text == Key.LeftArrow) {
+                root.selected = max(0, root.selected - root.rows);
+                return accept;
+            }
+            reject
+        }
+    }
+
+    init => {
+        fs.focus();
+    }
+}
