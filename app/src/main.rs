@@ -215,6 +215,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     ui.on_navigate(move |p| match p.strip_prefix(SAVED) {
         Some(id) => run_saved(&s, id, false),
+        None if p == ADD_NET => add_network_place(&s),
         None => navigate(&s, p.as_str(), true),
     });
     let s = st.clone();
@@ -356,6 +357,8 @@ fn wire(ui: &MainWindow, st: &Shared) {
         b.prefs.side_width = w.clamp(180.0, 420.0);
         b.prefs.save();
     });
+    let s = st.clone();
+    ui.on_side_key(move |k| side_key(&s, k.as_str()));
     let s = st.clone();
     ui.on_search(move |q| start_search(&s, q.as_str()));
     let s = st.clone();
@@ -1095,9 +1098,13 @@ fn load(s: &Shared, keep_selection: bool) {
         t.generation += 1;
         t.path.clone()
     });
-    let res = match powerdesk_core::archive::split(&path).filter(|_| !path.starts_with("ofp:")) {
-        Some((arc, inner)) => powerdesk_core::archive::list(&arc, &inner),
-        None => fsx::list_dir(&path),
+    let res = if let Some(folders) = library_folders(&path) {
+        list_library(&folders)
+    } else {
+        match powerdesk_core::archive::split(&path).filter(|_| !path.starts_with("ofp:")) {
+            Some((arc, inner)) => powerdesk_core::archive::list(&arc, &inner),
+            None => fsx::list_dir(&path),
+        }
     };
     let auto = {
         let b = s.borrow();
@@ -1139,7 +1146,7 @@ fn load(s: &Shared, keep_selection: bool) {
 /// Obserwujemy foldery wszystkich otwartych kart.
 fn watch(s: &Shared) {
     let b = s.borrow();
-    let mut dirs: Vec<String> = b.tabs.iter().filter(|t| !t.special()).map(|t| t.path.clone()).collect();
+    let mut dirs: Vec<String> = b.tabs.iter().filter(|t| !t.special()).flat_map(|t| library_folders(&t.path).unwrap_or_else(|| vec![t.path.clone()])).collect();
     dirs.sort();
     dirs.dedup();
     fsx::watch_dirs(dirs);
@@ -1462,7 +1469,7 @@ fn render_chrome(s: &Shared) {
     ui.set_view(t.view.index());
     ui.set_gallery_ok(t.view == View::Gallery || mostly_media(t));
     ui.set_sort_name(t.sort == SortKey::Name);
-    ui.set_folder(if t.special() || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
+    ui.set_folder(if t.path.starts_with("ofp:") || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
     ui.set_desc(t.desc);
     let flist = if t.special() { Vec::new() } else { t.facet_list(b.prefs.show_hidden, |e| b.media.get(&e.path).copied()) };
     // Kategorie są w panelu filtrów jako grupa „Rodzaj” – tylko gdy w folderze są co najmniej dwie.
@@ -1535,7 +1542,7 @@ fn render_pane2(s: &Shared) {
     ui.set_view2(t.view.index());
     ui.set_sort_name2(t.sort == SortKey::Name);
     ui.set_desc2(t.desc);
-    ui.set_folder2(if t.special() || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
+    ui.set_folder2(if t.path.starts_with("ofp:") || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
     ui.set_total_height2(t.total_h);
     ui.set_empty_text2(empty_text(t).into());
     ui.set_scroll_y2(-b.viewports[1].0);
@@ -2681,7 +2688,7 @@ pub fn render_side(s: &Shared) {
     });
     let (extra, syncs) = side_extra(&t.path, &b.prefs.favorites);
     // Kolejność: zapisane, szybki dostęp, przypięte, biblioteki, dyski, sieć, synchronizacja.
-    let base = side_items(&t.path, &b.drives);
+    let base = side_items(&t.path, &b.drives, &b.prefs.net_places);
     let quick = base.iter().take_while(|i| !i.section.starts_with("Dyski") && !i.section.starts_with("Sieć")).count();
     let mut base = base.into_iter();
     let quick: Vec<SideItem> = base.by_ref().take(quick).collect();
@@ -2750,6 +2757,60 @@ pub fn toggle_favorite(s: &Shared, path: &str) {
     render_side(s);
 }
 
+/// Klawiatura w panelu bocznym (po F6): strzałki, Home/End, Enter lub spacja otwiera.
+/// Pusty klawisz – panel właśnie dostał fokus: kursor na bieżącym folderze.
+fn side_key(s: &Shared, key: &str) {
+    let Some(ui) = s.borrow().ui.upgrade() else { return };
+    let side = ui.get_side();
+    // Wiersze, na które da się wejść – bez samych nagłówków zwiniętych sekcji.
+    let rows: Vec<usize> = (0..side.row_count()).filter(|&i| side.row_data(i).is_some_and(|it| !it.header_only)).collect();
+    if rows.is_empty() {
+        return;
+    }
+    let cur = rows.iter().position(|&i| i as i32 == ui.get_side_cursor());
+    let is = |k: slint::platform::Key| SharedString::from(k) == key;
+    let pos = match key {
+        "" => rows.iter().position(|&i| side.row_data(i).is_some_and(|it| it.active)).unwrap_or(0),
+        _ if is(slint::platform::Key::UpArrow) => cur.map_or(0, |c| (c + rows.len() - 1) % rows.len()),
+        _ if is(slint::platform::Key::DownArrow) => cur.map_or(0, |c| (c + 1) % rows.len()),
+        _ if is(slint::platform::Key::Home) => 0,
+        _ if is(slint::platform::Key::End) => rows.len() - 1,
+        "\n" | " " => {
+            let Some(it) = cur.and_then(|c| side.row_data(rows[c])) else { return };
+            let p = it.path.to_string();
+            match p.strip_prefix(SAVED) {
+                Some(id) => run_saved(s, id, false),
+                None if p == ADD_NET => add_network_place(s),
+                None => navigate(s, &p, true),
+            }
+            return;
+        }
+        _ => return,
+    };
+    ui.set_side_cursor(rows[pos] as i32);
+}
+
+/// Przypina upuszczone foldery (pliki pomija); już przypiętych nie dubluje.
+pub fn pin_folders(s: &Shared, paths: &[String]) {
+    let added = {
+        let mut b = s.borrow_mut();
+        let mut added = 0;
+        for p in paths.iter().filter(|p| Path::new(p).is_dir()) {
+            if !b.prefs.favorites.iter().any(|f| same(f, p)) {
+                b.prefs.favorites.push(p.clone());
+                added += 1;
+            }
+        }
+        b.prefs.save();
+        added
+    };
+    if added > 0 {
+        // Zwinięta sekcja zasłoniłaby nowo przypięte.
+        s.borrow_mut().prefs.side_shut.retain(|x| x != "Przypięte");
+        render_side(s);
+    }
+}
+
 fn toggle_section(s: &Shared, name: &str) {
     {
         let mut b = s.borrow_mut();
@@ -2798,6 +2859,44 @@ thread_local! {
     static SYNC_LOADED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
+/// Ścieżka karty z całą biblioteką: „ofp:lib|<plik .library-ms>”.
+pub const LIB: &str = "ofp:lib|";
+
+fn with_library<R>(path: &str, f: impl FnOnce(&powerdesk_core::library::Library) -> R) -> Option<R> {
+    let file = path.strip_prefix(LIB)?;
+    // Karta przywrócona po starcie może wyprzedzić wczytanie bibliotek w tle.
+    if LIBS.with(|l| l.borrow().is_none()) {
+        let libs = powerdesk_core::library::list();
+        LIBS.with(|l| *l.borrow_mut() = Some(libs));
+    }
+    LIBS.with(|l| l.borrow().iter().flatten().find(|x| same(&x.path, file)).map(f))
+}
+
+/// Foldery biblioteki, gdy `path` to karta biblioteki.
+pub fn library_folders(path: &str) -> Option<Vec<String>> {
+    with_library(path, |l| l.folders.clone())
+}
+
+pub fn library_name(path: &str) -> Option<String> {
+    with_library(path, |l| l.name.clone())
+}
+
+/// Zawartość wszystkich folderów biblioteki naraz; błąd tylko, gdy żaden się nie otworzył.
+fn list_library(folders: &[String]) -> Result<Vec<fsx::Entry>, String> {
+    let mut all = Vec::new();
+    let mut err = None;
+    for f in folders {
+        match fsx::list_dir(f) {
+            Ok(v) => all.extend(v),
+            Err(e) => err = Some(e),
+        }
+    }
+    match err {
+        Some(e) if all.is_empty() => Err(e),
+        _ => Ok(all),
+    }
+}
+
 /// Przypięte, biblioteki i synchronizacje – sekcje panelu poza szybkim dostępem i dyskami.
 fn side_extra(current: &str, favorites: &[String]) -> (Vec<SideItem>, Vec<SideItem>) {
     let mut v = Vec::new();
@@ -2818,7 +2917,9 @@ fn side_extra(current: &str, favorites: &[String]) -> (Vec<SideItem>, Vec<SideIt
     let mut first = true;
     LIBS.with(|l| {
         for lib in l.borrow().iter().flatten().filter(|l| !l.folders.is_empty()) {
-            let mut it = side_item(&mut first, "Biblioteki", lib.name.clone(), ic("archive"), lib.folders[0].clone(), current);
+            // Jeden folder – zwykły folder; kilka – karta z całą biblioteką.
+            let path = if lib.folders.len() > 1 { format!("{LIB}{}", lib.path) } else { lib.folders[0].clone() };
+            let mut it = side_item(&mut first, "Biblioteki", lib.name.clone(), ic("archive"), path, current);
             it.tip = format!("{}
 {}", lib.name, lib.folders.join("
 ")).into();
@@ -2855,7 +2956,7 @@ fn side_extra(current: &str, favorites: &[String]) -> (Vec<SideItem>, Vec<SideIt
     (v, tail)
 }
 
-fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
+fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec<SideItem> {
     let mut v = Vec::new();
     let known: [(&str, Option<PathBuf>, &str); 6] = [
         ("Pulpit", dirs::desktop_dir(), "desktop"),
@@ -2914,7 +3015,69 @@ fn side_items(current: &str, drives: &[drives::Drive]) -> Vec<SideItem> {
             header_only: false,
         });
     }
+    // Dodane lokalizacje (\\serwer\udział) i na końcu pozycja do dodawania kolejnych.
+    for p in places {
+        let name = p.trim_start_matches('\\').replace('\\', " › ");
+        v.push(side_item(&mut first_net, "Sieć", name, ic("network"), p.clone(), current));
+    }
+    let mut add = side_item(&mut first_net, "Sieć", "Dodaj lokalizację…".into(), ic("plus"), ADD_NET.into(), current);
+    add.tip = "Dodaj udział sieciowy (\\\\serwer\\udział)".into();
+    v.push(add);
     v
+}
+
+/// Pozycja „Dodaj lokalizację…” w sekcji Sieć.
+pub const ADD_NET: &str = "ofp:addnet";
+
+/// Okno z polem na ścieżkę UNC; sprawdzamy ją w tle (udział może długo nie odpowiadać).
+pub fn add_network_place(s: &Shared) {
+    transfers::prompt(
+        s,
+        "Dodaj lokalizację sieciową",
+        r"\\",
+        "Dodaj",
+        Rc::new(|s: &Shared, p: &str| {
+            let p = p.trim().trim_matches('"').replace('/', "\\").trim_end_matches('\\').to_string();
+            if !p.starts_with(r"\\") || p.len() < 3 {
+                transfers::toast(s, "Podaj ścieżkę w postaci \\\\serwer\\udział", transfers::Kind::Error, None);
+                return;
+            }
+            transfers::toast(s, format!("Łączę z {p}…"), transfers::Kind::Info, None);
+            std::thread::spawn(move || {
+                let ok = Path::new(&p).is_dir();
+                let _ = slint::invoke_from_event_loop(move || {
+                    with_state(|s| {
+                        if !ok {
+                            transfers::toast(s, format!("Nie udało się otworzyć {p}"), transfers::Kind::Error, None);
+                            return;
+                        }
+                        {
+                            let mut b = s.borrow_mut();
+                            if !b.prefs.net_places.iter().any(|x| same(x, &p)) {
+                                b.prefs.net_places.push(p.clone());
+                                b.prefs.save();
+                            }
+                        }
+                        navigate(s, &p, true);
+                        render_side(s);
+                    })
+                });
+            });
+        }),
+    );
+}
+
+pub fn is_net_place(s: &Shared, path: &str) -> bool {
+    s.borrow().prefs.net_places.iter().any(|p| same(p, path))
+}
+
+pub fn remove_net_place(s: &Shared, path: &str) {
+    {
+        let mut b = s.borrow_mut();
+        b.prefs.net_places.retain(|p| !same(p, path));
+        b.prefs.save();
+    }
+    render_side(s);
 }
 
 fn system_light() -> bool {

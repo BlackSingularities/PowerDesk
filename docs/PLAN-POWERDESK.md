@@ -50,7 +50,7 @@ Zasady:
 - [x] Paleta szybkiego przejścia (Ctrl+K): podfoldery, szybki dostęp, dyski, historia, wpisana ścieżka
 - [x] Klawiatura: strzałki po układzie, Shift/Ctrl, Home/End, Enter, Ctrl+A, Ctrl+1/2/3, Ctrl+H, Ctrl+Tab, Ctrl+W
 - [x] Boczne przyciski myszy (wstecz/dalej w całym oknie), F6/Shift+F6 między panelami i paskiem adresu, wpisywanie nazwy (skok do pasującego elementu)
-- [ ] F6 także przez panel boczny i podgląd (nie mają jeszcze własnego fokusu)
+- [x] F6 także przez panel boczny (strzałki, Enter) i podgląd (strony PDF, Enter)
 - [x] Mica / Acrylic (DWM, półprzezroczyste tło i panele), akcent systemowy i własny (#rrggbb), krycie okienek 60–100% (bez rozmycia – Slint go nie ma)
 
 ### Widoki plików
@@ -75,7 +75,7 @@ Zasady:
 ### Panel boczny
 - [x] Szybki dostęp (znane foldery), dyski z zajętością
 - [x] Przypięte foldery (menu folderu i tła, menu panelu), biblioteki (otwiera pierwszy folder), dyski sieciowe w sekcji Sieć, synchronizacje ze stanem, zwijanie sekcji, zmiana szerokości przeciąganiem
-- [ ] Panel boczny: widok całej biblioteki naraz, dodawanie lokalizacji sieciowych, przeciąganie na „Przypięte”
+- [x] Panel boczny: widok całej biblioteki naraz, dodawanie lokalizacji sieciowych, przeciąganie na „Przypięte”
 
 ### Operacje
 - [x] Kopiowanie/przenoszenie w tle: pasek transferów w oknie (postęp, prędkość, czas, wstrzymanie, anulowanie, błędy) zamiast okienek Windows; konflikty w oknie aplikacji; cofanie/ponawianie (Ctrl+Z/Ctrl+Y, „Cofnij” w powiadomieniu)

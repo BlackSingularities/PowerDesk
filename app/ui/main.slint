@@ -159,6 +159,9 @@ export component MainWindow inherits Window {
     callback side-context(string, length, length);
     /// Koniec przeciągania krawędzi panelu bocznego – nowa szerokość do zapisu.
     callback side-resized(float);
+    /// Klawisz w panelu bocznym z fokusem; "" – panel właśnie dostał fokus.
+    callback side-key(string);
+    in-out property <int> side-cursor: -1;
     in-out property <length> side-width: 248px;
     callback toggle-section(string);
     callback toggle-side-mini;
@@ -219,9 +222,15 @@ export component MainWindow inherits Window {
                 toolbar.edit-address();
                 return accept;
             }
-            // F6 / Shift+F6: panele (przy podziale) i pasek adresu na zmianę.
+            // F6 / Shift+F6: między panelami (przy podziale) przełącza Rust, dalej panel boczny, podgląd i adres.
             if (e.text == Key.F6 && !(root.split && root.focused-pane == (e.modifiers.shift ? 1 : 0))) {
-                toolbar.edit-address();
+                if (e.modifiers.shift) {
+                    side-bar.focus-in();
+                } else if (PreviewState.open && !root.special) {
+                    PreviewState.focus-req += 1;
+                } else {
+                    toolbar.edit-address();
+                }
                 return accept;
             }
             if ((e.modifiers.control && e.text == "f") || e.text == Key.F3) {
@@ -280,9 +289,16 @@ export component MainWindow inherits Window {
                 padding-left: 8px;
                 padding-right: 8px;
                     toolbar := Toolbar {
+                        // Kolejność F6: adres → panel boczny → lista (oba panele) → podgląd → adres.
                         leave-address(last) => {
-                            keys.focus();
-                            root.focus-pane(last && root.split ? 1 : 0);
+                            if (!last) {
+                                side-bar.focus-in();
+                            } else if (PreviewState.open && !root.special) {
+                                PreviewState.focus-req += 1;
+                            } else {
+                                keys.focus();
+                                root.focus-pane(root.split ? 1 : 0);
+                            }
                         }
                         crumbs: root.crumbs;
                         path: root.path;
@@ -380,6 +396,21 @@ export component MainWindow inherits Window {
                     items: root.side;
                     mini: root.side-mini;
                     panel-width: root.side-width;
+                    cursor: root.side-cursor;
+                    key(k) => {
+                        root.side-key(k);
+                    }
+                    focused => {
+                        root.side-key("");
+                    }
+                    leave(back) => {
+                        if (back) {
+                            toolbar.edit-address();
+                        } else {
+                            keys.focus();
+                            root.focus-pane(0);
+                        }
+                    }
                     toggle-section(n) => {
                         root.toggle-section(n);
                     }
@@ -714,7 +745,16 @@ export component MainWindow inherits Window {
                     }
                 }
                 // Podgląd (PreviewPane.svelte).
-                if PreviewState.open && !root.special: PreviewPane { }
+                if PreviewState.open && !root.special: PreviewPane {
+                    leave(back) => {
+                        if (back) {
+                            keys.focus();
+                            root.focus-pane(root.split ? 1 : 0);
+                        } else {
+                            toolbar.edit-address();
+                        }
+                    }
+                }
             }
         }
     }

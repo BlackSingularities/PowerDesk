@@ -47,6 +47,8 @@ export global PreviewState {
     /// PDF: liczba stron (0 – to nie PDF) i bieżąca strona od 0.
     in-out property <int> pdf-pages;
     in-out property <int> pdf-page;
+    /// Każde zwiększenie przenosi fokus klawiatury do panelu (F6).
+    in-out property <int> focus-req;
     callback pdf-step(int);
     callback open-map();
     callback resize(length);
@@ -160,6 +162,43 @@ export component PreviewPane inherits Rectangle {
     background: Theme.bg;
     border-radius: Theme.r-l;
     clip: true;
+    /// F6 / Esc – fokus idzie dalej (`true` – Shift+F6, wstecz).
+    callback leave(bool);
+    property <int> focus-req: PreviewState.focus-req;
+    changed focus-req => {
+        fs.focus();
+    }
+    border-width: fs.has-focus ? 2px : 0;
+    border-color: Theme.accent;
+
+    fs := FocusScope {
+        width: 0;
+        height: 0;
+        key-pressed(e) => {
+            if (e.text == Key.F6) {
+                root.leave(e.modifiers.shift);
+                return accept;
+            }
+            if (e.text == Key.Escape) {
+                root.leave(true);
+                return accept;
+            }
+            // Strony PDF.
+            if (PreviewState.pdf-pages > 1 && (e.text == Key.PageDown || e.text == Key.DownArrow)) {
+                PreviewState.pdf-step(1);
+                return accept;
+            }
+            if (PreviewState.pdf-pages > 1 && (e.text == Key.PageUp || e.text == Key.UpArrow)) {
+                PreviewState.pdf-step(-1);
+                return accept;
+            }
+            if (e.text == Key.Return) {
+                PreviewState.open-item();
+                return accept;
+            }
+            reject
+        }
+    }
 
     ScrollView {
         content := VerticalLayout {

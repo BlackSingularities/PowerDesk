@@ -29,6 +29,40 @@ export component Sidebar inherits Rectangle {
     callback context(string, length, length);
     callback toggle-section(string);
     callback toggle-mini;
+    /// F6 / Esc – fokus wraca dalej (`true` – Shift+F6, wstecz).
+    callback leave(bool);
+    /// Pozycja wskazana z klawiatury (strzałki, Enter) – liczona w Rust, -1 – brak.
+    in property <int> cursor: -1;
+    /// Klawisz w panelu z fokusem: strzałki, Home/End, Enter (resztę obsługuje Rust).
+    callback key(string);
+    /// Panel dostał fokus z klawiatury – Rust ustawia kursor na bieżącym folderze.
+    callback focused;
+    out property <bool> has-keys: fs.has-focus;
+
+    public function focus-in() {
+        fs.focus();
+        root.focused();
+    }
+
+    fs := FocusScope {
+        width: 0;
+        height: 0;
+        key-pressed(e) => {
+            if (e.text == Key.F6) {
+                root.leave(e.modifiers.shift);
+                return accept;
+            }
+            if (e.text == Key.Escape) {
+                root.leave(false);
+                return accept;
+            }
+            if (e.text == Key.UpArrow || e.text == Key.DownArrow || e.text == Key.Home || e.text == Key.End || e.text == Key.Return || e.text == " ") {
+                root.key(e.text);
+                return accept;
+            }
+            reject
+        }
+    }
 
     width: mini ? 52px : panel-width;
     animate width { duration: 160ms; easing: ease-out; }
@@ -61,6 +95,32 @@ export component Sidebar inherits Rectangle {
                             root.toggle-mini();
                         }
                     }
+                }
+            }
+            // Miejsce do przypinania – widoczne tylko w trakcie przeciągania.
+            if Drag.active: Rectangle {
+                height: root.mini ? 40px : 44px;
+                border-radius: Theme.r;
+                border-width: Drag.target == "ofp:pin" ? 2px : 1px;
+                border-color: Drag.target == "ofp:pin" ? Theme.accent : Theme.line;
+                background: Drag.target == "ofp:pin" ? Theme.sel-strong : transparent;
+                HorizontalLayout {
+                    padding-left: root.mini ? 0 : 10px;
+                    spacing: 11px;
+                    alignment: root.mini ? center : start;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.pin;
+                        color: Drag.target == "ofp:pin" ? Theme.text : Theme.dim;
+                    }
+                    if !root.mini: Label {
+                        text: "Upuść folder, aby przypiąć";
+                        color: Drag.target == "ofp:pin" ? Theme.text : Theme.dim;
+                    }
+                }
+                TipArea {
+                    tip: "Przypnij w panelu bocznym";
+                    drop: "ofp:pin";
                 }
             }
             for it[i] in root.items: VerticalLayout {
@@ -99,6 +159,7 @@ export component Sidebar inherits Rectangle {
                     }
                     sec-ta := TipArea {
                         tip: it.shut ? "Rozwiń sekcję" : "Zwiń sekcję";
+                        drop: it.section == "Przypięte" ? "ofp:pin" : "";
                         clicked => {
                             root.toggle-section(it.section);
                         }
@@ -111,7 +172,7 @@ export component Sidebar inherits Rectangle {
                     height: it.detail != "" && !root.mini ? 52px : 34px;
                     border-radius: Theme.r;
                     background: Drag.active && Drag.target == it.path ? Theme.sel-strong : it.active ? Theme.sel : ta.has-hover ? Theme.hover : transparent;
-                    border-width: Drag.active && Drag.target == it.path ? 2px : 0;
+                    border-width: (Drag.active && Drag.target == it.path) || (root.has-keys && i == root.cursor) ? 2px : 0;
                     border-color: Theme.accent;
                     animate background { duration: 100ms; }
                     ta := TipArea {

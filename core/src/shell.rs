@@ -169,8 +169,10 @@ fn render(path: &str, size: u32, icon_only: bool) -> Option<(Vec<u8>, &'static s
         } else {
             match factory.GetImage(sz, SIIGBF_THUMBNAILONLY | SIIGBF_BIGGERSIZEOK) {
                 Ok(h) => h,
-                // Windows nie ma miniatury (brak handlera, np. Office niezainstalowany) – próbujemy sami.
-                Err(_) => return fallback_thumb(path, size),
+                // Własna miniatura tylko, gdy Windows w ogóle nie ma dostawcy dla tego typu
+                // (np. Office niezainstalowany). Gdy go ma, a chwilowo zawiódł – ponowi się później.
+                Err(_) if !system_thumbnailer(path) => return fallback_thumb(path, size),
+                Err(_) => return None,
             }
         };
         let res = encode_hbitmap(hbmp);
@@ -551,6 +553,17 @@ unsafe fn context_menu(hwnd: HWND, paths: &[String]) -> Result<(windows::Win32::
     }
 }
 
+/// Czy dla rozszerzenia pliku zarejestrowano systemowego dostawcę miniatur (IThumbnailProvider).
+fn system_thumbnailer(path: &str) -> bool {
+    use windows::Win32::UI::Shell::{AssocQueryStringW, ASSOCF_INIT_DEFAULTTOSTAR, ASSOCSTR_SHELLEXTENSION};
+    let Some(ext) = std::path::Path::new(path).extension() else { return false };
+    let ext = HSTRING::from(format!(".{}", ext.to_string_lossy()));
+    let iid = HSTRING::from("{e357fccd-a995-4576-b01f-234630154e96}");
+    let mut buf = [0u16; 260];
+    let mut n = buf.len() as u32;
+    unsafe { AssocQueryStringW(ASSOCF_INIT_DEFAULTTOSTAR, ASSOCSTR_SHELLEXTENSION, &ext, &iid, Some(windows::core::PWSTR(buf.as_mut_ptr())), &mut n).is_ok() }
+}
+
 /// Miniatura bez pomocy Windows: podgląd zapisany w dokumencie Office (docProps/thumbnail.*)
 /// albo zwykły obraz zdekodowany i pomniejszony w aplikacji.
 fn fallback_thumb(path: &str, size: u32) -> Option<(Vec<u8>, &'static str)> {
@@ -592,5 +605,15 @@ fn fallback_thumb(path: &str, size: u32) -> Option<(Vec<u8>, &'static str)> {
             }
         }
         _ => None,
+    }
+}
+
+#[cfg(test)]
+mod thumb_tests {
+    #[test]
+    fn system_thumbnailer_for_images() {
+        // Obrazy JPEG Windows obsługuje zawsze, wymyślone rozszerzenie – nigdy.
+        assert!(super::system_thumbnailer(r"C:\x.jpg"));
+        assert!(!super::system_thumbnailer(r"C:\x.zzqq"));
     }
 }

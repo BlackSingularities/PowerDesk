@@ -433,7 +433,8 @@ impl Tab {
     }
 
     pub fn special(&self) -> bool {
-        self.path.starts_with("ofp:")
+        // Biblioteka to zwykła lista plików, tylko z kilku folderów naraz.
+        self.path.starts_with("ofp:") && !self.path.starts_with(crate::LIB)
     }
 
     pub fn title(&self) -> String {
@@ -451,6 +452,9 @@ impl Tab {
         }
         if self.path == "ofp:sync" {
             return "Synchronizacja".into();
+        }
+        if let Some(n) = crate::library_name(&self.path) {
+            return n;
         }
         if let Some(t) = crate::spaceview::title(&self.path) {
             return t;
@@ -854,6 +858,8 @@ pub struct Prefs {
     pub favorites: Vec<String>,
     /// Szerokość panelu bocznego.
     pub side_width: f32,
+    /// Lokalizacje sieciowe dodane w panelu bocznym (ścieżki UNC).
+    pub net_places: Vec<String>,
 }
 
 /// Wyszukiwanie zapisane w panelu bocznym.
@@ -867,7 +873,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0 }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new() }
     }
 }
 

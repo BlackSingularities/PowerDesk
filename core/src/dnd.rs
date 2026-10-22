@@ -25,6 +25,8 @@ pub enum Effect {
     None,
     Copy,
     Move,
+    /// Samo odwołanie (np. przypięcie folderu) – pliki zostają na miejscu.
+    Link,
 }
 
 impl Effect {
@@ -33,6 +35,7 @@ impl Effect {
             Effect::None => DROPEFFECT_NONE,
             Effect::Copy => DROPEFFECT_COPY,
             Effect::Move => DROPEFFECT_MOVE,
+            Effect::Link => DROPEFFECT_LINK,
         }
     }
 }

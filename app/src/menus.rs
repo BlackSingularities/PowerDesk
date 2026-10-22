@@ -552,18 +552,18 @@ pub fn column_menu(s: &Shared, x: f32, y: f32) {
 pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
     let (a, b, c) = (path.clone(), path.clone(), path.clone());
     let pinned = crate::is_favorite(s, &path);
-    show(
-        s,
-        vec![
-            it("Otwórz", "folder", move |s| crate::navigate(s, &a, true)),
-            it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &b, false)),
-            sep(),
-            it(if pinned { "Odepnij" } else { "Przypnij w panelu bocznym" }, "pin", move |s| crate::toggle_favorite(s, &c)),
-            it("Terminal tutaj", "terminal", move |_| terminal(&path)),
-        ],
-        x,
-        y,
-    );
+    let mut v = vec![
+        it("Otwórz", "folder", move |s| crate::navigate(s, &a, true)),
+        it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &b, false)),
+        sep(),
+        it(if pinned { "Odepnij" } else { "Przypnij w panelu bocznym" }, "pin", move |s| crate::toggle_favorite(s, &c)),
+    ];
+    if crate::is_net_place(s, &path) {
+        let p = path.clone();
+        v.push(it("Usuń lokalizację z panelu", "close", move |s| crate::remove_net_place(s, &p)));
+    }
+    v.push(it("Terminal tutaj", "terminal", move |_| terminal(&path)));
+    show(s, v, x, y);
 }
 
 pub fn saved_menu(s: &Shared, id: String, x: f32, y: f32) {

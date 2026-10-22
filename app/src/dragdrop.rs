@@ -37,11 +37,17 @@ pub fn mode(sources: &[String], dest: &str, keys: Keys) -> &'static str {
 
 /// Cel „Półka” – upuszczone pliki trafiają na półkę, bez kopiowania.
 pub const SHELF: &str = "ofp:shelf";
+/// Cel „Przypięte” w panelu bocznym – upuszczone foldery zostają przypięte.
+pub const PIN: &str = "ofp:pin";
 
 /// Efekt upuszczenia na `target`; brak, gdy cel nie przyjmie plików.
 fn effect(paths: &[String], target: &str, keys: Keys) -> (Effect, &'static str) {
     if target == SHELF {
         return (Effect::Copy, "shelf");
+    }
+    if target == PIN {
+        let dirs = paths.iter().any(|p| !p.starts_with("ofp:") && Path::new(p).is_dir());
+        return if dirs { (Effect::Link, "pin") } else { (Effect::None, "") };
     }
     if target.is_empty() || target.starts_with("ofp:") || !Path::new(target).is_dir() {
         return (Effect::None, "");
@@ -110,7 +116,11 @@ impl dnd::DropHandler for Handler {
             let paths = paths.to_vec();
             // Po powrocie z wywołania OLE – kopiowanie idzie przez pasek transferów (z oknem konfliktu).
             slint::Timer::single_shot(std::time::Duration::from_millis(1), move || {
-                crate::with_state(|s| if m == "shelf" { crate::shelf::add(s, &paths) } else { transfers::transfer(s, paths, &target, m) });
+                crate::with_state(|s| match m {
+                    "shelf" => crate::shelf::add(s, &paths),
+                    "pin" => crate::pin_folders(s, &paths),
+                    _ => transfers::transfer(s, paths, &target, m),
+                });
             });
         }
         e
