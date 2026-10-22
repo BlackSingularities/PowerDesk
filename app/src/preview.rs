@@ -26,6 +26,49 @@ thread_local! {
     static IMG: RefCell<Option<(String, u32, bool)>> = const { RefCell::new(None) };
     /// Współrzędne pokazanego zdjęcia – do otwarcia w przeglądarce.
     static COORDS: Cell<Option<(f64, f64)>> = const { Cell::new(None) };
+    /// Pokazany PDF: ścieżka i szerokość strony w pikselach; numer renderu – spóźnione strony są pomijane.
+    static PDF: RefCell<Option<(String, u32)>> = const { RefCell::new(None) };
+    static PDF_GEN: Cell<u64> = const { Cell::new(0) };
+}
+
+/// Strona PDF w tle; po dotarciu zastępuje obraz z powłoki (i nie podmienią jej już miniatury).
+fn pdf_page(gen: u64, page: i32) {
+    let Some((path, px)) = PDF.with(|p| p.borrow().clone()) else { return };
+    let pg = PDF_GEN.with(|g| {
+        g.set(g.get() + 1);
+        g.get()
+    });
+    std::thread::spawn(move || {
+        let Some((png, count)) = powerdesk_core::pdf::render(&path, page.max(0) as u32, px) else { return };
+        let Some(buf) = props::decode_png(&png) else { return };
+        deliver(gen, move |_, g| {
+            if PDF_GEN.with(|x| x.get()) != pg {
+                return;
+            }
+            IMG.with(|i| *i.borrow_mut() = None);
+            g.set_img(slint::Image::from_rgba8(buf));
+            g.set_has_img(true);
+            g.set_pdf_pages(count as i32);
+            g.set_pdf_page(page.clamp(0, count as i32 - 1));
+        });
+    });
+}
+
+/// Strzałki i kółko: następna albo poprzednia strona PDF.
+pub fn pdf_step(s: &Shared, d: i32) {
+    let mut target = None;
+    with_ui(s, |g| {
+        let n = g.get_pdf_pages();
+        let p = (g.get_pdf_page() + d).clamp(0, (n - 1).max(0));
+        if n > 1 && p != g.get_pdf_page() {
+            // Numer zmienia się od razu – obraz dociąga się w tle.
+            g.set_pdf_page(p);
+            target = Some(p);
+        }
+    });
+    if let Some(p) = target {
+        pdf_page(GEN.with(|g| g.get()), p);
+    }
 }
 
 /// Obraz z pamięci podręcznej albo zamówienie go; po dotarciu `thumbs_arrived` go podmieni.
@@ -138,6 +181,9 @@ fn clear(g: &PreviewState) {
     g.set_path("".into());
     g.set_has_map(false);
     g.set_media(0);
+    g.set_pdf_pages(0);
+    g.set_pdf_page(0);
+    PDF.with(|p| *p.borrow_mut() = None);
     g.set_coords("".into());
     COORDS.with(|c| c.set(None));
 }
@@ -269,6 +315,10 @@ fn one(s: &Shared, gen: u64, e: Entry) {
             image(g, &e.path, if textual || listing { (96.0 * scale) as u32 } else { px }, e.dir || textual || listing);
         }
     });
+    if ext == "pdf" && !packed && !e.cloud {
+        PDF.with(|p| *p.borrow_mut() = Some((e.path.clone(), ((width - 32.0) * scale) as u32)));
+        pdf_page(gen, 0);
+    }
     if textual {
         let p = e.path.clone();
         let ext = ext.clone();

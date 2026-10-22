@@ -57,5 +57,9 @@ features = [
   "Win32_Media_MediaFoundation",
   "Win32_Graphics_Imaging",
   "Win32_Graphics_Dxgi_Common",
+  "Foundation",
+  "Data_Pdf",
+  "Storage",
+  "Storage_Streams",
 ]
 

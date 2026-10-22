@@ -425,6 +425,8 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_copy_path(move || preview::copy_path(&s));
     g.on_open_map(|| preview::open_map());
+    let s = st.clone();
+    g.on_pdf_step(move |d| preview::pdf_step(&s, d));
     player::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();

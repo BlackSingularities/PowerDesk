@@ -44,6 +44,10 @@ export global PreviewState {
     in-out property <string> coords;
     /// Plik do odtworzenia w panelu: 0 – nie, 1 – wideo, 2 – audio.
     in-out property <int> media;
+    /// PDF: liczba stron (0 – to nie PDF) i bieżąca strona od 0.
+    in-out property <int> pdf-pages;
+    in-out property <int> pdf-page;
+    callback pdf-step(int);
     callback open-map();
     callback resize(length);
     callback resize-done;
@@ -175,6 +179,14 @@ export component PreviewPane inherits Rectangle {
                     image-fit: contain;
                 }
                 TouchArea {
+                    scroll-event(e) => {
+                        // Kółko nad stroną PDF przewija strony.
+                        if (PreviewState.pdf-pages > 1 && e.delta-y != 0) {
+                            PreviewState.pdf-step(e.delta-y < 0 ? 1 : -1);
+                            return accept;
+                        }
+                        reject
+                    }
                     clicked => {
                         if (root.playing-here) {
                             PlayerState.toggle();
@@ -200,6 +212,34 @@ export component PreviewPane inherits Rectangle {
                         clicked => {
                             PlayerState.start(1, PreviewState.path);
                         }
+                    }
+                }
+            }
+            if PreviewState.pdf-pages > 1: HorizontalLayout {
+                alignment: center;
+                spacing: 6px;
+                IconButton {
+                    icon: Icons.back;
+                    tooltip: "Poprzednia strona (kółko w górę)";
+                    enabled: PreviewState.pdf-page > 0;
+                    clicked => {
+                        PreviewState.pdf-step(-1);
+                    }
+                }
+                Label {
+                    y: (parent.height - self.height) / 2;
+                    min-width: 70px;
+                    horizontal-alignment: center;
+                    text: "Strona " + (PreviewState.pdf-page + 1) + " z " + PreviewState.pdf-pages;
+                    font-size: 12px;
+                    color: Theme.dim;
+                }
+                IconButton {
+                    icon: Icons.fwd;
+                    tooltip: "Następna strona (kółko w dół)";
+                    enabled: PreviewState.pdf-page < PreviewState.pdf-pages - 1;
+                    clicked => {
+                        PreviewState.pdf-step(1);
                     }
                 }
             }

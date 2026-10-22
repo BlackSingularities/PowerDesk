@@ -11,6 +11,7 @@ pub mod library;
 pub mod maps;
 pub mod media;
 pub mod ops;
+pub mod pdf;
 pub mod remote;
 pub mod shell;
 pub mod space;
