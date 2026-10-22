@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 //! PowerDesk – natywny interfejs (Slint) nad backendem `powerdesk-core`.
 
+mod dragdrop;
 mod facets;
 mod fmt;
 mod menus;
@@ -105,6 +106,17 @@ fn main() -> Result<(), slint::PlatformError> {
 
     wire(&ui, &st);
     load(&st, false);
+    // „Wklej” pokazuje się tylko, gdy w schowku są pliki – także skopiowane w innym programie.
+    let paste_timer = slint::Timer::default();
+    let w = ui.as_weak();
+    paste_timer.start(slint::TimerMode::Repeated, std::time::Duration::from_millis(500), move || {
+        if let Some(ui) = w.upgrade() {
+            ui.set_can_paste(powerdesk_core::clip::has_files());
+        }
+    });
+    // Cel upuszczania wymaga uchwytu okna – rejestrujemy go po starcie pętli.
+    let s2 = st.clone();
+    slint::Timer::single_shot(std::time::Duration::from_millis(50), move || dragdrop::register(&s2));
     ui.run()
 }
 
@@ -341,6 +353,8 @@ fn wire(ui: &MainWindow, st: &Shared) {
         render_items(&s);
     });
     // Pasek transferów, powiadomienia, okna dialogowe.
+    let s = st.clone();
+    ui.on_drag_start(move |i| dragdrop::start(&s, i as usize));
     let s = st.clone();
     ui.on_toggle_transfers(move || transfers::toggle_hidden(&s));
     ui.on_op_pause(|id, on| powerdesk_core::ops::pause(id as u64, on));
@@ -873,6 +887,7 @@ fn render_chrome(s: &Shared) {
     ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path, &b.drives))));
     ui.set_view(t.view.index());
     ui.set_sort_name(t.sort == SortKey::Name);
+    ui.set_folder(if t.special() || t.search.is_some() { SharedString::new() } else { t.path.clone().into() });
     ui.set_desc(t.desc);
     let flist = if t.special() { Vec::new() } else { t.facet_list(b.prefs.show_hidden, |e| b.media.get(&e.path).copied()) };
     let shown = t.facets_shown(!flist.is_empty());
@@ -953,6 +968,7 @@ fn render_chrome(s: &Shared) {
             .enumerate()
             .map(|(i, t)| TabData {
                 tip: if t.special() { t.title().into() } else { t.path.clone().into() },
+                path: if t.special() { SharedString::new() } else { t.path.clone().into() },
                 title: t.title().into(),
                 icon: tab_icon(t),
                 active: i == b.active,
@@ -1133,6 +1149,7 @@ fn vis_item(b: &State, t: &Tab, i: usize, e: &fsx::Entry, bx: model::BoxR, scale
         w: bx.w,
         h: bx.h,
         name: e.name.clone().into(),
+        path: e.path.clone().into(),
         cells: if t.view == View::List { ModelRc::new(VecModel::from(cells(b, e))) } else { ModelRc::default() },
         dir: e.dir,
         hidden: e.hidden,

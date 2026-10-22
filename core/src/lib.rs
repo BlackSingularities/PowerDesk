@@ -3,6 +3,7 @@
 
 pub mod archive;
 pub mod clip;
+pub mod dnd;
 pub mod drives;
 pub mod events;
 pub mod fsx;

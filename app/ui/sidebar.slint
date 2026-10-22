@@ -1,5 +1,5 @@
 import { Theme } from "theme.slint";
-import { Icon, Label, TipArea } from "components.slint";
+import { Icon, Label, TipArea, Drag } from "components.slint";
 
 export struct SideItem {
     section: string,
@@ -49,10 +49,13 @@ export component Sidebar inherits Rectangle {
                 Rectangle {
                     height: it.detail != "" ? 52px : 34px;
                     border-radius: Theme.r;
-                    background: it.active ? Theme.sel : ta.has-hover ? Theme.hover : transparent;
+                    background: Drag.active && Drag.target == it.path ? Theme.sel-strong : it.active ? Theme.sel : ta.has-hover ? Theme.hover : transparent;
+                    border-width: Drag.active && Drag.target == it.path ? 2px : 0;
+                    border-color: Theme.accent;
                     animate background { duration: 100ms; }
                     ta := TipArea {
                         tip: it.tip;
+                        drop: it.path;
                         clicked => {
                             root.open(it.path);
                         }

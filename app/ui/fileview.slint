@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, Label, TipArea } from "components.slint";
+import { Icon, Label, TipArea, Drag } from "components.slint";
 import { ScrollView } from "std-widgets.slint";
 
 /// Pole zmiany nazwy w miejscu: Enter zatwierdza, Esc anuluje, Tab / Shift+Tab przechodzi do sąsiada,
@@ -88,6 +88,7 @@ export struct VisItem {
     w: length,
     h: length,
     name: string,
+    path: string,
     /// Teksty kolumn w kolejności `columns`.
     cells: [string],
     dir: bool,
@@ -114,6 +115,8 @@ export component FileView inherits Rectangle {
     in property <[GroupHead]> heads;
     in property <bool> sort-name;
     in property <int> rename-sel;
+    /// Bieżący folder – cel upuszczenia na tło listy.
+    in property <string> folder;
     in property <bool> desc;
     in-out property <length> scroll-y;
 
@@ -132,6 +135,7 @@ export component FileView inherits Rectangle {
     callback col-reset(int);
     callback col-menu(length, length);
     callback rename-commit(string);
+    callback drag-start(int);
     callback toggle-group(int);
     callback select-group(int, bool);
     callback rename-cancel;
@@ -356,9 +360,10 @@ export component FileView inherits Rectangle {
                 root.viewport-changed(-self.content-y, self.visible-width, self.visible-height);
             }
 
-            TouchArea {
+            TipArea {
                 width: sv.content-width;
                 height: sv.content-height;
+                drop: root.folder;
                 moved => {
                     root.mq-move(self.mouse-x, self.mouse-y);
                 }
@@ -458,9 +463,9 @@ export component FileView inherits Rectangle {
                 height: it.h;
                 border-radius: root.view == 2 ? Theme.r-xs : Theme.r-s;
                 clip: root.view == 2;
-                background: it.selected ? Theme.sel : (ta.has-hover && root.view != 2) ? Theme.hover : transparent;
-                border-width: it.focused ? (root.view == 2 ? 2px : 1px) : 0;
-                border-color: Theme.line-strong;
+                background: self.drop-here ? Theme.sel-strong : it.selected ? Theme.sel : (ta.has-hover && root.view != 2) ? Theme.hover : transparent;
+                border-width: self.drop-here ? 2px : it.focused ? (root.view == 2 ? 2px : 1px) : 0;
+                border-color: self.drop-here ? Theme.accent : Theme.line-strong;
 
                 // Szerokość ikony z nazwą na liście – poza nią przeciąganie zaczyna ramkę (jak w Eksploratorze).
                 probe := Label {
@@ -469,10 +474,23 @@ export component FileView inherits Rectangle {
                 }
                 property <length> name-end: 12px + 18px + 10px + probe.preferred-width + 8px;
 
+                property <bool> drop-here: Drag.active && it.dir && Drag.target == it.path;
                 ta := TipArea {
                     tip: it.tip;
+                    drop: it.dir ? it.path : root.folder;
+                    // Przeciąganie zaczyna się po 6 px ruchu z wciśniętym przyciskiem (nie przy ramce i zmianie nazwy).
+                    property <bool> dragged;
                     moved => {
                         root.mq-move(it.x + self.mouse-x, it.y + self.mouse-y);
+                        if (self.pressed && !root.mq-on && !self.dragged && !it.renaming && abs(self.mouse-x - self.pressed-x) + abs(self.mouse-y - self.pressed-y) > 6px) {
+                            self.dragged = true;
+                            root.drag-start(it.index);
+                        }
+                    }
+                    changed pressed => {
+                        if (self.pressed) {
+                            self.dragged = false;
+                        }
                     }
                     pointer-event(e) => {
                         if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
@@ -658,6 +676,13 @@ export component FileView inherits Rectangle {
                 border-radius: 4px;
             }
         }
+    }
+
+    // Upuszczenie do bieżącego folderu – obwódka dookoła widoku.
+    if Drag.active && Drag.target == root.folder && root.folder != "": Rectangle {
+        border-radius: Theme.r;
+        border-width: 2px;
+        border-color: Theme.accent;
     }
 
     if root.items.length == 0 && root.empty-text != "": Label {

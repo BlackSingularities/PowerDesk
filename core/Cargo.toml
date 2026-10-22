@@ -31,6 +31,9 @@ suppaftp = "6"
 portable-pty = "0.8"
 sysinfo = { version = "0.33", default-features = false, features = ["system"] }
 
+[dependencies.windows-core]
+version = "0.61"
+
 [dependencies.windows]
 version = "0.61"
 features = [

@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, Label, Tip, TipArea } from "components.slint";
+import { Icon, Label, Tip, TipArea, Drag } from "components.slint";
 import { TitleBar, TabData } from "titlebar.slint";
 import { Sidebar, SideItem } from "sidebar.slint";
 import { Toolbar, Crumb, FilterChip, FacetChip, FacetRow, FacetPanel } from "toolbar.slint";
@@ -8,7 +8,7 @@ import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
 import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog } from "overlays.slint";
 
-export { Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow }
+export { Drag, Theme, Icons, TabData, SideItem, Crumb, FilterChip, FacetChip, FacetRow, VisItem, Column, GroupHead, MenuEntry, OpItem, ToastItem, ConflictRow }
 
 /// Główne okno PowerDesk – układ jak App.svelte: pasek tytułu, pasek narzędzi, panel boczny, panel plików.
 export component MainWindow inherits Window {
@@ -35,6 +35,7 @@ export component MainWindow inherits Window {
     in property <bool> can-back;
     in property <bool> can-forward;
     in property <bool> has-selection;
+    in property <bool> can-paste;
     in property <bool> searching;
     in property <bool> search-active;
     in property <string> sort-label;
@@ -59,6 +60,7 @@ export component MainWindow inherits Window {
     in property <length> total-height;
     in property <string> empty-text;
     in property <bool> sort-name;
+    in property <string> folder;
     in property <int> rename-sel;
     in property <[Column]> columns;
     in property <[GroupHead]> heads;
@@ -141,6 +143,7 @@ export component MainWindow inherits Window {
     callback col-reset(int);
     callback col-menu(length, length);
     callback rename-commit(string);
+    callback drag-start(int);
     callback toggle-group(int);
     callback select-group(int, bool);
     callback rename-cancel;
@@ -207,6 +210,16 @@ export component MainWindow inherits Window {
                 drag => {
                     root.drag();
                 }
+                commands: !root.special;
+                has-selection: root.has-selection;
+                can-paste: root.can-paste;
+                new-menu(x, y) => {
+                    root.new-menu(x, y);
+                }
+                command(c) => {
+                    root.command(c);
+                    keys.focus();
+                }
             }
 
             // Bez podziału pasek adresu i poleceń jest jeden, na całą szerokość okna (jak w Eksploratorze).
@@ -220,7 +233,6 @@ export component MainWindow inherits Window {
                         special: root.special;
                         can-back: root.can-back;
                         can-forward: root.can-forward;
-                        has-selection: root.has-selection;
                         searching: root.searching;
                         search-active: root.search-active;
                         sort-label: root.sort-label;
@@ -284,12 +296,6 @@ export component MainWindow inherits Window {
                         zoom-changed(z) => {
                             root.zoom-changed(z);
                         }
-                        new-menu(x, y) => {
-                            root.new-menu(x, y);
-                        }
-                        command(c) => {
-                            root.command(c);
-                        }
                         set-kind(k) => {
                             root.set-kind(k);
                             keys.focus();
@@ -326,6 +332,10 @@ export component MainWindow inherits Window {
                             total-height: root.total-height;
                             empty-text: root.empty-text;
                             sort-name: root.sort-name;
+                            folder: root.folder;
+                            drag-start(i) => {
+                                root.drag-start(i);
+                            }
                             rename-sel: root.rename-sel;
                             rename-commit(t) => {
                                 root.rename-commit(t);

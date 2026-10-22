@@ -76,7 +76,8 @@ Zasady:
 
 ### Operacje
 - [x] Kopiowanie/przenoszenie w tle: pasek transferów w oknie (postęp, prędkość, czas, wstrzymanie, anulowanie, błędy) zamiast okienek Windows; konflikty w oknie aplikacji; cofanie/ponawianie (Ctrl+Z/Ctrl+Y, „Cofnij” w powiadomieniu)
-- [ ] Kosz, schowek zgodny z Eksploratorem, przeciąganie do/z innych programów
+- [x] Kosz, schowek zgodny z Eksploratorem
+- [x] Przeciąganie (OLE jak w Eksploratorze): na foldery, tło listy, panel boczny, okruszki i karty; do i z innych programów; Ctrl kopiuj, Shift przenieś
 - [ ] Menu kontekstowe własne + pełne menu Eksploratora (Shift)
 - [ ] Nowy folder/plik, masowa zmiana nazwy, archiwa (ZIP/7z: przeglądanie, wypakowanie, tworzenie)
 - [ ] Właściwości: metadane systemowe, rozmiar folderu, SHA-256, systemowe okno właściwości

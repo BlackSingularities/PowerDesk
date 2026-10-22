@@ -29,6 +29,11 @@ pub fn get_files() -> (Vec<String>, bool) {
     (paths, cut)
 }
 
+/// Czy w schowku są pliki (bez otwierania schowka – tanie, można sprawdzać często).
+pub fn has_files() -> bool {
+    raw::is_format_avail(formats::CF_HDROP)
+}
+
 pub fn set_text(text: &str) -> Result<(), String> {
     clipboard_win::set_clipboard_string(text).map_err(|e| e.to_string())
 }

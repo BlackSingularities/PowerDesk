@@ -10,10 +10,27 @@ export global Tip {
     in-out property <int> serial;
 }
 
+/// Trwające przeciąganie plików (OLE): Rust symuluje ruch wskaźnika, a element pod nim
+/// z ustawionym `drop` zgłasza się jako cel – folder, do którego trafią pliki.
+export global Drag {
+    in-out property <bool> active;
+    in-out property <string> target;
+}
+
 /// TouchArea z podpowiedzią po najechaniu; kliknięcie chowa dymek.
+/// `drop` – folder, do którego trafią pliki upuszczone na ten element (pusto – nie przyjmuje).
 export component TipArea inherits TouchArea {
     in property <string> tip;
+    in property <string> drop;
     changed has-hover => {
+        if (Drag.active) {
+            if (self.has-hover && self.drop != "") {
+                Drag.target = self.drop;
+            } else if (!self.has-hover && Drag.target == self.drop) {
+                Drag.target = "";
+            }
+            return;
+        }
         if (self.has-hover && self.tip != "") {
             Tip.text = self.tip;
             Tip.x = self.absolute-position.x + self.mouse-x;

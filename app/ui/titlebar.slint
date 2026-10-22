@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, IconButton, Label, TipArea } from "components.slint";
+import { Icon, IconButton, Label, TipArea, Drag } from "components.slint";
 
 export struct TabData {
     title: string,
@@ -9,6 +9,7 @@ export struct TabData {
     pinned: bool,
     loading: bool,
     tip: string,
+    path: string,
 }
 
 /// Pasek tytułu z kartami i przyciskami okna (TitleBar.svelte). Wysokość 42 px.
@@ -22,6 +23,12 @@ export component TitleBar inherits Rectangle {
     callback toggle-maximize;
     callback close-window;
     callback drag;
+    /// Polecenia plików (bez ekranów specjalnych); widoczne tylko te, które mają sens.
+    in property <bool> commands;
+    in property <bool> has-selection;
+    in property <bool> can-paste;
+    callback new-menu(length, length);
+    callback command(string);
 
     height: 42px;
     background: Theme.bg;
@@ -50,10 +57,11 @@ export component TitleBar inherits Rectangle {
                 height: 32px;
                 width: t.pinned ? 40px : 210px;
                 border-radius: Theme.r;
-                background: t.active ? Theme.higher : tab-ta.has-hover ? Theme.hover : transparent;
+                background: Drag.active && Drag.target == t.path ? Theme.sel-strong : t.active ? Theme.higher : tab-ta.has-hover ? Theme.hover : transparent;
                 animate background { duration: 120ms; }
                 tab-ta := TipArea {
                     tip: t.tip;
+                    drop: t.path;
                     clicked => {
                         root.activate(i);
                     }
@@ -112,6 +120,79 @@ export component TitleBar inherits Rectangle {
 
         Rectangle {
             horizontal-stretch: 1;
+        }
+
+        // Polecenia rosną w lewo od „Nowy” – pojawienie się ich nie przesuwa kart ani przycisków okna.
+        if root.commands: HorizontalLayout {
+            spacing: 2px;
+            alignment: end;
+            if root.has-selection: HorizontalLayout {
+                spacing: 2px;
+                for c in [
+                    { id: "cut", icon: Icons.cut, tip: "Wytnij (Ctrl+X)" },
+                    { id: "copy", icon: Icons.copy, tip: "Kopiuj (Ctrl+C)" },
+                    { id: "rename", icon: Icons.edit, tip: "Zmień nazwę (F2)" },
+                    { id: "trash", icon: Icons.trash, tip: "Do Kosza (Del)" },
+                    { id: "props", icon: Icons.info, tip: "Właściwości (Alt+Enter)" },
+                ]: IconButton {
+                    y: (parent.height - self.height) / 2;
+                    icon: c.icon;
+                    icon-size: 17px;
+                    tooltip: c.tip;
+                    clicked => {
+                        root.command(c.id);
+                    }
+                }
+            }
+            if root.can-paste: IconButton {
+                y: (parent.height - self.height) / 2;
+                icon: Icons.paste;
+                icon-size: 17px;
+                tooltip: "Wklej (Ctrl+V)";
+                clicked => {
+                    root.command("paste");
+                }
+            }
+            if root.has-selection || root.can-paste: Rectangle {
+                width: 11px;
+                Rectangle {
+                    width: 1px;
+                    height: 18px;
+                    background: Theme.line;
+                }
+            }
+            // Przycisk „Nowy” (btn primary sm).
+            Rectangle {
+                y: (parent.height - 28px) / 2;
+                height: 28px;
+                width: new-row.preferred-width + 22px;
+                border-radius: Theme.r-s;
+                background: new-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
+                new-row := HorizontalLayout {
+                    x: 10px;
+                    spacing: 6px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.plus;
+                        size: 15px;
+                        color: Theme.on-accent;
+                    }
+                    Label {
+                        text: "Nowy";
+                        color: Theme.on-accent;
+                        font-weight: 600;
+                    }
+                }
+                new-ta := TipArea {
+                    tip: "Nowy folder, plik lub dokument";
+                    clicked => {
+                        root.new-menu(self.absolute-position.x, self.absolute-position.y + 32px);
+                    }
+                }
+            }
+            Rectangle {
+                width: 8px;
+            }
         }
 
         HorizontalLayout {
