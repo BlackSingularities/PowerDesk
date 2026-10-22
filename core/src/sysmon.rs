@@ -14,15 +14,15 @@ static SYS: Lazy<Mutex<System>> = Lazy::new(|| {
 
 #[derive(Serialize)]
 pub struct Info {
-    host: String,
-    os: String,
-    cpu: String,
-    cores: usize,
-    threads: usize,
-    cpu_usage: f32,
-    mem_total: u64,
-    mem_used: u64,
-    uptime: u64,
+    pub host: String,
+    pub os: String,
+    pub cpu: String,
+    pub cores: usize,
+    pub threads: usize,
+    pub cpu_usage: f32,
+    pub mem_total: u64,
+    pub mem_used: u64,
+    pub uptime: u64,
 }
 
 pub fn info() -> Info {

@@ -1,0 +1,479 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Label, TipArea } from "components.slint";
+import { ScrollView, LineEdit } from "std-widgets.slint";
+
+export struct HomeDrive {
+    name: string,
+    path: string,
+    detail: string,
+    usage: float,
+    icon: string,
+}
+
+export struct HomeFolder {
+    name: string,
+    path: string,
+    icon: string,
+    size: string,
+    /// Rozmiar względem największego folderu (0–1); ujemny – jeszcze liczę.
+    ratio: float,
+}
+
+export struct HomeFile {
+    name: string,
+    path: string,
+    when: string,
+    img: image,
+    has-img: bool,
+    media: bool,
+}
+
+/// Ekran „Ten komputer” (Home.svelte) – dane podaje home.rs.
+export global HomeState {
+    in-out property <bool> open;
+    in-out property <string> greeting;
+    in-out property <string> today;
+    in-out property <string> clock;
+    in-out property <[HomeDrive]> drives;
+    in-out property <string> storage;
+    in-out property <float> storage-usage;
+    in-out property <[HomeFolder]> folders;
+    in-out property <[HomeFile]> files;
+    /// Filtr ostatnich plików: 0 – wszystkie, 1 – zdjęcia, 2 – dokumenty, 3 – wideo.
+    in-out property <int> kind;
+    in-out property <bool> files-loading: true;
+    in-out property <string> host;
+    in-out property <string> os;
+    in-out property <string> cpu;
+    in-out property <float> cpu-usage;
+    in-out property <[float]> cpu-hist;
+    in-out property <string> mem;
+    in-out property <float> mem-usage;
+    in-out property <string> uptime;
+    in-out property <string> activity;
+    callback go(string);
+    callback go-new-tab(string);
+    callback open-file(string);
+    callback file-menu(string, length, length);
+    callback search(string);
+    callback set-kind(int);
+    callback refresh-files;
+}
+
+component Card inherits Rectangle {
+    in property <string> title;
+    in property <string> note;
+    border-radius: Theme.r-l;
+    background: Theme.card;
+    border-width: 1px;
+    border-color: Theme.line;
+    VerticalLayout {
+        padding: 16px;
+        spacing: 10px;
+        HorizontalLayout {
+            Label {
+                horizontal-stretch: 1;
+                text: root.title;
+                font-size: 13.5px;
+                font-weight: 600;
+            }
+            Label {
+                text: root.note;
+                font-size: 11.5px;
+                color: Theme.faint;
+            }
+        }
+        @children
+    }
+}
+
+component Bar inherits Rectangle {
+    in property <float> value;
+    height: 6px;
+    border-radius: 3px;
+    background: Theme.line;
+    Rectangle {
+        x: 0;
+        width: parent.width * clamp(root.value, 0, 1);
+        border-radius: 3px;
+        background: root.value > 0.92 ? Theme.rec : root.value > 0.8 ? Theme.warn : Theme.accent;
+    }
+}
+
+/// Wiersz z ikoną, klikany (dysk, folder).
+component LinkRow inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <string> value;
+    in property <string> tip;
+    in property <float> bar: -1;
+    callback clicked;
+    callback middle;
+    height: root.bar >= 0 ? 42px : 32px;
+    border-radius: Theme.r-s;
+    background: lr-ta.has-hover ? Theme.hover : transparent;
+    HorizontalLayout {
+        padding-left: 6px;
+        padding-right: 8px;
+        spacing: 10px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.icon;
+            size: 17px;
+            color: Theme.dim;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 5px;
+            HorizontalLayout {
+                spacing: 8px;
+                Label {
+                    horizontal-stretch: 1;
+                    text: root.text;
+                    font-size: 12.5px;
+                }
+                Label {
+                    text: root.value;
+                    font-size: 11.5px;
+                    color: Theme.dim;
+                }
+            }
+            if root.bar >= 0: Bar {
+                value: root.bar;
+            }
+        }
+    }
+    lr-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
+                root.middle();
+            }
+        }
+    }
+}
+
+component Chip inherits Rectangle {
+    in property <string> text;
+    in property <bool> on;
+    callback clicked;
+    height: 26px;
+    width: ch.preferred-width + 22px;
+    border-radius: 13px;
+    background: root.on ? Theme.accent : ch-ta.has-hover ? Theme.hover : Theme.panel;
+    ch := Label {
+        horizontal-alignment: center;
+        text: root.text;
+        font-size: 12px;
+        color: root.on ? Theme.on-accent : Theme.text;
+    }
+    ch-ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+export component HomeView inherits Rectangle {
+    background: Theme.bg;
+    property <length> cols-w: self.width - 48px;
+    /// Szeroko – karty obok siebie, wąsko – jedna pod drugą.
+    property <bool> wide: self.width > 900px;
+    property <int> per-row: max(1, floor((root.cols-w - 22px) / 130px));
+
+    ScrollView {
+        VerticalLayout {
+            padding: 24px;
+            spacing: 16px;
+            alignment: start;
+
+            // Powitanie, zegar, wyszukiwanie.
+            Rectangle {
+                border-radius: Theme.r-l;
+                background: Theme.card;
+                border-width: 1px;
+                border-color: Theme.line;
+                height: hero.preferred-height;
+                hero := VerticalLayout {
+                    padding: 20px;
+                    spacing: 12px;
+                    HorizontalLayout {
+                        VerticalLayout {
+                            horizontal-stretch: 1;
+                            spacing: 2px;
+                            Label {
+                                text: HomeState.today;
+                                font-size: 12px;
+                                color: Theme.faint;
+                            }
+                            Label {
+                                text: HomeState.greeting;
+                                font-size: 24px;
+                                font-weight: 600;
+                            }
+                        }
+                        Label {
+                            text: HomeState.clock;
+                            font-size: 30px;
+                            font-weight: 300;
+                            color: Theme.dim;
+                        }
+                    }
+                    HorizontalLayout {
+                        spacing: 8px;
+                        q := LineEdit {
+                            horizontal-stretch: 1;
+                            placeholder-text: "Szukaj plików w folderze domowym…";
+                            accepted(t) => {
+                                if (t != "") {
+                                    HomeState.search(t);
+                                }
+                            }
+                        }
+                        Rectangle {
+                            width: 90px;
+                            border-radius: Theme.r;
+                            background: q.text == "" ? Theme.panel : sb-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
+                            Label {
+                                horizontal-alignment: center;
+                                text: "Szukaj";
+                                color: q.text == "" ? Theme.faint : Theme.on-accent;
+                            }
+                            sb-ta := TouchArea {
+                                enabled: q.text != "";
+                                clicked => {
+                                    HomeState.search(q.text);
+                                }
+                            }
+                        }
+                    }
+                    if HomeState.activity != "": Label {
+                        text: HomeState.activity;
+                        font-size: 12px;
+                        color: Theme.dim;
+                    }
+                }
+            }
+
+            // Pamięć, system i foldery – obok siebie na szerokim oknie.
+            GridLayout {
+                spacing: 16px;
+                Card {
+                    row: 0;
+                    col: 0;
+                    title: "Dyski";
+                    note: HomeState.storage;
+                    for d in HomeState.drives: LinkRow {
+                        icon: d.icon;
+                        text: d.name;
+                        value: d.detail;
+                        bar: d.usage;
+                        tip: d.path + " – kliknij, aby otworzyć";
+                        clicked => {
+                            HomeState.go(d.path);
+                        }
+                        middle => {
+                            HomeState.go-new-tab(d.path);
+                        }
+                    }
+                }
+                Card {
+                    row: root.wide ? 0 : 1;
+                    col: root.wide ? 1 : 0;
+                    title: "Ten komputer";
+                    note: HomeState.host;
+                    Label {
+                        text: HomeState.os;
+                        font-size: 11.5px;
+                        color: Theme.faint;
+                    }
+                    VerticalLayout {
+                        spacing: 5px;
+                        HorizontalLayout {
+                            Label {
+                                horizontal-stretch: 1;
+                                text: "Procesor";
+                                font-size: 12px;
+                            }
+                            Label {
+                                text: round(HomeState.cpu-usage) + "%";
+                                font-size: 12px;
+                                font-weight: 600;
+                            }
+                        }
+                        // Ostatnia minuta obciążenia – słupki co 3 s.
+                        Rectangle {
+                            height: 34px;
+                            HorizontalLayout {
+                                spacing: 2px;
+                                alignment: end;
+                                for v in HomeState.cpu-hist: Rectangle {
+                                    width: 5px;
+                                    Rectangle {
+                                        y: parent.height - self.height;
+                                        height: max(2px, parent.height * clamp(v / 100, 0, 1));
+                                        border-radius: 1px;
+                                        background: Theme.accent.with-alpha(0.7);
+                                    }
+                                }
+                            }
+                        }
+                        Label {
+                            text: HomeState.cpu;
+                            font-size: 11px;
+                            color: Theme.faint;
+                        }
+                    }
+                    VerticalLayout {
+                        spacing: 5px;
+                        HorizontalLayout {
+                            Label {
+                                horizontal-stretch: 1;
+                                text: "Pamięć RAM";
+                                font-size: 12px;
+                            }
+                            Label {
+                                text: HomeState.mem;
+                                font-size: 12px;
+                                font-weight: 600;
+                            }
+                        }
+                        Bar {
+                            value: HomeState.mem-usage;
+                        }
+                    }
+                    HorizontalLayout {
+                        Label {
+                            horizontal-stretch: 1;
+                            text: "Działa od";
+                            font-size: 12px;
+                            color: Theme.dim;
+                        }
+                        Label {
+                            text: HomeState.uptime;
+                            font-size: 12px;
+                        }
+                    }
+                }
+                Card {
+                    row: root.wide ? 0 : 2;
+                    col: root.wide ? 2 : 0;
+                    title: "Twoje foldery";
+                    for f in HomeState.folders: LinkRow {
+                        icon: f.icon;
+                        text: f.name;
+                        value: f.ratio < 0 ? "liczę…" : f.size;
+                        bar: max(f.ratio, 0);
+                        tip: f.path;
+                        clicked => {
+                            HomeState.go(f.path);
+                        }
+                        middle => {
+                            HomeState.go-new-tab(f.path);
+                        }
+                    }
+                }
+            }
+
+            // Ostatnie pliki z dwóch tygodni.
+            Card {
+                title: "Ostatnie pliki";
+                note: "zmienione w ciągu 14 dni";
+                HorizontalLayout {
+                    spacing: 6px;
+                    alignment: start;
+                    for k[i] in ["Wszystkie", "Zdjęcia", "Dokumenty", "Wideo"]: Chip {
+                        text: k;
+                        on: HomeState.kind == i;
+                        clicked => {
+                            HomeState.set-kind(i);
+                        }
+                    }
+                    Rectangle {
+                        horizontal-stretch: 1;
+                    }
+                    Rectangle {
+                        width: 26px;
+                        height: 26px;
+                        border-radius: Theme.r-s;
+                        background: rf-ta.has-hover ? Theme.hover : transparent;
+                        Icon {
+                            commands: Icons.refresh;
+                            size: 14px;
+                            color: Theme.dim;
+                        }
+                        rf-ta := TipArea {
+                            tip: "Odśwież ostatnie pliki";
+                            clicked => {
+                                HomeState.refresh-files();
+                            }
+                        }
+                    }
+                }
+                if HomeState.files.length == 0: Label {
+                    text: HomeState.files-loading ? "Wczytywanie…" : "Brak plików zmienionych w ostatnich dwóch tygodniach";
+                    font-size: 12px;
+                    color: Theme.faint;
+                }
+                // Kafelki w rzędach – tyle, ile mieści się w szerokości.
+                for row[r] in ceil(HomeState.files.length / root.per-row): HorizontalLayout {
+                    spacing: 10px;
+                    alignment: start;
+                    for f[i] in HomeState.files: Rectangle {
+                        visible: i >= r * root.per-row && i < (r + 1) * root.per-row;
+                        width: self.visible ? 120px : 0;
+                        height: 150px;
+                        border-radius: Theme.r;
+                        background: tile-ta.has-hover ? Theme.hover : transparent;
+                        VerticalLayout {
+                            padding: 5px;
+                            spacing: 4px;
+                            Rectangle {
+                                height: 100px;
+                                border-radius: Theme.r-s;
+                                background: Theme.panel;
+                                clip: true;
+                                if f.has-img: Image {
+                                    width: parent.width;
+                                    height: parent.height;
+                                    source: f.img;
+                                    image-fit: f.media ? cover : contain;
+                                }
+                                if !f.has-img: Icon {
+                                    commands: Icons.file;
+                                    size: 28px;
+                                    color: Theme.faint;
+                                }
+                            }
+                            Label {
+                                text: f.name;
+                                font-size: 11.5px;
+                            }
+                            Label {
+                                text: f.when;
+                                font-size: 10.5px;
+                                color: Theme.faint;
+                            }
+                        }
+                        tile-ta := TipArea {
+                            tip: f.name + "\n" + f.path;
+                            double-clicked => {
+                                HomeState.open-file(f.path);
+                            }
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                                    HomeState.file-menu(f.path, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

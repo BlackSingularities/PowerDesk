@@ -6,6 +6,7 @@ mod bulk;
 mod dragdrop;
 mod facets;
 mod fmt;
+mod home;
 mod menus;
 mod model;
 mod preview;
@@ -428,6 +429,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_pdf_step(move |d| preview::pdf_step(&s, d));
     player::bind(&ui, &st);
+    home::bind(&ui, &st);
     let g = ui.global::<ViewerState>();
     let s = st.clone();
     g.on_close(move || viewer::close(&s));
@@ -1365,6 +1367,8 @@ fn render_all(s: &Shared) {
     render_items(s);
     // Półka pokazuje folder docelowy – zmienia się razem z kartą.
     shelf::render(s);
+    // Ekran „Ten komputer” zamiast listy, gdy to jego karta.
+    home::sync(s);
 }
 
 /// Wszystko poza samymi elementami: karty, pasek narzędzi, panel boczny, stan.
@@ -1669,6 +1673,7 @@ pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     }
     preview::thumbs_arrived(s, paths);
     viewer::thumbs_arrived(s, paths);
+    home::thumbs_arrived(s, paths);
     if shelf::shows_any(s, paths) {
         shelf::render(s);
     }
