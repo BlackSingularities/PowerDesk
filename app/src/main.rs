@@ -29,6 +29,7 @@ mod props;
 mod viewer;
 mod wallpapers;
 mod widgets;
+mod zones;
 mod widgetfeeds;
 mod palette;
 mod player;
@@ -364,6 +365,8 @@ fn main() -> Result<(), slint::PlatformError> {
     taskbar::open(&st);
     // Nakładka z wydajnością: skrót Alt+R, a jeśli była włączona – od razu.
     overlay::init();
+    // Strefy okien: Shift przy przeciąganiu okna.
+    zones::init();
     // Własna historia schowka (Win+V) – nasłuch od startu, żeby nic nie umknęło.
     cliphistory::start();
     // Z autostartu: bez okna folderów – pojawia się z menu Start albo po Win+E.

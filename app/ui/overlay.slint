@@ -123,3 +123,40 @@ export component OverlayWindow inherits Window {
         }
     }
 }
+
+/// Strefa okien na monitorze (miejsce względem okna stref) i czy jest pod kursorem.
+export struct ZoneRect {
+    x: length,
+    y: length,
+    w: length,
+    h: length,
+    active: bool,
+    num: int,
+}
+
+/// Strefy okien w trakcie przeciągania z Shiftem (zones.rs): przezroczyste okno na cały
+/// monitor, strefy z numerami, ta pod kursorem podświetlona akcentem.
+export component ZonesWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    title: "PowerDesk – strefy";
+    background: transparent;
+    in property <[ZoneRect]> zones;
+    for z in root.zones: Rectangle {
+        x: z.x;
+        y: z.y;
+        width: z.w;
+        height: z.h;
+        border-radius: 12px;
+        background: z.active ? Theme.accent.with-alpha(0.35) : #00000040;
+        border-width: 2px;
+        border-color: z.active ? Theme.accent : #ffffff55;
+        animate background { duration: 120ms; }
+        Text {
+            text: z.num;
+            font-size: min(z.w, z.h) * 0.18;
+            font-weight: 300;
+            color: z.active ? white : #ffffff88;
+        }
+    }
+}

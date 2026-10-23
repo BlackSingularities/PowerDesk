@@ -66,6 +66,9 @@ export global SettingsState {
     /// Raport (wersja, system, dziennik) do schowka i folder z dziennikiem.
     callback report-problem();
     // Tapety: tryb (0 – Windows, 1 – pokaz slajdów, 2 – Bing), folder, co ile minut.
+    in-out property <bool> zones-on;
+    in-out property <int> zones-layout;
+    callback set-zones-layout(int);
     in-out property <int> wall-mode;
     in-out property <string> wall-folder;
     in-out property <int> wall-minutes;
@@ -795,6 +798,36 @@ export component SettingsView inherits Rectangle {
                     Heading {
                         title: "Pulpit";
                         lead: "PowerDesk zastępuje pulpit Windows na każdym monitorze";
+                    }
+                    ToggleRow {
+                        icon: Icons.grid;
+                        text: "Strefy okien";
+                        kbd: "Shift + przeciąganie";
+                        hint: "Przeciągnij okno za pasek tytułu z wciśniętym Shiftem – puść nad strefą, a okno ją wypełni";
+                        on: SettingsState.zones-on;
+                        toggled => {
+                            SettingsState.toggle("zones");
+                        }
+                    }
+                    if SettingsState.zones-on: HorizontalLayout {
+                        spacing: 6px;
+                        for name[k] in ["2 kolumny", "3 kolumny", "2 × 2", "Główna + 2", "Szeroki środek"]: Rectangle {
+                            height: 30px;
+                            horizontal-stretch: 1;
+                            border-radius: Theme.r-s;
+                            background: SettingsState.zones-layout == k ? Theme.sel : zl-ta.has-hover ? Theme.hover : Theme.card;
+                            Label {
+                                horizontal-alignment: center;
+                                text: name;
+                                font-size: 12px;
+                            }
+                            zl-ta := TipArea {
+                                tip: "Układ stref: " + name;
+                                clicked => {
+                                    SettingsState.set-zones-layout(k);
+                                }
+                            }
+                        }
                     }
                     Label {
                         text: "Tapeta";

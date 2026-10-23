@@ -295,3 +295,12 @@ pub fn keep_topmost(hwnd: isize) {
         let _ = SetWindowPos(h(hwnd), Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
 }
+
+/// Czy okno należy do tego procesu (własne okna PowerDesk).
+pub fn is_own(hwnd: isize) -> bool {
+    let mut pid = 0u32;
+    unsafe {
+        GetWindowThreadProcessId(h(hwnd), Some(&mut pid));
+    }
+    pid == std::process::id()
+}

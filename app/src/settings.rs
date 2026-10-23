@@ -175,6 +175,8 @@ fn render(s: &Shared) {
         _ => 0,
     });
     g.set_wall_folder(p.wallpaper_folder.clone().into());
+    g.set_zones_on(p.zones_on);
+    g.set_zones_layout(p.zones_layout as i32);
     g.set_wall_minutes(p.wallpaper_minutes as i32);
     g.set_remembered(p.folders.len() as i32);
     g.set_version(env!("CARGO_PKG_VERSION").into());
@@ -272,6 +274,7 @@ pub fn toggle(s: &Shared, key: &str) {
             return;
         }
         "overlay-full" => change(s, |p| p.overlay_full = !p.overlay_full),
+        "zones" => change(s, |p| p.zones_on = !p.zones_on),
         _ => return,
     }
     // Karty z folderami wczytają się od nowa przy następnym wejściu.
@@ -366,6 +369,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
+    let s = st.clone();
+    g.on_set_zones_layout(move |k| change(&s, |p| p.zones_layout = k.clamp(0, 4) as u8));
     let s = st.clone();
     g.on_set_wall_mode(move |m| {
         let mode = ["", "slideshow", "bing"][m.clamp(0, 2) as usize];

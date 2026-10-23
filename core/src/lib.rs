@@ -31,6 +31,7 @@ pub mod remote;
 pub mod shell;
 pub mod shellmode;
 pub mod shellswap;
+pub mod snap;
 pub mod space;
 pub mod startmenu;
 pub mod sync;
