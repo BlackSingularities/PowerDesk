@@ -725,11 +725,13 @@ export struct ThumbCard {
     has-img: bool,
     active: bool,
     minimized: bool,
+    /// Obraz okna (taskbar.rs odświeża go, póki podglądy są otwarte).
+    shot: image,
+    has-shot: bool,
 }
 
-/// Podglądy okien grupy nad przyciskiem. Obraz okna rysuje DWM w miejscu podglądu
-/// (taskbar.rs liczy prostokąty z tych samych wymiarów); pod spodem ikona – widać ją,
-/// gdy okno jest zminimalizowane i system nie ma obrazu.
+/// Podglądy okien grupy nad przyciskiem: obraz okna, a bez niego (okno zminimalizowane,
+/// obraz jeszcze się robi) – ikona programu.
 export component ThumbWindow inherits Window {
     no-frame: true;
     always-on-top: true;
@@ -805,17 +807,26 @@ export component ThumbWindow inherits Window {
                 }
             }
         }
-        // Miejsce podglądu (8, 34, 204×118) – tu DWM rysuje okno.
+        // Miejsce podglądu (8, 34, 204×118).
         Rectangle {
             x: 8px;
             y: 34px;
             width: parent.width - 16px;
             height: parent.height - 42px;
-            if c.has-img && c.minimized: Image {
+            border-radius: Theme.r-s;
+            clip: true;
+            if c.has-shot: Image {
+                width: parent.width;
+                height: parent.height;
+                source: c.shot;
+                image-fit: contain;
+                image-rendering: smooth;
+            }
+            if !c.has-shot && c.has-img: Image {
                 width: 32px;
                 height: 32px;
                 source: c.img;
-                opacity: 0.6;
+                opacity: c.minimized ? 0.6 : 0.35;
             }
         }
     }

@@ -63,6 +63,11 @@ thread_local! {
     static THUMBS: RefCell<Option<Thumbs>> = const { RefCell::new(None) };
     static HOVER: Cell<Option<(usize, usize)>> = const { Cell::new(None) };
     static THUMB_HOVER: Cell<bool> = const { Cell::new(false) };
+    /// Po kliknięciu przycisku podglądy się nie otwierają, dopóki kursor nie zjedzie z paska.
+    static NO_THUMBS: Cell<bool> = const { Cell::new(false) };
+    /// Odświeżanie obrazów okien w otwartych podglądach i numer otwarcia (stare wyniki odpadają).
+    static SHOT_TIMER: slint::Timer = slint::Timer::default();
+    static THUMB_GEN: Cell<u64> = const { Cell::new(0) };
     /// Okienko głośności: miejsce nad paskiem, x i wysokość bez listy urządzeń.
     static VOL_GEOM: Cell<Option<(Spot, f32, f32)>> = const { Cell::new(None) };
 }
@@ -111,6 +116,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_bar_context(move |x| bar_menu(n, x));
         w.on_show_desktop(taskwin::show_desktop);
         w.on_activate(move |i| {
+            NO_THUMBS.with(|c| c.set(true));
             close_thumbs();
             if let Some(g) = group_at(n, i as usize) {
                 click(&g);
@@ -120,6 +126,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         });
         w.on_reorder(move |i, x, each| reorder(n, i as usize, x, each));
         w.on_context(move |i, x, y| {
+            NO_THUMBS.with(|c| c.set(true));
             close_thumbs();
             context(n, i as usize, x, y)
         });
@@ -1074,13 +1081,12 @@ fn tray_status() {
     apps_status();
 }
 
-/// Otwarte podglądy okien: okienko, grupa, uchwyty podglądów DWM.
+/// Otwarte podglądy okien: okienko, grupa i jej okna.
 struct Thumbs {
     w: ThumbWindow,
     bar: usize,
     index: usize,
     hwnds: Vec<isize>,
-    ids: Vec<isize>,
 }
 
 /// Wymiary karty podglądu – te same co w ThumbWindow (taskbar.slint).
@@ -1091,6 +1097,11 @@ const GAP: f32 = 8.0;
 /// Kursor nad przyciskiem: gdy podglądy są już otwarte – od razu przełączamy grupę,
 /// inaczej po chwili (jak w Windows, żeby przejechanie po pasku ich nie otwierało).
 fn hover(bar: usize, i: usize, x: f32) {
+    // Ten sam przycisk po kliknięciu – bez podglądów (klik przełączył okno).
+    if NO_THUMBS.with(|c| c.get()) && HOVER.with(|h| h.get()) == Some((bar, i)) {
+        return;
+    }
+    NO_THUMBS.with(|c| c.set(false));
     HOVER.with(|h| h.set(Some((bar, i))));
     let open = THUMBS.with(|t| t.borrow().as_ref().map(|t| (t.bar, t.index)));
     if open == Some((bar, i)) {
@@ -1099,7 +1110,7 @@ fn hover(bar: usize, i: usize, x: f32) {
     let delay = if open.is_some() { 0 } else { 450 };
     slint::Timer::single_shot(Duration::from_millis(delay), move || {
         // Kursor dalej nad tym samym przyciskiem i nie ma menu.
-        if HOVER.with(|h| h.get()) == Some((bar, i)) && MENU.with(|m| m.borrow().is_none()) {
+        if HOVER.with(|h| h.get()) == Some((bar, i)) && !NO_THUMBS.with(|c| c.get()) && MENU.with(|m| m.borrow().is_none()) {
             show_thumbs(bar, i, x);
         }
     });
@@ -1107,6 +1118,7 @@ fn hover(bar: usize, i: usize, x: f32) {
 
 fn unhover() {
     HOVER.with(|h| h.set(None));
+    NO_THUMBS.with(|c| c.set(false));
     later_close_thumbs();
 }
 
@@ -1134,7 +1146,15 @@ fn show_thumbs(bar: usize, i: usize, x: f32) {
     let cards: Vec<ThumbCard> = g
         .wins
         .iter()
-        .map(|win| ThumbCard { title: win.title.clone().into(), has_img: img.is_some(), img: img.clone().unwrap_or_default(), active: win.hwnd == fg, minimized: win.minimized })
+        .map(|win| ThumbCard {
+            title: win.title.clone().into(),
+            has_img: img.is_some(),
+            img: img.clone().unwrap_or_default(),
+            active: win.hwnd == fg,
+            minimized: win.minimized,
+            shot: Default::default(),
+            has_shot: false,
+        })
         .collect();
     let n = cards.len() as f32;
     w.set_cards(ModelRc::new(VecModel::from(cards)));
@@ -1177,30 +1197,48 @@ fn show_thumbs(bar: usize, i: usize, x: f32) {
     if fg != 0 {
         taskwin::activate(fg);
     }
-    let scale = spot.3;
-    let mut ids = Vec::new();
-    for (k, win) in g.wins.iter().enumerate() {
-        let Some((id, (sw, sh))) = taskwin::thumb_register(dest, win.hwnd) else { continue };
-        // Podgląd wpisany w miejsce karty z zachowaniem proporcji, wyśrodkowany.
-        let (bx, by) = (GAP + k as f32 * (CARD_W + GAP) + 8.0, GAP + 34.0);
-        let (bw, bh) = (CARD_W - 16.0, CARD_H - 42.0);
-        let ratio = if sw > 0 && sh > 0 { sw as f32 / sh as f32 } else { bw / bh };
-        let (tw, th) = if ratio > bw / bh { (bw, bw / ratio) } else { (bh * ratio, bh) };
-        let (tx, ty) = (bx + (bw - tw) / 2.0, by + (bh - th) / 2.0);
-        if !win.minimized {
-            taskwin::thumb_place(id, (tx * scale) as i32, (ty * scale) as i32, (tw * scale) as i32, (th * scale) as i32);
-        }
-        ids.push(id);
-    }
     THUMB_HOVER.with(|h| h.set(false));
-    THUMBS.with(|t| *t.borrow_mut() = Some(Thumbs { w, bar, index: i, hwnds: g.wins.iter().map(|w| w.hwnd).collect(), ids }));
+    let gen = THUMB_GEN.with(|g| {
+        g.set(g.get() + 1);
+        g.get()
+    });
+    let hwnds: Vec<isize> = g.wins.iter().map(|w| w.hwnd).collect();
+    let (sw, sh) = (((CARD_W - 16.0) * spot.3) as u32, ((CARD_H - 42.0) * spot.3) as u32);
+    THUMBS.with(|t| *t.borrow_mut() = Some(Thumbs { w, bar, index: i, hwnds: hwnds.clone() }));
+    // Obrazy okien w tle, potem co sekundę, póki podglądy są otwarte.
+    let shoot = move || {
+        let hwnds = hwnds.clone();
+        std::thread::spawn(move || {
+            let shots: Vec<_> = hwnds.iter().map(|&h| taskwin::snapshot(h, sw, sh)).collect();
+            let _ = slint::invoke_from_event_loop(move || put_shots(gen, shots));
+        });
+    };
+    shoot();
+    SHOT_TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(1), shoot));
+}
+
+/// Obrazy okien do kart – tylko gdy to wciąż te same podglądy.
+fn put_shots(gen: u64, shots: Vec<Option<(u32, u32, Vec<u8>)>>) {
+    if THUMB_GEN.with(|g| g.get()) != gen {
+        return;
+    }
+    THUMBS.with(|t| {
+        let t = t.borrow();
+        let Some(t) = t.as_ref() else { return };
+        let model = t.w.get_cards();
+        for (k, shot) in shots.into_iter().enumerate() {
+            let (Some((w, h, px)), Some(mut card)) = (shot, model.row_data(k)) else { continue };
+            card.shot = slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(&px, w, h));
+            card.has_shot = true;
+            model.set_row_data(k, card);
+        }
+    });
 }
 
 fn close_thumbs() {
+    SHOT_TIMER.with(|t| t.stop());
+    THUMB_GEN.with(|g| g.set(g.get() + 1));
     if let Some(t) = THUMBS.with(|t| t.borrow_mut().take()) {
-        for id in &t.ids {
-            taskwin::thumb_unregister(*id);
-        }
         let _ = t.w.hide();
     }
     THUMB_HOVER.with(|h| h.set(false));

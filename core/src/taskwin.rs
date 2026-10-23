@@ -209,6 +209,66 @@ pub fn thumb_unregister(id: isize) {
     }
 }
 
+/// Obraz wnętrza okna (RGBA), zmniejszony do `max_w`×`max_h` z zachowaniem proporcji.
+/// PrintWindow z PW_RENDERFULLCONTENT oddaje też treść rysowaną przez GPU (przeglądarki,
+/// Electron). Zminimalizowane okno nie ma treści – None. Wołać poza wątkiem interfejsu.
+pub fn snapshot(hwnd: isize, max_w: u32, max_h: u32) -> Option<(u32, u32, Vec<u8>)> {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Gdi::{
+        CreateCompatibleBitmap, CreateCompatibleDC, DeleteDC, DeleteObject, GetDC, GetDIBits, ReleaseDC, SelectObject, BITMAPINFO, BITMAPINFOHEADER, BI_RGB, DIB_RGB_COLORS,
+    };
+    use windows::Win32::Storage::Xps::{PrintWindow, PRINT_WINDOW_FLAGS};
+    use windows::Win32::UI::WindowsAndMessaging::GetClientRect;
+    let w = h(hwnd);
+    unsafe {
+        if IsIconic(w).as_bool() {
+            return None;
+        }
+        let mut rc = RECT::default();
+        GetClientRect(w, &mut rc).ok()?;
+        let (cw, ch) = (rc.right - rc.left, rc.bottom - rc.top);
+        if cw <= 0 || ch <= 0 {
+            return None;
+        }
+        let screen = GetDC(None);
+        let mem = CreateCompatibleDC(Some(screen));
+        let bmp = CreateCompatibleBitmap(screen, cw, ch);
+        let old = SelectObject(mem, bmp.into());
+        // PW_CLIENTONLY | PW_RENDERFULLCONTENT.
+        let ok = PrintWindow(w, mem, PRINT_WINDOW_FLAGS(3)).as_bool();
+        SelectObject(mem, old);
+        let mut bi = BITMAPINFO {
+            bmiHeader: BITMAPINFOHEADER {
+                biSize: std::mem::size_of::<BITMAPINFOHEADER>() as u32,
+                biWidth: cw,
+                biHeight: -ch,
+                biPlanes: 1,
+                biBitCount: 32,
+                biCompression: BI_RGB.0,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut px = vec![0u8; (cw * ch * 4) as usize];
+        let lines = if ok { GetDIBits(mem, bmp, 0, ch as u32, Some(px.as_mut_ptr() as *mut _), &mut bi, DIB_RGB_COLORS) } else { 0 };
+        let _ = DeleteObject(bmp.into());
+        let _ = DeleteDC(mem);
+        ReleaseDC(None, screen);
+        if lines == 0 {
+            return None;
+        }
+        for p in px.chunks_exact_mut(4) {
+            p.swap(0, 2);
+            p[3] = 255;
+        }
+        let img = image::RgbaImage::from_raw(cw as u32, ch as u32, px)?;
+        let scale = (max_w as f32 / cw as f32).min(max_h as f32 / ch as f32).min(1.0);
+        let (tw, th) = (((cw as f32 * scale) as u32).max(1), ((ch as f32 * scale) as u32).max(1));
+        let small = image::imageops::thumbnail(&img, tw, th);
+        Some((tw, th, small.into_raw()))
+    }
+}
+
 /// Pokaż pulpit (Win+D, przycisk na końcu paska): minimalizuje okna programów, ponownie – przywraca.
 pub fn show_desktop() {
     // Własne minimalizowanie i przywracanie: bez Eksploratora systemowe Win+D nic nie robi,
