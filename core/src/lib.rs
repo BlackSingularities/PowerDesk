@@ -19,6 +19,7 @@ pub mod ops;
 pub mod pdf;
 pub mod remote;
 pub mod shell;
+pub mod shellswap;
 pub mod space;
 pub mod sync;
 pub mod sync_core;

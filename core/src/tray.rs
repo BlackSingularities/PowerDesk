@@ -22,10 +22,6 @@ pub enum Event {
     Show,
     /// „Nowa karta” z menu.
     NewTab,
-    /// „Pulpit testowy” – włącza albo wyłącza pulpit PowerDesk.
-    Desktop,
-    /// „Pasek testowy” – włącza albo wyłącza pasek zadań PowerDesk.
-    Taskbar,
     /// „Zakończ” – zamknięcie programu, także z wyłączonym zamykaniem do zasobnika.
     Quit,
 }
@@ -34,8 +30,6 @@ const MSG_ICON: u32 = WM_APP + 1;
 const ID_SHOW: usize = 1;
 const ID_TAB: usize = 2;
 const ID_QUIT: usize = 3;
-const ID_DESKTOP: usize = 4;
-const ID_TASKBAR: usize = 5;
 
 static HWND_TRAY: AtomicIsize = AtomicIsize::new(0);
 static HANDLER: OnceLock<Box<dyn Fn(Event) + Send + Sync>> = OnceLock::new();
@@ -79,8 +73,6 @@ unsafe fn menu(hwnd: HWND) {
     let Ok(m) = CreatePopupMenu() else { return };
     let _ = AppendMenuW(m, MF_STRING, ID_SHOW, w!("Otwórz PowerDesk"));
     let _ = AppendMenuW(m, MF_STRING, ID_TAB, w!("Nowa karta"));
-    let _ = AppendMenuW(m, MF_STRING, ID_DESKTOP, w!("Pulpit testowy (włącz / wyłącz)"));
-    let _ = AppendMenuW(m, MF_STRING, ID_TASKBAR, w!("Pasek testowy (włącz / wyłącz)"));
     let _ = AppendMenuW(m, MF_SEPARATOR, 0, PCWSTR::null());
     let _ = AppendMenuW(m, MF_STRING, ID_QUIT, w!("Zakończ"));
     let mut pt = POINT::default();
@@ -92,8 +84,6 @@ unsafe fn menu(hwnd: HWND) {
     match cmd.0 as usize {
         ID_SHOW => fire(Event::Show),
         ID_TAB => fire(Event::NewTab),
-        ID_DESKTOP => fire(Event::Desktop),
-        ID_TASKBAR => fire(Event::Taskbar),
         ID_QUIT => fire(Event::Quit),
         _ => {}
     }

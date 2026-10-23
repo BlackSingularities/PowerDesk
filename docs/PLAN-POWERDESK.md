@@ -31,8 +31,8 @@ Zasady:
 | 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | gotowe |
 | 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | **w toku** |
 | 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
-| 5 | Pulpit PowerDesk na wszystkich monitorach (tryb testowy i zastępujący) | – |
-| 6 | Pasek zadań: AppBar na każdym monitorze, lista okien, zegar, Start | – |
+| 5 | Pulpit PowerDesk na wszystkich monitorach (zastępuje pulpit Windows) | **w toku** |
+| 6 | Pasek zadań: AppBar na każdym monitorze, lista okien, zegar, Start | **w toku** |
 | 7 | Zasobnik (ikony tray), menu Start, miniatury okien | – |
 | 8 | Instalator i deinstalator, migracja z OpenFilePower, wydanie | – |
 
@@ -122,11 +122,11 @@ Zasady:
 - [x] Jedna instancja (potok nazwany), otwieranie ścieżki z wiersza poleceń w nowej karcie, okno na wierzch
 
 ### Nowe: pulpit i pasek
-- [ ] Pulpit na każdym monitorze, tapety Windows, ikony z Pulpitu użytkownika i publicznego (tryb testowy sprawdzony: tapeta per monitor, ikony na głównym; w kodzie, nieuruchamiane: menu pulpitu i ikon w stylu PowerDesk, zaznaczanie z Ctrl, Shift i ramką, przeciąganie ikon z zapamiętaniem miejsc, „Uporządkuj ikony”, zmiana nazwy w miejscu, nowy folder i dokument, kopiuj/wytnij/wklej, Kosz)
-- [ ] **Tryb testowy**: nakładka zamiast podmiany pulpitu, szybkie wyłączenie (Esc, zasobnik, `--desktop-test`)
-- [ ] Tryb zastępujący: wpięcie w WorkerW, ukrycie ikon systemowych, przywracanie po wyjściu i awarii
+- [x] Pulpit na każdym monitorze, tapety Windows, ikony z Pulpitu użytkownika i publicznego: menu w stylu PowerDesk, zaznaczanie z Ctrl, Shift i ramką, przeciąganie ikon z zapamiętaniem miejsc, „Uporządkuj ikony”, zmiana nazwy w miejscu, nowy folder i dokument, kopiuj/wytnij/wklej, Kosz
+- [x] Tryb testowy usunięty – pulpit i pasek PowerDesk zawsze zastępują Windows
+- [x] Tryb zastępujący: pulpit jako dziecko `Progman` (Win+D go nie chowa), ikony Windows i `WorkerW` ukryte; pasek Windows ukryty i na autoukrywaniu, paski PowerDesk jako AppBar, pod oknem pełnoekranowym; przywracanie przy wyjściu, przez strażnika po awarii (`--shell-guard`, sprawdzone) i w `--remove-integration`
 - [ ] Reakcja na zmiany monitorów, DPI, tapety i restart Eksploratora
-- [ ] Pasek zadań (AppBar) na każdym monitorze, systemowy pasek ukryty; Alt+Tab, Win+Tab, Win+D zostają systemowe (pierwsza wersja testowa w kodzie, nieuruchamiana: pasek na wierzchu nad paskiem Windows, Start systemowy, okna z monitora, zegar, `--taskbar-test`)
+- [x] Pasek zadań (AppBar) na każdym monitorze, systemowy pasek ukryty; Alt+Tab, Win+Tab i Win+D zostają systemowe; „Pokaż pulpit” na końcu, menu Start pod prawym przyciskiem (ustawienia, Menedżer zadań, „Zakończ PowerDesk”)
 - [ ] Lista okien, grupowanie, miniatury, menu przycisków (nowe okno / przypnij / zamknij) (w kodzie: podglądy okien DWM po najechaniu – karta z tytułem i zamknięciem, klik przełącza, środkowy zamyka; grupowanie po programie z licznikiem, klik przełącza okna grupy, menu z listą okien, „Zminimalizuj wszystkie”, „Zamknij wszystkie okna”, przypinanie programów – przyciski z samą ikoną na początku paska, uruchamianie, zapamiętane w ustawieniach; nieklikane; brak: przeciąganie przypiętych)
 - [ ] Zegar, głośność, sieć, bateria; zasobnik (przechwytywanie ikon) (w kodzie, nieuruchamiane: ikony sieci, głośności i baterii przy zegarze, okienko głośności z suwakiem i wyciszeniem, kółko i środkowy przycisk na ikonie, kalendarz po kliknięciu w zegar, mikser – głośność i wyciszanie każdej aplikacji, okienko sieci – lista Wi-Fi, łączenie i rozłączanie, hasło dla nowej sieci (profil WPA2/WPA3-Personal); sprawdzone: pasek, okienko głośności, suwak; brak: ikony aplikacji w tle – wymagają własnego `Shell_TrayWnd`, więc dopiero w trybie zastępującym)
 - [ ] Menu Start (najpierw jak w Windows)

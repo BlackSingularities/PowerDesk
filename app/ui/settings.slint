@@ -35,9 +35,6 @@ export global SettingsState {
     /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
     in-out property <[SysItem]> system;
     callback repair-integration;
-    /// Włącza albo wyłącza pulpit testowy.
-    callback desktop-test;
-    callback taskbar-test;
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
@@ -708,33 +705,13 @@ export component SettingsView inherits Rectangle {
                     spacing: 10px;
                     Heading {
                         title: "Pulpit";
-                        lead: "PowerDesk zastąpi pulpit Windows na każdym monitorze";
+                        lead: "PowerDesk zastępuje pulpit Windows na każdym monitorze";
                     }
                     Label {
-                        text: "Tryb testowy: na każdym monitorze okno z tapetą z ustawień Windows, a na głównym ikony z Pulpitu użytkownika i publicznego. Pulpit Windows zostaje nietknięty pod spodem. Esc albo menu ikony w zasobniku zamyka test. W przygotowaniu: własny układ ikon, ich wielkość i tryb zastępujący pulpit Windows.";
+                        text: "Na każdym monitorze tapeta z ustawień Windows, na głównym ikony z Pulpitu użytkownika i publicznego – w siatce, z przesuwaniem, zaznaczaniem i menu PowerDesk. Ikony Windows są ukryte. Po zamknięciu PowerDesk, jego awarii albo odinstalowaniu pulpit Windows wraca.";
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
-                    }
-                    HorizontalLayout {
-                        alignment: start;
-                        Rectangle {
-                            width: dt.preferred-width + 24px;
-                            height: 30px;
-                            border-radius: Theme.r-s;
-                            background: dt-ta.has-hover ? Theme.press : Theme.card;
-                            dt := Label {
-                                horizontal-alignment: center;
-                                text: "Uruchom pulpit testowy";
-                                font-size: 12.5px;
-                            }
-                            dt-ta := TipArea {
-                                tip: "Też: powerdesk.exe --desktop-test";
-                                clicked => {
-                                    SettingsState.desktop-test();
-                                }
-                            }
-                        }
                     }
                 }
 
@@ -742,33 +719,13 @@ export component SettingsView inherits Rectangle {
                     spacing: 10px;
                     Heading {
                         title: "Pasek zadań";
-                        lead: "PowerDesk zastąpi dolny pasek Windows";
+                        lead: "PowerDesk zastępuje pasek zadań Windows na każdym monitorze";
                     }
                     Label {
-                        text: "Tryb testowy: na dole każdego monitora pasek na wierzchu, nad paskiem Windows (który działa dalej pod spodem) – Start, okna z tego monitora z ikonami programów i zegar. Klik przełącza albo minimalizuje okno, prawy przycisk – menu z „Zamknij okno”. W przygotowaniu: grupowanie, miniatury, głośność, sieć, bateria, ikony w zasobniku, własne menu Start i tryb zastępujący pasek Windows. Alt+Tab, Win+Tab i Win+D zostają systemowe.";
+                        text: "Start, okna z danego monitora pogrupowane po programach (z podglądami), przypięte programy, sieć i Wi-Fi, głośność z mikserem, bateria, zegar z kalendarzem i „Pokaż pulpit” na końcu. Prawy przycisk na Start – menu z ustawieniami i „Zakończ PowerDesk”. Pasek Windows jest ukryty; wraca po zamknięciu PowerDesk, jego awarii albo odinstalowaniu. Alt+Tab, Win+Tab i Win+D zostają systemowe.";
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
-                    }
-                    HorizontalLayout {
-                        alignment: start;
-                        Rectangle {
-                            width: tbt.preferred-width + 24px;
-                            height: 30px;
-                            border-radius: Theme.r-s;
-                            background: tbt-ta.has-hover ? Theme.press : Theme.card;
-                            tbt := Label {
-                                horizontal-alignment: center;
-                                text: "Uruchom pasek testowy";
-                                font-size: 12.5px;
-                            }
-                            tbt-ta := TipArea {
-                                tip: "Też: powerdesk.exe --taskbar-test";
-                                clicked => {
-                                    SettingsState.taskbar-test();
-                                }
-                            }
-                        }
                     }
                 }
 

@@ -208,3 +208,47 @@ pub fn thumb_unregister(id: isize) {
         let _ = windows::Win32::Graphics::Dwm::DwmUnregisterThumbnail(id);
     }
 }
+
+/// Pokaż pulpit (Win+D) – systemowe, jak przycisk na końcu paska Windows.
+pub fn show_desktop() {
+    use windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY;
+    let key = |vk: VIRTUAL_KEY, up: bool| INPUT {
+        r#type: INPUT_KEYBOARD,
+        Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, dwFlags: if up { KEYEVENTF_KEYUP } else { Default::default() }, ..Default::default() } },
+    };
+    let d = VIRTUAL_KEY(b'D' as u16);
+    unsafe {
+        SendInput(&[key(VK_LWIN, false), key(d, false), key(d, true), key(VK_LWIN, true)], std::mem::size_of::<INPUT>() as i32);
+    }
+}
+
+/// Czy okno zajmuje cały monitor (gra, film na pełnym ekranie) – wtedy pasek chowa się pod nie.
+/// Pulpit (Progman / WorkerW) się nie liczy.
+pub fn covers(hwnd: isize, x: i32, y: i32, width: i32, height: i32) -> bool {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::UI::WindowsAndMessaging::{GetClassNameW, GetWindowRect};
+    if hwnd == 0 {
+        return false;
+    }
+    unsafe {
+        let mut buf = [0u16; 32];
+        let n = GetClassNameW(h(hwnd), &mut buf);
+        let class = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
+        if class == "Progman" || class == "WorkerW" {
+            return false;
+        }
+        let mut r = RECT::default();
+        if GetWindowRect(h(hwnd), &mut r).is_err() {
+            return false;
+        }
+        r.left <= x && r.top <= y && r.right >= x + width && r.bottom >= y + height
+    }
+}
+
+/// Pasek bez „zawsze na wierzchu” – pod oknem pełnoekranowym.
+pub fn place_normal(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{HWND_NOTOPMOST, SWP_NOMOVE, SWP_NOSIZE};
+    unsafe {
+        let _ = SetWindowPos(h(hwnd), Some(HWND_NOTOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+}

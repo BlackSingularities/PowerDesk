@@ -35,6 +35,7 @@ pub fn open(s: &Shared) {
 
 /// Numer sekcji „Pulpit” na liście po lewej (settings.slint).
 pub const SECTION_DESKTOP: i32 = 5;
+pub const SECTION_TASKBAR: i32 = 6;
 
 /// Ustawienia otwarte od razu na podanej sekcji.
 pub fn open_section(s: &Shared, section: i32) {
@@ -279,10 +280,6 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
-    let s = st.clone();
-    g.on_desktop_test(move || crate::desktop::toggle(&s));
-    let s = st.clone();
-    g.on_taskbar_test(move || crate::taskbar::toggle(&s));
     let s = st.clone();
     g.on_set_accent(move |a| {
         let a = a.trim();

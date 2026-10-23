@@ -1,8 +1,9 @@
-//! Pulpit PowerDesk – na razie tryb testowy: na każdym monitorze okno bez ramki z tapetą
-//! z ustawień Windows, a na głównym ikony z Pulpitu użytkownika i publicznego.
+//! Pulpit PowerDesk zamiast pulpitu Windows: na każdym monitorze okno bez ramki z tapetą
+//! z ustawień Windows (dziecko `Progman` – Win+D go nie chowa), a na głównym ikony z Pulpitu
+//! użytkownika i publicznego. Ikony Windows ukryte; przywraca je core::shellswap.
 //! Ikony leżą w siatce: ręcznie przesunięte trzymają swoje miejsce (prefs), reszta układa się
 //! kolumnami od lewego górnego rogu. Zaznaczanie kliknięciem, Ctrl, Shift i ramką; menu
-//! i zmiana nazwy w stylu PowerDesk. Pulpitu Windows nie ruszamy; Esc zamyka okna.
+//! i zmiana nazwy w stylu PowerDesk.
 
 use std::cell::RefCell;
 use std::collections::HashSet;
@@ -16,8 +17,6 @@ use slint::{Color, ComponentHandle, ModelRc, PhysicalPosition, PhysicalSize, Rgb
 use crate::menus::{self, it, sep, Item};
 use crate::{fmt, transfers, DeskIcon, DesktopWindow, Shared, Theme};
 
-/// Flaga wiersza poleceń: start od razu z pulpitem testowym.
-pub const TEST_FLAG: &str = "--desktop-test";
 const CELL_W: f32 = 84.0;
 const CELL_H: f32 = 96.0;
 const MARGIN: f32 = 8.0;
@@ -26,6 +25,10 @@ const MARGIN: f32 = 8.0;
 struct Desk {
     /// Okna pulpitu (po jednym na monitor); pierwsze – monitor główny z ikonami.
     windows: Vec<DesktopWindow>,
+    /// Monitor każdego okna (x, y, szerokość, wysokość – piksele ekranu).
+    rects: Vec<(i32, i32, i32, i32)>,
+    /// Uchwyty okien po wpięciu w Progman – po restarcie Eksploratora przestają istnieć.
+    hwnds: Vec<isize>,
     items: Vec<Entry>,
     /// Miejsce każdej ikony w siatce (kolumna, wiersz) – w kolejności `items`.
     cells: Vec<(i32, i32)>,
@@ -40,18 +43,12 @@ struct Desk {
 
 thread_local! {
     static D: RefCell<Desk> = RefCell::new(Desk::default());
+    /// Pilnowanie: ikony Windows ukryte, okna wpięte (restart Eksploratora je niszczy).
+    static WATCH: slint::Timer = slint::Timer::default();
 }
 
 pub fn is_open() -> bool {
     D.with(|d| !d.borrow().windows.is_empty())
-}
-
-pub fn toggle(s: &Shared) {
-    if is_open() {
-        close();
-    } else {
-        open(s);
-    }
 }
 
 /// Folder, do którego trafia to, co tworzymy na pulpicie (Pulpit użytkownika).
@@ -87,6 +84,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
     let mut order: Vec<usize> = (0..mons.len()).collect();
     order.sort_by_key(|&i| !mons[i].primary);
     let mut out = Vec::new();
+    let mut rects = Vec::new();
     for (n, i) in order.into_iter().enumerate() {
         let m = &mons[i];
         let Ok(w) = DesktopWindow::new() else { continue };
@@ -119,25 +117,58 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
             let s2 = s.clone();
             w.on_menu_chosen(move |i| menu_chosen(&s2, i as usize));
         }
-        w.on_close_desk(|| slint::Timer::single_shot(Duration::ZERO, close));
         w.on_refresh(refresh);
         let _ = w.show();
         out.push(w);
+        rects.push((m.x, m.y, m.width, m.height));
     }
     D.with(|d| {
         let mut d = d.borrow_mut();
         d.windows = out;
+        d.rects = rects;
         d.items = items;
     });
     render(s);
-    // Okno systemowe powstaje dopiero w pętli zdarzeń – styl (bez paska zadań i Alt+Tab) chwilę później.
-    slint::Timer::single_shot(Duration::from_millis(100), || {
-        D.with(|d| {
-            for w in d.borrow().windows.iter() {
-                data::hide_from_taskbar(crate::window_hwnd(w.window()));
+    // Okno systemowe powstaje dopiero w pętli zdarzeń – styl (bez paska zadań i Alt+Tab)
+    // i wpięcie w Progman chwilę później.
+    slint::Timer::single_shot(Duration::from_millis(100), attach);
+    WATCH.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(2), watch));
+}
+
+/// Okna pulpitu jako dzieci Progman, na swoich monitorach; ikony Windows ukryte.
+fn attach() {
+    D.with(|d| {
+        let mut d = d.borrow_mut();
+        let mut hwnds = Vec::new();
+        for (w, &(x, y, wd, ht)) in d.windows.iter().zip(d.rects.iter()) {
+            let hwnd = crate::window_hwnd(w.window());
+            if hwnd == 0 {
+                continue;
             }
-        })
+            data::hide_from_taskbar(hwnd);
+            if powerdesk_core::shellswap::attach_desktop(hwnd, x, y, wd, ht) {
+                hwnds.push(hwnd);
+            }
+        }
+        // Bez Progman (Eksplorator jeszcze wstaje) – kolejna próba przy pilnowaniu.
+        d.hwnds = if hwnds.len() == d.windows.len() { hwnds } else { Vec::new() };
     });
+    powerdesk_core::shellswap::hide_desktop_icons();
+}
+
+/// Restart Eksploratora niszczy Progman razem z naszymi oknami – budujemy pulpit od nowa.
+/// Ikony Windows wracają też po zmianie tapety z animacją – chowamy je ponownie.
+fn watch() {
+    let dead = D.with(|d| d.borrow().hwnds.iter().any(|&h| !powerdesk_core::shellswap::alive(h)));
+    if dead {
+        close();
+        crate::with_state(|s| open(s));
+        return;
+    }
+    if D.with(|d| d.borrow().hwnds.is_empty() && !d.borrow().windows.is_empty()) {
+        attach();
+    }
+    powerdesk_core::shellswap::hide_desktop_icons();
 }
 
 fn wire_icons(s: &Shared, w: &DesktopWindow) {
@@ -171,10 +202,13 @@ fn wire_icons(s: &Shared, w: &DesktopWindow) {
 }
 
 pub fn close() {
+    WATCH.with(|t| t.stop());
     let ws = D.with(|d| {
         let mut d = d.borrow_mut();
         d.sel.clear();
         d.renaming = None;
+        d.hwnds.clear();
+        d.rects.clear();
         std::mem::take(&mut d.windows)
     });
     for w in ws {
@@ -594,8 +628,6 @@ fn background_menu(_s: &Shared, win: usize, x: f32, y: f32) {
             crate::settings::open_section(s, crate::settings::SECTION_DESKTOP);
             crate::show_window(s);
         }),
-        sep(),
-        it("Zamknij pulpit testowy", "close", |_| close()).kbd("Esc"),
     ]);
     show_menu(win, v, x, y);
 }

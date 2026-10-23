@@ -1,6 +1,6 @@
-//! Pasek zadań PowerDesk – na razie tryb testowy: na dole każdego monitora okno na wierzchu
-//! (nad paskiem Windows, który działa dalej) z przyciskiem Start, oknami z tego monitora
-//! i zegarem. Lista okien odświeża się co sekundę; okna jednego programu dzielą przycisk.
+//! Pasek zadań PowerDesk zamiast paska Windows: na dole każdego monitora okno na wierzchu,
+//! zarejestrowane jako AppBar; pasek Windows ukryty (core::shellswap, przywracany przy wyjściu).
+//! Start, okna z tego monitora, zasobnik i zegar. Lista okien odświeża się co sekundę; okna jednego programu dzielą przycisk.
 
 use std::cell::{Cell, RefCell};
 use std::collections::HashSet;
@@ -17,8 +17,6 @@ use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, Vec
 use crate::menus::{self, it, sep, Item};
 use crate::{AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
 
-/// Flaga wiersza poleceń: start od razu z paskiem testowym.
-pub const TEST_FLAG: &str = "--taskbar-test";
 /// Wysokość paska w pikselach logicznych.
 const HEIGHT: f32 = 48.0;
 
@@ -77,14 +75,6 @@ pub fn is_open() -> bool {
     BARS.with(|b| !b.borrow().is_empty())
 }
 
-pub fn toggle(s: &Shared) {
-    if is_open() {
-        close();
-    } else {
-        open(s);
-    }
-}
-
 pub fn open(_s: &Shared) {
     if is_open() {
         return;
@@ -110,6 +100,8 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             t.set_accent_override(l.accent);
         }
         w.on_start(taskwin::open_start);
+        w.on_start_context(move |x| start_menu(n, x));
+        w.on_show_desktop(taskwin::show_desktop);
         w.on_activate(move |i| {
             close_thumbs();
             if let Some(g) = group_at(n, i as usize) {
@@ -124,7 +116,6 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         });
         w.on_hover(move |i, x| hover(n, i as usize, x));
         w.on_unhover(unhover);
-        w.on_close_test(|| slint::Timer::single_shot(Duration::ZERO, close));
         w.on_volume_open(move |x| open_volume(n, x));
         w.on_volume_wheel(|d| {
             if let Some(v) = sysbar::volume() {
@@ -158,8 +149,37 @@ pub fn close() {
     TIMER.with(|t| t.stop());
     let bars = BARS.with(|b| std::mem::take(&mut *b.borrow_mut()));
     for b in bars {
+        if b.placed {
+            powerdesk_core::shellswap::appbar_remove(crate::window_hwnd(b.w.window()));
+        }
         let _ = b.w.hide();
     }
+}
+
+/// Prawy przycisk na Start: PowerDesk i narzędzia systemowe (ikony PowerDesk w zasobniku
+/// Windows nie widać – pasek Windows jest ukryty).
+fn start_menu(bar: usize, x: f32) {
+    let run = |cmd: &'static str| {
+        move |_: &Shared| {
+            let _ = std::process::Command::new(cmd).spawn();
+        }
+    };
+    let items = vec![
+        it("Otwórz PowerDesk", "folder", |s| crate::show_window(s)),
+        it("Ustawienia paska zadań", "settings", |s| {
+            crate::settings::open_section(s, crate::settings::SECTION_TASKBAR);
+            crate::show_window(s);
+        }),
+        sep(),
+        it("Menedżer zadań", "app", run("taskmgr.exe")),
+        it("Ustawienia Windows", "settings", |_| sysbar::open_settings("")),
+        it("Uruchom…", "terminal", |_| {
+            let _ = std::process::Command::new("explorer.exe").arg("shell:::{2559a1f3-21d7-11d4-bdaf-00c04f60b9f0}").spawn();
+        }),
+        sep(),
+        it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger(),
+    ];
+    show_menu(bar, items, x);
 }
 
 fn group_at(bar: usize, i: usize) -> Option<Group> {
@@ -831,9 +851,15 @@ fn place(bar: &mut Bar) {
         data::hide_from_taskbar(hwnd);
         bar.w.window().set_position(slint::PhysicalPosition::new(bar.pos.0, bar.pos.1));
         bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
+        powerdesk_core::shellswap::appbar_add(hwnd, bar.pos.0, bar.pos.1, bar.mon.0, h);
         bar.placed = true;
     }
-    taskwin::place_topmost(hwnd, bar.pos.0, bar.pos.1, bar.mon.0, h);
+    // Okno na cały monitor (gra, film) – pasek pod nim; inaczej na wierzchu.
+    if taskwin::covers(taskwin::foreground(), bar.origin.0, bar.origin.1, bar.mon.0, bar.mon.1) {
+        taskwin::place_normal(hwnd);
+    } else {
+        taskwin::place_topmost(hwnd, bar.pos.0, bar.pos.1, bar.mon.0, h);
+    }
 }
 
 /// Stała kolejność: okna już na pasku zostają na swoich miejscach, nowe dochodzą na koniec.
@@ -891,6 +917,8 @@ fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
 }
 
 fn refresh() {
+    // Pasek Windows potrafi wrócić (Start, restart Eksploratora) – chowamy go co obieg.
+    powerdesk_core::shellswap::hide_taskbar();
     // Własne okienka (menu, głośność, kalendarz) nie są oknami programów.
     let own = own_popups();
     let all: Vec<Win> = taskwin::list().into_iter().filter(|w| !own.contains(&w.hwnd)).collect();

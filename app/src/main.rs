@@ -168,8 +168,6 @@ fn tray_event(s: &Shared, e: powerdesk_core::tray::Event) {
             new_tab_at(s, &start, true);
             show_window(s);
         }
-        Event::Desktop => desktop::toggle(s),
-        Event::Taskbar => taskbar::toggle(s),
         Event::Quit => quit(s),
     }
 }
@@ -202,17 +200,28 @@ fn close_window(s: &Shared) {
     }
 }
 
-fn quit(_s: &Shared) {
+/// Koniec programu: pulpit i pasek Windows wracają (strażnik niczego już nie zastanie).
+pub fn quit(_s: &Shared) {
     desktop::close();
     taskbar::close();
+    powerdesk_core::shellswap::restore();
     powerdesk_core::tray::hide();
     let _ = slint::quit_event_loop();
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    // Strażnik: czeka na koniec PowerDesk i po awarii przywraca pulpit i pasek Windows.
+    let argv: Vec<String> = std::env::args().collect();
+    if let Some(i) = argv.iter().position(|a| a == powerdesk_core::shellswap::GUARD_FLAG) {
+        if let Some(pid) = argv.get(i + 1).and_then(|p| p.parse().ok()) {
+            powerdesk_core::shellswap::guard(pid);
+        }
+        return Ok(());
+    }
     // Przywrócenie Eksploratora (deinstalator, awaria) – bez okna.
     if std::env::args().any(|a| a == powerdesk_core::integration::REMOVE_FLAG) {
         powerdesk_core::tray::hide();
+        powerdesk_core::shellswap::restore();
         if let Err(e) = powerdesk_core::integration::remove() {
             eprintln!("{e}");
             std::process::exit(1);
@@ -294,18 +303,14 @@ fn main() -> Result<(), slint::PlatformError> {
     // Synchronizacja rusza w tle chwilę po starcie, żeby nie opóźniać pierwszego okna.
     let s3 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
-    // Z autostartu: sama ikona w zasobniku, okno pojawia się po kliknięciu.
-    // Z --desktop-test: od razu pulpit testowy, okno folderów schowane.
-    // Z --taskbar-test: od razu pasek testowy (można razem z pulpitem).
-    let desk_test = std::env::args().any(|a| a == desktop::TEST_FLAG);
-    let bar_test = std::env::args().any(|a| a == taskbar::TEST_FLAG);
-    let hidden = desk_test || bar_test || std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
-    if desk_test {
-        desktop::open(&st);
-    }
-    if bar_test {
-        taskbar::open(&st);
-    }
+    // Pulpit i pasek PowerDesk zawsze zastępują Windows; strażnik przywróci je po awarii.
+    // Po poprzedniej awarii (plik stanu został) najpierw porządek, potem podmiana od nowa.
+    powerdesk_core::shellswap::restore();
+    powerdesk_core::shellswap::spawn_guard();
+    desktop::open(&st);
+    taskbar::open(&st);
+    // Z autostartu: bez okna folderów – pojawia się z menu Start albo po Win+E.
+    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
     if !hidden {
         ui.show()?;
     }

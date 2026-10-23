@@ -20,7 +20,7 @@ export struct DeskIcon {
 
 /// Pulpit na jednym monitorze (desktop.rs): tapeta z ustawień Windows i ikony w siatce.
 /// Zaznaczanie kliknięciem, z Ctrl i Shift oraz ramką; przeciąganie przenosi zaznaczone
-/// ikony na inne miejsca; menu w stylu PowerDesk. Tryb testowy – Esc zamyka.
+/// ikony na inne miejsca; menu w stylu PowerDesk. Okno jest dzieckiem Progman (desktop.rs).
 export component DesktopWindow inherits Window {
     no-frame: true;
     title: "PowerDesk – pulpit";
@@ -32,8 +32,6 @@ export component DesktopWindow inherits Window {
     in property <int> fit;
     in property <color> bg: #000000;
     in property <[DeskIcon]> icons;
-    /// Napis w rogu – przypomina, że to tryb testowy.
-    in property <bool> test: true;
 
     // Menu (MenuPopup jak w głównym oknie) – pozycje i miejsce podaje desktop.rs.
     in property <[MenuEntry]> menu-entries;
@@ -54,7 +52,6 @@ export component DesktopWindow inherits Window {
     callback rename-done(int, string);
     callback rename-cancel();
     callback menu-chosen(int);
-    callback close-desk();
     callback refresh();
 
     out property <length> cell-w: 84px;
@@ -268,20 +265,6 @@ export component DesktopWindow inherits Window {
         border-color: Theme.accent;
     }
 
-    if root.test: Rectangle {
-        x: parent.width - self.width - 16px;
-        y: parent.height - self.height - 16px;
-        width: tl.preferred-width + 24px;
-        height: 30px;
-        border-radius: 15px;
-        background: #000000a0;
-        tl := Text {
-            text: "PowerDesk – pulpit testowy · Esc zamyka";
-            color: #ffffff;
-            font-size: 12px;
-        }
-    }
-
     menu := MenuPopup {
         x: root.menu-x;
         y: root.menu-y;
@@ -296,10 +279,6 @@ export component DesktopWindow inherits Window {
         width: 0;
         height: 0;
         key-pressed(e) => {
-            if (e.text == Key.Escape) {
-                root.close-desk();
-                return accept;
-            }
             if (e.text == Key.F5) {
                 root.refresh();
                 return accept;
