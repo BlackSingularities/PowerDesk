@@ -63,9 +63,26 @@ ikony zasobnika (struktura NOTIFYICONDATA 32-bitowa), menu ikon programów po pr
 roboczy przy kilku monitorach, czy pulpit nie wychodzi nad okna po kliknięciu. Awaryjnie: Ctrl+Alt+Del →
 Menedżer zadań → Uruchom `powerdesk.exe --remove-integration` albo `explorer.exe`.
 
+## Zmiany ekranu (w kodzie, nieuruchamiane)
+
+`desktop::screen_signature()` (monitory, DPI, tapeta z rejestru i data pliku TranscodedWallpaper) co 2 s
+w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
+
+## Aktualizacje (w kodzie, nieuruchamiane)
+
+- Repozytorium jest **prywatne** (od 23.10.2026). Wydania czyta `core/src/update.rs` z kluczem:
+  `%LOCALAPPDATA%\PowerDesk\update-key.txt` > zmienna `POWERDESK_UPDATE_TOKEN` > wbudowany przy kompilacji.
+- CI buduje `PowerDesk-<wersja>.exe` z sekretem `POWERDESK_UPDATE_TOKEN` i `POWERDESK_VERSION`; plik trafia
+  do wydania i `SHA256SUMS.txt`. **Do zrobienia przez użytkownika:** fine-grained token (tylko to repo,
+  Contents: Read-only) i `gh secret set POWERDESK_UPDATE_TOKEN`. Token wbudowany w .exe da się wyciągnąć –
+  dlatego tylko odczyt i tylko to repozytorium.
+- `app/src/updates.rs`: sprawdzanie minutę po starcie i co 6 h, dymek w zasobniku + powiadomienie
+  „Zaktualizuj”; ręcznie: prawy przycisk na Start → „Sprawdź aktualizacje”. Bez zgodnej sumy SHA-256
+  nie podmieniamy. Skrypt `apply.cmd` czeka na koniec procesu, zostawia `powerdesk.exe.old`, podmienia
+  i uruchamia; w trybie powłoki uruchamia strażnik (znacznik `updating.txt`, bez liczenia awarii).
+
 ## Kolejne zadania z planu
 
 - Menu Start: foldery grup jak w Windows 10, przeciąganie i rozmiary kafelków.
 - Pasek: zmiana kolejności przypiętych przeciąganiem.
-- Reakcja na zmiany monitorów, DPI i tapety (teraz tylko restart Eksploratora odbudowuje pulpit).
 - Etap 8: instalator i deinstalator (przywrócenie pulpitu, paska i powłoki), migracja z OpenFilePower.

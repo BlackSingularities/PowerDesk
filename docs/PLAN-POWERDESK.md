@@ -118,7 +118,7 @@ Zasady:
 - [x] Zasobnik (ikona, menu, zamykanie do zasobnika, powrót po restarcie Eksploratora), autostart (`--tray`), Win+E
 - [x] Zastąpienie Eksploratora zawsze włączone (bez przełączników): foldery i dyski, Win+E, „Otwórz w PowerDesk”, autostart – odnawiane przy starcie, stan i „Napraw” w Ustawieniach → System; cofnięcie `--remove-integration`
 - [x] Ustawienia jako ustawienia powłoki: Wygląd, Nowe okno, Widok folderów, Przeglądanie, Podgląd, Pulpit, Pasek zadań, System, Skróty, O aplikacji
-- [ ] Aktualizacje
+- [ ] Aktualizacje (w kodzie, nieuruchamiane: prywatne wydania GitHub z kluczem, dymek i „Zaktualizuj”, suma SHA-256, podmiana .exe; czeka na sekret POWERDESK_UPDATE_TOKEN)
 - [x] Jedna instancja (potok nazwany), otwieranie ścieżki z wiersza poleceń w nowej karcie, okno na wierzch
 
 ### Nowe: pulpit i pasek
@@ -126,7 +126,7 @@ Zasady:
 - [x] Tryb testowy usunięty – pulpit i pasek PowerDesk zawsze zastępują Windows
 - [x] Tryb zastępujący: pulpit jako dziecko `Progman` (Win+D go nie chowa), ikony Windows i `WorkerW` ukryte; pasek Windows ukryty i na autoukrywaniu, paski PowerDesk jako AppBar, pod oknem pełnoekranowym; przywracanie przy wyjściu, przez strażnika po awarii (`--shell-guard`, sprawdzone) i w `--remove-integration`
 - [ ] Tryb powłoki (Winlogon\Shell, bez Eksploratora): w kodzie, nieuruchamiany – pulpit na dnie, obszar roboczy, własny `Shell_TrayWnd` z ikonami programów, Win+E/R/D, strażnik z powrotem do Eksploratora (szczegóły: NASTEPNE-KROKI.md)
-- [ ] Reakcja na zmiany monitorów, DPI, tapety i restart Eksploratora
+- [ ] Reakcja na zmiany monitorów, DPI, tapety i restart Eksploratora (w kodzie, nieuruchamiane: podpis ekranu co 2 s, przebudowa pulpitu i paska)
 - [x] Pasek zadań (AppBar) na każdym monitorze, systemowy pasek ukryty; Alt+Tab, Win+Tab i Win+D zostają systemowe; „Pokaż pulpit” na końcu, menu pustego miejsca (Menedżer zadań, ustawienia, zasilanie), krycie 0–100% i pełna przezroczystość na pulpicie (osobno na monitorze), menu Start pod prawym przyciskiem (ustawienia, Menedżer zadań, „Zakończ PowerDesk”)
 - [ ] Lista okien, grupowanie, miniatury, menu przycisków (nowe okno / przypnij / zamknij) (w kodzie: podglądy okien DWM po najechaniu – karta z tytułem i zamknięciem, klik przełącza, środkowy zamyka; grupowanie po programie z licznikiem, klik przełącza okna grupy, menu z listą okien, „Zminimalizuj wszystkie”, „Zamknij wszystkie okna”, przypinanie programów – przyciski z samą ikoną na początku paska, uruchamianie, zapamiętane w ustawieniach; nieklikane; brak: przeciąganie przypiętych)
 - [ ] Zegar, głośność, sieć, bateria; zasobnik (przechwytywanie ikon) (w kodzie, nieuruchamiane: ikony sieci, głośności i baterii przy zegarze, okienko głośności z suwakiem i wyciszeniem, kółko i środkowy przycisk na ikonie, kalendarz po kliknięciu w zegar, mikser – głośność i wyciszanie każdej aplikacji, wybór urządzenia odtwarzającego, okienko sieci – lista Wi-Fi, łączenie i rozłączanie, hasło dla nowej sieci (profil WPA2/WPA3-Personal); sprawdzone: pasek, okienko głośności, suwak; brak: ikony aplikacji w tle – wymagają własnego `Shell_TrayWnd`, więc dopiero w trybie zastępującym)
