@@ -19,6 +19,8 @@ mod spaceview;
 mod termview;
 mod addr;
 mod menus;
+mod migrate;
+mod setup;
 mod model;
 mod preview;
 mod props;
@@ -125,6 +127,11 @@ fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
 
 /// Argumenty od kolejnego uruchomienia: każda ścieżka w nowej karcie, bez ścieżek – karta startowa.
 fn open_args(s: &Shared, args: Vec<String>) {
+    // Instalator albo deinstalator prosi o zamknięcie.
+    if args.iter().any(|a| a == setup::QUIT_ARG) {
+        quit(s);
+        return;
+    }
     let targets: Vec<_> = args.iter().filter_map(|a| arg_target(a)).collect();
     // Okno schowane w zasobniku: Win+E po prostu je przywraca, z kartami jak przed schowaniem.
     let hidden = s.borrow().ui.upgrade().is_some_and(|u| !u.window().is_visible());
@@ -241,15 +248,28 @@ fn main() -> Result<(), slint::PlatformError> {
         }
         return Ok(());
     }
+    // Instalacja i deinstalacja (wpis w „Aplikacje i funkcje”, Ustawienia → System).
+    if let Some(code) = setup::handle_args(&argv) {
+        std::process::exit(code);
+    }
     // Działa już okno – oddajemy mu argumenty (Win+E, „Otwórz w PowerDesk”) i kończymy.
     let args: Vec<String> = std::env::args().skip(1).filter(|a| !a.starts_with("--")).collect();
     if powerdesk_core::instance::send_to_running(&args) {
         return Ok(());
     }
+    // Pobrany plik uruchomiony pierwszy raz (nic nie działa, nic nie zainstalowane) – propozycja instalacji.
+    if let Some(code) = setup::offer_install(&argv) {
+        std::process::exit(code);
+    }
     // Bez paska Eksploratora PowerDesk jest powłoką – przed własnym `Shell_TrayWnd`.
     powerdesk_core::shellmode::detect();
     let ui = MainWindow::new()?;
-    let prefs = Prefs::load();
+    let mut prefs = Prefs::load();
+    // Pierwszy start bez własnych ustawień – to, co było w OpenFilePower.
+    if migrate::from_openfilepower(&mut prefs) {
+        prefs.save();
+    }
+    std::thread::spawn(|| powerdesk_core::install::refresh_entry(powerdesk_core::update::current()));
     settings::apply_look(&ui, &prefs);
 
     let first = args.iter().find_map(|a| arg_target(a));

@@ -34,7 +34,7 @@ Zasady:
 | 5 | Pulpit PowerDesk na wszystkich monitorach (zastępuje pulpit Windows) | **w toku** |
 | 6 | Pasek zadań: AppBar na każdym monitorze, lista okien, zegar, Start | **w toku** |
 | 7 | Zasobnik (ikony tray), menu Start, miniatury okien | – |
-| 8 | Instalator i deinstalator, migracja z OpenFilePower, wydanie | – |
+| 8 | Instalator i deinstalator, migracja z OpenFilePower, wydanie | w kodzie, nieuruchamiane |
 
 ## Lista parytetu (z obecnej wersji)
 
@@ -136,7 +136,7 @@ Zasady:
 - [ ] Widżety w kafelkach Startu i na pulpicie (w kodzie, nieklikane): zegar, kalendarz, pogoda, zegary świata, co teraz gra, zdjęcia, przypomnienia, system, dyski, notatka
 
 ### Instalator i deinstalator
-- [ ] Instalacja per użytkownik i per maszyna, skróty, autostart
-- [ ] Migracja: odinstalowanie OpenFilePower i przeniesienie ustawień
-- [ ] Deinstalacja: zamknięcie aplikacji, przywrócenie pulpitu i paska Windows, usunięcie wpisów rejestru
+- [ ] Instalacja per użytkownik i per maszyna, skróty, autostart (w kodzie: `--install [--all-users]`, propozycja przy pierwszym uruchomieniu, Ustawienia → System)
+- [ ] Migracja: odinstalowanie OpenFilePower i przeniesienie ustawień (w kodzie: migrate.rs, cichy deinstalator OpenFilePower po pytaniu)
+- [ ] Deinstalacja (w kodzie: `--uninstall [--quiet]`, wpis w „Aplikacje i funkcje”): zamknięcie aplikacji, przywrócenie pulpitu i paska Windows, usunięcie wpisów rejestru
   (autostart, menu kontekstowe, domyślny menedżer), opcjonalnie usunięcie ustawień

@@ -11,6 +11,7 @@ pub mod drives;
 pub mod events;
 pub mod filemgr;
 pub mod fsx;
+pub mod install;
 pub mod instance;
 pub mod integration;
 pub mod library;

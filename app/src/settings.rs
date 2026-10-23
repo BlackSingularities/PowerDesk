@@ -272,10 +272,20 @@ pub fn toggle(s: &Shared, key: &str) {
 pub fn render_system(_s: &Shared) {
     std::thread::spawn(|| {
         let rows = powerdesk_core::integration::status();
+        let inst = powerdesk_core::install::installed();
+        let here = powerdesk_core::install::running_installed();
         let _ = slint::invoke_from_event_loop(move || {
             crate::with_state(|s| {
                 let items: Vec<SysItem> = rows.into_iter().map(|(n, d, ok)| SysItem { name: n.into(), detail: d.into(), ok }).collect();
-                with_ui(s, |g| g.set_system(ModelRc::new(VecModel::from(items))));
+                with_ui(s, |g| {
+                    g.set_system(ModelRc::new(VecModel::from(items)));
+                    g.set_installed(inst.is_some());
+                    if let Some((exe, all)) = &inst {
+                        let who = if *all { "dla wszystkich użytkowników" } else { "dla bieżącego użytkownika" };
+                        let note = if here { "" } else { " · działa inna kopia (bez instalacji)" };
+                        g.set_install_place(format!("Zainstalowany {who}: {}{note}", exe.display()).into());
+                    }
+                });
             })
         });
     });
@@ -318,6 +328,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
+    g.on_install(crate::setup::install_from_settings);
+    g.on_uninstall(crate::setup::uninstall_from_settings);
     let s = st.clone();
     g.on_set_accent(move |a| {
         let a = a.trim();

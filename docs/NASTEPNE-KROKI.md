@@ -122,6 +122,21 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   tekst”; dymek i powiadomienie, potem znika). Na pulpicie notatkę i multimedia chwyta się za górny pasek.
 - Przeglądarka: szczypanie dwoma palcami i gestem gładzika (`pinch` w main.rs → `ViewerState.pinch-*`).
 
+## Instalator i deinstalator (w kodzie, nieuruchamiane)
+
+- Bez osobnego instalatora: `powerdesk.exe --install` kopiuje się do `%LOCALAPPDATA%\Programs\PowerDesk`
+  (HKCU), `--install --all-users` do `%ProgramFiles%\PowerDesk` (HKLM, UAC). Skrót w menu Start, wpis
+  w „Aplikacje i funkcje” (`core/src/install.rs`), wersja odnawiana po aktualizacji (`refresh_entry`).
+- Pobrany plik uruchomiony pierwszy raz (nic nie zainstalowane, nie z `target`) pyta: Tak – zainstaluj
+  dla mnie, Nie – uruchom bez instalacji (`app/src/setup.rs`). Ustawienia → System: „Zainstaluj dla
+  mnie / dla wszystkich”, „Odinstaluj PowerDesk…”.
+- Migracja (`app/src/migrate.rs`): ustawienia, przypięte foldery i karty, półka, sekcje panelu ze
+  `%APPDATA%\OpenFilePowerWin\state.json` – raz (`prefs.migrated_ofp`); przy instalacji pytanie
+  o odinstalowanie OpenFilePower (jego deinstalator po cichu).
+- `--uninstall [--quiet]`: pytanie, zamknięcie działającej kopii (`ofp:quit` przez potok), przywrócenie
+  pulpitu, paska i powłoki (jak `--remove-integration`, Eksplorator startuje), usunięcie skrótu, wpisu
+  i folderu (cmd po końcu procesu), ustawienia – na życzenie.
+- CI wydaje `PowerDesk-<v>.exe` – ten sam plik jest instalatorem.
+
 ## Kolejne zadania z planu
 
-- Etap 8: instalator i deinstalator (przywrócenie pulpitu, paska i powłoki), migracja z OpenFilePower.

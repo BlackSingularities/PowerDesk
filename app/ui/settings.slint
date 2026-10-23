@@ -50,6 +50,11 @@ export global SettingsState {
     /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
     in-out property <[SysItem]> system;
     callback repair-integration;
+    /// Instalacja: czy zainstalowany, gdzie, i czy to ta kopia.
+    in-out property <bool> installed;
+    in-out property <string> install-place;
+    callback install(bool);
+    callback uninstall();
     in-out property <int> remembered;
     in-out property <string> version;
     in-out property <string> prefs-path;
@@ -913,6 +918,43 @@ export component SettingsView inherits Rectangle {
                                 tip: "Ustaw od nowa wpisy, które nie wskazują tego programu";
                                 clicked => {
                                     SettingsState.repair-integration();
+                                }
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Instalacja";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: SettingsState.installed ? SettingsState.install-place : "PowerDesk działa bez instalacji – z tego pliku. Po instalacji ma skrót w menu Start, wpis w „Aplikacje i funkcje” i sam się aktualizuje.";
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: Theme.dim;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 8px;
+                        for b[k] in SettingsState.installed ? ["Odinstaluj PowerDesk…"] : ["Zainstaluj dla mnie", "Zainstaluj dla wszystkich…"]: Rectangle {
+                            width: ib.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: ib-ta.has-hover ? Theme.press : Theme.card;
+                            ib := Label {
+                                horizontal-alignment: center;
+                                text: b;
+                                font-size: 12.5px;
+                                color: SettingsState.installed ? Theme.rec : Theme.text;
+                            }
+                            ib-ta := TipArea {
+                                tip: SettingsState.installed ? "Przywraca pulpit, pasek i Eksplorator Windows, usuwa program (ustawienia – na życzenie)" : k == 0 ? "Do folderu użytkownika, bez uprawnień administratora" : "Do Program Files – Windows zapyta o uprawnienia administratora";
+                                clicked => {
+                                    if (SettingsState.installed) {
+                                        SettingsState.uninstall();
+                                    } else {
+                                        SettingsState.install(k == 1);
+                                    }
                                 }
                             }
                         }
