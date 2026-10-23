@@ -9,6 +9,7 @@ mod taskbar;
 mod taskview;
 mod start;
 mod starttiles;
+mod startsearch;
 mod cliphistory;
 mod facets;
 mod fmt;

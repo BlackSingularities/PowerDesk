@@ -3,6 +3,7 @@
 
 pub mod archive;
 pub mod autostart;
+pub mod calc;
 pub mod clip;
 pub mod cliphist;
 pub mod desktop;
@@ -24,6 +25,7 @@ pub mod nowplaying;
 pub mod media;
 pub mod ops;
 pub mod pdf;
+pub mod quickindex;
 pub mod remote;
 pub mod shell;
 pub mod shellmode;

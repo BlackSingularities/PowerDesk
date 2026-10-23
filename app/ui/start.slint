@@ -12,6 +12,9 @@ export struct StartRow {
     has-img: bool,
     /// Ukryta, a widoczna tylko dlatego, że włączono „Pokaż ukryte”.
     hidden: bool,
+    /// Drugi wiersz (folder pliku, „Ustawienia Windows”) i ikona, gdy nie ma obrazka.
+    detail: string,
+    icon: string,
 }
 
 /// Kafelek przypiętej aplikacji albo folder – miejsce i rozmiar liczy starttiles.rs.
@@ -250,18 +253,26 @@ export component StartWindow inherits Window {
                                     source: r.img;
                                 }
                                 if !r.has-img: Icon {
-                                    commands: Icons.app;
+                                    commands: r.icon != "" ? r.icon : Icons.app;
                                     size: 18px;
                                     color: Theme.dim;
                                 }
                             }
-                            Text {
+                            VerticalLayout {
                                 horizontal-stretch: 1;
-                                vertical-alignment: center;
-                                text: r.name;
-                                overflow: elide;
-                                font-size: 12.5px;
-                                color: r.hidden ? Theme.faint : Theme.text;
+                                alignment: center;
+                                Text {
+                                    text: r.name;
+                                    overflow: elide;
+                                    font-size: 12.5px;
+                                    color: r.hidden ? Theme.faint : Theme.text;
+                                }
+                                if r.detail != "": Text {
+                                    text: r.detail;
+                                    overflow: elide;
+                                    font-size: 10.5px;
+                                    color: Theme.faint;
+                                }
                             }
                         }
                         ar-ta := TouchArea {

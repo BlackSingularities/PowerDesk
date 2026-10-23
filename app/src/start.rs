@@ -13,6 +13,7 @@ use slint::{ComponentHandle, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 use crate::menus::{self, it, sep, sub, Item};
 use crate::model::StartGroup;
 use crate::starttiles::{self as tiles, At, Head, Placed};
+use crate::startsearch::{self, Row};
 use crate::{StartHead, StartRow, StartTile, StartWindow, Theme};
 
 /// Najmniejszy rozmiar Startu (lista i kolumna) – mniejszy nie ma sensu.
@@ -21,7 +22,7 @@ const MIN: (f32, f32) = (420.0, 360.0);
 struct Start {
     w: StartWindow,
     /// Aplikacja każdego wiersza (None – litera).
-    shown: Vec<Option<usize>>,
+    shown: Vec<Row>,
     menu: Vec<Item>,
 }
 
@@ -41,6 +42,7 @@ thread_local! {
 
 /// Lista aplikacji w tle (folder „Aplikacje” bywa wolny przy pierwszym czytaniu).
 pub fn preload() {
+    powerdesk_core::quickindex::start();
     std::thread::spawn(|| {
         let apps = startmenu::apps();
         let _ = slint::invoke_from_event_loop(move || {
@@ -72,23 +74,41 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     w.window().set_size(PhysicalSize::new(pw as u32, ph as u32));
     w.on_search(|_| render());
     w.on_launch_first(|| {
-        let first = START.with(|s| s.borrow().as_ref().and_then(|s| s.shown.iter().flatten().next().copied()));
-        if let Some(i) = first {
-            launch(i);
+        let first = START.with(|s| s.borrow().as_ref().and_then(|s| s.shown.iter().position(|r| !matches!(r, Row::Header))));
+        if let Some(r) = first {
+            launch_row(r);
         }
     });
-    w.on_launch(|row| {
-        if let Some(i) = app_at(row as usize) {
-            launch(i);
-        }
-    });
+    w.on_launch(|row| launch_row(row as usize));
     w.on_launch_tile(|t| launch_tile(t as usize));
     w.on_row_context(|row, x, y| {
-        if let Some(i) = app_at(row as usize) {
-            let app = APPS.with(|a| a.borrow().get(i).cloned());
-            if let Some(app) = app {
-                app_menu(&app.shell_path(), &app.id, None, x, y);
+        let r = START.with(|s| s.borrow().as_ref().and_then(|s| s.shown.get(row as usize).cloned()));
+        match r {
+            Some(Row::App(i)) => {
+                let app = APPS.with(|a| a.borrow().get(i).cloned());
+                if let Some(app) = app {
+                    app_menu(&app.shell_path(), &app.id, None, x, y);
+                }
             }
+            Some(Row::File(p)) => {
+                let (p1, p2) = (p.clone(), p);
+                show_menu(
+                    vec![
+                        it("Otwórz", "open", move |_| {
+                            let _ = open::that_detached(&p1);
+                            slint::Timer::single_shot(Duration::ZERO, close);
+                        }),
+                        it("Pokaż w folderze", "folder", move |s| {
+                            crate::open_args(s, vec![p2.clone()]);
+                            crate::show_window(s);
+                            slint::Timer::single_shot(Duration::ZERO, close);
+                        }),
+                    ],
+                    x,
+                    y,
+                );
+            }
+            _ => {}
         }
     });
     w.on_tile_context(|t, x, y| tile_menu(t as usize, x, y));
@@ -238,8 +258,18 @@ pub fn hwnd() -> Option<isize> {
     START.with(|s| s.borrow().as_ref().map(|s| crate::window_hwnd(s.w.window())))
 }
 
-fn app_at(row: usize) -> Option<usize> {
-    START.with(|s| s.borrow().as_ref().and_then(|s| s.shown.get(row).copied().flatten()))
+/// Wiersz listy: aplikacja, plik, ustawienie albo wynik obliczenia.
+fn launch_row(row: usize) {
+    let Some(r) = START.with(|s| s.borrow().as_ref().and_then(|s| s.shown.get(row).cloned())) else { return };
+    match r {
+        Row::App(i) => launch(i),
+        Row::Header => {}
+        other => {
+            if startsearch::activate(&other) {
+                slint::Timer::single_shot(Duration::ZERO, close);
+            }
+        }
+    }
 }
 
 /// Grupy kafelków; stary zapis (sama lista) przenoszony za pierwszym razem.
@@ -449,6 +479,12 @@ fn tile_menu(i: usize, x: f32, y: f32) {
 fn launch(i: usize) {
     if let Some(app) = APPS.with(|a| a.borrow().get(i).cloned()) {
         startmenu::launch(&app.shell_path());
+        // Licznik do „Polecanych”.
+        crate::with_state(|s| {
+            let mut b = s.borrow_mut();
+            *b.prefs.app_launches.entry(app.shell_path()).or_default() += 1;
+            b.prefs.save();
+        });
     }
     slint::Timer::single_shot(Duration::ZERO, close);
 }
@@ -473,11 +509,29 @@ fn render() {
         let px = (24.0 * st.w.window().scale_factor()) as u32;
         let hidden = hidden();
         let show_hidden = SHOW_HIDDEN.with(|h| h.get());
-        let grid = grid();
+        // Wyniki szukania (pliki, ustawienia) – zawsze jako lista.
+        let grid = grid() && parts.is_empty();
         st.w.set_grid(grid);
         let px = if grid { (36.0 * st.w.window().scale_factor()) as u32 } else { px };
         let mut rows = Vec::new();
         let mut shown = Vec::new();
+        let raw_query = st.w.get_query().to_string();
+        let lpx = (24.0 * st.w.window().scale_factor()) as u32;
+        let push = |rows: &mut Vec<StartRow>, shown: &mut Vec<Row>, extra: Vec<(StartRow, Row)>| {
+            for (r, k) in extra {
+                rows.push(r);
+                shown.push(k);
+            }
+        };
+        if parts.is_empty() && !grid {
+            let mut launches = std::collections::HashMap::new();
+            crate::with_state(|s| launches = s.borrow().prefs.app_launches.clone());
+            let top = APPS.with(|a| startsearch::top(&a.borrow(), &launches, lpx));
+            push(&mut rows, &mut shown, top);
+        } else if !parts.is_empty() {
+            push(&mut rows, &mut shown, startsearch::before_apps(&raw_query));
+        }
+        let apps_from = rows.len();
         APPS.with(|a| {
             let apps = a.borrow();
             let mut last = String::new();
@@ -493,16 +547,24 @@ fn render() {
                 if parts.is_empty() && !grid {
                     let l = letter(&app.name);
                     if l != last {
-                        rows.push(StartRow { header: true, name: l.clone().into(), img: Default::default(), has_img: false, hidden: false });
-                        shown.push(None);
+                        rows.push(StartRow { header: true, name: l.clone().into(), ..Default::default() });
+                        shown.push(Row::Header);
                         last = l;
                     }
                 }
                 let img = crate::thumbs::get(&app.shell_path(), px, true);
-                rows.push(StartRow { header: false, name: app.name.clone().into(), has_img: img.is_some(), img: img.unwrap_or_default(), hidden: is_hidden });
-                shown.push(Some(i));
+                // Przy szukaniu nagłówek „Aplikacje”, gdy coś pasuje.
+                if !parts.is_empty() && rows.len() == apps_from {
+                    rows.push(StartRow { header: true, name: "Aplikacje".into(), ..Default::default() });
+                    shown.push(Row::Header);
+                }
+                rows.push(StartRow { header: false, name: app.name.clone().into(), has_img: img.is_some(), img: img.unwrap_or_default(), hidden: is_hidden, ..Default::default() });
+                shown.push(Row::App(i));
             }
         });
+        if !parts.is_empty() {
+            push(&mut rows, &mut shown, startsearch::after_apps(&raw_query, lpx));
+        }
         st.w.set_rows(ModelRc::new(VecModel::from(rows)));
         st.shown = shown;
         let scale = st.w.window().scale_factor();
