@@ -209,22 +209,11 @@ pub fn thumb_unregister(id: isize) {
     }
 }
 
-/// Pokaż pulpit (Win+D) – systemowe, jak przycisk na końcu paska Windows.
+/// Pokaż pulpit (Win+D, przycisk na końcu paska): minimalizuje okna programów, ponownie – przywraca.
 pub fn show_desktop() {
-    // Bez Eksploratora systemowe Win+D nic nie robi – własne minimalizowanie i przywracanie.
-    if crate::shellmode::active() {
-        crate::shellmode::toggle_desktop();
-        return;
-    }
-    use windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY;
-    let key = |vk: VIRTUAL_KEY, up: bool| INPUT {
-        r#type: INPUT_KEYBOARD,
-        Anonymous: INPUT_0 { ki: KEYBDINPUT { wVk: vk, dwFlags: if up { KEYEVENTF_KEYUP } else { Default::default() }, ..Default::default() } },
-    };
-    let d = VIRTUAL_KEY(b'D' as u16);
-    unsafe {
-        SendInput(&[key(VK_LWIN, false), key(d, false), key(d, true), key(VK_LWIN, true)], std::mem::size_of::<INPUT>() as i32);
-    }
+    // Własne minimalizowanie i przywracanie: bez Eksploratora systemowe Win+D nic nie robi,
+    // a z nim wysunęłoby pulpit Windows nad pulpit PowerDesk.
+    crate::shellmode::toggle_desktop();
 }
 
 /// Czy okno zajmuje cały monitor (gra, film na pełnym ekranie) – wtedy pasek chowa się pod nie.

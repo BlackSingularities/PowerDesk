@@ -175,18 +175,15 @@ fn attach() {
             }
             data::hide_from_taskbar(hwnd);
             powerdesk_core::system::no_frame_border(hwnd);
-            if powerdesk_core::shellmode::active() {
-                // Powłoka bez Eksploratora: zwykłe okna na dnie, pod wszystkimi programami.
-                powerdesk_core::shellmode::keep_at_bottom(hwnd);
-                powerdesk_core::shellmode::place_desktop(hwnd, x, y, wd, ht);
-                // Pierwsze okno (monitor główny) – okno powłoki systemu.
-                if hwnds.is_empty() {
-                    powerdesk_core::shellmode::register_shell_window(hwnd);
-                }
-                hwnds.push(hwnd);
-            } else if powerdesk_core::shellswap::attach_desktop(hwnd, x, y, wd, ht) {
-                hwnds.push(hwnd);
+            // Zwykłe okna pod wszystkimi programami – z Eksploratorem tuż nad jego pulpitem (Progman),
+            // bez niego na samym dnie. (Warstwa tapety Windows – WorkerW – nie rysuje naszych okien.)
+            powerdesk_core::shellmode::keep_at_bottom(hwnd);
+            powerdesk_core::shellmode::place_desktop(hwnd, x, y, wd, ht);
+            // Pierwsze okno (monitor główny) – okno powłoki systemu, gdy PowerDesk nią jest.
+            if hwnds.is_empty() && powerdesk_core::shellmode::active() {
+                powerdesk_core::shellmode::register_shell_window(hwnd);
             }
+            hwnds.push(hwnd);
         }
         // Bez Progman (Eksplorator jeszcze wstaje) – kolejna próba przy pilnowaniu.
         d.hwnds = if hwnds.len() == d.windows.len() { hwnds } else { Vec::new() };
@@ -219,8 +216,9 @@ fn watch() {
     if powerdesk_core::shellmode::active() {
         return;
     }
-    // Eksplorator potrafi wysunąć swoją warstwę tapety nad nasze okna – wracamy na wierzch.
-    D.with(|d| d.borrow().hwnds.iter().for_each(|&h| powerdesk_core::shellswap::raise(h)));
+    // Z Eksploratorem: jego pulpit potrafi wyjść nad nasze okna (np. po zmianie tapety) – wracamy
+    // tuż nad niego; ikony Windows zostają ukryte.
+    D.with(|d| d.borrow().hwnds.iter().for_each(|&h| powerdesk_core::shellmode::lower(h)));
     powerdesk_core::shellswap::hide_desktop_icons();
 }
 

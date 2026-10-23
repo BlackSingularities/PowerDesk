@@ -146,6 +146,13 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
         let down = msg == WM_KEYDOWN || msg == WM_SYSKEYDOWN;
         let up = msg == WM_KEYUP || msg == WM_SYSKEYUP;
         if !injected {
+            // Puszczenie Win potrafi nie dotrzeć do haka (blokada ekranu, okna systemowe) – bez
+            // tego „Win wciśnięty” zostałby na stałe i samo V otwierałoby historię schowka.
+            if !win && WIN_DOWN.load(Ordering::SeqCst) && !win_held() {
+                WIN_DOWN.store(false, Ordering::SeqCst);
+                COMBO.store(false, Ordering::SeqCst);
+                SWALLOWED.store(false, Ordering::SeqCst);
+            }
             if win && down {
                 if !WIN_DOWN.swap(true, Ordering::SeqCst) {
                     COMBO.store(false, Ordering::SeqCst);
@@ -160,7 +167,12 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
                     }
                 }
                 return LRESULT(1);
-            } else if WIN_DOWN.load(Ordering::SeqCst) && SHELL_KEYS.iter().any(|&c| k.vkCode == c as u32) && ON_SHELL_KEY.get().is_some() && crate::shellmode::active() {
+            } else if WIN_DOWN.load(Ordering::SeqCst)
+                && SHELL_KEYS.iter().any(|&c| k.vkCode == c as u32)
+                && ON_SHELL_KEY.get().is_some()
+                // Win+D zawsze nasze (systemowe wysunęłoby pulpit Windows nad pulpit PowerDesk), reszta – w trybie powłoki.
+                && (k.vkCode == b'D' as u32 || crate::shellmode::active())
+            {
                 COMBO.store(true, Ordering::SeqCst);
                 SWALLOWED.store(true, Ordering::SeqCst);
                 if down {
@@ -187,6 +199,12 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
         }
     }
     CallNextHookEx(None, code, wp, lp)
+}
+
+/// Czy któryś klawisz Win jest teraz fizycznie wciśnięty.
+fn win_held() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
+    unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) < 0 || GetAsyncKeyState(VK_RWIN.0 as i32) < 0 }
 }
 
 /// Win+V otwiera historię schowka PowerDesk (wywołać przed `hook_win_key`).

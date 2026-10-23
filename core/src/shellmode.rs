@@ -42,6 +42,31 @@ pub fn detect() -> bool {
     on
 }
 
+/// Zainstalowany PowerDesk zastępuje Eksplorator od razu, bez wylogowania: prosi pasek Eksploratora
+/// o zamknięcie (to samo co „Zakończ Eksploratora” z Ctrl+Shift+prawy przycisk na pasku), a gdy
+/// nie zdąży – kończy go. Potem PowerDesk działa jako powłoka (`detect` zwraca true).
+pub fn take_over() -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
+    unsafe {
+        let Ok(tray) = FindWindowW(w!("Shell_TrayWnd"), None) else { return detect() };
+        crate::log::info("przejęcie: zamykanie Eksploratora");
+        // WM_USER + 436 – Eksplorator zamyka się porządnie (bez automatycznego ponownego startu).
+        let _ = PostMessageW(Some(tray), 0x0400 + 436, WPARAM(0), LPARAM(0));
+        for _ in 0..40 {
+            std::thread::sleep(std::time::Duration::from_millis(150));
+            if FindWindowW(w!("Shell_TrayWnd"), None).is_err() {
+                break;
+            }
+        }
+    }
+    if unsafe { FindWindowW(w!("Shell_TrayWnd"), None).is_ok() } {
+        use std::os::windows::process::CommandExt;
+        let _ = std::process::Command::new("taskkill").args(["/f", "/im", "explorer.exe"]).creation_flags(0x0800_0000).status();
+        std::thread::sleep(std::time::Duration::from_millis(500));
+    }
+    detect()
+}
+
 /// Czy wpis Winlogon wskazuje ten plik .exe.
 pub fn registered() -> bool {
     let Ok(exe) = exe() else { return false };
@@ -237,11 +262,17 @@ pub fn keep_at_bottom(hwnd: isize) {
     use windows::Win32::UI::Shell::SetWindowSubclass;
     unsafe extern "system" fn proc(w: HWND, msg: u32, wp: WPARAM, lp: LPARAM, _: usize, _: usize) -> LRESULT {
         use windows::Win32::UI::Shell::DefSubclassProc;
-        use windows::Win32::UI::WindowsAndMessaging::{HWND_BOTTOM, SWP_NOZORDER, WINDOWPOS, WM_WINDOWPOSCHANGING};
+        use windows::Win32::UI::WindowsAndMessaging::{SWP_NOZORDER, WINDOWPOS, WM_WINDOWPOSCHANGING};
         if msg == WM_WINDOWPOSCHANGING {
             let p = &mut *(lp.0 as *mut WINDOWPOS);
-            p.hwndInsertAfter = HWND_BOTTOM;
-            p.flags &= !SWP_NOZORDER;
+            match bottom_slot(w) {
+                Some(after) => {
+                    p.hwndInsertAfter = after;
+                    p.flags &= !SWP_NOZORDER;
+                }
+                // Już na swoim miejscu – kolejność bez zmian.
+                None => p.flags |= SWP_NOZORDER,
+            }
         }
         DefSubclassProc(w, msg, wp, lp)
     }
@@ -264,11 +295,45 @@ pub fn register_shell_window(hwnd: isize) {
     }
 }
 
+/// Miejsce okna pulpitu w kolejności okien: tuż nad pulpitem Windows (`Progman` rysuje tapetę na
+/// całym ekranie i zasłoniłby wszystko pod sobą), a bez Eksploratora – na samym dnie.
+/// None – okno już stoi na swoim miejscu.
+fn bottom_slot(me: HWND) -> Option<HWND> {
+    use windows::Win32::UI::WindowsAndMessaging::{GetWindow, GW_HWNDPREV, HWND_BOTTOM};
+    unsafe {
+        let Ok(progman) = FindWindowW(w!("Progman"), None) else { return Some(HWND_BOTTOM) };
+        // Okno wstawiamy „za” to, które jest tuż nad Progman – czyli między nie a Progman.
+        match GetWindow(progman, GW_HWNDPREV) {
+            Ok(prev) if prev != me && !prev.is_invalid() => Some(prev),
+            _ => None,
+        }
+    }
+}
+
+/// Ustawia okno pulpitu na jego miejscu w kolejności (po zmianach, które ominęły podklasę).
+pub fn lower(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE};
+    let h = HWND(hwnd as *mut _);
+    if let Some(after) = bottom_slot(h) {
+        unsafe {
+            let _ = SetWindowPos(h, Some(after), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+}
+
 /// Okno pulpitu na monitorze (x, y, w, h – piksele ekranu), na dnie.
 pub fn place_desktop(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
-    use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_BOTTOM, SWP_NOACTIVATE, SWP_SHOWWINDOW};
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, SWP_NOACTIVATE, SWP_SHOWWINDOW};
     unsafe {
-        let _ = SetWindowPos(HWND(hwnd as *mut _), Some(HWND_BOTTOM), x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+        let h = HWND(hwnd as *mut _);
+        match bottom_slot(h) {
+            Some(after) => {
+                let _ = SetWindowPos(h, Some(after), x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+            }
+            None => {
+                let _ = SetWindowPos(h, None, x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW | windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER);
+            }
+        }
     }
 }
 

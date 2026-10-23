@@ -207,6 +207,13 @@ pub fn show_window(s: &Shared) {
         // Okno mogło dopiero powstać (start z autostartu) – cel upuszczania i tło Mica/Acrylic.
         dragdrop::register(s);
         settings::relook(s);
+        // Układ i ikony liczone przy schowanym oknie miały zły rozmiar – od nowa, gdy okno już stoi.
+        slint::Timer::single_shot(std::time::Duration::from_millis(120), || {
+            with_state(|s| {
+                render_side(s);
+                load(s, false);
+            })
+        });
     }
     powerdesk_core::instance::bring_to_front(hwnd(s));
 }
@@ -279,7 +286,11 @@ fn main() -> Result<(), slint::PlatformError> {
         std::process::exit(code);
     }
     // Bez paska Eksploratora PowerDesk jest powłoką – przed własnym `Shell_TrayWnd`.
-    let shell = powerdesk_core::shellmode::detect();
+    let mut shell = powerdesk_core::shellmode::detect();
+    // Zainstalowany PowerDesk zastępuje Eksplorator od razu, nie dopiero po ponownym zalogowaniu.
+    if !shell && powerdesk_core::install::running_installed() {
+        shell = powerdesk_core::shellmode::take_over();
+    }
     powerdesk_core::log::info(format!(
         "start {} · {} · {}",
         powerdesk_core::update::current(),
