@@ -17,15 +17,17 @@ export struct MenuEntry {
 /// Wspólna dla MenuPopup i osobnych okien z menu (pasek zadań).
 export component MenuBody inherits Rectangle {
     in property <[MenuEntry]> entries;
+    /// W osobnym oknie ramkę, rogi i tło daje okno (wspólny wygląd okienek) – bez własnych.
+    in property <bool> framed: true;
     callback chosen(int);
 
     Rectangle {
-        drop-shadow-blur: 60px;
-        drop-shadow-offset-y: 24px;
+        drop-shadow-blur: root.framed ? 60px : 0;
+        drop-shadow-offset-y: root.framed ? 24px : 0;
         drop-shadow-color: Theme.shadow;
-        background: Theme.popup-high;
-        border-radius: Theme.r;
-        border-width: 1px;
+        background: root.framed ? Theme.popup-high : transparent;
+        border-radius: root.framed ? Theme.r : 0;
+        border-width: root.framed ? 1px : 0;
         border-color: Theme.line;
 
         VerticalLayout {

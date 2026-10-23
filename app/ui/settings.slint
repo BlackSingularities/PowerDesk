@@ -88,6 +88,8 @@ export global SettingsState {
     in-out property <int> effect;
     /// Krycie okienek w procentach (60–100).
     in-out property <float> popup-opacity: 100;
+    /// Rozmycie tła pod okienkami (Acrylic z Windows 11).
+    in-out property <bool> popup-blur: true;
     /// Krycie paska zadań w procentach (0–100) i przezroczystość na pulpicie.
     in-out property <float> taskbar-opacity: 100;
     in-out property <bool> taskbar-clear-desktop;
@@ -553,7 +555,7 @@ export component SettingsView inherits Rectangle {
                         spacing: 12px;
                         Slider {
                             horizontal-stretch: 1;
-                            minimum: 60;
+                            minimum: 30;
                             maximum: 100;
                             step: 5;
                             value: SettingsState.popup-opacity;
@@ -569,9 +571,19 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Menu, okna dialogowe, paleta, podpowiedzi i powiadomienia";
+                        text: "Wszystkie okienka: menu podręczne, Start, okienka paska i zasobnika, podpowiedzi, historia schowka i powiadomienia";
                         font-size: 11.5px;
                         color: Theme.faint;
+                        wrap: word-wrap;
+                    }
+                    ToggleRow {
+                        icon: Icons.eye;
+                        text: "Rozmycie tła okienek";
+                        hint: "To, co pod okienkiem, jest rozmyte (Windows 11); bez rozmycia – tylko przezroczyste";
+                        on: SettingsState.popup-blur;
+                        toggled => {
+                            SettingsState.toggle("popup-blur");
+                        }
                     }
                 }
 

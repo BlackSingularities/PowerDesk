@@ -15,10 +15,10 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{NoticesWindow, OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, TipWindow, TrayOverflowWindow, VolumeWindow};
+use crate::{NoticesWindow, OutDev, AppVol, TrayApp, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, TipWindow, TrayOverflowWindow, VolumeWindow};
 
 /// Wysokość paska w pikselach logicznych.
-const HEIGHT: f32 = 48.0;
+pub const HEIGHT: f32 = 48.0;
 
 struct Bar {
     w: TaskbarWindow,
@@ -50,8 +50,6 @@ struct Group {
 thread_local! {
     static BARS: RefCell<Vec<Bar>> = const { RefCell::new(Vec::new()) };
     static TIMER: slint::Timer = slint::Timer::default();
-    /// Otwarte menu paska i jego pozycje.
-    static MENU: RefCell<Option<(BarMenuWindow, Vec<Item>)>> = const { RefCell::new(None) };
     /// Otwarte okienko zasobnika (głośność albo kalendarz).
     static POPUP: RefCell<Option<Popup>> = const { RefCell::new(None) };
     /// Kalendarz: przesunięcie w miesiącach od bieżącego.
@@ -517,42 +515,41 @@ fn context(bar: usize, i: usize, x: f32, _y: f32) {
 /// Menu w osobnym oknie, tuż nad paskiem, w miejscu kliknięcia (w granicach monitora).
 fn show_menu(bar: usize, items: Vec<Item>, x: f32) {
     close_thumbs();
-    close_menu();
     close_popup();
-    let Some((pos, origin, mon, scale)) = BARS.with(|b| b.borrow().get(bar).map(|b| (b.pos, b.origin, b.mon, b.w.window().scale_factor()))) else { return };
-    let Ok(w) = BarMenuWindow::new() else { return };
+    let Some((pos, _, _, scale)) = spot(bar) else { return };
+    // Tuż nad paskiem: okienko menu samo przesuwa się w górę, gdy nie mieści się nad nim.
+    menus::show_at(items, pos.0 + (x * scale) as i32, pos.1 - (6.0 * scale) as i32);
+}
+
+/// Pasek po wyborze z menu (przypięcie, odpięcie…) – stan od razu, nie po sekundzie.
+pub fn refresh_soon() {
+    slint::Timer::single_shot(Duration::from_millis(300), refresh);
+}
+
+/// Monitor z punktem (piksele ekranu): lewy górny róg, rozmiar i skala paska na nim.
+pub fn monitor_at(x: i32, y: i32) -> ((i32, i32), (i32, i32), f32) {
     BARS.with(|b| {
-        if let Some(bar) = b.borrow().get(bar) {
-            let t = w.global::<Theme>();
-            let src = bar.w.global::<Theme>();
-            t.set_light(src.get_light());
-            t.set_accent_override(src.get_accent_override());
-            t.set_popup_alpha(src.get_popup_alpha());
+        let b = b.borrow();
+        let bar = b.iter().find(|bar| x >= bar.origin.0 && x < bar.origin.0 + bar.mon.0 && y >= bar.origin.1 && y < bar.origin.1 + bar.mon.1).or(b.first());
+        bar.map(|bar| (bar.origin, bar.mon, bar.w.window().scale_factor())).unwrap_or(((0, 0), (1920, 1080), 1.0))
+    })
+}
+
+/// Nowy wygląd (motyw, krycie, rozmycie) na paskach i otwartych okienkach.
+pub fn relook() {
+    BARS.with(|b| {
+        for bar in b.borrow().iter() {
+            crate::settings::popup_theme(&bar.w.global::<Theme>());
         }
     });
-    let (entries, width, _, _) = menus::layout(&items, 0.0, 0.0, slint::LogicalSize::new(f32::MAX, f32::MAX));
-    let height: f32 = items.iter().map(|i| if i.is_sep() { 11.0 } else { 32.0 }).sum::<f32>() + 14.0;
-    w.set_entries(ModelRc::new(VecModel::from(entries)));
-    w.set_menu_width(width);
-    above_bar(w.window(), (pos, origin, mon, scale), width, height, x);
-    w.on_chosen(|i| {
-        let item = MENU.with(|m| m.borrow().as_ref().and_then(|(_, items)| items.get(i as usize).cloned()));
-        // Najpierw zamykamy menu – polecenie może przenieść fokus na inne okno.
-        slint::Timer::single_shot(Duration::ZERO, close_menu);
-        if let Some(item) = item {
-            crate::with_state(|s| menus::run(s, &item));
+    TIP.with(|t| {
+        if let Some(w) = t.borrow().as_ref() {
+            crate::settings::popup_theme(&w.global::<Theme>());
+            popup_look(crate::window_hwnd(w.window()));
         }
-        slint::Timer::single_shot(Duration::from_millis(300), refresh);
     });
-    // Klik obok menu (utrata fokusu) – zamknięcie, jak przy menu w oknie.
-    w.window().on_winit_window_event(|_, ev| {
-        if let slint::winit_030::winit::event::WindowEvent::Focused(false) = ev {
-            slint::Timer::single_shot(Duration::ZERO, close_menu);
-        }
-        slint::winit_030::EventResult::Propagate
-    });
-    show_above(w.window());
-    MENU.with(|m| *m.borrow_mut() = Some((w, items)));
+    close_popup();
+    menus::close_pop();
 }
 
 type Spot = ((i32, i32), (i32, i32), (i32, i32), f32);
@@ -582,25 +579,27 @@ fn show_above(win: &slint::Window) {
 
 /// Wygląd okienka jak menu kontekstowe: zaokrąglone rogi, obwódka w kolorze linii motywu,
 /// przezroczystość okienek z ustawień (tło okna łączy się z tym, co pod spodem).
+/// Jeden wygląd dla wszystkich okienek (menu, Start, okienka paska, podpowiedzi, schowek,
+/// powiadomienia): zaokrąglone rogi, obwódka w kolorze linii, tło z krycia ustawień i –
+/// jeśli włączone – rozmycie tego, co pod spodem (Acrylic).
 pub fn popup_look(hwnd: isize) {
     let line = BARS.with(|b| b.borrow().first().map(|b| b.w.global::<Theme>().get_line()));
     let c = line.unwrap_or(slint::Color::from_rgb_u8(60, 60, 60));
     powerdesk_core::system::style_popup(hwnd, Some((c.red(), c.green(), c.blue())));
-    powerdesk_core::system::see_through(hwnd);
+    if crate::settings::popup_blur() {
+        powerdesk_core::system::set_backdrop(hwnd, 2);
+    } else {
+        powerdesk_core::system::set_backdrop(hwnd, 0);
+        powerdesk_core::system::see_through(hwnd);
+    }
 }
 
 /// Motyw okienka jak motyw paska (jasny/ciemny, akcent).
 macro_rules! same_theme {
-    ($bar:expr, $w:expr) => {
-        BARS.with(|b| {
-            if let Some(bar) = b.borrow().get($bar) {
-                let (t, src) = ($w.global::<Theme>(), bar.w.global::<Theme>());
-                t.set_light(src.get_light());
-                t.set_accent_override(src.get_accent_override());
-            t.set_popup_alpha(src.get_popup_alpha());
-            }
-        })
-    };
+    ($bar:expr, $w:expr) => {{
+        let _ = $bar;
+        crate::settings::popup_theme(&$w.global::<Theme>());
+    }};
 }
 
 /// Klik obok okienka (utrata fokusu) – zamknięcie.
@@ -615,7 +614,7 @@ fn close_on_blur(win: &slint::Window) {
 
 fn own_popups() -> Vec<isize> {
     let mut out = Vec::new();
-    MENU.with(|m| out.extend(m.borrow().as_ref().map(|(w, _)| crate::window_hwnd(w.window()))));
+    out.extend(menus::pop_hwnd());
     POPUP.with(|p| {
         out.extend(p.borrow().as_ref().map(|p| match p {
             Popup::Volume(w) => crate::window_hwnd(w.window()),
@@ -1146,7 +1145,7 @@ fn hover(bar: usize, i: usize, x: f32) {
     let delay = if open.is_some() { 0 } else { 450 };
     slint::Timer::single_shot(Duration::from_millis(delay), move || {
         // Kursor dalej nad tym samym przyciskiem i nie ma menu.
-        if HOVER.with(|h| h.get()) == Some((bar, i)) && !NO_THUMBS.with(|c| c.get()) && MENU.with(|m| m.borrow().is_none()) {
+        if HOVER.with(|h| h.get()) == Some((bar, i)) && !NO_THUMBS.with(|c| c.get()) && !menus::pop_open() {
             show_thumbs(bar, i, x);
         }
     });
@@ -1281,9 +1280,7 @@ fn close_thumbs() {
 }
 
 fn close_menu() {
-    if let Some((w, _)) = MENU.with(|m| m.borrow_mut().take()) {
-        let _ = w.hide();
-    }
+    menus::close_pop();
 }
 
 /// Pasek na dole swojego monitora i na wierzchu. Za pierwszym razem także rozmiar i styl

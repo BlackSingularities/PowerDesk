@@ -63,10 +63,8 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
         return;
     }
     let Ok(w) = StartWindow::new() else { return };
-    let t = w.global::<Theme>();
-    t.set_light(light);
-    t.set_accent_override(accent);
-    t.set_popup_alpha(alpha);
+    let _ = (light, accent, alpha);
+    crate::settings::popup_theme(&w.global::<Theme>());
     w.set_user(std::env::var("USERNAME").unwrap_or_default().into());
     let (lw, lh) = size();
     let (pw, ph) = ((lw * scale) as i32, (lh * scale) as i32);
@@ -188,9 +186,9 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     w.window().on_winit_window_event(|_, ev| {
         if let slint::winit_030::winit::event::WindowEvent::Focused(false) = ev {
             slint::Timer::single_shot(Duration::from_millis(80), || {
-                // Menu podręczne w oknie Start nie zamyka Startu.
+                // Menu podręczne Startu (osobne okienko) nie zamyka Startu.
                 let still = START.with(|s| s.borrow().as_ref().is_some_and(|s| s.w.window().is_visible()));
-                if still && !has_focus() {
+                if still && !has_focus() && !menus::pop_open() {
                     close();
                 }
             });
@@ -200,9 +198,7 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     let _ = w.show();
     let hwnd = crate::window_hwnd(w.window());
     powerdesk_core::desktop::hide_from_taskbar(hwnd);
-    // Start bez obwódki – samo tło (zaokrąglone rogi i krycie jak pozostałe okienka).
-    powerdesk_core::system::style_popup(hwnd, None);
-    powerdesk_core::system::see_through(hwnd);
+    crate::taskbar::popup_look(hwnd);
     powerdesk_core::taskwin::activate(hwnd);
     w.invoke_focus_search();
     crate::widgets::apply(&w.global::<crate::WidgetData>());
@@ -618,17 +614,19 @@ pub fn thumbs_arrived(paths: &HashSet<String>) {
 }
 
 fn show_menu(items: Vec<Item>, x: f32, y: f32) {
-    START.with(|s| {
-        let mut s = s.borrow_mut();
-        let Some(s) = s.as_mut() else { return };
-        let (entries, width, mx, my) = menus::layout(&items, x, y, s.w.window().size().to_logical(s.w.window().scale_factor()));
-        s.w.set_menu_x(mx);
-        s.w.set_menu_y(my);
-        s.w.set_menu_width(width);
-        s.w.set_menu_entries(ModelRc::new(VecModel::from(entries)));
-        s.menu = items;
-        s.w.invoke_show_menu();
-    });
+    let Some(w) = START.with(|s| s.borrow().as_ref().map(|s| s.w.clone_strong())) else { return };
+    menus::show_in(w.window(), items, x, y);
+}
+
+/// Menu podręczne Startu zamknięte: po wyborze Start wraca na wierzch (jeśli dalej otwarty),
+/// po kliknięciu gdzie indziej – zamyka się jak po utracie fokusu.
+pub fn menu_closed(chosen: bool) {
+    let Some(hwnd) = hwnd() else { return };
+    if chosen {
+        powerdesk_core::taskwin::activate(hwnd);
+    } else if powerdesk_core::taskwin::foreground() != hwnd {
+        close();
+    }
 }
 
 fn toggle_pin(path: &str) {

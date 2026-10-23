@@ -89,7 +89,7 @@ pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
     t.set_accent_override(accent.unwrap_or(Color::from_argb_u8(0, 0, 0, 0)));
     let effect = effect_of(p);
     t.set_effect(effect as i32);
-    t.set_popup_alpha(p.popup_opacity.clamp(60.0, 100.0) / 100.0);
+    t.set_popup_alpha(p.popup_opacity.clamp(30.0, 100.0) / 100.0);
     t.set_window_alpha(if p.window_opacity > 0.0 { p.window_opacity.clamp(20.0, 100.0) / 100.0 } else { 0.0 });
     powerdesk_core::system::set_backdrop(window_hwnd(ui), effect);
 }
@@ -145,7 +145,8 @@ fn render(s: &Shared) {
     g.set_theme(theme);
     g.set_accent(p.accent.clone().into());
     g.set_effect(effect_of(p) as i32);
-    g.set_popup_opacity(p.popup_opacity.clamp(60.0, 100.0));
+    g.set_popup_opacity(p.popup_opacity.clamp(30.0, 100.0));
+    g.set_popup_blur(p.popup_blur);
     g.set_taskbar_opacity(p.taskbar_opacity.clamp(0.0, 100.0));
     g.set_taskbar_clear_desktop(p.taskbar_clear_desktop);
     g.set_system_accent(sys);
@@ -199,10 +200,34 @@ fn change(s: &Shared, f: impl FnOnce(&mut Prefs)) {
 
 /// Wygląd całego okna od nowa (także tło DWM – wymaga już utworzonego okna).
 pub fn relook(s: &Shared) {
-    let b = s.borrow();
-    if let Some(ui) = b.ui.upgrade() {
-        apply_look(&ui, &b.prefs);
+    {
+        let b = s.borrow();
+        if let Some(ui) = b.ui.upgrade() {
+            apply_look(&ui, &b.prefs);
+        }
     }
+    // Paski i ich okienka mają własne kopie motywu – od razu nowy wygląd.
+    crate::taskbar::relook();
+}
+
+/// Motyw okienka (jasny/ciemny, akcent, krycie) jak w głównym oknie – jedno źródło dla
+/// wszystkich wyskakujących okienek.
+pub fn popup_theme(t: &Theme) {
+    crate::with_state(|s| {
+        if let Some(ui) = s.borrow().ui.upgrade() {
+            let m = ui.global::<Theme>();
+            t.set_light(m.get_light());
+            t.set_accent_override(m.get_accent_override());
+            t.set_popup_alpha(m.get_popup_alpha());
+        }
+    });
+}
+
+/// Rozmycie tła pod okienkami (ustawienie).
+pub fn popup_blur() -> bool {
+    let mut on = true;
+    crate::with_state(|s| on = s.borrow().prefs.popup_blur);
+    on
 }
 
 pub fn set_theme(s: &Shared, i: i32) {
@@ -220,7 +245,7 @@ pub fn set_taskbar_opacity(s: &Shared, v: f32) {
 }
 
 pub fn set_popup_opacity(s: &Shared, v: f32) {
-    change(s, |p| p.popup_opacity = v.clamp(60.0, 100.0));
+    change(s, |p| p.popup_opacity = v.clamp(30.0, 100.0));
     relook(s);
 }
 
@@ -263,6 +288,10 @@ pub fn toggle(s: &Shared, key: &str) {
         "show-hidden" => change(s, |p| p.show_hidden = !p.show_hidden),
         "folders-first" => change(s, |p| p.folders_first = !p.folders_first),
         "auto-gallery" => change(s, |p| p.auto_gallery = !p.auto_gallery),
+        "popup-blur" => {
+            change(s, |p| p.popup_blur = !p.popup_blur);
+            crate::taskbar::relook();
+        }
         "folder-sizes" => change(s, |p| p.folder_sizes = !p.folder_sizes),
         "viewer-info" => change(s, |p| p.viewer_info = !p.viewer_info),
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),

@@ -13,11 +13,24 @@ export component BarMenuWindow inherits Window {
     in property <[MenuEntry]> entries;
     in property <length> menu-width: 240px;
     callback chosen(int);
+    /// Escape – zamknięcie bez wyboru.
+    callback dismiss();
     width: root.menu-width;
-    MenuBody {
-        entries: root.entries;
-        chosen(i) => {
-            root.chosen(i);
+    forward-focus: keys;
+    keys := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                root.dismiss();
+                return accept;
+            }
+            reject
+        }
+        MenuBody {
+            framed: false;
+            entries: root.entries;
+            chosen(i) => {
+                root.chosen(i);
+            }
         }
     }
 }

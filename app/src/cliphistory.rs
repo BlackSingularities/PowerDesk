@@ -46,10 +46,8 @@ pub fn toggle() {
     let Ok(w) = ClipWindow::new() else { return };
     // Motyw i krycie jak okienka paska; miejsce – nad paskiem monitora z kursorem, na środku.
     if let Some((light, accent, alpha, (x, bottom, mw), scale)) = crate::taskbar::popup_place() {
-        let t = w.global::<Theme>();
-        t.set_light(light);
-        t.set_accent_override(accent);
-        t.set_popup_alpha(alpha);
+        let _ = (light, accent, alpha);
+        crate::settings::popup_theme(&w.global::<Theme>());
         let (pw, ph) = ((WIDTH * scale) as i32, (HEIGHT * scale) as i32);
         w.window().set_position(PhysicalPosition::new(x + (mw - pw) / 2, bottom - ph - (8.0 * scale) as i32));
         w.window().set_size(PhysicalSize::new(pw as u32, ph as u32));

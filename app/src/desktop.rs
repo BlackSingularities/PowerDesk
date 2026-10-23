@@ -759,20 +759,14 @@ fn key(s: &Shared, k: &str, ctrl: bool, _shift: bool) {
 // ---------- Menu w stylu PowerDesk ----------
 
 fn show_menu(win: usize, items: Vec<Item>, x: f32, y: f32) {
-    D.with(|d| {
+    let Some(w) = D.with(|d| {
         let mut d = d.borrow_mut();
-        let Some(w) = d.windows.get(win).map(|w| w.clone_strong()) else { return };
-        let size = w.window().size().to_logical(w.window().scale_factor());
-        let (entries, width, mx, my) = menus::layout(&items, x, y, size);
-        w.set_menu_x(mx);
-        w.set_menu_y(my);
-        w.set_menu_width(width);
-        w.set_menu_entries(ModelRc::new(VecModel::from(entries)));
-        d.menu = items;
         d.menu_at = (x, y);
-        drop(d);
-        w.invoke_show_menu();
-    });
+        d.windows.get(win).map(|w| w.clone_strong())
+    }) else {
+        return;
+    };
+    menus::show_in(w.window(), items, x, y);
 }
 
 fn menu_chosen(s: &Shared, i: usize) {
