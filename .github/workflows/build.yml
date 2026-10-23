@@ -8,7 +8,8 @@ permissions:
   contents: read
 concurrency:
   group: build-${{ github.ref }}
-  cancel-in-progress: false
+  # Nowy commit anuluje budowę w toku – budujemy i wydajemy tylko najnowszy stan.
+  cancel-in-progress: true
 
 jobs:
   build:
