@@ -7,6 +7,7 @@ mod desktop;
 mod dragdrop;
 mod taskbar;
 mod start;
+mod cliphistory;
 mod facets;
 mod fmt;
 mod home;
@@ -204,6 +205,7 @@ fn close_window(s: &Shared) {
 /// Koniec programu: pulpit i pasek Windows wracają (strażnik niczego już nie zastanie).
 pub fn quit(_s: &Shared) {
     start::close();
+    cliphistory::close();
     desktop::close();
     taskbar::close();
     powerdesk_core::shellswap::restore();
@@ -311,6 +313,8 @@ fn main() -> Result<(), slint::PlatformError> {
     powerdesk_core::shellswap::spawn_guard();
     desktop::open(&st);
     taskbar::open(&st);
+    // Własna historia schowka (Win+V) – nasłuch od startu, żeby nic nie umknęło.
+    cliphistory::start();
     // Z autostartu: bez okna folderów – pojawia się z menu Start albo po Win+E.
     let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
     if !hidden {
@@ -1868,6 +1872,7 @@ pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     desktop::thumbs_arrived(paths);
     taskbar::thumbs_arrived(paths);
     start::thumbs_arrived(paths);
+    cliphistory::thumbs_arrived(paths);
     let Some(ui) = s.borrow().ui.upgrade() else { return };
     let side = s.borrow().side_paths.iter().any(|p| paths.contains(p));
     {

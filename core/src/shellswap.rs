@@ -1,9 +1,12 @@
 //! Podmiana pulpitu i paska zadań Windows na PowerDesk oraz przywracanie.
 //!
-//! Pasek: systemowe paski (`Shell_TrayWnd`, `Shell_SecondaryTrayWnd`) są ukryte i przestawione
-//! na autoukrywanie (zwalniają miejsce), a paski PowerDesk rejestrują się jako AppBar – okna
-//! zmaksymalizowane kończą się nad nimi. Pulpit: okna pulpitu PowerDesk są dziećmi `Progman`
-//! (Win+D ich nie chowa), widok ikon Windows (`SHELLDLL_DefView`) jest ukryty.
+//! Pasek: systemowe paski (`Shell_TrayWnd`, `Shell_SecondaryTrayWnd`) są tylko ukryte – bez
+//! autoukrywania Windows dalej rezerwuje dla nich dół każdego monitora, a tam stoi pasek
+//! PowerDesk (ta sama wysokość). Nic nie przeliczamy, więc nic nie miga; hak zdarzeń chowa
+//! pasek Windows od razu, gdy ten się pokaże (np. po restarcie Eksploratora).
+//! Pulpit: okna pulpitu PowerDesk leżą w warstwie tapety (`WorkerW` – w Windows 11 24H2
+//! dziecko `Progman`, wcześniej okno za ikonami), jak żywe tapety; Win+D ich nie chowa.
+//! Widok ikon Windows (`SHELLDLL_DefView`) jest ukryty.
 //!
 //! Stan sprzed podmiany leży w pliku – przywraca go zamknięcie programu, strażnik po awarii
 //! (`--shell-guard <pid>`) i deinstalator (`--remove-integration`).
@@ -13,11 +16,15 @@ use std::path::PathBuf;
 use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{HWND, LPARAM, RECT};
 use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, INFINITE, PROCESS_SYNCHRONIZE};
-use windows::Win32::UI::Shell::{SHAppBarMessage, ABE_BOTTOM, ABM_GETSTATE, ABM_NEW, ABM_QUERYPOS, ABM_REMOVE, ABM_SETPOS, ABM_SETSTATE, ABS_ALWAYSONTOP, ABS_AUTOHIDE, APPBARDATA};
+use windows::Win32::UI::Shell::{SHAppBarMessage, ABM_GETSTATE, ABM_SETSTATE, APPBARDATA};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetWindowRect, IsWindow, IsWindowVisible, SetParent, SetWindowPos, ShowWindow, HWND_TOP, SWP_NOACTIVATE, SWP_SHOWWINDOW,
     SW_HIDE, SW_SHOWNA,
 };
+
+/// Podmiana trwa – hak zdarzeń chowa wtedy wysuwający się pasek Windows.
+static ACTIVE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static HOOKED: std::sync::Once = std::sync::Once::new();
 
 /// Flaga strażnika: czeka na koniec procesu PowerDesk i przywraca Windows, jeśli trzeba.
 pub const GUARD_FLAG: &str = "--shell-guard";
@@ -36,20 +43,12 @@ fn workers_file() -> PathBuf {
     state_file().with_file_name("shell-swap-workerw.txt")
 }
 
-/// Okna WorkerW najwyższego poziomu: z widokiem ikon i warstwa tapety – leżą nad Progman.
-fn workers() -> Vec<HWND> {
-    unsafe extern "system" fn each(w: HWND, lp: LPARAM) -> BOOL {
-        let out = &mut *(lp.0 as *mut Vec<HWND>);
-        if class_of(w) == "WorkerW" {
-            out.push(w);
-        }
-        BOOL(1)
-    }
-    let mut out: Vec<HWND> = Vec::new();
+/// Okno pulpitu PowerDesk na wierzch w swojej warstwie (nad obrazem tapety Windows).
+pub fn raise(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{SWP_NOMOVE, SWP_NOSIZE};
     unsafe {
-        let _ = EnumWindows(Some(each), LPARAM(&mut out as *mut _ as isize));
+        let _ = SetWindowPos(h(hwnd), Some(HWND_TOP), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     }
-    out
 }
 
 unsafe fn class_of(w: HWND) -> String {
@@ -113,13 +112,13 @@ fn set_taskbar_state(state: u32) {
 /// Ukrywa pasek Windows. Stan zapisujemy tylko za pierwszym razem – ponowne wywołanie
 /// (co sekundę, po restarcie Eksploratora) nie nadpisze go stanem już zmienionym.
 pub fn hide_taskbar() {
+    ACTIVE.store(true, std::sync::atomic::Ordering::SeqCst);
+    HOOKED.call_once(hook_taskbar);
     let file = state_file();
     if !file.exists() {
         let _ = std::fs::create_dir_all(file.parent().unwrap_or(&file));
-        let _ = std::fs::write(&file, taskbar_state().to_string());
-    }
-    if taskbar_state() & ABS_AUTOHIDE == 0 {
-        set_taskbar_state(ABS_AUTOHIDE | ABS_ALWAYSONTOP);
+        // Znacznik podmiany; stan autoukrywania zostaje użytkownika (nie zmieniamy go).
+        let _ = std::fs::write(&file, "keep");
     }
     for b in system_bars() {
         unsafe {
@@ -130,21 +129,21 @@ pub fn hide_taskbar() {
     }
 }
 
-/// Ukrywa ikony pulpitu Windows i okna WorkerW nad Progman (inaczej przykryłyby pulpit PowerDesk).
+/// Ukrywa ikony pulpitu Windows. W starszym układzie widok ikon siedzi w osobnym `WorkerW`
+/// na całym ekranie – chowamy też je, inaczej przechwytywałoby kliknięcia (zapis do przywrócenia).
 pub fn hide_desktop_icons() {
+    use windows::Win32::UI::WindowsAndMessaging::GetParent;
+    let mut hidden = Vec::new();
     for v in desktop_views() {
         unsafe {
             if IsWindowVisible(v).as_bool() {
                 let _ = ShowWindow(v, SW_HIDE);
             }
-        }
-    }
-    let mut hidden = Vec::new();
-    for w in workers() {
-        unsafe {
-            if IsWindowVisible(w).as_bool() {
-                let _ = ShowWindow(w, SW_HIDE);
-                hidden.push(w.0 as isize);
+            if let Ok(p) = GetParent(v) {
+                if class_of(p) == "WorkerW" && IsWindowVisible(p).as_bool() {
+                    let _ = ShowWindow(p, SW_HIDE);
+                    hidden.push(p.0 as isize);
+                }
             }
         }
     }
@@ -167,10 +166,14 @@ pub fn swapped() -> bool {
 /// Przywraca pasek i ikony Windows do stanu sprzed podmiany. Bezpieczne do wielokrotnego
 /// wywołania i bez pliku stanu (wtedy tylko pokazuje ukryte elementy).
 pub fn restore() {
+    ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
     let file = state_file();
+    // Starsze wersje przestawiały pasek na autoukrywanie i zapisywały stan sprzed – oddajemy go.
     let prev = std::fs::read_to_string(&file).ok().and_then(|s| s.trim().parse::<u32>().ok());
     if let Some(state) = prev {
-        set_taskbar_state(state);
+        if state != taskbar_state() {
+            set_taskbar_state(state);
+        }
     }
     for b in system_bars() {
         unsafe {
@@ -200,16 +203,42 @@ pub fn restore() {
 /// Zwraca false, gdy nie ma `Progman` (Eksplorator nie działa).
 pub fn attach_desktop(hwnd: isize, x: i32, y: i32, width: i32, height: i32) -> bool {
     unsafe {
-        let Ok(progman) = FindWindowW(w!("Progman"), None) else { return false };
-        if hwnd == 0 || SetParent(h(hwnd), Some(progman)).is_err() {
+        let Some(layer) = wallpaper_layer() else { return false };
+        if hwnd == 0 || SetParent(h(hwnd), Some(layer)).is_err() {
             return false;
         }
-        // Współrzędne dziecka liczą się od lewego górnego rogu Progman (cały pulpit wirtualny).
+        // Współrzędne dziecka liczą się od lewego górnego rogu warstwy (cały pulpit wirtualny).
         let mut r = RECT::default();
-        let _ = GetWindowRect(progman, &mut r);
+        let _ = GetWindowRect(layer, &mut r);
         let _ = SetWindowPos(h(hwnd), Some(HWND_TOP), x - r.left, y - r.top, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
         true
     }
+}
+
+/// Warstwa tapety, w której żywe tapety rysują swoje okna. Komunikat 0x052C prosi Progman
+/// o jej utworzenie. Windows 11 24H2: `WorkerW` jest dzieckiem Progman; wcześniej to okno
+/// najwyższego poziomu tuż za oknem z widokiem ikon.
+unsafe fn wallpaper_layer() -> Option<HWND> {
+    use windows::Win32::UI::WindowsAndMessaging::{SendMessageTimeoutW, SMTO_NORMAL};
+    let progman = FindWindowW(w!("Progman"), None).ok()?;
+    let mut res = 0usize;
+    let _ = SendMessageTimeoutW(progman, 0x052C, windows::Win32::Foundation::WPARAM(0xD), LPARAM(1), SMTO_NORMAL, 1000, Some(&mut res));
+    if let Ok(w) = FindWindowExW(Some(progman), None, w!("WorkerW"), None) {
+        return Some(w);
+    }
+    unsafe extern "system" fn each(w: HWND, lp: LPARAM) -> BOOL {
+        let out = &mut *(lp.0 as *mut Option<HWND>);
+        if FindWindowExW(Some(w), None, w!("SHELLDLL_DefView"), None).is_ok() {
+            if let Ok(next) = FindWindowExW(None, Some(w), w!("WorkerW"), None) {
+                *out = Some(next);
+                return BOOL(0);
+            }
+        }
+        BOOL(1)
+    }
+    let mut out: Option<HWND> = None;
+    let _ = EnumWindows(Some(each), LPARAM(&mut out as *mut _ as isize));
+    out
 }
 
 /// Czy okno nadal istnieje (po restarcie Eksploratora dzieci Progman giną razem z nim).
@@ -217,25 +246,25 @@ pub fn alive(hwnd: isize) -> bool {
     unsafe { IsWindow(Some(h(hwnd))).as_bool() }
 }
 
-/// Pasek PowerDesk jako AppBar na dole monitora – system odejmuje go od obszaru roboczego.
-pub fn appbar_add(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
-    let mut d = APPBARDATA { cbSize: std::mem::size_of::<APPBARDATA>() as u32, hWnd: h(hwnd), uCallbackMessage: 0x8000 + 0x50, ..Default::default() };
-    unsafe {
-        SHAppBarMessage(ABM_NEW, &mut d);
-        d.uEdge = ABE_BOTTOM;
-        d.rc = RECT { left: x, top: y, right: x + width, bottom: y + height };
-        SHAppBarMessage(ABM_QUERYPOS, &mut d);
-        // System mógł przesunąć dół (np. inny AppBar) – wysokość zostaje nasza.
-        d.rc.top = d.rc.bottom - height;
-        SHAppBarMessage(ABM_SETPOS, &mut d);
+/// Hak zdarzeń okien: pasek Windows pokazany albo przesunięty (autoukrywanie wysuwa go przy
+/// dolnej krawędzi) – chowamy go od razu, póki trwa podmiana. Własny wątek z pętlą komunikatów.
+fn hook_taskbar() {
+    use windows::Win32::UI::Accessibility::{SetWinEventHook, HWINEVENTHOOK};
+    use windows::Win32::UI::WindowsAndMessaging::{GetMessageW, EVENT_OBJECT_SHOW, MSG, WINEVENT_OUTOFCONTEXT};
+    unsafe extern "system" fn on_event(_: HWINEVENTHOOK, _: u32, w: HWND, obj: i32, _: i32, _: u32, _: u32) {
+        if obj != 0 || !ACTIVE.load(std::sync::atomic::Ordering::SeqCst) {
+            return;
+        }
+        let c = class_of(w);
+        if (c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") && IsWindowVisible(w).as_bool() {
+            let _ = ShowWindow(w, SW_HIDE);
+        }
     }
-}
-
-pub fn appbar_remove(hwnd: isize) {
-    let mut d = APPBARDATA { cbSize: std::mem::size_of::<APPBARDATA>() as u32, hWnd: h(hwnd), ..Default::default() };
-    unsafe {
-        SHAppBarMessage(ABM_REMOVE, &mut d);
-    }
+    std::thread::spawn(|| unsafe {
+        let _ = SetWinEventHook(EVENT_OBJECT_SHOW, EVENT_OBJECT_SHOW, None, Some(on_event), 0, 0, WINEVENT_OUTOFCONTEXT);
+        let mut msg = MSG::default();
+        while GetMessageW(&mut msg, None, 0, 0).as_bool() {}
+    });
 }
 
 /// Uruchamia strażnika: osobny proces, który po końcu tego (także po awarii) przywraca Windows.

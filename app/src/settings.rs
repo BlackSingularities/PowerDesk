@@ -98,11 +98,13 @@ pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
 pub struct Look {
     pub light: bool,
     pub accent: Color,
+    /// Krycie okienek (menu, głośność, Start…) – to samo co w oknie.
+    pub popup_alpha: f32,
 }
 
 pub fn look(ui: &crate::MainWindow) -> Look {
     let t = ui.global::<Theme>();
-    Look { light: t.get_light(), accent: t.get_accent_override() }
+    Look { light: t.get_light(), accent: t.get_accent_override(), popup_alpha: t.get_popup_alpha() }
 }
 
 fn effect_of(p: &Prefs) -> u32 {

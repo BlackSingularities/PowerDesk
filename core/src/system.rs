@@ -218,3 +218,37 @@ pub fn set_backdrop(hwnd: isize, kind: u32) {
         let _ = DwmSetWindowAttribute(h, DWMWA_SYSTEMBACKDROP_TYPE, &t as *const i32 as *const _, 4);
     }
 }
+
+/// Okno z przezroczystym tłem: DWM łączy kanał alfa okna z tym, co pod spodem (bez rozmycia).
+pub fn see_through(hwnd: isize) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;
+    use windows::Win32::UI::Controls::MARGINS;
+    if hwnd == 0 {
+        return;
+    }
+    let m = MARGINS { cxLeftWidth: -1, cxRightWidth: -1, cyTopHeight: -1, cyBottomHeight: -1 };
+    unsafe {
+        let _ = DwmExtendFrameIntoClientArea(HWND(hwnd as *mut _), &m);
+    }
+}
+
+/// Wygląd okienek PowerDesk (menu, głośność, kalendarz, Start…) jak menu w oknie: zaokrąglone
+/// rogi i cienka obwódka w kolorze linii (Windows 11 – DWM; starsze systemy pomijają).
+/// `None` – bez obwódki, samo tło.
+pub fn style_popup(hwnd: isize, border: Option<(u8, u8, u8)>) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE};
+    if hwnd == 0 {
+        return;
+    }
+    let h = HWND(hwnd as *mut _);
+    // DWMWCP_ROUND = 2; kolor jako COLORREF (0x00BBGGRR).
+    let corner: i32 = 2;
+    // DWMWA_COLOR_NONE = 0xFFFFFFFE – DWM nie rysuje obwódki.
+    let color: u32 = border.map_or(0xFFFF_FFFE, |b| b.0 as u32 | (b.1 as u32) << 8 | (b.2 as u32) << 16);
+    unsafe {
+        let _ = DwmSetWindowAttribute(h, DWMWA_WINDOW_CORNER_PREFERENCE, &corner as *const i32 as *const _, 4);
+        let _ = DwmSetWindowAttribute(h, DWMWA_BORDER_COLOR, &color as *const u32 as *const _, 4);
+    }
+}

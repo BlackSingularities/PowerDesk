@@ -93,6 +93,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
             let t = w.global::<Theme>();
             t.set_light(l.light);
             t.set_accent_override(l.accent);
+            t.set_popup_alpha(l.popup_alpha);
         }
         w.set_bg(Color::from_rgb_u8(m.color.0, m.color.1, m.color.2));
         if let Some(buf) = walls[i].take() {
@@ -168,6 +169,8 @@ fn watch() {
     if D.with(|d| d.borrow().hwnds.is_empty() && !d.borrow().windows.is_empty()) {
         attach();
     }
+    // Eksplorator potrafi wysunąć swoją warstwę tapety nad nasze okna – wracamy na wierzch.
+    D.with(|d| d.borrow().hwnds.iter().for_each(|&h| powerdesk_core::shellswap::raise(h)));
     powerdesk_core::shellswap::hide_desktop_icons();
 }
 

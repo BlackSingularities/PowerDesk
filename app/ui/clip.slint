@@ -1,0 +1,176 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, TipArea } from "components.slint";
+
+/// Wpis historii schowka.
+export struct ClipItem {
+    /// 0 – tekst, 1 – obraz, 2 – pliki.
+    kind: int,
+    /// Podgląd tekstu albo nazwy plików.
+    text: string,
+    img: image,
+    has-img: bool,
+    pinned: bool,
+    /// „przed chwilą”, „5 min temu”…
+    when: string,
+}
+
+/// Mały przycisk w rogu wpisu (przypnij, usuń).
+component ClipButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    in property <bool> on;
+    callback clicked();
+    width: 26px;
+    height: 26px;
+    border-radius: Theme.r-s;
+    background: cb-ta.has-hover ? Theme.press : transparent;
+    Icon {
+        commands: root.icon;
+        size: 13px;
+        color: root.on ? Theme.accent : Theme.dim;
+    }
+    cb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Historia schowka PowerDesk (Win+V): wpisy od najnowszego, przypięte na górze;
+/// klik wkleja wpis w okno, w którym pracowano. Wygląd jak pozostałe okienka paska.
+export component ClipWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    title: "PowerDesk – schowek";
+    background: Theme.popup-high;
+    width: 380px;
+    height: 500px;
+    in property <[ClipItem]> items;
+    callback pick(int);
+    callback pin(int);
+    callback remove(int);
+    callback clear();
+    callback dismiss();
+
+    fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                root.dismiss();
+                return accept;
+            }
+            reject
+        }
+    }
+
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        HorizontalLayout {
+            spacing: 8px;
+            Text {
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                text: "Schowek";
+                font-size: 14px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+            if root.items.length > 0: Rectangle {
+                width: cl.preferred-width + 20px;
+                height: 28px;
+                border-radius: Theme.r-s;
+                background: cl-ta.has-hover ? Theme.press : Theme.line;
+                cl := Text {
+                    text: "Wyczyść wszystko";
+                    font-size: 12px;
+                    color: Theme.text;
+                }
+                cl-ta := TipArea {
+                    tip: "Przypięte zostają";
+                    clicked => {
+                        root.clear();
+                    }
+                }
+            }
+        }
+        if root.items.length == 0: Text {
+            text: "Skopiuj coś (Ctrl+C) – pojawi się tutaj. Win+V otwiera tę historię.";
+            wrap: word-wrap;
+            font-size: 12px;
+            color: Theme.dim;
+        }
+        Flickable {
+            vertical-stretch: 1;
+            content-height: lst.preferred-height;
+            lst := VerticalLayout {
+                alignment: start;
+                spacing: 6px;
+                for c[i] in root.items: Rectangle {
+                    height: c.kind == 1 ? 120px : max(56px, min(96px, tx.preferred-height + 36px));
+                    border-radius: Theme.r;
+                    background: it-ta.has-hover ? Theme.press : Theme.card;
+                    it-ta := TouchArea {
+                        mouse-cursor: pointer;
+                        clicked => {
+                            root.pick(i);
+                        }
+                    }
+                    if c.kind == 1 && c.has-img: Image {
+                        x: 10px;
+                        y: 10px;
+                        width: parent.width - 60px;
+                        height: parent.height - 20px;
+                        source: c.img;
+                        image-fit: contain;
+                        horizontal-alignment: left;
+                    }
+                    tx := Text {
+                        x: 12px;
+                        y: 10px;
+                        width: parent.width - 60px;
+                        height: c.kind == 1 ? 0 : parent.height - 30px;
+                        visible: c.kind != 1;
+                        text: c.text;
+                        wrap: word-wrap;
+                        overflow: elide;
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                    Text {
+                        x: 12px;
+                        y: parent.height - 20px;
+                        text: (c.kind == 2 ? "Pliki · " : c.kind == 1 ? "Obraz · " : "") + c.when;
+                        font-size: 10.5px;
+                        color: Theme.faint;
+                    }
+                    VerticalLayout {
+                        x: parent.width - 34px;
+                        y: 6px;
+                        spacing: 2px;
+                        ClipButton {
+                            icon: Icons.pin;
+                            on: c.pinned;
+                            tip: c.pinned ? "Odepnij" : "Przypnij – zostaje po czyszczeniu";
+                            clicked => {
+                                root.pin(i);
+                            }
+                        }
+                        ClipButton {
+                            icon: Icons.trash;
+                            tip: "Usuń z historii";
+                            clicked => {
+                                root.remove(i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public function focus-keys() {
+        fs.focus();
+    }
+}

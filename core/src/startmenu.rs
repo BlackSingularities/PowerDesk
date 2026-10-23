@@ -115,8 +115,12 @@ pub fn power(p: Power) {
 // ---------- Klawisz Win ----------
 
 static ON_START: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
+/// Win+V – historia schowka PowerDesk zamiast systemowej.
+static ON_CLIPBOARD: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static WIN_DOWN: AtomicBool = AtomicBool::new(false);
 static COMBO: AtomicBool = AtomicBool::new(false);
+/// Klawisz z Win połknięty przez nas (Win+V) – system widział samo Win, trzeba je zamaskować.
+static SWALLOWED: AtomicBool = AtomicBool::new(false);
 /// Nieprzypisany kod klawisza – „maskuje” samotne Win, żeby Windows nie otwierał swojego Start.
 const MASK: VIRTUAL_KEY = VIRTUAL_KEY(0xE8);
 
@@ -143,11 +147,24 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
                 if !WIN_DOWN.swap(true, Ordering::SeqCst) {
                     COMBO.store(false, Ordering::SeqCst);
                 }
+            } else if WIN_DOWN.load(Ordering::SeqCst) && k.vkCode == b'V' as u32 && ON_CLIPBOARD.get().is_some() {
+                // Win+V: nasza historia; V nie trafia do systemu (inaczej otworzyłby swoją).
+                COMBO.store(true, Ordering::SeqCst);
+                SWALLOWED.store(true, Ordering::SeqCst);
+                if down {
+                    if let Some(f) = ON_CLIPBOARD.get() {
+                        f();
+                    }
+                }
+                return LRESULT(1);
             } else if down && WIN_DOWN.load(Ordering::SeqCst) {
                 // Win+E, Win+D, Win+Tab… – skrót systemowy, nie Start.
                 COMBO.store(true, Ordering::SeqCst);
             } else if win && up {
                 let alone = WIN_DOWN.swap(false, Ordering::SeqCst) && !COMBO.load(Ordering::SeqCst);
+                if SWALLOWED.swap(false, Ordering::SeqCst) {
+                    send_mask();
+                }
                 if alone {
                     send_mask();
                     if let Some(f) = ON_START.get() {
@@ -158,6 +175,11 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
         }
     }
     CallNextHookEx(None, code, wp, lp)
+}
+
+/// Win+V otwiera historię schowka PowerDesk (wywołać przed `hook_win_key`).
+pub fn hook_win_v(on_clipboard: impl Fn() + Send + Sync + 'static) {
+    let _ = ON_CLIPBOARD.set(Box::new(on_clipboard));
 }
 
 /// Samo Win (bez innego klawisza) otwiera menu Start PowerDesk. Hak żyje na własnym wątku

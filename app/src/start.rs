@@ -49,7 +49,7 @@ pub fn is_open() -> bool {
 }
 
 /// Otwiera nad paskiem: lewy dolny róg w (x, bottom) – piksele ekranu, `light`/`accent` z paska.
-pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color) {
+pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color, alpha: f32) {
     if is_open() {
         close();
         return;
@@ -58,6 +58,7 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     let t = w.global::<Theme>();
     t.set_light(light);
     t.set_accent_override(accent);
+    t.set_popup_alpha(alpha);
     w.set_user(std::env::var("USERNAME").unwrap_or_default().into());
     let (lw, lh) = size();
     let (pw, ph) = ((lw * scale) as i32, (lh * scale) as i32);
@@ -143,6 +144,9 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     let _ = w.show();
     let hwnd = crate::window_hwnd(w.window());
     powerdesk_core::desktop::hide_from_taskbar(hwnd);
+    // Start bez obwódki – samo tło (zaokrąglone rogi i krycie jak pozostałe okienka).
+    powerdesk_core::system::style_popup(hwnd, None);
+    powerdesk_core::system::see_through(hwnd);
     powerdesk_core::taskwin::activate(hwnd);
     w.invoke_focus_search();
     START.with(|s| *s.borrow_mut() = Some(Start { w, shown: Vec::new(), menu: Vec::new() }));

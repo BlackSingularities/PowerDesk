@@ -100,6 +100,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             let t = w.global::<Theme>();
             t.set_light(l.light);
             t.set_accent_override(l.accent);
+            t.set_popup_alpha(l.popup_alpha);
         }
         w.on_start(move || open_start(n));
         w.on_start_context(move |x| start_menu(n, x));
@@ -157,9 +158,6 @@ pub fn close() {
     TIMER.with(|t| t.stop());
     let bars = BARS.with(|b| std::mem::take(&mut *b.borrow_mut()));
     for b in bars {
-        if b.placed {
-            powerdesk_core::shellswap::appbar_remove(crate::window_hwnd(b.w.window()));
-        }
         let _ = b.w.hide();
     }
 }
@@ -216,8 +214,27 @@ fn open_start(bar: usize) {
     close_menu();
     close_popup();
     let Some(((x, y), _, _, scale)) = spot(bar) else { return };
-    let Some((light, accent)) = BARS.with(|b| b.borrow().get(bar).map(|b| (b.w.global::<Theme>().get_light(), b.w.global::<Theme>().get_accent_override()))) else { return };
-    crate::start::toggle(x, y, scale, light, accent);
+    let Some((light, accent, alpha)) = BARS.with(|b| {
+        b.borrow().get(bar).map(|b| {
+            let t = b.w.global::<Theme>();
+            (t.get_light(), t.get_accent_override(), t.get_popup_alpha())
+        })
+    }) else {
+        return;
+    };
+    crate::start::toggle(x, y, scale, light, accent, alpha);
+}
+
+/// Dla okienek spoza paska (historia schowka): motyw, krycie, miejsce nad paskiem monitora
+/// z kursorem (lewa krawędź, góra paska, szerokość monitora) i skala.
+pub fn popup_place() -> Option<(bool, slint::Color, f32, (i32, i32, i32), f32)> {
+    let bar = bar_under_cursor();
+    BARS.with(|b| {
+        b.borrow().get(bar).map(|b| {
+            let t = b.w.global::<Theme>();
+            (t.get_light(), t.get_accent_override(), t.get_popup_alpha(), (b.origin.0, b.pos.1, b.mon.0), b.w.window().scale_factor())
+        })
+    })
 }
 
 /// Pasek na monitorze, na którym jest kursor (pierwszy, gdy nie da się ustalić).
@@ -362,6 +379,7 @@ fn show_menu(bar: usize, items: Vec<Item>, x: f32) {
             let src = bar.w.global::<Theme>();
             t.set_light(src.get_light());
             t.set_accent_override(src.get_accent_override());
+            t.set_popup_alpha(src.get_popup_alpha());
         }
     });
     let (entries, width, _, _) = menus::layout(&items, 0.0, 0.0, slint::LogicalSize::new(f32::MAX, f32::MAX));
@@ -410,7 +428,17 @@ fn show_above(win: &slint::Window) {
     let _ = win.show();
     let hwnd = crate::window_hwnd(win);
     data::hide_from_taskbar(hwnd);
+    popup_look(hwnd);
     taskwin::activate(hwnd);
+}
+
+/// Wygląd okienka jak menu kontekstowe: zaokrąglone rogi, obwódka w kolorze linii motywu,
+/// przezroczystość okienek z ustawień (tło okna łączy się z tym, co pod spodem).
+pub fn popup_look(hwnd: isize) {
+    let line = BARS.with(|b| b.borrow().first().map(|b| b.w.global::<Theme>().get_line()));
+    let c = line.unwrap_or(slint::Color::from_rgb_u8(60, 60, 60));
+    powerdesk_core::system::style_popup(hwnd, Some((c.red(), c.green(), c.blue())));
+    powerdesk_core::system::see_through(hwnd);
 }
 
 /// Motyw okienka jak motyw paska (jasny/ciemny, akcent).
@@ -421,6 +449,7 @@ macro_rules! same_theme {
                 let (t, src) = ($w.global::<Theme>(), bar.w.global::<Theme>());
                 t.set_light(src.get_light());
                 t.set_accent_override(src.get_accent_override());
+            t.set_popup_alpha(src.get_popup_alpha());
             }
         })
     };
@@ -448,6 +477,7 @@ fn own_popups() -> Vec<isize> {
     });
     THUMBS.with(|t| out.extend(t.borrow().as_ref().map(|t| crate::window_hwnd(t.w.window()))));
     out.extend(crate::start::hwnd());
+    out.extend(crate::cliphistory::hwnd());
     out
 }
 
@@ -900,6 +930,7 @@ fn show_thumbs(bar: usize, i: usize, x: f32) {
     let _ = w.show();
     let dest = crate::window_hwnd(w.window());
     data::hide_from_taskbar(dest);
+    popup_look(dest);
     if fg != 0 {
         taskwin::activate(fg);
     }
@@ -953,7 +984,8 @@ fn place(bar: &mut Bar) {
         data::hide_from_taskbar(hwnd);
         bar.w.window().set_position(slint::PhysicalPosition::new(bar.pos.0, bar.pos.1));
         bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
-        powerdesk_core::shellswap::appbar_add(hwnd, bar.pos.0, bar.pos.1, bar.mon.0, h);
+        // Tło paska może być półprzezroczyste (krycie z ustawień) – DWM pokazuje, co pod spodem.
+        powerdesk_core::system::see_through(hwnd);
         bar.placed = true;
     }
     // Okno na cały monitor (gra, film) – pasek pod nim; inaczej na wierzchu.
