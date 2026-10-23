@@ -161,7 +161,7 @@ pub fn media(k: i32) {
 const PHOTO_EXT: [&str; 6] = ["jpg", "jpeg", "png", "webp", "bmp", "gif"];
 
 /// Zdjęcia z folderu i jego podfolderów (do 2000, bez ukrytych).
-fn scan(folder: &str) -> Vec<PathBuf> {
+pub fn scan(folder: &str) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let mut stack = vec![PathBuf::from(folder)];
     while let Some(d) = stack.pop() {

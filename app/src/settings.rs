@@ -169,6 +169,13 @@ fn render(s: &Shared) {
     g.set_window_opacity(p.window_opacity);
     g.set_close_to_tray(p.close_to_tray);
     g.set_autostart_window(p.autostart_window);
+    g.set_wall_mode(match p.wallpaper_mode.as_str() {
+        "slideshow" => 1,
+        "bing" => 2,
+        _ => 0,
+    });
+    g.set_wall_folder(p.wallpaper_folder.clone().into());
+    g.set_wall_minutes(p.wallpaper_minutes as i32);
     g.set_remembered(p.folders.len() as i32);
     g.set_version(env!("CARGO_PKG_VERSION").into());
     g.set_prefs_path(prefs_path().into());
@@ -359,6 +366,30 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
+    let s = st.clone();
+    g.on_set_wall_mode(move |m| {
+        let mode = ["", "slideshow", "bing"][m.clamp(0, 2) as usize];
+        // Pokaz slajdów bez folderu – od razu wybór folderu (domyślnie Obrazy).
+        if mode == "slideshow" && s.borrow().prefs.wallpaper_folder.is_empty() {
+            let pics = dirs::picture_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+            change(&s, |p| p.wallpaper_folder = pics);
+        }
+        crate::wallpapers::set_mode(mode);
+        render(&s);
+    });
+    let s = st.clone();
+    g.on_pick_wall_folder(move || {
+        let cur = s.borrow().prefs.wallpaper_folder.clone();
+        if let Some(p) = powerdesk_core::shell::pick_folder(crate::hwnd(&s), "Folder ze zdjęciami na tapetę", (!cur.is_empty()).then_some(cur.as_str())) {
+            change(&s, |x| x.wallpaper_folder = p);
+            crate::wallpapers::refresh();
+        }
+    });
+    let s = st.clone();
+    g.on_set_wall_minutes(move |m| {
+        change(&s, |p| p.wallpaper_minutes = m.max(1) as u32);
+        crate::wallpapers::start_timer();
+    });
     let s = st.clone();
     g.on_report_problem(move || {
         let text = powerdesk_core::log::report(powerdesk_core::update::current());

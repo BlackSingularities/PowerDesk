@@ -27,6 +27,8 @@ struct Desk {
     windows: Vec<DesktopWindow>,
     /// Monitor każdego okna (x, y, szerokość, wysokość – piksele ekranu).
     rects: Vec<(i32, i32, i32, i32)>,
+    /// Tapeta Windows każdego okna (do powrotu z pokazu slajdów i własnych obrazów).
+    defaults: Vec<String>,
     /// Uchwyty okien po wpięciu w Progman – po restarcie Eksploratora przestają istnieć.
     hwnds: Vec<isize>,
     items: Vec<Entry>,
@@ -69,15 +71,25 @@ pub fn open(_s: &Shared) {
         return;
     }
     SCREEN.with(|c| *c.borrow_mut() = data::screen_signature());
-    std::thread::spawn(|| {
+    let cfg = crate::wallpapers::config();
+    std::thread::spawn(move || {
         let mons = data::monitors();
-        let walls: Vec<_> = mons.iter().map(|m| if m.wallpaper.is_empty() { None } else { decode(&m.wallpaper) }).collect();
+        // Numer okna jak w build(): główny monitor pierwszy.
+        let mut order: Vec<usize> = (0..mons.len()).collect();
+        order.sort_by_key(|&i| !mons[i].primary);
+        let images = cfg.images();
+        let bing = if cfg.is_bing() { powerdesk_core::bing::today() } else { None };
+        let mut walls: Vec<(Option<SharedPixelBuffer<Rgba8Pixel>>, bool)> = vec![(None, false); mons.len()];
+        for (n, &i) in order.iter().enumerate() {
+            let (path, own) = cfg.choose(n, &mons[i].wallpaper, &images, bing.as_ref());
+            walls[i] = (if path.is_empty() { None } else { decode(&path) }, own);
+        }
         let items = data::items();
         let _ = slint::invoke_from_event_loop(move || crate::with_state(|s| build(s, mons, walls, items)));
     });
 }
 
-fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer<Rgba8Pixel>>>, items: Vec<Entry>) {
+fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffer<Rgba8Pixel>>, bool)>, items: Vec<Entry>) {
     if mons.is_empty() {
         transfers::toast(s, "Nie udało się odczytać monitorów i tapet", transfers::Kind::Error, None);
         return;
@@ -88,6 +100,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
     order.sort_by_key(|&i| !mons[i].primary);
     let mut out = Vec::new();
     let mut rects = Vec::new();
+    let mut defaults = Vec::new();
     for (n, i) in order.into_iter().enumerate() {
         let m = &mons[i];
         let Ok(w) = DesktopWindow::new() else { continue };
@@ -99,7 +112,9 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
             t.set_popup_alpha(l.popup_alpha);
         }
         w.set_bg(Color::from_rgb_u8(m.color.0, m.color.1, m.color.2));
-        if let Some(buf) = walls[i].take() {
+        defaults.push(m.wallpaper.clone());
+        let own = walls[i].1;
+        if let Some(buf) = walls[i].0.take() {
             w.set_wallpaper(slint::Image::from_rgba8(buf));
             w.set_has_wallpaper(true);
         }
@@ -124,6 +139,9 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
         w.on_refresh(refresh);
         wire_widgets(&w, n);
         crate::widgets::apply(&w.global::<crate::WidgetData>());
+        if own {
+            w.set_fit(0);
+        }
         let _ = w.show();
         out.push(w);
         rects.push((m.x, m.y, m.width, m.height));
@@ -132,11 +150,13 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
         let mut d = d.borrow_mut();
         d.windows = out;
         d.rects = rects;
+        d.defaults = defaults;
         d.items = items;
     });
     render(s);
     render_widgets(s);
     crate::widgets::start();
+    crate::wallpapers::start_timer();
     // Okno systemowe powstaje dopiero w pętli zdarzeń – styl (bez paska zadań i Alt+Tab)
     // i wpięcie w Progman chwilę później.
     slint::Timer::single_shot(Duration::from_millis(100), attach);
@@ -201,6 +221,29 @@ fn watch() {
     // Eksplorator potrafi wysunąć swoją warstwę tapety nad nasze okna – wracamy na wierzch.
     D.with(|d| d.borrow().hwnds.iter().for_each(|&h| powerdesk_core::shellswap::raise(h)));
     powerdesk_core::shellswap::hide_desktop_icons();
+}
+
+/// Tapety Windows okien pulpitu w ich kolejności.
+pub fn wallpaper_defaults() -> Vec<String> {
+    D.with(|d| d.borrow().defaults.clone())
+}
+
+/// Nowa tapeta okna `n`; `own` – nie z Windows (zawsze „wypełnij”).
+pub fn set_wallpaper(n: usize, buf: Option<SharedPixelBuffer<Rgba8Pixel>>, own: bool) {
+    D.with(|d| {
+        let d = d.borrow();
+        let Some(w) = d.windows.get(n) else { return };
+        match buf {
+            Some(b) => {
+                w.set_wallpaper(slint::Image::from_rgba8(b));
+                w.set_has_wallpaper(true);
+            }
+            None => w.set_has_wallpaper(false),
+        }
+        if own {
+            w.set_fit(0);
+        }
+    });
 }
 
 /// Okna pulpitu (widżety odświeżają ich dane).
@@ -762,8 +805,22 @@ fn background_menu(_s: &Shared, win: usize, x: f32, y: f32) {
         ),
         sep(),
         it("Otwórz folder Pulpit", "folder", |s| crate::open_args(s, vec![desktop_dir()])),
-        it("Tapeta i personalizacja", "image", |_| {
-            let _ = open::that_detached("ms-settings:personalization-background");
+        menus::sub("Tapeta", "image", {
+            let mut t = vec![it("Własny obraz na tym monitorze…", "image", move |s| {
+                if let Some(p) = powerdesk_core::shell::pick_image(crate::hwnd(s), "Tapeta tego monitora") {
+                    crate::wallpapers::set_for_monitor(win, Some(p));
+                }
+            })];
+            if crate::wallpapers::has_own(win) {
+                t.push(it("Tapeta jak na pozostałych", "refresh", move |_| crate::wallpapers::set_for_monitor(win, None)));
+            }
+            if s_mode() == "slideshow" {
+                t.push(it("Następna tapeta", "fwd", |_| crate::wallpapers::next()));
+            }
+            t.push(it("Tapeta i personalizacja Windows", "settings", |_| {
+                let _ = open::that_detached("ms-settings:personalization-background");
+            }));
+            t
         }),
         it("Ustawienia pulpitu", "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_DESKTOP);
@@ -771,6 +828,12 @@ fn background_menu(_s: &Shared, win: usize, x: f32, y: f32) {
         }),
     ]);
     show_menu(win, v, x, y);
+}
+
+fn s_mode() -> String {
+    let mut m = String::new();
+    crate::with_state(|s| m = s.borrow().prefs.wallpaper_mode.clone());
+    m
 }
 
 fn icon_menu(_s: &Shared, x: f32, y: f32) {

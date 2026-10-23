@@ -27,6 +27,7 @@ mod model;
 mod preview;
 mod props;
 mod viewer;
+mod wallpapers;
 mod widgets;
 mod widgetfeeds;
 mod palette;

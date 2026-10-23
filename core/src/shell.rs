@@ -617,3 +617,26 @@ mod thumb_tests {
         assert!(!super::system_thumbnailer(r"C:\x.zzqq"));
     }
 }
+
+/// Okno wyboru pliku obrazu (jpg, png, bmp, webp, gif); None – anulowano.
+pub fn pick_image(hwnd: isize, title: &str) -> Option<String> {
+    use windows::core::PCWSTR;
+    use windows::Win32::System::Com::{CoCreateInstance, CLSCTX_INPROC_SERVER};
+    use windows::Win32::UI::Shell::Common::COMDLG_FILTERSPEC;
+    use windows::Win32::UI::Shell::{FileOpenDialog, IFileOpenDialog, FOS_FORCEFILESYSTEM, SIGDN_FILESYSPATH};
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let dlg: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_INPROC_SERVER).ok()?;
+        let opts = dlg.GetOptions().ok()?;
+        dlg.SetOptions(opts | FOS_FORCEFILESYSTEM).ok()?;
+        let _ = dlg.SetTitle(&HSTRING::from(title));
+        let (name, spec) = (HSTRING::from("Obrazy"), HSTRING::from("*.jpg;*.jpeg;*.png;*.bmp;*.webp;*.gif"));
+        let filters = [COMDLG_FILTERSPEC { pszName: PCWSTR(name.as_ptr()), pszSpec: PCWSTR(spec.as_ptr()) }];
+        let _ = dlg.SetFileTypes(&filters);
+        dlg.Show(Some(HWND(hwnd as *mut _))).ok()?;
+        let n = dlg.GetResult().ok()?.GetDisplayName(SIGDN_FILESYSPATH).ok()?;
+        let path = n.to_string().ok();
+        CoTaskMemFree(Some(n.0 as *const _));
+        path
+    }
+}

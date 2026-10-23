@@ -3,6 +3,7 @@
 
 pub mod archive;
 pub mod autostart;
+pub mod bing;
 pub mod calc;
 pub mod clip;
 pub mod cliphist;
