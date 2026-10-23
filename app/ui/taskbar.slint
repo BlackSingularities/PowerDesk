@@ -599,6 +599,109 @@ export component CalendarWindow inherits Window {
     }
 }
 
+/// Karta podglądu okna nad przyciskiem paska.
+export struct ThumbCard {
+    title: string,
+    img: image,
+    has-img: bool,
+    active: bool,
+    minimized: bool,
+}
+
+/// Podglądy okien grupy nad przyciskiem. Obraz okna rysuje DWM w miejscu podglądu
+/// (taskbar.rs liczy prostokąty z tych samych wymiarów); pod spodem ikona – widać ją,
+/// gdy okno jest zminimalizowane i system nie ma obrazu.
+export component ThumbWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    in property <[ThumbCard]> cards;
+    /// Wymiary karty i podglądu – te same stałe co w taskbar.rs.
+    out property <length> card-w: 220px;
+    out property <length> card-h: 160px;
+    out property <length> gap: 8px;
+    callback activate(int);
+    callback close-win(int);
+    width: root.cards.length * (root.card-w + root.gap) + root.gap;
+    height: root.card-h + 2 * root.gap;
+    for c[i] in root.cards: Rectangle {
+        x: root.gap + i * (root.card-w + root.gap);
+        y: root.gap;
+        width: root.card-w;
+        height: root.card-h;
+        border-radius: Theme.r;
+        background: card-ta.has-hover ? Theme.hover : c.active ? Theme.sel : transparent;
+        card-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.activate(i);
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
+                    root.close-win(i);
+                }
+            }
+        }
+        // Pasek tytułu karty: ikona, tytuł, zamknięcie.
+        HorizontalLayout {
+            y: 0;
+            height: 30px;
+            padding-left: 8px;
+            padding-right: 4px;
+            spacing: 6px;
+            Rectangle {
+                width: 16px;
+                if c.has-img: Image {
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: c.img;
+                }
+            }
+            Text {
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                text: c.title;
+                overflow: elide;
+                font-size: 11.5px;
+                color: c.minimized ? Theme.dim : Theme.text;
+            }
+            Rectangle {
+                width: 24px;
+                height: 24px;
+                y: (parent.height - self.height) / 2;
+                border-radius: Theme.r-s;
+                background: cl-ta.has-hover ? #e5484d : transparent;
+                opacity: card-ta.has-hover || cl-ta.has-hover ? 1 : 0;
+                Icon {
+                    commands: Icons.close;
+                    size: 12px;
+                    color: cl-ta.has-hover ? white : Theme.dim;
+                }
+                cl-ta := TipArea {
+                    tip: "Zamknij okno";
+                    clicked => {
+                        root.close-win(i);
+                    }
+                }
+            }
+        }
+        // Miejsce podglądu (8, 34, 204×118) – tu DWM rysuje okno.
+        Rectangle {
+            x: 8px;
+            y: 34px;
+            width: parent.width - 16px;
+            height: parent.height - 42px;
+            if c.has-img && c.minimized: Image {
+                width: 32px;
+                height: 32px;
+                source: c.img;
+                opacity: 0.6;
+            }
+        }
+    }
+}
+
 /// Pasek zadań PowerDesk na jednym monitorze – tryb testowy: leży na wierzchu,
 /// nad paskiem Windows, który dalej działa pod spodem.
 export component TaskbarWindow inherits Window {
@@ -634,6 +737,9 @@ export component TaskbarWindow inherits Window {
     callback activate(int);
     /// Prawy przycisk na oknie – współrzędne w oknie paska.
     callback context(int, length, length);
+    /// Kursor nad przyciskiem (środek przycisku w oknie paska) i zejście z niego – podglądy okien.
+    callback hover(int, length);
+    callback unhover();
     callback close-test();
 
     // Górna linia oddziela pasek od pulpitu.
@@ -736,8 +842,17 @@ export component TaskbarWindow inherits Window {
                     background: b.active ? Theme.accent : Theme.faint;
                     animate width { duration: 120ms; }
                 }
+                // Przy oknach podpowiedź zastępują podglądy (jak w Windows).
+                property <bool> hov: tb-ta.has-hover;
+                changed hov => {
+                    if (self.hov) {
+                        root.hover(i, self.absolute-position.x + self.width / 2);
+                    } else {
+                        root.unhover();
+                    }
+                }
                 tb-ta := TipArea {
-                    tip: b.count == 0 ? b.title + " · przypięty" : b.count > 1 ? b.title + " · okien: " + b.count : b.title;
+                    tip: b.count == 0 ? b.title + " · przypięty" : "";
                     clicked => {
                         root.activate(i);
                     }

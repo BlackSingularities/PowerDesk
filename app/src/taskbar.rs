@@ -15,7 +15,7 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, VolumeWindow};
+use crate::{AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
 
 /// Flaga wiersza poleceń: start od razu z paskiem testowym.
 pub const TEST_FLAG: &str = "--taskbar-test";
@@ -61,6 +61,10 @@ thread_local! {
     /// Sieć sprawdzamy rzadziej niż co sekundę – licznik obiegów i ostatni wynik.
     static TICK: Cell<u32> = const { Cell::new(0) };
     static NET: RefCell<Option<sysbar::Net>> = const { RefCell::new(None) };
+    /// Podglądy okien: otwarte okienko, przycisk pod kursorem (pasek, numer), kursor nad podglądami.
+    static THUMBS: RefCell<Option<Thumbs>> = const { RefCell::new(None) };
+    static HOVER: Cell<Option<(usize, usize)>> = const { Cell::new(None) };
+    static THUMB_HOVER: Cell<bool> = const { Cell::new(false) };
 }
 
 enum Popup {
@@ -107,13 +111,19 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         }
         w.on_start(taskwin::open_start);
         w.on_activate(move |i| {
+            close_thumbs();
             if let Some(g) = group_at(n, i as usize) {
                 click(&g);
                 // Stan (aktywne / zminimalizowane) od razu, bez czekania na zegar.
                 slint::Timer::single_shot(Duration::from_millis(150), refresh);
             }
         });
-        w.on_context(move |i, x, y| context(n, i as usize, x, y));
+        w.on_context(move |i, x, y| {
+            close_thumbs();
+            context(n, i as usize, x, y)
+        });
+        w.on_hover(move |i, x| hover(n, i as usize, x));
+        w.on_unhover(unhover);
         w.on_close_test(|| slint::Timer::single_shot(Duration::ZERO, close));
         w.on_volume_open(move |x| open_volume(n, x));
         w.on_volume_wheel(|d| {
@@ -142,6 +152,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
 }
 
 pub fn close() {
+    close_thumbs();
     close_menu();
     close_popup();
     TIMER.with(|t| t.stop());
@@ -269,6 +280,7 @@ fn context(bar: usize, i: usize, x: f32, _y: f32) {
 
 /// Menu w osobnym oknie, tuż nad paskiem, w miejscu kliknięcia (w granicach monitora).
 fn show_menu(bar: usize, items: Vec<Item>, x: f32) {
+    close_thumbs();
     close_menu();
     close_popup();
     let Some((pos, origin, mon, scale)) = BARS.with(|b| b.borrow().get(bar).map(|b| (b.pos, b.origin, b.mon, b.w.window().scale_factor()))) else { return };
@@ -363,6 +375,7 @@ fn own_popups() -> Vec<isize> {
             Popup::Network(w) => crate::window_hwnd(w.window()),
         }))
     });
+    THUMBS.with(|t| out.extend(t.borrow().as_ref().map(|t| crate::window_hwnd(t.w.window()))));
     out
 }
 
@@ -664,6 +677,137 @@ fn tray_status() {
         }
     });
     apps_status();
+}
+
+/// Otwarte podglądy okien: okienko, grupa, uchwyty podglądów DWM.
+struct Thumbs {
+    w: ThumbWindow,
+    bar: usize,
+    index: usize,
+    hwnds: Vec<isize>,
+    ids: Vec<isize>,
+}
+
+/// Wymiary karty podglądu – te same co w ThumbWindow (taskbar.slint).
+const CARD_W: f32 = 220.0;
+const CARD_H: f32 = 160.0;
+const GAP: f32 = 8.0;
+
+/// Kursor nad przyciskiem: gdy podglądy są już otwarte – od razu przełączamy grupę,
+/// inaczej po chwili (jak w Windows, żeby przejechanie po pasku ich nie otwierało).
+fn hover(bar: usize, i: usize, x: f32) {
+    HOVER.with(|h| h.set(Some((bar, i))));
+    let open = THUMBS.with(|t| t.borrow().as_ref().map(|t| (t.bar, t.index)));
+    if open == Some((bar, i)) {
+        return;
+    }
+    let delay = if open.is_some() { 0 } else { 450 };
+    slint::Timer::single_shot(Duration::from_millis(delay), move || {
+        // Kursor dalej nad tym samym przyciskiem i nie ma menu.
+        if HOVER.with(|h| h.get()) == Some((bar, i)) && MENU.with(|m| m.borrow().is_none()) {
+            show_thumbs(bar, i, x);
+        }
+    });
+}
+
+fn unhover() {
+    HOVER.with(|h| h.set(None));
+    later_close_thumbs();
+}
+
+/// Zamknięcie po chwili, jeśli kursor nie wrócił na przycisk ani nie wszedł w podglądy.
+fn later_close_thumbs() {
+    slint::Timer::single_shot(Duration::from_millis(300), || {
+        if HOVER.with(|h| h.get()).is_none() && !THUMB_HOVER.with(|h| h.get()) {
+            close_thumbs();
+        }
+    });
+}
+
+fn show_thumbs(bar: usize, i: usize, x: f32) {
+    close_thumbs();
+    let Some(g) = group_at(bar, i) else { return };
+    if g.wins.is_empty() {
+        return;
+    }
+    let Some(spot) = spot(bar) else { return };
+    let Ok(w) = ThumbWindow::new() else { return };
+    same_theme!(bar, w);
+    let fg = taskwin::foreground();
+    let px = (16.0 * spot.3) as u32;
+    let img = if g.exe.is_empty() { None } else { crate::thumbs::get(&g.exe, px, true) };
+    let cards: Vec<ThumbCard> = g
+        .wins
+        .iter()
+        .map(|win| ThumbCard { title: win.title.clone().into(), has_img: img.is_some(), img: img.clone().unwrap_or_default(), active: win.hwnd == fg, minimized: win.minimized })
+        .collect();
+    let n = cards.len() as f32;
+    w.set_cards(ModelRc::new(VecModel::from(cards)));
+    let (width, height) = (n * (CARD_W + GAP) + GAP, CARD_H + 2.0 * GAP);
+    above_bar(w.window(), spot, width, height, x - width / 2.0);
+    w.on_activate(|i| {
+        let h = THUMBS.with(|t| t.borrow().as_ref().and_then(|t| t.hwnds.get(i as usize).copied()));
+        slint::Timer::single_shot(Duration::ZERO, close_thumbs);
+        if let Some(h) = h {
+            taskwin::activate(h);
+            slint::Timer::single_shot(Duration::from_millis(150), refresh);
+        }
+    });
+    w.on_close_win(|i| {
+        let h = THUMBS.with(|t| t.borrow().as_ref().and_then(|t| t.hwnds.get(i as usize).copied()));
+        slint::Timer::single_shot(Duration::ZERO, close_thumbs);
+        if let Some(h) = h {
+            taskwin::close(h);
+            slint::Timer::single_shot(Duration::from_millis(300), refresh);
+        }
+    });
+    // Wejście i wyjście kursora – podglądy zostają, póki kursor jest nad nimi.
+    w.window().on_winit_window_event(|_, ev| {
+        use slint::winit_030::winit::event::WindowEvent;
+        match ev {
+            WindowEvent::CursorEntered { .. } => THUMB_HOVER.with(|h| h.set(true)),
+            WindowEvent::CursorLeft { .. } => {
+                THUMB_HOVER.with(|h| h.set(false));
+                later_close_thumbs();
+            }
+            _ => {}
+        }
+        slint::winit_030::EventResult::Propagate
+    });
+    // Bez fokusu – okno pod spodem zostaje aktywne, a podglądy nie trafiają na listę okien.
+    let _ = w.show();
+    let dest = crate::window_hwnd(w.window());
+    data::hide_from_taskbar(dest);
+    if fg != 0 {
+        taskwin::activate(fg);
+    }
+    let scale = spot.3;
+    let mut ids = Vec::new();
+    for (k, win) in g.wins.iter().enumerate() {
+        let Some((id, (sw, sh))) = taskwin::thumb_register(dest, win.hwnd) else { continue };
+        // Podgląd wpisany w miejsce karty z zachowaniem proporcji, wyśrodkowany.
+        let (bx, by) = (GAP + k as f32 * (CARD_W + GAP) + 8.0, GAP + 34.0);
+        let (bw, bh) = (CARD_W - 16.0, CARD_H - 42.0);
+        let ratio = if sw > 0 && sh > 0 { sw as f32 / sh as f32 } else { bw / bh };
+        let (tw, th) = if ratio > bw / bh { (bw, bw / ratio) } else { (bh * ratio, bh) };
+        let (tx, ty) = (bx + (bw - tw) / 2.0, by + (bh - th) / 2.0);
+        if !win.minimized {
+            taskwin::thumb_place(id, (tx * scale) as i32, (ty * scale) as i32, (tw * scale) as i32, (th * scale) as i32);
+        }
+        ids.push(id);
+    }
+    THUMB_HOVER.with(|h| h.set(false));
+    THUMBS.with(|t| *t.borrow_mut() = Some(Thumbs { w, bar, index: i, hwnds: g.wins.iter().map(|w| w.hwnd).collect(), ids }));
+}
+
+fn close_thumbs() {
+    if let Some(t) = THUMBS.with(|t| t.borrow_mut().take()) {
+        for id in &t.ids {
+            taskwin::thumb_unregister(*id);
+        }
+        let _ = t.w.hide();
+    }
+    THUMB_HOVER.with(|h| h.set(false));
 }
 
 fn close_menu() {

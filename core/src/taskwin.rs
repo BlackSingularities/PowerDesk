@@ -174,3 +174,37 @@ pub fn place_topmost(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
         let _ = SetWindowPos(h(hwnd), Some(HWND_TOPMOST), x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
     }
 }
+
+/// Podgląd okna (miniatura DWM) rysowany przez system w oknie `dest`; zwraca uchwyt podglądu
+/// i rozmiar okna źródłowego w pikselach.
+pub fn thumb_register(dest: isize, src: isize) -> Option<(isize, (i32, i32))> {
+    use windows::Win32::Graphics::Dwm::{DwmQueryThumbnailSourceSize, DwmRegisterThumbnail};
+    unsafe {
+        let id = DwmRegisterThumbnail(h(dest), h(src)).ok()?;
+        let size = DwmQueryThumbnailSourceSize(id).map(|s| (s.cx, s.cy)).unwrap_or((0, 0));
+        Some((id, size))
+    }
+}
+
+/// Miejsce podglądu w oknie docelowym (piksele obszaru klienta).
+pub fn thumb_place(id: isize, x: i32, y: i32, width: i32, height: i32) {
+    use windows::Win32::Foundation::RECT;
+    use windows::Win32::Graphics::Dwm::{DwmUpdateThumbnailProperties, DWM_THUMBNAIL_PROPERTIES, DWM_TNP_RECTDESTINATION, DWM_TNP_SOURCECLIENTAREAONLY, DWM_TNP_VISIBLE};
+    let p = DWM_THUMBNAIL_PROPERTIES {
+        dwFlags: DWM_TNP_RECTDESTINATION | DWM_TNP_VISIBLE | DWM_TNP_SOURCECLIENTAREAONLY,
+        rcDestination: RECT { left: x, top: y, right: x + width, bottom: y + height },
+        rcSource: RECT::default(),
+        opacity: 255,
+        fVisible: BOOL(1),
+        fSourceClientAreaOnly: BOOL(0),
+    };
+    unsafe {
+        let _ = DwmUpdateThumbnailProperties(id, &p);
+    }
+}
+
+pub fn thumb_unregister(id: isize) {
+    unsafe {
+        let _ = windows::Win32::Graphics::Dwm::DwmUnregisterThumbnail(id);
+    }
+}
