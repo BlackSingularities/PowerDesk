@@ -11,6 +11,7 @@ mod start;
 mod starttiles;
 mod startsearch;
 mod cliphistory;
+mod comparing;
 mod facets;
 mod fmt;
 mod home;

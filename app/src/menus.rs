@@ -154,6 +154,12 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     let one = (sel.len() == 1).then(|| sel[0].clone());
     let searching = s.borrow().tabs[s.borrow().active].search.is_some();
     let mut v = Vec::new();
+    // Dwa foldery – porównanie (różnice w nowej karcie, „Wyrównaj” w powiadomieniu).
+    if sel.len() == 2 && sel.iter().all(|e| e.dir) {
+        let (a, b) = (sel[0].path.clone(), sel[1].path.clone());
+        v.push(it("Porównaj foldery", "split", move |s| crate::comparing::run(s, a.clone(), b.clone())));
+        v.push(sep());
+    }
     match &one {
         Some(e) if e.dir => {
             let p = e.path.clone();

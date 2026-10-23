@@ -273,3 +273,82 @@ fn push(cur: &mut Vec<Piece>, kind: Tok, text: String, max_cols: usize) {
         _ => cur.push((kind, text)),
     }
 }
+
+/// Markdown do czytania: bez znaczników, z wyróżnieniami – nagłówki (słowo kluczowe), kod
+/// (napis), linki (typ), cytaty (komentarz), punkty list jako „•”.
+pub fn markdown(text: &str, max_lines: usize) -> Vec<Vec<Piece>> {
+    let mut out = Vec::new();
+    let mut code = false;
+    for line in text.lines().take(max_lines) {
+        let t = line.trim_end();
+        if t.trim_start().starts_with("```") {
+            code = !code;
+            continue;
+        }
+        if code {
+            out.push(vec![(Tok::Str, format!("  {t}"))]);
+            continue;
+        }
+        let lead = t.trim_start();
+        if let Some(h) = lead.strip_prefix('#') {
+            let h = h.trim_start_matches('#').trim();
+            out.push(vec![(Tok::Key, h.to_string())]);
+            continue;
+        }
+        if let Some(q) = lead.strip_prefix('>') {
+            out.push(vec![(Tok::Comment, format!("│ {}", q.trim()))]);
+            continue;
+        }
+        let (prefix, body) = if let Some(r) = lead.strip_prefix("- ").or_else(|| lead.strip_prefix("* ")).or_else(|| lead.strip_prefix("+ ")) {
+            (format!("{}• ", " ".repeat(t.len() - lead.len())), r)
+        } else {
+            (String::new(), t)
+        };
+        let mut pieces: Vec<Piece> = Vec::new();
+        if !prefix.is_empty() {
+            pieces.push((Tok::Punct, prefix));
+        }
+        inline(body, &mut pieces);
+        out.push(pieces);
+    }
+    out
+}
+
+/// Wnętrze wiersza: `kod`, **pogrubienie** / *kursywa* (bez gwiazdek), [tekst](adres) jako tekst.
+fn inline(s: &str, out: &mut Vec<Piece>) {
+    let mut plain = String::new();
+    let mut rest = s;
+    let flush = |plain: &mut String, out: &mut Vec<Piece>| {
+        if !plain.is_empty() {
+            out.push((Tok::Plain, std::mem::take(plain)));
+        }
+    };
+    while let Some(c) = rest.chars().next() {
+        if c == '`' {
+            if let Some(end) = rest[1..].find('`') {
+                flush(&mut plain, out);
+                out.push((Tok::Str, rest[1..1 + end].to_string()));
+                rest = &rest[end + 2..];
+                continue;
+            }
+        }
+        if c == '[' {
+            if let Some(close) = rest.find("](") {
+                if let Some(end) = rest[close..].find(')') {
+                    flush(&mut plain, out);
+                    out.push((Tok::Type, rest[1..close].to_string()));
+                    rest = &rest[close + end + 1..];
+                    continue;
+                }
+            }
+        }
+        if c == '*' || c == '_' {
+            let n = rest.chars().take_while(|&x| x == c).count();
+            rest = &rest[n..];
+            continue;
+        }
+        plain.push(c);
+        rest = &rest[c.len_utf8()..];
+    }
+    flush(&mut plain, out);
+}

@@ -315,6 +315,26 @@ fn one(s: &Shared, gen: u64, e: Entry) {
             image(g, &e.path, if textual || listing { (96.0 * scale) as u32 } else { px }, e.dir || textual || listing);
         }
     });
+    // SVG, czcionki i modele 3D – obraz liczony w tle (Windows nie ma dla nich miniatur).
+    if !packed && !e.cloud && matches!(ext.as_str(), "svg" | "ttf" | "otf" | "stl" | "obj") {
+        let p = e.path.clone();
+        let w = ((width - 32.0) * scale) as u32;
+        let light = s.borrow().ui.upgrade().is_some_and(|u| u.global::<crate::Theme>().get_light());
+        let ink = if light { [20, 20, 22] } else { [235, 235, 238] };
+        let ext2 = ext.clone();
+        std::thread::spawn(move || {
+            let img = match ext2.as_str() {
+                "svg" => powerdesk_core::render::svg(&p, w),
+                "ttf" | "otf" => powerdesk_core::render::font(&p, w, ink),
+                _ => powerdesk_core::render::model(&p, w, [120, 160, 230]),
+            };
+            let Some((iw, ih, px)) = img else { return };
+            deliver(gen, move |_, g| {
+                g.set_img(slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(&px, iw, ih)));
+                g.set_has_img(true);
+            });
+        });
+    }
     if ext == "pdf" && !packed && !e.cloud {
         PDF.with(|p| *p.borrow_mut() = Some((e.path.clone(), ((width - 32.0) * scale) as u32)));
         pdf_page(gen, 0);
@@ -328,8 +348,8 @@ fn one(s: &Shared, gen: u64, e: Entry) {
                 return;
             }
             let text = if t.truncated { format!("{}\n\n…", t.text) } else { t.text };
-            // Składnię kolorujemy jeszcze w tle – wiersze idą do UI gotowe.
-            let code = code_pieces(&text, &ext);
+            // Składnię kolorujemy jeszcze w tle – wiersze idą do UI gotowe; Markdown – sformatowany.
+            let code = if ext == "md" || ext == "markdown" { syntax::markdown(&text, CODE_LINES) } else { code_pieces(&text, &ext) };
             deliver(gen, move |_, g| {
                 g.set_text(text.into());
                 g.set_code(ModelRc::new(VecModel::from(code_lines(code))));
