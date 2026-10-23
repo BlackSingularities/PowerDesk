@@ -6,7 +6,6 @@
 
 use std::cell::RefCell;
 use std::collections::HashSet;
-use std::path::Path;
 use std::time::Duration;
 
 use powerdesk_core::desktop::{self as data, Fit, Monitor};

@@ -9,12 +9,13 @@ use std::time::Duration;
 use chrono::{Datelike, Local, Months, NaiveDate};
 use powerdesk_core::desktop as data;
 use powerdesk_core::sysbar::{self, NetKind};
+use powerdesk_core::wifi;
 use powerdesk_core::taskwin::{self, Win};
 use slint::winit_030::WinitWindowAccessor;
-use slint::{ComponentHandle, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
+use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{BarMenuWindow, CalDay, CalendarWindow, Shared, TaskButton, TaskbarWindow, Theme, VolumeWindow};
+use crate::{AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, VolumeWindow};
 
 /// Flaga wiersza poleceń: start od razu z paskiem testowym.
 pub const TEST_FLAG: &str = "--taskbar-test";
@@ -65,6 +66,7 @@ thread_local! {
 enum Popup {
     Volume(VolumeWindow),
     Calendar(CalendarWindow),
+    Network(NetworkWindow),
 }
 
 pub fn is_open() -> bool {
@@ -126,7 +128,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
                 tray_status();
             }
         });
-        w.on_network_open(|| sysbar::open_settings("network-status"));
+        w.on_network_open(move |x| open_network(n, x));
         w.on_battery_open(|| sysbar::open_settings("batterysaver"));
         w.on_calendar_open(move |x| open_calendar(n, x));
         let _ = w.show();
@@ -351,12 +353,28 @@ fn close_on_blur(win: &slint::Window) {
     });
 }
 
+fn own_popups() -> Vec<isize> {
+    let mut out = Vec::new();
+    MENU.with(|m| out.extend(m.borrow().as_ref().map(|(w, _)| crate::window_hwnd(w.window()))));
+    POPUP.with(|p| {
+        out.extend(p.borrow().as_ref().map(|p| match p {
+            Popup::Volume(w) => crate::window_hwnd(w.window()),
+            Popup::Calendar(w) => crate::window_hwnd(w.window()),
+            Popup::Network(w) => crate::window_hwnd(w.window()),
+        }))
+    });
+    out
+}
+
 fn close_popup() {
     match POPUP.with(|p| p.borrow_mut().take()) {
         Some(Popup::Volume(w)) => {
             let _ = w.hide();
         }
         Some(Popup::Calendar(w)) => {
+            let _ = w.hide();
+        }
+        Some(Popup::Network(w)) => {
             let _ = w.hide();
         }
         None => {}
@@ -392,8 +410,23 @@ fn open_volume(bar: usize, x: f32) {
         slint::Timer::single_shot(Duration::ZERO, close_popup);
         sysbar::open_settings("sound");
     });
-    // Okienko 300 px wyśrodkowane nad ikoną (32 px).
-    above_bar(w.window(), spot, 300.0, 96.0, x + 16.0 - 150.0);
+    let px = (20.0 * w.window().scale_factor()) as u32;
+    let apps = app_rows(px);
+    w.on_app_volume(|pid, v| {
+        sysbar::set_app_volume(pid as u32, v);
+        apps_status();
+    });
+    w.on_app_mute(|pid| {
+        let muted = sysbar::app_volumes().iter().any(|a| a.pid == pid as u32 && a.muted);
+        sysbar::set_app_mute(pid as u32, !muted);
+        apps_status();
+    });
+    // Wysokość: głośność ogólna, nagłówek „Aplikacje” i wiersze miksera, odnośnik.
+    let n = apps.len() as f32;
+    let height = 28.0 + 36.0 + if n > 0.0 { 6.0 + 24.0 + n * 50.0 } else { 0.0 } + 6.0 + 24.0;
+    w.set_apps(ModelRc::new(VecModel::from(apps)));
+    // Okienko 320 px wyśrodkowane nad ikoną (32 px).
+    above_bar(w.window(), spot, 320.0, height, x + 16.0 - 160.0);
     close_on_blur(w.window());
     show_above(w.window());
     POPUP.with(|p| *p.borrow_mut() = Some(Popup::Volume(w)));
@@ -428,6 +461,142 @@ fn open_calendar(bar: usize, x: f32) {
     close_on_blur(w.window());
     show_above(w.window());
     POPUP.with(|p| *p.borrow_mut() = Some(Popup::Calendar(w)));
+}
+
+/// Wiersze miksera: aplikacje grające przez domyślne wyjście, z ikonami programów.
+fn app_rows(px: u32) -> Vec<AppVol> {
+    sysbar::app_volumes()
+        .into_iter()
+        .map(|a| {
+            let img = if a.exe.is_empty() { None } else { crate::thumbs::get(&a.exe, px, true) };
+            AppVol { pid: a.pid as i32, name: a.name.into(), has_img: img.is_some(), img: img.unwrap_or_default(), level: a.level, muted: a.muted }
+        })
+        .collect()
+}
+
+/// Odświeża poziomy w otwartym mikserze (lista aplikacji zostaje – wysokość okienka stała).
+fn apps_status() {
+    POPUP.with(|p| {
+        if let Some(Popup::Volume(w)) = &*p.borrow() {
+            let now = sysbar::app_volumes();
+            let rows = w.get_apps();
+            for i in 0..rows.row_count() {
+                let Some(mut r) = rows.row_data(i) else { continue };
+                if let Some(a) = now.iter().find(|a| a.pid as i32 == r.pid) {
+                    if r.level != a.level || r.muted != a.muted {
+                        r.level = a.level;
+                        r.muted = a.muted;
+                        rows.set_row_data(i, r);
+                    }
+                }
+            }
+        }
+    });
+}
+
+/// Okienko sieci nad ikoną: kabel albo lista Wi-Fi z łączeniem; przy otwarciu skanuje.
+fn open_network(bar: usize, x: f32) {
+    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Network(_))));
+    close_menu();
+    close_popup();
+    if was {
+        return;
+    }
+    let Some(spot) = spot(bar) else { return };
+    let Ok(w) = NetworkWindow::new() else { return };
+    same_theme!(bar, w);
+    fill_network(&w);
+    w.on_rescan(rescan);
+    w.on_connect(|ssid, pass| {
+        let pass = pass.to_string();
+        let res = wifi::connect(&ssid, (!pass.is_empty()).then_some(pass.as_str()));
+        with_network(|w| {
+            match &res {
+                Ok(()) => w.set_note("Łączenie…".into()),
+                Err(e) => w.set_note(e.clone().into()),
+            }
+            if res.is_ok() {
+                w.set_pass("".into());
+            }
+        });
+        if res.is_ok() {
+            // Wynik połączenia przychodzi po chwili – dwa odczyty, potem sieć na pasku.
+            for ms in [2500, 6000] {
+                slint::Timer::single_shot(Duration::from_millis(ms), || {
+                    with_network(|w| {
+                        fill_network(w);
+                        if net_connected(w) {
+                            w.set_note("".into());
+                            w.set_open(-1);
+                        }
+                    });
+                    NET.with(|n| *n.borrow_mut() = None);
+                    tray_status();
+                });
+            }
+        }
+    });
+    w.on_disconnect(|| {
+        wifi::disconnect();
+        with_network(|w| w.set_open(-1));
+        slint::Timer::single_shot(Duration::from_millis(1500), || {
+            with_network(fill_network);
+            NET.with(|n| *n.borrow_mut() = None);
+            tray_status();
+        });
+    });
+    w.on_settings(|| {
+        slint::Timer::single_shot(Duration::ZERO, close_popup);
+        sysbar::open_settings("network-status");
+    });
+    // Okienko 340 px wyśrodkowane nad ikoną (32 px).
+    above_bar(w.window(), spot, 340.0, 440.0, x + 16.0 - 170.0);
+    close_on_blur(w.window());
+    show_above(w.window());
+    POPUP.with(|p| *p.borrow_mut() = Some(Popup::Network(w)));
+    rescan();
+}
+
+fn with_network(f: impl FnOnce(&NetworkWindow)) {
+    POPUP.with(|p| {
+        if let Some(Popup::Network(w)) = &*p.borrow() {
+            f(w);
+        }
+    });
+}
+
+fn net_connected(w: &NetworkWindow) -> bool {
+    let open = w.get_open();
+    open >= 0 && w.get_nets().row_data(open as usize).is_some_and(|n| n.connected)
+}
+
+/// Skanowanie trwa kilka sekund – lista odświeża się po nim.
+fn rescan() {
+    wifi::scan();
+    with_network(|w| w.set_scanning(true));
+    slint::Timer::single_shot(Duration::from_secs(4), || {
+        with_network(|w| {
+            fill_network(w);
+            w.set_scanning(false);
+        })
+    });
+}
+
+/// Lista sieci; rozwinięta zostaje przy tej samej nazwie, nawet gdy zmieni się kolejność.
+fn fill_network(w: &NetworkWindow) {
+    let net = sysbar::network();
+    w.set_wired(if net.kind == NetKind::Wired { net.name.into() } else { "".into() });
+    let nets = wifi::networks();
+    w.set_has_wifi(nets.is_some());
+    let open_ssid = w.get_nets().row_data(w.get_open().max(0) as usize).filter(|_| w.get_open() >= 0).map(|n| n.ssid);
+    let rows: Vec<NetRow> = nets
+        .unwrap_or_default()
+        .into_iter()
+        .map(|n| NetRow { ssid: n.ssid.into(), signal: n.signal as i32, secured: n.secured, connected: n.connected, known: n.known })
+        .collect();
+    let open = open_ssid.and_then(|s| rows.iter().position(|r| r.ssid == s)).map_or(-1, |i| i as i32);
+    w.set_nets(ModelRc::new(VecModel::from(rows)));
+    w.set_open(open);
 }
 
 const MONTHS: [&str; 12] = ["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"];
@@ -494,6 +663,7 @@ fn tray_status() {
             w.set_muted(v.muted);
         }
     });
+    apps_status();
 }
 
 fn close_menu() {
@@ -577,7 +747,9 @@ fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
 }
 
 fn refresh() {
-    let all = taskwin::list();
+    // Własne okienka (menu, głośność, kalendarz) nie są oknami programów.
+    let own = own_popups();
+    let all: Vec<Win> = taskwin::list().into_iter().filter(|w| !own.contains(&w.hwnd)).collect();
     let fg = taskwin::foreground();
     let now = Local::now();
     let (time, date) = (now.format("%H:%M").to_string(), now.format("%d.%m.%Y").to_string());

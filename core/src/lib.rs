@@ -28,4 +28,5 @@ pub mod system;
 pub mod taskwin;
 pub mod terminal;
 pub mod tray;
+pub mod wifi;
 pub mod winkey;
