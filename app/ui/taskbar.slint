@@ -2,6 +2,7 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon, TipArea } from "components.slint";
 import { MenuBody, MenuEntry } from "menu.slint";
+import { Track } from "player.slint";
 
 /// Menu paska w osobnym oknie nad kliknięciem – pasek ma 48 px, menu by się w nim nie zmieściło.
 /// Wygląd jak menu w oknie PowerDesk; zamyka się po wyborze albo utracie fokusu (taskbar.rs).
@@ -35,6 +36,233 @@ export struct TaskButton {
     idle-before: int,
 }
 
+/// Ikona zasobnika: 32×40, podświetlenie pod kursorem, podpowiedź.
+component TrayIcon inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    in property <bool> dim;
+    callback clicked();
+    callback middle();
+    /// +1 – kółko w górę, -1 – w dół.
+    callback wheel(int);
+    width: 32px;
+    height: 40px;
+    border-radius: Theme.r;
+    background: ti-ta.has-hover ? Theme.hover : transparent;
+    Icon {
+        commands: root.icon;
+        size: 18px;
+        color: root.dim ? Theme.faint : Theme.text;
+    }
+    @children
+    ti-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
+                root.middle();
+            }
+        }
+        scroll-event(e) => {
+            if (e.delta-y == 0) {
+                return reject;
+            }
+            root.wheel(e.delta-y > 0 ? 1 : -1);
+            accept
+        }
+    }
+}
+
+/// Okienko głośności nad ikoną: wyciszenie, suwak, procent, „Ustawienia dźwięku”.
+export component VolumeWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    width: 300px;
+    height: 96px;
+    in property <float> volume;
+    in property <bool> muted;
+    callback set-volume(float);
+    callback toggle-mute();
+    callback settings();
+    VerticalLayout {
+        padding: 14px;
+        spacing: 10px;
+        HorizontalLayout {
+            spacing: 10px;
+            Rectangle {
+                width: 32px;
+                height: 32px;
+                border-radius: Theme.r-s;
+                background: vm-ta.has-hover ? Theme.hover : transparent;
+                Icon {
+                    commands: root.muted || root.volume == 0 ? Icons.mute : Icons.volume;
+                    size: 18px;
+                    color: Theme.text;
+                }
+                vm-ta := TipArea {
+                    tip: root.muted ? "Włącz dźwięk" : "Wycisz";
+                    clicked => {
+                        root.toggle-mute();
+                    }
+                }
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+                Track {
+                    width: parent.width;
+                    y: (parent.height - self.height) / 2;
+                    value: root.muted ? 0 : root.volume;
+                    changed-by-user(v) => {
+                        root.set-volume(v);
+                    }
+                }
+            }
+            Text {
+                width: 36px;
+                vertical-alignment: center;
+                horizontal-alignment: right;
+                text: round((root.muted ? 0 : root.volume) * 100);
+                font-size: 13px;
+                color: Theme.text;
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            Text {
+                text: "Ustawienia dźwięku";
+                font-size: 12px;
+                color: vs-ta.has-hover ? Theme.text : Theme.accent;
+                vs-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.settings();
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Dzień w siatce kalendarza.
+export struct CalDay {
+    num: int,
+    today: bool,
+    /// Dzień z sąsiedniego miesiąca – przygaszony.
+    other: bool,
+}
+
+/// Kalendarz po kliknięciu w zegar: pełna data, miesiąc z przełączaniem, dzisiaj zaznaczone.
+export component CalendarWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    width: 316px;
+    height: 372px;
+    in property <string> long-date;
+    in property <string> month;
+    in property <[CalDay]> days;
+    /// -1 / +1 – sąsiedni miesiąc, 0 – powrót do bieżącego.
+    callback shift(int);
+    callback settings();
+    VerticalLayout {
+        padding: 14px;
+        spacing: 8px;
+        Text {
+            text: root.long-date;
+            font-size: 14px;
+            font-weight: 600;
+            color: ld-ta.has-hover ? Theme.accent : Theme.text;
+            ld-ta := TipArea {
+                tip: "Wróć do bieżącego miesiąca";
+                clicked => {
+                    root.shift(0);
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 4px;
+            Text {
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                text: root.month;
+                font-size: 13px;
+                color: Theme.text;
+            }
+            for d in [-1, 1]: Rectangle {
+                width: 28px;
+                height: 28px;
+                border-radius: Theme.r-s;
+                background: mv-ta.has-hover ? Theme.hover : transparent;
+                Icon {
+                    commands: d < 0 ? Icons.arrow-up : Icons.arrow-down;
+                    size: 14px;
+                    color: Theme.dim;
+                }
+                mv-ta := TipArea {
+                    tip: d < 0 ? "Poprzedni miesiąc" : "Następny miesiąc";
+                    clicked => {
+                        root.shift(d);
+                    }
+                }
+            }
+        }
+        // Nagłówki dni i siatka 6×7 (od poniedziałku); kółko przewija miesiące.
+        Rectangle {
+            height: 32px + 6 * 38px;
+            TouchArea {
+                scroll-event(e) => {
+                    if (e.delta-y == 0) {
+                        return reject;
+                    }
+                    root.shift(e.delta-y > 0 ? -1 : 1);
+                    accept
+                }
+            }
+            for n[i] in ["pn", "wt", "śr", "cz", "pt", "so", "nd"]: Text {
+                x: i * 41px;
+                y: 0;
+                width: 38px;
+                height: 28px;
+                horizontal-alignment: center;
+                vertical-alignment: center;
+                text: n;
+                font-size: 11px;
+                color: Theme.dim;
+            }
+            for day[i] in root.days: Rectangle {
+                x: mod(i, 7) * 41px + 1px;
+                y: 32px + floor(i / 7) * 38px;
+                width: 36px;
+                height: 36px;
+                border-radius: 18px;
+                background: day.today ? Theme.accent : transparent;
+                Text {
+                    text: day.num;
+                    font-size: 12.5px;
+                    color: day.today ? white : day.other ? Theme.faint : Theme.text;
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: end;
+            Text {
+                text: "Ustawienia daty i godziny";
+                font-size: 12px;
+                color: cs-ta.has-hover ? Theme.text : Theme.accent;
+                cs-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.settings();
+                    }
+                }
+            }
+        }
+    }
+}
+
 /// Pasek zadań PowerDesk na jednym monitorze – tryb testowy: leży na wierzchu,
 /// nad paskiem Windows, który dalej działa pod spodem.
 export component TaskbarWindow inherits Window {
@@ -49,6 +277,23 @@ export component TaskbarWindow inherits Window {
     in property <string> time;
     in property <string> date;
     in property <bool> test: true;
+    // Zasobnik: głośność (0–1), sieć (0 – brak, 1 – Wi-Fi, 2 – kabel), bateria.
+    in property <bool> has-volume;
+    in property <float> volume;
+    in property <bool> muted;
+    in property <int> net-kind;
+    in property <string> net-name;
+    in property <bool> has-battery;
+    in property <int> battery;
+    in property <bool> charging;
+    /// Okienko głośności i kalendarz – x w oknie paska.
+    callback volume-open(length);
+    /// Kółko nad ikoną głośności – krok w górę (+1) albo w dół (-1).
+    callback volume-wheel(int);
+    callback toggle-mute();
+    callback network-open();
+    callback battery-open();
+    callback calendar-open(length);
     callback start();
     callback activate(int);
     /// Prawy przycisk na oknie – współrzędne w oknie paska.
@@ -169,22 +414,78 @@ export component TaskbarWindow inherits Window {
             }
         }
 
-        // Zegar i data.
-        VerticalLayout {
+        // Zasobnik: sieć, głośność, bateria – jak w Windows, tuż przed zegarem.
+        HorizontalLayout {
             alignment: center;
-            padding-left: 8px;
-            padding-right: 8px;
-            Text {
-                text: root.time;
-                horizontal-alignment: right;
-                font-size: 12.5px;
-                color: Theme.text;
+            spacing: 2px;
+            TrayIcon {
+                icon: root.net-kind == 0 ? Icons.wifi-off : root.net-kind == 1 ? Icons.wifi : Icons.ethernet;
+                dim: root.net-kind == 0;
+                tip: root.net-kind == 0 ? "Brak połączenia z internetem" : root.net-name;
+                clicked => {
+                    root.network-open();
+                }
             }
-            Text {
-                text: root.date;
-                horizontal-alignment: right;
-                font-size: 11px;
-                color: Theme.dim;
+            if root.has-volume: TrayIcon {
+                icon: root.muted || root.volume == 0 ? Icons.mute : Icons.volume;
+                tip: root.muted ? "Głośność: wyciszona" : "Głośność: " + round(root.volume * 100) + "%";
+                clicked => {
+                    root.volume-open(self.absolute-position.x);
+                }
+                middle => {
+                    root.toggle-mute();
+                }
+                wheel(d) => {
+                    root.volume-wheel(d);
+                }
+            }
+            if root.has-battery: TrayIcon {
+                icon: Icons.battery;
+                tip: "Bateria: " + root.battery + "%" + (root.charging ? " · ładowanie" : "");
+                clicked => {
+                    root.battery-open();
+                }
+                // Wypełnienie baterii – kolor ostrzega przy niskim stanie.
+                Rectangle {
+                    x: (parent.width - 18px) / 2 + 4px;
+                    y: (parent.height - 18px) / 2 + 7.5px;
+                    width: 10px * root.battery / 100;
+                    height: 3px;
+                    border-radius: 1px;
+                    background: root.charging ? Theme.accent : root.battery <= 15 ? #e5484d : Theme.text;
+                }
+            }
+        }
+
+        // Zegar i data – klik otwiera kalendarz.
+        clock := Rectangle {
+            height: 40px;
+            y: (parent.height - self.height) / 2;
+            width: ck.preferred-width;
+            border-radius: Theme.r;
+            background: ck-ta.has-hover ? Theme.hover : transparent;
+            ck := VerticalLayout {
+                alignment: center;
+                padding-left: 8px;
+                padding-right: 8px;
+                Text {
+                    text: root.time;
+                    horizontal-alignment: right;
+                    font-size: 12.5px;
+                    color: Theme.text;
+                }
+                Text {
+                    text: root.date;
+                    horizontal-alignment: right;
+                    font-size: 11px;
+                    color: Theme.dim;
+                }
+            }
+            ck-ta := TipArea {
+                tip: "Kalendarz";
+                clicked => {
+                    root.calendar-open(clock.absolute-position.x);
+                }
             }
         }
 

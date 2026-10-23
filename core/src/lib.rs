@@ -22,6 +22,7 @@ pub mod shell;
 pub mod space;
 pub mod sync;
 pub mod sync_core;
+pub mod sysbar;
 pub mod sysmon;
 pub mod system;
 pub mod taskwin;

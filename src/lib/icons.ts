@@ -76,5 +76,9 @@ export const I = {
   app: 'M4 4h16v16H4zM4 9h16',
   code: 'M8 7l-5 5 5 5M16 7l5 5-5 5',
   sheet: 'M4 4h16v16H4zM4 10h16M4 15h16M10 4v16',
+  wifi: 'M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01',
+  wifiOff: 'M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01M3 3l18 18',
+  ethernet: 'M6 10h12v8H6zM9 10V6h6v4M9 14v2M12 14v2M15 14v2',
+  battery: 'M3 7h15v10H3zM21 10v4',
 }
 export type IconName = keyof typeof I

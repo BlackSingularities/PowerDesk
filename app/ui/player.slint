@@ -52,7 +52,7 @@ component PButton inherits Rectangle {
 }
 
 /// Suwak (pozycja, głośność): klik i przeciąganie ustawiają wartość 0–1.
-component Track inherits Rectangle {
+export component Track inherits Rectangle {
     in property <float> value;
     in property <bool> dark;
     callback changed-by-user(float);

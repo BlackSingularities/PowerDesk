@@ -128,7 +128,7 @@ Zasady:
 - [ ] Reakcja na zmiany monitorów, DPI, tapety i restart Eksploratora
 - [ ] Pasek zadań (AppBar) na każdym monitorze, systemowy pasek ukryty; Alt+Tab, Win+Tab, Win+D zostają systemowe (pierwsza wersja testowa w kodzie, nieuruchamiana: pasek na wierzchu nad paskiem Windows, Start systemowy, okna z monitora, zegar, `--taskbar-test`)
 - [ ] Lista okien, grupowanie, miniatury, menu przycisków (nowe okno / przypnij / zamknij) (w kodzie, nieuruchamiane: grupowanie po programie z licznikiem, klik przełącza okna grupy, menu z listą okien, „Zminimalizuj wszystkie”, „Zamknij wszystkie okna”, przypinanie programów – przyciski z samą ikoną na początku paska, uruchamianie, zapamiętane w ustawieniach; brak: miniatury, przeciąganie przypiętych)
-- [ ] Zegar, głośność, sieć, bateria; zasobnik (przechwytywanie ikon)
+- [ ] Zegar, głośność, sieć, bateria; zasobnik (przechwytywanie ikon) (w kodzie, nieuruchamiane: ikony sieci, głośności i baterii przy zegarze, okienko głośności z suwakiem i wyciszeniem, kółko i środkowy przycisk na ikonie, kalendarz po kliknięciu w zegar; brak: przechwytywanie ikon innych programów)
 - [ ] Menu Start (najpierw jak w Windows)
 
 ### Instalator i deinstalator
