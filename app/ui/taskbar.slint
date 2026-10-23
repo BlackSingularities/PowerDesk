@@ -165,7 +165,14 @@ component VolRow inherits HorizontalLayout {
     }
 }
 
-/// Okienko głośności nad ikoną: głośność ogólna, mikser aplikacji, „Ustawienia dźwięku”.
+/// Urządzenie odtwarzające na liście wyboru.
+export struct OutDev {
+    name: string,
+    current: bool,
+}
+
+/// Okienko głośności nad ikoną: urządzenie odtwarzające (klik rozwija listę), głośność ogólna,
+/// mikser aplikacji, „Ustawienia dźwięku”.
 /// Wysokość liczy taskbar.rs (zależy od liczby aplikacji).
 export component VolumeWindow inherits Window {
     no-frame: true;
@@ -175,6 +182,13 @@ export component VolumeWindow inherits Window {
     in property <float> volume;
     in property <bool> muted;
     in property <[AppVol]> apps;
+    in property <[OutDev]> outputs;
+    /// Lista urządzeń rozwinięta (wysokość okienka zmienia taskbar.rs).
+    in property <bool> devices-open;
+    callback toggle-devices();
+    /// Nazwa bieżącego urządzenia (pusta lista – brak).
+    in property <string> current-name;
+    callback pick-output(int);
     callback set-volume(float);
     callback toggle-mute();
     callback app-volume(int, float);
@@ -184,6 +198,72 @@ export component VolumeWindow inherits Window {
         padding: 14px;
         spacing: 6px;
         alignment: start;
+        // Bieżące urządzenie – klik rozwija listę (jak strzałka przy głośności w Windows).
+        Rectangle {
+            height: 32px;
+            border-radius: Theme.r-s;
+            background: dv-ta.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 8px;
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: root.current-name;
+                    overflow: elide;
+                    font-size: 12px;
+                    color: Theme.text;
+                }
+                Icon {
+                    y: (parent.height - 14px) / 2;
+                    commands: root.devices-open ? Icons.arrow-up : Icons.chevron-down;
+                    size: 14px;
+                    color: Theme.dim;
+                }
+            }
+            dv-ta := TipArea {
+                tip: "Urządzenie odtwarzające";
+                clicked => {
+                    root.toggle-devices();
+                }
+            }
+        }
+        if root.devices-open: VerticalLayout {
+            spacing: 2px;
+            for o[i] in root.outputs: Rectangle {
+                height: 32px;
+                border-radius: Theme.r-s;
+                background: o.current ? Theme.sel : od-ta.has-hover ? Theme.hover : transparent;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 8px;
+                    Rectangle {
+                        width: 14px;
+                        if o.current: Icon {
+                            commands: Icons.check;
+                            size: 14px;
+                            color: Theme.accent;
+                        }
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                        text: o.name;
+                        overflow: elide;
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                }
+                od-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.pick-output(i);
+                    }
+                }
+            }
+        }
         VolRow {
             main: true;
             level: root.volume;

@@ -15,7 +15,7 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
+use crate::{OutDev, AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
 
 /// Wysokość paska w pikselach logicznych.
 const HEIGHT: f32 = 48.0;
@@ -63,6 +63,8 @@ thread_local! {
     static THUMBS: RefCell<Option<Thumbs>> = const { RefCell::new(None) };
     static HOVER: Cell<Option<(usize, usize)>> = const { Cell::new(None) };
     static THUMB_HOVER: Cell<bool> = const { Cell::new(false) };
+    /// Okienko głośności: miejsce nad paskiem, x i wysokość bez listy urządzeń.
+    static VOL_GEOM: Cell<Option<(Spot, f32, f32)>> = const { Cell::new(None) };
 }
 
 enum Popup {
@@ -456,8 +458,35 @@ fn open_volume(bar: usize, x: f32) {
     });
     // Wysokość: głośność ogólna, nagłówek „Aplikacje” i wiersze miksera, odnośnik.
     let n = apps.len() as f32;
-    let height = 28.0 + 36.0 + if n > 0.0 { 6.0 + 24.0 + n * 50.0 } else { 0.0 } + 6.0 + 24.0;
+    // Urządzenie (32 + odstęp), głośność ogólna, aplikacje, odnośnik.
+    let height = 28.0 + 38.0 + 36.0 + if n > 0.0 { 6.0 + 24.0 + n * 50.0 } else { 0.0 } + 6.0 + 24.0;
     w.set_apps(ModelRc::new(VecModel::from(apps)));
+    fill_outputs(&w);
+    w.on_toggle_devices(|| {
+        with_volume(|w| {
+            w.set_devices_open(!w.get_devices_open());
+            fill_outputs(w);
+            relayout_volume(w);
+        })
+    });
+    w.on_pick_output(|i| {
+        let id = sysbar::outputs().get(i as usize).map(|o| o.id.clone());
+        if let Some(id) = id {
+            sysbar::set_output(&id);
+        }
+        with_volume(|w| {
+            w.set_devices_open(false);
+            fill_outputs(w);
+            relayout_volume(w);
+            // Głośność i mikser należą do nowego urządzenia.
+            if let Some(v) = sysbar::volume() {
+                w.set_volume(v.level);
+                w.set_muted(v.muted);
+            }
+        });
+        tray_status();
+    });
+    VOL_GEOM.with(|g| g.set(Some((spot, x + 16.0 - 160.0, height))));
     // Okienko 320 px wyśrodkowane nad ikoną (32 px).
     above_bar(w.window(), spot, 320.0, height, x + 16.0 - 160.0);
     close_on_blur(w.window());
@@ -505,6 +534,29 @@ fn app_rows(px: u32) -> Vec<AppVol> {
             AppVol { pid: a.pid as i32, name: a.name.into(), has_img: img.is_some(), img: img.unwrap_or_default(), level: a.level, muted: a.muted }
         })
         .collect()
+}
+
+fn with_volume(f: impl FnOnce(&VolumeWindow)) {
+    POPUP.with(|p| {
+        if let Some(Popup::Volume(w)) = &*p.borrow() {
+            f(w);
+        }
+    });
+}
+
+fn fill_outputs(w: &VolumeWindow) {
+    let outs = sysbar::outputs();
+    let name = outs.iter().find(|o| o.default).map(|o| o.name.clone()).unwrap_or_else(|| "Brak urządzenia odtwarzającego".into());
+    w.set_current_name(name.into());
+    let rows: Vec<OutDev> = outs.into_iter().map(|o| OutDev { name: o.name.into(), current: o.default }).collect();
+    w.set_outputs(ModelRc::new(VecModel::from(rows)));
+}
+
+/// Wysokość okienka z listą urządzeń albo bez – dół zostaje nad paskiem.
+fn relayout_volume(w: &VolumeWindow) {
+    let Some((spot, x, base)) = VOL_GEOM.with(|g| g.get()) else { return };
+    let list = if w.get_devices_open() { w.get_outputs().row_count() as f32 * 34.0 + 6.0 } else { 0.0 };
+    above_bar(w.window(), spot, 320.0, base + list, x);
 }
 
 /// Odświeża poziomy w otwartym mikserze (lista aplikacji zostaje – wysokość okienka stała).

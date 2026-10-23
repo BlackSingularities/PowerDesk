@@ -51,6 +51,87 @@ pub fn set_mute(muted: bool) {
     }
 }
 
+/// Urządzenie odtwarzające (głośniki, słuchawki, monitor HDMI…).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Output {
+    pub id: String,
+    pub name: String,
+    pub default: bool,
+}
+
+/// Aktywne urządzenia odtwarzające; domyślne zaznaczone.
+pub fn outputs() -> Vec<Output> {
+    use windows::Win32::Foundation::PROPERTYKEY;
+    use windows::Win32::Media::Audio::DEVICE_STATE_ACTIVE;
+    use windows::Win32::System::Com::StructuredStorage::PropVariantToStringAlloc;
+    use windows::Win32::System::Com::{CoTaskMemFree, STGM_READ};
+    // PKEY_Device_FriendlyName – bez osobnej funkcji crate dla jednej stałej.
+    const FRIENDLY: PROPERTYKEY = PROPERTYKEY { fmtid: windows::core::GUID::from_u128(0xa45c254e_df1c_4efd_8020_67d146a850e0), pid: 14 };
+    let mut out = Vec::new();
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let Ok(en) = CoCreateInstance::<_, IMMDeviceEnumerator>(&MMDeviceEnumerator, None, CLSCTX_ALL) else { return out };
+        let def = en.GetDefaultAudioEndpoint(eRender, eMultimedia).ok().and_then(|d| d.GetId().ok()).map(|p| {
+            let s = p.to_string().unwrap_or_default();
+            CoTaskMemFree(Some(p.0 as *const _));
+            s
+        });
+        let Ok(list) = en.EnumAudioEndpoints(eRender, DEVICE_STATE_ACTIVE) else { return out };
+        for i in 0..list.GetCount().unwrap_or(0) {
+            let Ok(dev) = list.Item(i) else { continue };
+            let Ok(idp) = dev.GetId() else { continue };
+            let id = idp.to_string().unwrap_or_default();
+            CoTaskMemFree(Some(idp.0 as *const _));
+            let name = dev
+                .OpenPropertyStore(STGM_READ)
+                .ok()
+                .and_then(|st| st.GetValue(&FRIENDLY).ok())
+                .and_then(|v| PropVariantToStringAlloc(&v).ok())
+                .map(|p| {
+                    let s = p.to_string().unwrap_or_default();
+                    CoTaskMemFree(Some(p.0 as *const _));
+                    s
+                })
+                .unwrap_or_else(|| id.clone());
+            out.push(Output { default: def.as_deref() == Some(id.as_str()), id, name });
+        }
+    }
+    out.sort_by_key(|o| o.name.to_lowercase());
+    out
+}
+
+/// Ustawia domyślne urządzenie odtwarzające dla wszystkich ról (jak wybór w zasobniku Windows).
+/// Windows nie ma na to publicznego API – używamy IPolicyConfig (stabilny od Windows 7,
+/// tak samo robią EarTrumpet i SoundSwitch).
+pub fn set_output(id: &str) -> bool {
+    use windows::core::{IUnknown, Interface, GUID, HRESULT, HSTRING, PCWSTR};
+    const CLSID_POLICY_CONFIG: GUID = GUID::from_u128(0x870af99c_171d_4f9e_af0d_e63df40c2bc9);
+    const IID_POLICY_CONFIG: GUID = GUID::from_u128(0xf8679f50_850a_41cf_9c72_430f290290c8);
+    // Miejsce SetDefaultEndpoint w tablicy metod: 3 z IUnknown + 10 przed nią.
+    const SET_DEFAULT: usize = 13;
+    type SetDefault = unsafe extern "system" fn(*mut core::ffi::c_void, PCWSTR, i32) -> HRESULT;
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let Ok(unk) = CoCreateInstance::<_, IUnknown>(&CLSID_POLICY_CONFIG, None, CLSCTX_ALL) else { return false };
+        let mut pc: *mut core::ffi::c_void = std::ptr::null_mut();
+        if unk.query(&IID_POLICY_CONFIG, &mut pc).is_err() || pc.is_null() {
+            return false;
+        }
+        let vtable = *(pc as *const *const usize);
+        let f: SetDefault = std::mem::transmute(*vtable.add(SET_DEFAULT));
+        let wid = HSTRING::from(id);
+        let mut ok = true;
+        // eConsole, eMultimedia, eCommunications.
+        for role in 0..3 {
+            ok &= f(pc, PCWSTR(wid.as_ptr()), role).is_ok();
+        }
+        // Zwolnienie wskaźnika z query (Release – trzecia metoda IUnknown).
+        let release: unsafe extern "system" fn(*mut core::ffi::c_void) -> u32 = std::mem::transmute(*vtable.add(2));
+        release(pc);
+        ok
+    }
+}
+
 /// Głośność jednej aplikacji (sesje audio jednego procesu razem), jak w mikserze Windows.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AppVolume {
