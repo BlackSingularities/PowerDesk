@@ -878,6 +878,16 @@ pub struct Prefs {
     pub start_size: (f32, f32),
     /// Start: duże ikony w siatce zamiast listy z nazwami.
     pub start_grid: bool,
+    /// Jedno kliknięcie otwiera plik albo folder (zaznacza Ctrl, Shift i ramka).
+    pub single_click: bool,
+    /// Sekcje panelu bocznego wyłączone w Ustawieniach (nazwy nagłówków).
+    pub side_hidden: Vec<String>,
+    /// Krycie tła okna z Mica/Acrylic w procentach (0 – domyślne dla efektu).
+    pub window_opacity: f32,
+    /// Krzyżyk chowa okno do zasobnika zamiast kończyć PowerDesk.
+    pub close_to_tray: bool,
+    /// Przy starcie z Windows pokazuje też okno folderów (inaczej tylko pulpit, pasek i zasobnik).
+    pub autostart_window: bool,
     /// Krycie tła paska zadań w procentach (0 – całkiem przezroczysty).
     pub taskbar_opacity: f32,
     /// Pasek całkiem przezroczysty, gdy na jego monitorze nie ma otwartych okien.
@@ -936,7 +946,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
     }
 }
 

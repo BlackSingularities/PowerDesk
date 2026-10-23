@@ -93,6 +93,12 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   kafelka (klik otwiera, „Rozgrupuj folder”), upuszczenie obok – miejsce przed kafelkiem, pod grupami – nowa
   grupa; „Zmień rozmiar” w menu kafelka.
 
+- Ustawienia (nieklikane): Przeglądanie – „Jedno kliknięcie otwiera” (`SettingsState.single-click` czyta
+  fileview.slint), włączanie sekcji panelu bocznego (`prefs.side_hidden`); Wygląd – „Krycie tła okna” przy
+  Mica/Acrylic (`Theme.window-alpha`, 0 = domyślne); System – „Krzyżyk chowa okno do zasobnika”
+  (`close_to_tray`, domyślnie tak) i „Okno folderów przy starcie z Windows” (`autostart_window`, też przy
+  `--shell`). Autostart sam w sobie zostaje zawsze włączony (integracja bez przełączników).
+
 ## Kolejne zadania z planu
 
 - Etap 8: instalator i deinstalator (przywrócenie pulpitu, paska i powłoki), migracja z OpenFilePower.

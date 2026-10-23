@@ -2,6 +2,7 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon, Label, TipArea, Drag } from "components.slint";
 import { ScrollView } from "std-widgets.slint";
+import { SettingsState } from "settings.slint";
 
 /// Pole zmiany nazwy w miejscu: Enter zatwierdza, Esc anuluje, Tab / Shift+Tab przechodzi do sąsiada,
 /// utrata fokusu zatwierdza. Na starcie zaznaczona jest nazwa bez rozszerzenia (`sel` – bajt końca).
@@ -492,8 +493,16 @@ export component FileView inherits Rectangle {
                             self.dragged = false;
                         }
                     }
+                    // Jedno kliknięcie bez Ctrl/Shift/Alt otwiera (ustawienie); zapamiętane przy wciśnięciu.
+                    property <bool> plain;
+                    clicked => {
+                        if (SettingsState.single-click && self.plain && !self.dragged && !it.renaming) {
+                            root.open(it.index);
+                        }
+                    }
                     pointer-event(e) => {
                         if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                            self.plain = !e.modifiers.control && !e.modifiers.shift && !e.modifiers.alt && !(root.view == 0 && self.mouse-x > parent.name-end);
                             if ((root.view == 0 && self.mouse-x > parent.name-end) || e.modifiers.alt) {
                                 root.mq-start(it.x + self.mouse-x, it.y + self.mouse-y, e.modifiers.control || e.modifiers.shift);
                             } else {
@@ -508,7 +517,9 @@ export component FileView inherits Rectangle {
                         }
                     }
                     double-clicked => {
-                        root.open(it.index);
+                        if (!SettingsState.single-click) {
+                            root.open(it.index);
+                        }
                     }
                 }
 

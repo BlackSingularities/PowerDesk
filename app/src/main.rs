@@ -195,7 +195,7 @@ pub fn show_window(s: &Shared) {
 /// Krzyżyk i Alt+F4 chowają okno do zasobnika; program kończy „Zakończ” z menu ikony.
 /// Gdyby ikona się nie pojawiła, krzyżyk zamyka program – inaczej nie dałoby się go zamknąć.
 fn close_window(s: &Shared) {
-    let to_tray = powerdesk_core::tray::visible();
+    let to_tray = powerdesk_core::tray::visible() && s.borrow().prefs.close_to_tray;
     match s.borrow().ui.upgrade() {
         Some(ui) if to_tray => {
             let _ = ui.hide();
@@ -325,7 +325,7 @@ fn main() -> Result<(), slint::PlatformError> {
     // Własna historia schowka (Win+V) – nasłuch od startu, żeby nic nie umknęło.
     cliphistory::start();
     // Z autostartu: bez okna folderów – pojawia się z menu Start albo po Win+E.
-    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG);
+    let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG || a == powerdesk_core::shellmode::SHELL_FLAG) && !st.borrow().prefs.autostart_window;
     if !hidden {
         ui.show()?;
     }
@@ -2906,6 +2906,12 @@ pub fn render_side(s: &Shared) {
     for mut it in items {
         if !it.section.is_empty() {
             section = it.section.clone();
+        }
+        // Sekcja wyłączona w Ustawieniach – bez nagłówka i pozycji.
+        if b.prefs.side_hidden.iter().any(|x| x == section.as_str()) {
+            continue;
+        }
+        if !it.section.is_empty() {
             it.shut = b.prefs.side_shut.iter().any(|x| x == section.as_str());
             if it.shut && !b.prefs.side_mini {
                 it.header_only = true;

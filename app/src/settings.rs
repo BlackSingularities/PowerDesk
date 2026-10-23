@@ -5,7 +5,7 @@
 use slint::{Color, ComponentHandle, ModelRc, VecModel};
 
 use crate::model::{Prefs, View};
-use crate::{SettingsState, Shared, SysItem, Theme};
+use crate::{SettingsState, Shared, SideSection, SysItem, Theme};
 
 pub const TAB: &str = "ofp:settings";
 
@@ -90,6 +90,7 @@ pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
     let effect = effect_of(p);
     t.set_effect(effect as i32);
     t.set_popup_alpha(p.popup_opacity.clamp(60.0, 100.0) / 100.0);
+    t.set_window_alpha(if p.window_opacity > 0.0 { p.window_opacity.clamp(20.0, 100.0) / 100.0 } else { 0.0 });
     powerdesk_core::system::set_backdrop(window_hwnd(ui), effect);
 }
 
@@ -162,6 +163,12 @@ fn render(s: &Shared) {
     g.set_preview_open(p.preview_open);
     g.set_viewer_info(p.viewer_info);
     g.set_confirm_trash(p.confirm_trash);
+    g.set_single_click(p.single_click);
+    let secs: Vec<SideSection> = SIDE_SECTIONS.iter().map(|n| SideSection { name: (*n).into(), on: !p.side_hidden.iter().any(|h| h == n) }).collect();
+    g.set_side_sections(ModelRc::new(VecModel::from(secs)));
+    g.set_window_opacity(p.window_opacity);
+    g.set_close_to_tray(p.close_to_tray);
+    g.set_autostart_window(p.autostart_window);
     g.set_remembered(p.folders.len() as i32);
     g.set_version(env!("CARGO_PKG_VERSION").into());
     g.set_prefs_path(prefs_path().into());
@@ -248,6 +255,9 @@ pub fn toggle(s: &Shared, key: &str) {
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),
         // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
         "taskbar-clear-desktop" => change(s, |p| p.taskbar_clear_desktop = !p.taskbar_clear_desktop),
+        "single-click" => change(s, |p| p.single_click = !p.single_click),
+        "close-to-tray" => change(s, |p| p.close_to_tray = !p.close_to_tray),
+        "autostart-window" => change(s, |p| p.autostart_window = !p.autostart_window),
         _ => return,
     }
     // Karty z folderami wczytają się od nowa przy następnym wejściu.
@@ -269,6 +279,24 @@ pub fn render_system(_s: &Shared) {
             })
         });
     });
+}
+
+/// Sekcje panelu bocznego, które da się wyłączyć (nazwy nagłówków z main.rs).
+pub const SIDE_SECTIONS: [&str; 7] = ["Zapisane wyszukiwania", "Szybki dostęp", "Przypięte", "Biblioteki", "Dyski", "Sieć", "Synchronizacja"];
+
+pub fn toggle_side(s: &Shared, name: &str) {
+    change(s, |p| match p.side_hidden.iter().position(|h| h == name) {
+        Some(i) => {
+            p.side_hidden.remove(i);
+        }
+        None => p.side_hidden.push(name.to_string()),
+    });
+    crate::render_side(s);
+}
+
+pub fn set_window_opacity(s: &Shared, v: f32) {
+    change(s, |p| p.window_opacity = v.clamp(20.0, 100.0));
+    relook(s);
 }
 
 pub fn forget_views(s: &Shared) {
@@ -314,6 +342,10 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_toggle(move |k| toggle(&s, &k));
     let s = st.clone();
     g.on_forget_views(move || forget_views(&s));
+    let s = st.clone();
+    g.on_toggle_side(move |n| toggle_side(&s, &n));
+    let s = st.clone();
+    g.on_set_window_opacity(move |v| set_window_opacity(&s, v));
     g.on_open_prefs_folder(|| {
         if let Some(d) = dirs::data_dir() {
             let _ = open::that_detached(d.join("PowerDesk"));

@@ -10,8 +10,10 @@ export global Theme {
     /// Krycie wyskakujących okienek (menu, dialogi, paleta, podpowiedzi), 0,6–1.
     in-out property <float> popup-alpha: 1;
 
-    out property <color> bg: effect == 0 ? (light ? #f6f6f7 : #000000) : effect == 1 ? (light ? #f6f6f78c : #00000073) : (light ? #f6f6f7bd : #000000a8);
-    out property <color> panel: effect == 0 ? (light ? #ffffff : #0b0b0b) : effect == 1 ? (light ? #ffffff99 : #1414148c) : (light ? #ffffffcc : #141414bd);
+    /// Krycie tła okna przy Mica/Acrylic (0–1); 0 – domyślne dla efektu.
+    in-out property <float> window-alpha: 0;
+    out property <color> bg: effect == 0 ? (light ? #f6f6f7 : #000000) : window-alpha > 0 ? (light ? #f6f6f7 : #000000).with-alpha(window-alpha) : effect == 1 ? (light ? #f6f6f78c : #00000073) : (light ? #f6f6f7bd : #000000a8);
+    out property <color> panel: effect == 0 ? (light ? #ffffff : #0b0b0b) : window-alpha > 0 ? (light ? #ffffff : #141414).with-alpha(min(1, window-alpha + 0.1)) : effect == 1 ? (light ? #ffffff99 : #1414148c) : (light ? #ffffffcc : #141414bd);
     /// Tła okienek – pełne kolory motywu, tylko z wybranym kryciem.
     out property <color> popup: (light ? #ffffff : #0b0b0b).with-alpha(popup-alpha);
     out property <color> popup-high: (light ? #ececee : #161616).with-alpha(popup-alpha);

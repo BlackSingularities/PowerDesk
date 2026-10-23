@@ -3,6 +3,12 @@ import { Icons } from "icons.slint";
 import { Icon, Label, TipArea } from "components.slint";
 import { ScrollView, LineEdit, Slider } from "std-widgets.slint";
 
+/// Sekcja panelu bocznego i czy jest widoczna.
+export struct SideSection {
+    name: string,
+    on: bool,
+}
+
 /// Element zastępowania Eksploratora w sekcji System.
 export struct SysItem {
     name: string,
@@ -32,6 +38,15 @@ export global SettingsState {
     in-out property <bool> preview-open;
     in-out property <bool> viewer-info;
     in-out property <bool> confirm-trash;
+    /// Jedno kliknięcie otwiera (czyta też widok plików).
+    in-out property <bool> single-click;
+    in-out property <[SideSection]> side-sections;
+    callback toggle-side(string);
+    /// Krycie tła okna przy Mica/Acrylic w procentach (0 – domyślne).
+    in-out property <float> window-opacity;
+    callback set-window-opacity(float);
+    in-out property <bool> close-to-tray;
+    in-out property <bool> autostart-window;
     /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
     in-out property <[SysItem]> system;
     callback repair-integration;
@@ -473,6 +488,30 @@ export component SettingsView inherits Rectangle {
                             }
                         }
                     }
+                    if SettingsState.effect != 0: Label {
+                        text: "Krycie tła okna";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    if SettingsState.effect != 0: HorizontalLayout {
+                        spacing: 12px;
+                        Slider {
+                            horizontal-stretch: 1;
+                            minimum: 20;
+                            maximum: 100;
+                            step: 5;
+                            value: SettingsState.window-opacity == 0 ? (SettingsState.effect == 1 ? 45 : 75) : SettingsState.window-opacity;
+                            changed(v) => {
+                                SettingsState.set-window-opacity(round(v / 5) * 5);
+                            }
+                        }
+                        Label {
+                            y: (parent.height - self.height) / 2;
+                            width: 44px;
+                            text: (SettingsState.window-opacity == 0 ? (SettingsState.effect == 1 ? 45 : 75) : round(SettingsState.window-opacity)) + "%";
+                            font-size: 12.5px;
+                        }
+                    }
                     Label {
                         text: "Krycie okienek";
                         font-size: 13px;
@@ -675,6 +714,28 @@ export component SettingsView inherits Rectangle {
                             SettingsState.toggle("confirm-trash");
                         }
                     }
+                    ToggleRow {
+                        icon: Icons.open;
+                        text: "Jedno kliknięcie otwiera";
+                        hint: "Zaznaczanie: Ctrl, Shift albo ramka · jak „Kliknij raz, aby otworzyć” w Eksploratorze";
+                        on: SettingsState.single-click;
+                        toggled => {
+                            SettingsState.toggle("single-click");
+                        }
+                    }
+                    Label {
+                        text: "Sekcje panelu bocznego";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    for sec in SettingsState.side-sections: ToggleRow {
+                        icon: Icons.sidebar;
+                        text: sec.name;
+                        on: sec.on;
+                        toggled => {
+                            SettingsState.toggle-side(sec.name);
+                        }
+                    }
                 }
 
                 if SettingsState.section == 4: VerticalLayout {
@@ -776,6 +837,24 @@ export component SettingsView inherits Rectangle {
                     Heading {
                         title: "System";
                         lead: "PowerDesk zastępuje Eksplorator Windows · wpisy odnawiają się przy każdym starcie";
+                    }
+                    ToggleRow {
+                        icon: Icons.min;
+                        text: "Krzyżyk chowa okno do zasobnika";
+                        hint: "Wyłączone – krzyżyk kończy PowerDesk (pulpit i pasek Windows wracają)";
+                        on: SettingsState.close-to-tray;
+                        toggled => {
+                            SettingsState.toggle("close-to-tray");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.power;
+                        text: "Okno folderów przy starcie z Windows";
+                        hint: "Wyłączone – po zalogowaniu tylko pulpit, pasek i ikona w zasobniku";
+                        on: SettingsState.autostart-window;
+                        toggled => {
+                            SettingsState.toggle("autostart-window");
+                        }
                     }
                     for it in SettingsState.system: Rectangle {
                         height: 56px;
