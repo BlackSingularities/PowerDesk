@@ -241,6 +241,24 @@ pub fn unmap(letter: &str, forget: bool) -> Result<(), String> {
     }
 }
 
+/// Systemowe okno „Mapuj dysk sieciowy” (wybór litery, ścieżki i logowania robi Windows).
+pub fn map_dialog(hwnd: isize) {
+    unsafe {
+        let _ = windows::Win32::NetworkManagement::WNet::WNetConnectionDialog(HWND(hwnd as *mut _), RESOURCETYPE_DISK.0);
+    }
+}
+
+/// Wysuwa dysk wymienny albo płytę – czasownik powłoki „Wysuń” (jak w Eksploratorze).
+pub fn eject(hwnd: isize, root: &str) -> Result<(), String> {
+    crate::shell::invoke_verb(hwnd, root, "eject")
+}
+
+/// Oczyszczanie dysku Windows dla tej litery.
+pub fn cleanup(letter: &str) {
+    let l = letter.trim_end_matches(['\\', ':']);
+    let _ = std::process::Command::new("cleanmgr.exe").arg(format!("/d{l}")).spawn();
+}
+
 pub fn win_err(code: u32) -> String {
     match code {
         5 => "Brak dostępu".into(),

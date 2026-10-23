@@ -114,6 +114,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
                 slint::Timer::single_shot(Duration::from_millis(150), refresh);
             }
         });
+        w.on_reorder(move |i, x, each| reorder(n, i as usize, x, each));
         w.on_context(move |i, x, y| {
             close_thumbs();
             context(n, i as usize, x, y)
@@ -324,6 +325,35 @@ fn pinned(exe: &str) -> bool {
     let mut on = false;
     crate::with_state(|s| on = s.borrow().prefs.taskbar_pins.iter().any(|p| p.eq_ignore_ascii_case(exe)));
     on
+}
+
+/// Przypięty przeciągnięty na miejsce innego przypiętego (x – w pasie przycisków). Przypięte
+/// stoją na początku paska w kolejności z ustawień, więc numer przycisku to numer na liście.
+fn reorder(bar: usize, from: usize, x: f32, each: f32) {
+    let Some(groups) = BARS.with(|b| b.borrow().get(bar).map(|b| b.groups.clone())) else { return };
+    // Te same szerokości co w taskbar.slint: przypięty bez okien 44 px, reszta `each`, odstęp 4 px.
+    let mut left = 0.0;
+    let mut to = groups.len().saturating_sub(1);
+    for (i, g) in groups.iter().enumerate() {
+        let w = if g.wins.is_empty() { 44.0 } else { each };
+        if x < left + w + 2.0 {
+            to = i;
+            break;
+        }
+        left += w + 4.0;
+    }
+    crate::with_state(|s| {
+        let mut b = s.borrow_mut();
+        let pins = &mut b.prefs.taskbar_pins;
+        if from >= pins.len() || from == to {
+            return;
+        }
+        let to = to.min(pins.len() - 1);
+        let p = pins.remove(from);
+        pins.insert(to, p);
+        b.prefs.save();
+    });
+    refresh();
 }
 
 /// Przypina albo odpina program; paski przebudują się przy odświeżeniu.

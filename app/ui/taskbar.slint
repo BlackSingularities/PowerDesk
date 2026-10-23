@@ -848,6 +848,9 @@ export component TaskbarWindow inherits Window {
     in property <bool> charging;
     /// Ikony programów w zasobniku (tylko w trybie powłoki).
     in property <[TrayApp]> tray-apps;
+    /// Ile ikon programów widać bez rozwijania.
+    in property <int> tray-max: 6;
+    in-out property <bool> tray-open;
     /// Klik na ikonie programu: klucz ikony i przycisk (0 – lewy, 1 – dwuklik, 2 – prawy).
     callback tray-app-click(string, int);
     /// Okienko głośności i kalendarz – x w oknie paska.
@@ -866,6 +869,9 @@ export component TaskbarWindow inherits Window {
     /// Wąski przycisk na prawym końcu – pokaż pulpit (Win+D).
     callback show-desktop();
     callback activate(int);
+    /// Przypięty przeciągnięty w nowe miejsce: numer przycisku, x upuszczenia w pasie przycisków
+    /// i szerokość przycisku z oknami (do wyliczenia miejsca w taskbar.rs).
+    callback reorder(int, length, length);
     /// Prawy przycisk na oknie – współrzędne w oknie paska.
     callback context(int, length, length);
     /// Kursor nad przyciskiem (środek przycisku w oknie paska) i zejście z niego – podglądy okien.
@@ -921,7 +927,7 @@ export component TaskbarWindow inherits Window {
 
         // Programy – przypięte bez okien mają 44 px, reszta dzieli miejsce po równo
         // (najwyżej 200 px na przycisk).
-        Rectangle {
+        lane := Rectangle {
             horizontal-stretch: 1;
             property <int> busy: root.buttons.length - root.idle;
             property <length> each: self.busy == 0 ? 0 : min(200px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy);
@@ -932,6 +938,10 @@ export component TaskbarWindow inherits Window {
                 height: 40px;
                 border-radius: Theme.r;
                 background: b.active ? Theme.sel : tb-ta.has-hover ? Theme.hover : transparent;
+                // Przeciąganie przypiętego: przycisk przygasa, miejsce wybiera puszczenie.
+                property <bool> dragging: tb-ta.pressed && b.pinned && abs(tb-ta.mouse-x - tb-ta.pressed-x) > 8px;
+                property <bool> was-drag;
+                opacity: self.dragging ? 0.5 : 1;
                 HorizontalLayout {
                     padding-left: 8px;
                     padding-right: 8px;
@@ -999,9 +1009,18 @@ export component TaskbarWindow inherits Window {
                 tb-ta := TipArea {
                     tip: b.count == 0 ? b.title + " · przypięty" : "";
                     clicked => {
-                        root.activate(i);
+                        if (!parent.was-drag) {
+                            root.activate(i);
+                        }
                     }
                     pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                            parent.was-drag = false;
+                        }
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && parent.dragging) {
+                            parent.was-drag = true;
+                            root.reorder(i, self.absolute-position.x - lane.absolute-position.x + self.mouse-x, lane.each);
+                        }
                         if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                             root.context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
                         }
@@ -1015,7 +1034,20 @@ export component TaskbarWindow inherits Window {
             horizontal-stretch: 0;
             alignment: center;
             spacing: 2px;
-            for a in root.tray-apps: TrayAppIcon {
+            // Wiele ikon: widać pierwsze `tray-max`, reszta po rozwinięciu strzałką.
+            if root.tray-apps.length > root.tray-max: TrayIcon {
+                icon: Icons.chevron-down;
+                tip: root.tray-open ? "Zwiń ikony" : "Pokaż ukryte ikony (" + (root.tray-apps.length - root.tray-max) + ")";
+                // Strzałka w górę jak w Windows: obrócona „w dół”, gdy zwinięte.
+                transform-rotation: root.tray-open ? 0deg : 180deg;
+                clicked => {
+                    root.tray-open = !root.tray-open;
+                }
+            }
+            for a[i] in root.tray-apps: TrayAppIcon {
+                property <bool> shown: root.tray-open || i < root.tray-max;
+                visible: self.shown;
+                width: self.shown ? 28px : 0px;
                 img: a.img;
                 tip: a.tip;
                 pressed(b) => {

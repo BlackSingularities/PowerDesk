@@ -4,7 +4,7 @@ use std::path::Path;
 use std::rc::Rc;
 
 use powerdesk_core::events::AppHandle as Core;
-use powerdesk_core::{archive, clip, fsx, ops, shell};
+use powerdesk_core::{archive, clip, drives, fsx, ops, shell};
 use slint::{ComponentHandle, ModelRc, VecModel};
 
 use crate::model::{Col, GroupKey, SortKey, View};
@@ -578,6 +578,29 @@ pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
     if crate::is_net_place(s, &path) {
         let p = path.clone();
         v.push(it("Usuń lokalizację z panelu", "close", move |s| crate::remove_net_place(s, &p)));
+    }
+    // Dysk: wysuwanie, odłączanie, oczyszczanie i mapowanie – zależnie od rodzaju.
+    let drive = s.borrow().drives.iter().find(|d| d.path.eq_ignore_ascii_case(&path)).cloned();
+    if let Some(d) = drive {
+        v.push(sep());
+        let root = d.path.clone();
+        match d.kind.as_str() {
+            "removable" | "cdrom" => v.push(it("Wysuń", "eject", move |s| {
+                if let Err(e) = drives::eject(crate::hwnd(s), &root) {
+                    crate::transfers::toast(s, format!("Nie udało się wysunąć: {e}"), crate::transfers::Kind::Error, None);
+                }
+            })),
+            "network" => v.push(it("Odłącz dysk sieciowy", "unlink", move |s| match drives::unmap(&root, true) {
+                Ok(()) => crate::transfers::toast(s, "Dysk sieciowy odłączony", crate::transfers::Kind::Ok, None),
+                Err(e) => crate::transfers::toast(s, format!("Nie udało się odłączyć: {e}"), crate::transfers::Kind::Error, None),
+            })),
+            _ => {}
+        }
+        if d.kind == "fixed" || d.kind == "removable" {
+            let l = d.letter.clone();
+            v.push(it("Oczyszczanie dysku", "trash", move |_| drives::cleanup(&l)));
+        }
+        v.push(it("Mapuj dysk sieciowy…", "network", |s| drives::map_dialog(crate::hwnd(s))));
     }
     v.push(it("Terminal tutaj", "terminal", move |_| terminal(&path)));
     show(s, v, x, y);

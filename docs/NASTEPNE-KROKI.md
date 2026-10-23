@@ -81,8 +81,14 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   nie podmieniamy. Skrypt `apply.cmd` czeka na koniec procesu, zostawia `powerdesk.exe.old`, podmienia
   i uruchamia; w trybie powłoki uruchamia strażnik (znacznik `updating.txt`, bez liczenia awarii).
 
+## Też w kodzie, nieklikane (23.10.2026)
+
+- Pasek: przypięte przeciągane w nowe miejsce (przygasają, puszczenie wybiera pozycję; `taskbar::reorder`).
+- Zasobnik powłoki: ponad 6 ikon – strzałka rozwija resztę (`tray-max`, `tray-open`).
+- Panel boczny, prawy przycisk na dysku: Wysuń (czasownik „eject”), Odłącz dysk sieciowy, Oczyszczanie dysku
+  (`cleanmgr /dX`), Mapuj dysk sieciowy… (`WNetConnectionDialog`).
+
 ## Kolejne zadania z planu
 
 - Menu Start: foldery grup jak w Windows 10, przeciąganie i rozmiary kafelków.
-- Pasek: zmiana kolejności przypiętych przeciąganiem.
 - Etap 8: instalator i deinstalator (przywrócenie pulpitu, paska i powłoki), migracja z OpenFilePower.
