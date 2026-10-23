@@ -9,6 +9,9 @@ export struct HomeDrive {
     detail: string,
     usage: float,
     icon: string,
+    /// Ikona systemowa (zamiast liniowej, gdy już jest).
+    img: image,
+    has-img: bool,
 }
 
 export struct HomeFolder {
@@ -18,6 +21,8 @@ export struct HomeFolder {
     size: string,
     /// Rozmiar względem największego folderu (0–1); ujemny – jeszcze liczę.
     ratio: float,
+    img: image,
+    has-img: bool,
 }
 
 export struct HomeFile {
@@ -47,6 +52,8 @@ export struct HomeTool {
     hint: string,
     icon: string,
     key: string,
+    img: image,
+    has-img: bool,
 }
 
 /// Sekcja ekranu w kolejności z ustawień.
@@ -233,6 +240,8 @@ component LinkRow inherits Rectangle {
     in property <string> tip;
     in property <float> bar: -1;
     in property <bool> plain;
+    in property <image> img;
+    in property <bool> has-img;
     callback clicked;
     callback middle;
     /// Prawy przycisk – punkt w oknie.
@@ -244,11 +253,19 @@ component LinkRow inherits Rectangle {
         padding-left: 6px;
         padding-right: 8px;
         spacing: 10px;
-        Icon {
-            y: (parent.height - self.height) / 2;
-            commands: root.icon;
-            size: 17px;
-            color: Theme.dim;
+        Rectangle {
+            width: 20px;
+            if root.has-img: Image {
+                width: 20px;
+                height: 20px;
+                source: root.img;
+                image-rendering: smooth;
+            }
+            if !root.has-img: Icon {
+                commands: root.icon;
+                size: 17px;
+                color: Theme.dim;
+            }
         }
         VerticalLayout {
             horizontal-stretch: 1;
@@ -299,11 +316,19 @@ component ToolTile inherits Rectangle {
         padding-left: 12px;
         padding-right: 10px;
         spacing: 10px;
-        Icon {
-            y: (parent.height - self.height) / 2;
-            commands: root.tool.icon;
-            size: 18px;
-            color: tt-ta.has-hover ? Theme.accent : Theme.dim;
+        Rectangle {
+            width: 24px;
+            if root.tool.has-img: Image {
+                width: 24px;
+                height: 24px;
+                source: root.tool.img;
+                image-rendering: smooth;
+            }
+            if !root.tool.has-img: Icon {
+                commands: root.tool.icon;
+                size: 18px;
+                color: tt-ta.has-hover ? Theme.accent : Theme.dim;
+            }
         }
         VerticalLayout {
             horizontal-stretch: 1;
@@ -437,8 +462,8 @@ export component HomeView inherits Rectangle {
     /// Szeroko – karty obok siebie, wąsko – jedna pod drugą.
     property <bool> wide: sv.visible-width > 980px;
     property <int> per-row: max(1, floor((root.cols-w - 22px) / 130px));
-    /// Kafelki narzędzi: co najmniej 190 px szerokości, rozciągnięte na cały wiersz.
-    property <int> tools-per-row: max(1, floor((root.cols-w - 22px) / 200px));
+    /// Kafelki narzędzi: co najmniej 200 px szerokości, rzędy na całą szerokość, ostatni wyśrodkowany.
+    property <int> tools-per-row: max(1, min(HomeState.tools.length, floor((root.cols-w - 32px + 10px) / 210px)));
     property <length> tool-w: (root.cols-w - 32px - (root.tools-per-row - 1) * 10px) / root.tools-per-row;
     /// Szeroko: Komputer, Dyski i Twoje foldery w trzech równych kolumnach.
     property <length> col-w: root.wide ? (root.cols-w - 32px) / 3 : root.cols-w;
@@ -475,12 +500,14 @@ export component HomeView inherits Rectangle {
                     width: root.col-w;
                     title: "Komputer";
                     note: HomeState.host;
-                    for row[r] in ceil(HomeState.metrics.length / root.metric-per-row): HorizontalLayout {
-                        spacing: 10px;
-                        alignment: start;
+                    // Kafelki w rzędach (pozycje liczone wprost – ukryte elementy w układzie dokładałyby odstępy).
+                    Rectangle {
+                        property <int> rows: ceil(HomeState.metrics.length / root.metric-per-row);
+                        height: self.rows * 98px + max(0, self.rows - 1) * 10px;
                         for m[i] in HomeState.metrics: Metric {
-                            visible: i >= r * root.metric-per-row && i < (r + 1) * root.metric-per-row;
-                            width: self.visible ? root.metric-w : 0;
+                            x: Math.mod(i, root.metric-per-row) * (root.metric-w + 10px);
+                            y: floor(i / root.metric-per-row) * 108px;
+                            width: root.metric-w;
                             m: m;
                         }
                     }
@@ -501,6 +528,8 @@ export component HomeView inherits Rectangle {
                             text: d.name;
                             value: d.detail;
                             bar: d.usage;
+                            img: d.img;
+                            has-img: d.has-img;
                             tip: d.path + " – kliknij, aby otworzyć";
                             clicked => {
                                 HomeState.go(d.path);
@@ -540,6 +569,8 @@ export component HomeView inherits Rectangle {
                             value: f.ratio < 0 ? "liczę…" : f.size;
                             bar: max(f.ratio, 0);
                             plain: true;
+                            img: f.img;
+                            has-img: f.has-img;
                             tip: f.path;
                             clicked => {
                                 HomeState.go(f.path);
@@ -561,6 +592,8 @@ export component HomeView inherits Rectangle {
                 }
                 for f in HomeState.favorites: LinkRow {
                     icon: f.icon;
+                    img: f.img;
+                    has-img: f.has-img;
                     text: f.name;
                     value: f.size;
                     tip: f.path;
@@ -631,12 +664,17 @@ export component HomeView inherits Rectangle {
 
             // Narzędzia systemu – kafelki w rzędach.
             if !sec.shut && sec.key == "tools": Card {
-                for row[r] in ceil(HomeState.tools.length / root.tools-per-row): HorizontalLayout {
-                    spacing: 10px;
-                    alignment: start;
+                // Pełne rzędy na całą szerokość, ostatni (krótszy) – wyśrodkowany.
+                Rectangle {
+                    property <int> n: HomeState.tools.length;
+                    property <int> rows: ceil(self.n / root.tools-per-row);
+                    height: self.rows * 52px + max(0, self.rows - 1) * 10px;
                     for t[i] in HomeState.tools: ToolTile {
-                        visible: i >= r * root.tools-per-row && i < (r + 1) * root.tools-per-row;
-                        width: self.visible ? root.tool-w : 0;
+                        property <int> line: floor(i / root.tools-per-row);
+                        property <int> in-row: self.line == parent.rows - 1 ? parent.n - self.line * root.tools-per-row : root.tools-per-row;
+                        x: (parent.width - (self.in-row * root.tool-w + (self.in-row - 1) * 10px)) / 2 + Math.mod(i, root.tools-per-row) * (root.tool-w + 10px);
+                        y: self.line * 62px;
+                        width: root.tool-w;
                         tool: t;
                     }
                 }

@@ -118,12 +118,17 @@ fn render_favorites(s: &Shared) {
         .prefs
         .favorites
         .iter()
-        .map(|p| HomeFolder {
-            name: std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone()).into(),
-            icon: ic("pin"),
-            size: std::path::Path::new(p).parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default().into(),
-            ratio: -1.0,
-            path: p.clone().into(),
+        .map(|p| {
+            let img = crate::thumbs::get(p, px(s, 20.0), true);
+            HomeFolder {
+                name: std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone()).into(),
+                icon: ic("pin"),
+                size: std::path::Path::new(p).parent().map(|d| d.to_string_lossy().to_string()).unwrap_or_default().into(),
+                ratio: -1.0,
+                path: p.clone().into(),
+                has_img: img.is_some(),
+                img: img.unwrap_or_default(),
+            }
         })
         .collect();
     with_ui(s, |g| g.set_favorites(ModelRc::new(VecModel::from(rows))));
@@ -220,50 +225,78 @@ fn ic(name: &str) -> slint::SharedString {
     crate::icons::icon(name).into()
 }
 
-/// Narzędzia systemu: nazwa, opis, ikona i klucz (zob. `run_tool`).
-const TOOLS: [(&str, &str, &str, &str); 12] = [
-    ("Ustawienia Windows", "Wszystkie ustawienia systemu", "settings", "settings"),
-    ("Informacje o systemie", "Wersja, nazwa komputera, sprzęt", "info", "about"),
-    ("Aplikacje", "Instalowanie i odinstalowywanie", "app", "apps"),
-    ("Panel sterowania", "Klasyczne ustawienia", "list", "control"),
-    ("Menedżer urządzeń", "Sterowniki i sprzęt", "usb", "devmgmt"),
-    ("Zarządzanie dyskami", "Partycje i woluminy", "drive", "diskmgmt"),
-    ("Menedżer zadań", "Programy i wydajność", "bolt", "taskmgr"),
-    ("Połączenia sieciowe", "Karty sieciowe", "network", "ncpa"),
-    ("Mapuj dysk sieciowy", "Udział sieciowy jako litera dysku", "link", "map"),
-    ("Zasilanie", "Uśpienie, ekran, bateria", "power", "power"),
-    ("Windows Update", "Aktualizacje systemu", "refresh", "update"),
-    ("Zabezpieczenia Windows", "Antywirus i zapora", "shield", "security"),
+/// Narzędzia systemu: nazwa, opis, ikona liniowa (zanim dotrze systemowa), źródło ikony
+/// systemowej (`sys:` – plik w System32, `app:` – aplikacja z menu Start) i polecenie
+/// (ShellExecute; `!map`, `!env` – obsługiwane osobno).
+const TOOLS: [(&str, &str, &str, &str, &str); 26] = [
+    ("Ustawienia Windows", "Wszystkie ustawienia systemu", "settings", SETTINGS_APP, "ms-settings:"),
+    ("Informacje o systemie", "Wersja, sprzęt, nazwa komputera", "info", "sys:msinfo32.exe", "msinfo32.exe"),
+    ("Aplikacje", "Instalowanie i odinstalowywanie", "app", "sys:appwiz.cpl", "ms-settings:appsfeatures"),
+    ("Aplikacje domyślne", "Czym otwierać pliki i linki", "open", SETTINGS_APP, "ms-settings:defaultapps"),
+    ("Panel sterowania", "Klasyczne ustawienia", "list", "sys:control.exe", "control.exe"),
+    ("Menedżer zadań", "Programy i wydajność", "bolt", "sys:taskmgr.exe", "taskmgr.exe"),
+    ("Monitor zasobów", "Procesor, dysk, sieć na żywo", "bolt", "sys:resmon.exe", "resmon.exe"),
+    ("Menedżer urządzeń", "Sterowniki i sprzęt", "usb", "sys:devmgmt.msc", "devmgmt.msc"),
+    ("Zarządzanie dyskami", "Partycje i woluminy", "drive", "sys:diskmgmt.msc", "diskmgmt.msc"),
+    ("Zarządzanie komputerem", "Usługi, dzienniki, dyski", "pc", "sys:compmgmt.msc", "compmgmt.msc"),
+    ("Usługi", "Usługi systemu Windows", "settings", "sys:services.msc", "services.msc"),
+    ("Podgląd zdarzeń", "Dzienniki błędów i ostrzeżeń", "history", "sys:eventvwr.msc", "eventvwr.msc"),
+    ("Harmonogram zadań", "Zadania uruchamiane o czasie", "history", "sys:taskschd.msc", "taskschd.msc"),
+    ("Edytor rejestru", "Ustawienia zapisane w rejestrze", "code", "sys:..\\regedit.exe", "regedit.exe"),
+    ("Konfiguracja systemu", "Uruchamianie i rozruch", "settings", "sys:msconfig.exe", "msconfig.exe"),
+    ("Właściwości systemu", "Nazwa, wydajność, ochrona", "pc", "sys:sysdm.cpl", "sysdm.cpl"),
+    ("Zmienne środowiskowe", "PATH i inne zmienne", "code", "sys:sysdm.cpl", "!env"),
+    ("Połączenia sieciowe", "Karty sieciowe", "network", "sys:ncpa.cpl", "ncpa.cpl"),
+    ("Mapuj dysk sieciowy", "Udział sieciowy jako litera dysku", "link", "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}", "!map"),
+    ("Dźwięk", "Urządzenia odtwarzania i nagrywania", "volume", "sys:mmsys.cpl", "mmsys.cpl"),
+    ("Opcje zasilania", "Plany zasilania i uśpienie", "power", "sys:powercfg.cpl", "powercfg.cpl"),
+    ("Oczyszczanie dysku", "Pliki tymczasowe i kosz", "trash", "sys:cleanmgr.exe", "cleanmgr.exe"),
+    ("Wiersz polecenia", "cmd.exe", "terminal", "sys:cmd.exe", "cmd.exe"),
+    ("PowerShell", "Powłoka i skrypty", "terminal", "sys:WindowsPowerShell\\v1.0\\powershell.exe", "powershell.exe"),
+    ("Windows Update", "Aktualizacje systemu", "refresh", SETTINGS_APP, "ms-settings:windowsupdate"),
+    ("Zabezpieczenia Windows", "Antywirus i zapora", "shield", "app:Microsoft.SecHealthUI_8wekyb3d8bbwe!SecHealthUI", "windowsdefender:"),
 ];
 
-/// Uruchamia narzędzie z kafelka.
+const SETTINGS_APP: &str = "app:windows.immersivecontrolpanel_cw5n1h2txyewy!microsoft.windows.immersivecontrolpanel";
+
+/// Ścieżka, z której powłoka da ikonę narzędzia.
+fn tool_icon_path(src: &str) -> String {
+    let sys = || std::env::var("WINDIR").map(|w| format!(r"{w}\System32")).unwrap_or_else(|_| r"C:\Windows\System32".into());
+    if let Some(f) = src.strip_prefix("sys:") {
+        return format!(r"{}\{f}", sys());
+    }
+    if let Some(id) = src.strip_prefix("app:") {
+        return format!(r"shell:AppsFolder\{id}");
+    }
+    src.to_string()
+}
+
+/// Uruchamia narzędzie z kafelka (klucz – polecenie z `TOOLS`).
 pub fn run_tool(s: &Shared, key: &str) {
-    let uri = |u: &str| {
-        let _ = open::that_detached(u);
-    };
     match key {
-        "settings" => uri("ms-settings:"),
-        "about" => uri("ms-settings:about"),
-        "apps" => uri("ms-settings:appsfeatures"),
-        "power" => uri("ms-settings:powersleep"),
-        "update" => uri("ms-settings:windowsupdate"),
-        "security" => uri("windowsdefender:"),
-        "control" => {
-            let _ = std::process::Command::new("control.exe").spawn();
+        "!map" | "map" => powerdesk_core::drives::map_dialog(crate::hwnd(s)),
+        "!env" => {
+            let _ = std::process::Command::new("rundll32.exe").args(["sysdm.cpl,EditEnvironmentVariables"]).spawn();
         }
-        "devmgmt" => uri("devmgmt.msc"),
-        "diskmgmt" => uri("diskmgmt.msc"),
-        "ncpa" => uri("ncpa.cpl"),
-        "taskmgr" => {
-            let _ = std::process::Command::new("taskmgr.exe").spawn();
+        cmd => {
+            let _ = open::that_detached(cmd);
         }
-        "map" => powerdesk_core::drives::map_dialog(crate::hwnd(s)),
-        _ => {}
     }
 }
 
+fn px(s: &Shared, logical: f32) -> u32 {
+    s.borrow().ui.upgrade().map(|u| (logical * u.window().scale_factor()) as u32).unwrap_or(logical as u32)
+}
+
 fn render_tools(s: &Shared) {
-    let rows: Vec<HomeTool> = TOOLS.iter().map(|(n, h, i, k)| HomeTool { name: (*n).into(), hint: (*h).into(), icon: ic(i), key: (*k).into() }).collect();
+    let px = px(s, 24.0);
+    let rows: Vec<HomeTool> = TOOLS
+        .iter()
+        .map(|(n, h, i, src, run)| {
+            let img = crate::thumbs::get(&tool_icon_path(src), px, true);
+            HomeTool { name: (*n).into(), hint: (*h).into(), icon: ic(i), key: (*run).into(), has_img: img.is_some(), img: img.unwrap_or_default() }
+        })
+        .collect();
     with_ui(s, |g| g.set_tools(ModelRc::new(VecModel::from(rows))));
 }
 
@@ -313,6 +346,7 @@ fn drive_kind(kind: &str) -> &'static str {
 
 /// Dyski z wolnym miejscem i suma dla dysków lokalnych.
 fn render_drives(s: &Shared) {
+    let px = px(s, 20.0);
     let drives: Vec<HomeDrive> = s
         .borrow()
         .drives
@@ -329,6 +363,8 @@ fn render_drives(s: &Shared) {
                 "cdrom" => "disc",
                 _ => "drive",
             }),
+            img: crate::thumbs::get(&d.path, px, true).unwrap_or_default(),
+            has_img: crate::thumbs::get(&d.path, px, true).is_some(),
         })
         .collect();
     let (total, free) = s.borrow().drives.iter().filter(|d| d.online && d.kind != "network").fold((0u64, 0u64), |(t, f), d| (t + d.total, f + d.free));
@@ -466,17 +502,21 @@ fn tick(s: &Shared) {
 fn render_folders(s: &Shared) {
     let sizes = SIZES.with(|x| x.borrow().clone());
     let max = sizes.values().copied().max().unwrap_or(0).max(1);
+    let px = px(s, 20.0);
     let rows: Vec<HomeFolder> = known()
         .into_iter()
         .map(|(n, p, icon)| {
             let p = p.to_string_lossy().to_string();
             let sz = sizes.get(&p).copied();
+            let img = crate::thumbs::get(&p, px, true);
             HomeFolder {
                 name: n.into(),
                 icon: ic(icon),
                 size: sz.map(fmt::size).unwrap_or_default().into(),
                 ratio: sz.map(|v| v as f32 / max as f32).unwrap_or(-1.0),
                 path: p.into(),
+                has_img: img.is_some(),
+                img: img.unwrap_or_default(),
             }
         })
         .collect();
@@ -566,8 +606,24 @@ fn render_files(s: &Shared) {
 
 pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     let open = s.borrow().ui.upgrade().is_some_and(|u| u.global::<HomeState>().get_open());
-    if open && shown(s).iter().any(|e| paths.contains(&e.path)) {
+    if !open {
+        return;
+    }
+    if shown(s).iter().any(|e| paths.contains(&e.path)) {
         render_files(s);
+    }
+    // Ikony systemowe dysków, folderów i narzędzi.
+    if s.borrow().drives.iter().any(|d| paths.contains(&d.path)) {
+        render_drives(s);
+    }
+    if known().iter().any(|(_, p, _)| paths.contains(&p.to_string_lossy().to_string())) {
+        render_folders(s);
+    }
+    if s.borrow().prefs.favorites.iter().any(|p| paths.contains(p)) {
+        render_favorites(s);
+    }
+    if TOOLS.iter().any(|t| paths.contains(&tool_icon_path(t.3))) {
+        render_tools(s);
     }
 }
 

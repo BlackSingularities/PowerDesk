@@ -117,14 +117,16 @@ pub fn request(req: ThumbReq) {
     }
     let reply = req.reply;
     let k2 = key.clone();
+    let icon_only = req.icon_only;
     let wrapped = ThumbReq {
         path: req.path,
         size: req.size,
         icon_only: req.icon_only,
         reply: Box::new(move |res| {
-            // Brak miniatury też zapamiętujemy, żeby nie pytać Shella w kółko.
+            // Brak miniatury też zapamiętujemy, żeby nie pytać Shella w kółko. Ikona istnieje
+            // zawsze – jej brak to chwilowy kłopot powłoki (np. przy starcie), więc go nie pamiętamy.
             let entry = res.clone().unwrap_or((Vec::new(), "none"));
-            {
+            if res.is_some() || !icon_only {
                 let (data, mime) = (&entry.0, entry.1);
                 let mut c = CACHE.lock();
                 if !c.map.contains_key(&k2) {

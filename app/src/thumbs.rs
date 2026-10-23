@@ -85,8 +85,17 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
             None => {
                 let n = c.failed.entry(key.clone()).or_default();
                 *n += 1;
-                if *n >= 3 {
+                let n = *n;
+                if n >= 5 {
                     c.missing.insert(key);
+                } else if key.2 {
+                    // Ikona: powłoka bywa chwilowo zajęta (start systemu) – kolejna próba za chwilę,
+                    // za każdym razem dłuższą; widoki odświeżają się i pytają ponownie.
+                    let path = key.0.clone();
+                    c.arrived.remove(&path);
+                    slint::Timer::single_shot(std::time::Duration::from_millis(1500 * n as u64), move || {
+                        crate::with_state(|s| crate::thumbs_arrived(s, &HashSet::from([path])));
+                    });
                 }
             }
         }
