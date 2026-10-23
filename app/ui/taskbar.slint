@@ -788,7 +788,10 @@ export component TaskbarWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     title: "PowerDesk – pasek zadań";
-    background: Theme.panel;
+    /// Krycie tła (0–1) – z ustawień albo 0, gdy na monitorze widać pulpit (taskbar.rs).
+    in property <float> bg-alpha: 1;
+    background: Theme.panel.with-alpha(root.bg-alpha);
+    animate background { duration: 250ms; }
 
     in property <[TaskButton]> buttons;
     /// Przypięte programy bez okien – wąskie przyciski z samą ikoną.
@@ -815,6 +818,8 @@ export component TaskbarWindow inherits Window {
     callback start();
     /// Prawy przycisk na Start – menu PowerDesk (x w oknie paska).
     callback start-context(length);
+    /// Prawy przycisk na pustym miejscu paska (x w oknie paska).
+    callback bar-context(length);
     /// Wąski przycisk na prawym końcu – pokaż pulpit (Win+D).
     callback show-desktop();
     callback activate(int);
@@ -824,11 +829,21 @@ export component TaskbarWindow inherits Window {
     callback hover(int, length);
     callback unhover();
 
-    // Górna linia oddziela pasek od pulpitu.
+    // Puste miejsce paska – prawy przycisk otwiera menu paska (przyciski leżą wyżej i mają swoje).
+    TouchArea {
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                root.bar-context(self.mouse-x);
+            }
+        }
+    }
+
+    // Górna linia oddziela pasek od pulpitu (znika razem z tłem).
     Rectangle {
         y: 0;
         height: 1px;
         background: Theme.line;
+        opacity: root.bg-alpha;
     }
 
     HorizontalLayout {

@@ -143,6 +143,8 @@ fn render(s: &Shared) {
     g.set_accent(p.accent.clone().into());
     g.set_effect(effect_of(p) as i32);
     g.set_popup_opacity(p.popup_opacity.clamp(60.0, 100.0));
+    g.set_taskbar_opacity(p.taskbar_opacity.clamp(0.0, 100.0));
+    g.set_taskbar_clear_desktop(p.taskbar_clear_desktop);
     g.set_system_accent(sys);
     g.set_start(match p.start.as_str() {
         "computer" => 1,
@@ -189,6 +191,10 @@ pub fn set_theme(s: &Shared, i: i32) {
 pub fn set_effect(s: &Shared, i: i32) {
     change(s, |p| p.window_effect = ["none", "mica", "acrylic"][i.clamp(0, 2) as usize].into());
     relook(s);
+}
+
+pub fn set_taskbar_opacity(s: &Shared, v: f32) {
+    change(s, |p| p.taskbar_opacity = v.clamp(0.0, 100.0));
 }
 
 pub fn set_popup_opacity(s: &Shared, v: f32) {
@@ -238,6 +244,8 @@ pub fn toggle(s: &Shared, key: &str) {
         "folder-sizes" => change(s, |p| p.folder_sizes = !p.folder_sizes),
         "viewer-info" => change(s, |p| p.viewer_info = !p.viewer_info),
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),
+        // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
+        "taskbar-clear-desktop" => change(s, |p| p.taskbar_clear_desktop = !p.taskbar_clear_desktop),
         _ => return,
     }
     // Karty z folderami wczytają się od nowa przy następnym wejściu.
@@ -292,6 +300,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_effect(move |i| set_effect(&s, i));
     let s = st.clone();
     g.on_set_popup_opacity(move |v| set_popup_opacity(&s, v));
+    let s = st.clone();
+    g.on_set_taskbar_opacity(move |v| set_taskbar_opacity(&s, v));
     let s = st.clone();
     g.on_set_start(move |i| set_start(&s, i));
     let s = st.clone();

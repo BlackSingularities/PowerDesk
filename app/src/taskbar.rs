@@ -103,6 +103,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         }
         w.on_start(move || open_start(n));
         w.on_start_context(move |x| start_menu(n, x));
+        w.on_bar_context(move |x| bar_menu(n, x));
         w.on_show_desktop(taskwin::show_desktop);
         w.on_activate(move |i| {
             close_thumbs();
@@ -161,6 +162,26 @@ pub fn close() {
         }
         let _ = b.w.hide();
     }
+}
+
+/// Prawy przycisk na pustym miejscu paska – jak w Windows: narzędzia, ustawienia paska,
+/// pokaż pulpit, zasilanie i zakończenie PowerDesk.
+fn bar_menu(bar: usize, x: f32) {
+    let mut items = vec![
+        it("Menedżer zadań", "app", |_| {
+            let _ = std::process::Command::new("taskmgr.exe").spawn();
+        })
+        .kbd("Ctrl+Shift+Esc"),
+        it("Ustawienia paska zadań", "settings", |s| {
+            crate::settings::open_section(s, crate::settings::SECTION_TASKBAR);
+            crate::show_window(s);
+        }),
+        it("Pokaż pulpit", "desktop", |_| taskwin::show_desktop()).kbd("Win+D"),
+        sep(),
+    ];
+    items.extend(crate::start::power_items());
+    items.extend([sep(), it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger()]);
+    show_menu(bar, items, x);
 }
 
 /// Prawy przycisk na Start: PowerDesk i narzędzia systemowe (ikony PowerDesk w zasobniku
@@ -1007,7 +1028,13 @@ fn refresh() {
     let now = Local::now();
     let (time, date) = (now.format("%H:%M").to_string(), now.format("%d.%m.%Y").to_string());
     let mut pins = Vec::new();
-    crate::with_state(|s| pins = s.borrow().prefs.taskbar_pins.clone());
+    let (mut opacity, mut clear) = (100.0, false);
+    crate::with_state(|s| {
+        let b = s.borrow();
+        pins = b.prefs.taskbar_pins.clone();
+        opacity = b.prefs.taskbar_opacity;
+        clear = b.prefs.taskbar_clear_desktop;
+    });
     BARS.with(|b| {
         for bar in b.borrow_mut().iter_mut() {
             place(bar);
@@ -1023,6 +1050,9 @@ fn refresh() {
                 bar.wins = wins;
                 bar.fg = fg;
             }
+            // Na pulpicie (żadne okno tego monitora nie jest otwarte) – całkiem przezroczysty.
+            let desktop = clear && bar.wins.iter().all(|w| w.minimized);
+            bar.w.set_bg_alpha(if desktop { 0.0 } else { (opacity / 100.0f32).clamp(0.0, 1.0) });
             bar.w.set_time(time.clone().into());
             bar.w.set_date(date.clone().into());
         }

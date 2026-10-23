@@ -78,18 +78,36 @@ pub fn launch_admin(app_path: &str) {
 pub enum Power {
     Lock,
     SignOut,
+    /// Przełącz użytkownika – ekran logowania, sesja zostaje.
+    SwitchUser,
     Sleep,
+    Hibernate,
     Restart,
     Shutdown,
 }
 
+/// Czy hibernacja jest włączona (inaczej Windows nie pokazuje jej w menu).
+pub fn can_hibernate() -> bool {
+    unsafe { windows::Win32::System::Power::IsPwrHibernateAllowed() }
+}
+
 pub fn power(p: Power) {
+    use windows::Win32::System::Power::SetSuspendState;
     let (cmd, args): (&str, &[&str]) = match p {
         Power::Lock => ("rundll32.exe", &["user32.dll,LockWorkStation"]),
         Power::SignOut => ("shutdown.exe", &["/l"]),
-        Power::Sleep => ("rundll32.exe", &["powrprof.dll,SetSuspendState", "0,1,0"]),
+        Power::SwitchUser => ("tsdiscon.exe", &[]),
+        // Uśpienie i hibernacja wprost – rundll32 z SetSuspendState hibernuje, gdy hibernacja jest włączona.
+        Power::Sleep | Power::Hibernate => {
+            let hibernate = matches!(p, Power::Hibernate);
+            std::thread::spawn(move || unsafe {
+                SetSuspendState(hibernate, false, false);
+            });
+            return;
+        }
+        // Jak w menu Start Windows: aktualizacje oczekujące na instalację instalują się (/hybrid tylko przy zamykaniu).
         Power::Restart => ("shutdown.exe", &["/r", "/t", "0"]),
-        Power::Shutdown => ("shutdown.exe", &["/s", "/t", "0"]),
+        Power::Shutdown => ("shutdown.exe", &["/s", "/hybrid", "/t", "0"]),
     };
     let _ = std::process::Command::new(cmd).args(args).spawn();
 }

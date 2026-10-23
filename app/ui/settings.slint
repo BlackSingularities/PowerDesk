@@ -42,6 +42,10 @@ export global SettingsState {
     in-out property <int> effect;
     /// Krycie okienek w procentach (60–100).
     in-out property <float> popup-opacity: 100;
+    /// Krycie paska zadań w procentach (0–100) i przezroczystość na pulpicie.
+    in-out property <float> taskbar-opacity: 100;
+    in-out property <bool> taskbar-clear-desktop;
+    callback set-taskbar-opacity(float);
     callback set-theme(int);
     callback set-effect(int);
     callback set-popup-opacity(float);
@@ -726,6 +730,44 @@ export component SettingsView inherits Rectangle {
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
+                    }
+                    Label {
+                        text: "Krycie paska";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 12px;
+                        Slider {
+                            horizontal-stretch: 1;
+                            minimum: 0;
+                            maximum: 100;
+                            step: 5;
+                            value: SettingsState.taskbar-opacity;
+                            changed(v) => {
+                                SettingsState.set-taskbar-opacity(round(v / 5) * 5);
+                            }
+                        }
+                        Label {
+                            y: (parent.height - self.height) / 2;
+                            width: 44px;
+                            text: round(SettingsState.taskbar-opacity) + "%";
+                            font-size: 12.5px;
+                        }
+                    }
+                    Label {
+                        text: "0% – całkiem przezroczysty, widać tapetę; ikony i zegar zostają";
+                        font-size: 11.5px;
+                        color: Theme.faint;
+                    }
+                    ToggleRow {
+                        icon: Icons.desktop;
+                        text: "Przezroczysty, gdy widać pulpit";
+                        hint: "Osobno na każdym monitorze: bez otwartych okien pasek jest całkiem przezroczysty";
+                        on: SettingsState.taskbar-clear-desktop;
+                        toggled => {
+                            SettingsState.toggle("taskbar-clear-desktop");
+                        }
                     }
                 }
 

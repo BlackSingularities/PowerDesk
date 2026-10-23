@@ -9,6 +9,8 @@ export struct StartRow {
     name: string,
     img: image,
     has-img: bool,
+    /// Ukryta, a widoczna tylko dlatego, że włączono „Pokaż ukryte”.
+    hidden: bool,
 }
 
 /// Kafelek przypiętej aplikacji.
@@ -52,6 +54,8 @@ export component StartWindow inherits Window {
     in property <[StartRow]> rows;
     in property <[StartTile]> tiles;
     in property <string> user;
+    /// Duże ikony w siatce zamiast listy (bez liter grup).
+    in property <bool> grid;
     in-out property <string> query;
     // Menu podręczne (pozycje i miejsce podaje taskbar.rs).
     in property <[MenuEntry]> menu-entries;
@@ -71,6 +75,11 @@ export component StartWindow inherits Window {
     callback rail(int, length, length);
     callback menu-chosen(int);
     callback dismiss();
+    /// Przeciąganie krawędzi: początek (0 – górna, 1 – prawa, 2 – róg), ruch, koniec.
+    /// Rozmiar liczy start.rs z położenia kursora na ekranie (okno przesuwa się w trakcie).
+    callback resize-start(int);
+    callback resize-move();
+    callback resize-end();
 
     public function show-menu() {
         menu.show();
@@ -171,7 +180,7 @@ export component StartWindow inherits Window {
                     }
                 }
             }
-            Flickable {
+            if !root.grid: Flickable {
                 vertical-stretch: 1;
                 content-height: lst.preferred-height;
                 lst := VerticalLayout {
@@ -210,7 +219,7 @@ export component StartWindow inherits Window {
                                 text: r.name;
                                 overflow: elide;
                                 font-size: 12.5px;
-                                color: Theme.text;
+                                color: r.hidden ? Theme.faint : Theme.text;
                             }
                         }
                         ar-ta := TouchArea {
@@ -223,6 +232,57 @@ export component StartWindow inherits Window {
                                 if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                                     root.row-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+            // Duże ikony (jak w nowym Windows): siatka kafli 86×92, podpis pod ikoną.
+            if root.grid: Flickable {
+                vertical-stretch: 1;
+                property <int> cols: max(1, floor(self.width / 86px));
+                content-height: ceil(root.rows.length / self.cols) * 92px;
+                for r[i] in root.rows: Rectangle {
+                    x: mod(i, parent.cols) * 86px;
+                    y: floor(i / parent.cols) * 92px;
+                    width: 84px;
+                    height: 90px;
+                    border-radius: Theme.r;
+                    background: gr-ta.has-hover ? Theme.hover : transparent;
+                    if r.has-img: Image {
+                        y: 12px;
+                        width: 36px;
+                        height: 36px;
+                        source: r.img;
+                        opacity: r.hidden ? 0.45 : 1;
+                    }
+                    if !r.has-img: Icon {
+                        y: 18px;
+                        commands: Icons.app;
+                        size: 26px;
+                        color: Theme.dim;
+                    }
+                    Text {
+                        x: 4px;
+                        y: 56px;
+                        width: parent.width - 8px;
+                        height: 30px;
+                        horizontal-alignment: center;
+                        vertical-alignment: top;
+                        text: r.name;
+                        wrap: word-wrap;
+                        overflow: elide;
+                        font-size: 10.5px;
+                        color: r.hidden ? Theme.faint : Theme.text;
+                    }
+                    gr-ta := TipArea {
+                        tip: r.name;
+                        clicked => {
+                            root.launch(i);
+                        }
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                                root.row-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
                             }
                         }
                     }
@@ -290,6 +350,27 @@ export component StartWindow inherits Window {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // Uchwyty zmiany rozmiaru: górna krawędź, prawa krawędź i prawy górny róg.
+    for e in [0, 1, 2]: TouchArea {
+        x: e == 0 ? 0 : root.width - 6px;
+        y: 0;
+        width: e == 0 ? root.width - 12px : 6px;
+        height: e == 1 ? root.height : 6px;
+        mouse-cursor: e == 0 ? MouseCursor.ns-resize : e == 1 ? MouseCursor.ew-resize : MouseCursor.nesw-resize;
+        pointer-event(ev) => {
+            if (ev.button == PointerEventButton.left && ev.kind == PointerEventKind.down) {
+                root.resize-start(e);
+            } else if (ev.button == PointerEventButton.left && ev.kind == PointerEventKind.up) {
+                root.resize-end();
+            }
+        }
+        moved => {
+            if (self.pressed) {
+                root.resize-move();
             }
         }
     }
