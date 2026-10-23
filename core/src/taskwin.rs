@@ -39,6 +39,11 @@ unsafe fn title(w: HWND) -> String {
     String::from_utf16_lossy(&buf[..got as usize])
 }
 
+/// Plik programu, do którego należy okno (pusty, gdy nie da się odczytać).
+pub fn exe_of_window(hwnd: isize) -> String {
+    unsafe { exe_of(h(hwnd)) }
+}
+
 unsafe fn exe_of(w: HWND) -> String {
     let mut pid = 0u32;
     GetWindowThreadProcessId(w, Some(&mut pid));

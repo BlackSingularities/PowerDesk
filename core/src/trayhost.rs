@@ -33,6 +33,8 @@ pub struct Icon {
     pub version: u32,
     pub tip: String,
     pub hidden: bool,
+    /// Plik programu, który dodał ikonę (do trwałego identyfikatora).
+    pub exe: String,
     /// Obraz RGBA (szerokość, wysokość, piksele).
     pub image: Option<(u32, u32, Vec<u8>)>,
     hicon: isize,
@@ -44,6 +46,18 @@ impl Icon {
         match self.guid {
             Some(g) => format!("{g:?}"),
             None => format!("{}:{}", self.hwnd, self.uid),
+        }
+    }
+
+    /// Identyfikator stały między uruchomieniami (okno programu zmienia się co start):
+    /// GUID albo nazwa pliku programu z numerem ikony.
+    pub fn id(&self) -> String {
+        match self.guid {
+            Some(g) => format!("{g:?}"),
+            None => {
+                let name = std::path::Path::new(&self.exe).file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default();
+                format!("{name}|{}", self.uid)
+            }
         }
     }
 }
@@ -289,6 +303,7 @@ unsafe fn notify(data: &TrayData) -> bool {
                 version: 0,
                 tip: String::new(),
                 hidden: false,
+                exe: crate::taskwin::exe_of_window(n.hwnd as i32 as isize),
                 image: None,
                 hicon: 0,
             };

@@ -15,7 +15,7 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{NoticesWindow, OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
+use crate::{NoticesWindow, OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, TrayOverflowWindow, VolumeWindow};
 
 /// Wysokość paska w pikselach logicznych.
 const HEIGHT: f32 = 48.0;
@@ -77,6 +77,8 @@ enum Popup {
     Calendar(CalendarWindow),
     Network(NetworkWindow),
     Notices(NoticesWindow),
+    /// Ukryte ikony zasobnika: okienko, pasek i x strzałki (do ponownego ułożenia).
+    Tray(TrayOverflowWindow, usize, f32),
 }
 
 pub fn is_open() -> bool {
@@ -155,16 +157,9 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             slint::Timer::single_shot(Duration::from_millis(400), vd_status);
         });
         w.set_notice_count(crate::notices::unread());
-        w.on_tray_app_click(|key, b| {
-            use powerdesk_core::trayhost::{self, Click};
-            let (x, y) = taskwin::cursor();
-            let button = match b {
-                1 => Click::Double,
-                2 => Click::Right,
-                _ => Click::Left,
-            };
-            trayhost::click(key.as_str(), button, x, y);
-        });
+        w.on_tray_app_click(|key, b| tray_click(&key, b));
+        w.on_tray_app_drop(|id, dx| tray_drop_on_bar(&id, dx));
+        w.on_tray_overflow(move |x| open_tray_overflow(n, x));
         let _ = w.show();
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
@@ -178,6 +173,9 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         let _ = slint::invoke_from_event_loop(tray_apps);
     });
     tray_apps();
+    // Pierwsze uruchomienie: programy dodają ikony przez kilka sekund po starcie – potem
+    // pierwsze 6 trafia na pasek, reszta pod strzałkę (później decyduje użytkownik).
+    slint::Timer::single_shot(Duration::from_secs(10), tray_first_run);
     // Tryb powłoki: Win+E – okno PowerDesk, Win+R – „Uruchom”, Win+D – pulpit, Win+Tab – widok zadań.
     powerdesk_core::startmenu::hook_shell_keys(|k, shift| {
         let ui = |f: fn()| {
@@ -612,6 +610,7 @@ fn own_popups() -> Vec<isize> {
             Popup::Calendar(w) => crate::window_hwnd(w.window()),
             Popup::Network(w) => crate::window_hwnd(w.window()),
             Popup::Notices(w) => crate::window_hwnd(w.window()),
+            Popup::Tray(w, _, _) => crate::window_hwnd(w.window()),
         }))
     });
     THUMBS.with(|t| out.extend(t.borrow().as_ref().map(|t| crate::window_hwnd(t.w.window()))));
@@ -632,6 +631,9 @@ fn close_popup() {
             let _ = w.hide();
         }
         Some(Popup::Notices(w)) => {
+            let _ = w.hide();
+        }
+        Some(Popup::Tray(w, _, _)) => {
             let _ = w.hide();
         }
         None => {}
@@ -1385,25 +1387,181 @@ fn refresh() {
     vd_status();
 }
 
-/// Ikony programów w zasobniku na wszystkich paskach.
+/// Ikona zasobnika do Slint.
+fn tray_app(i: &powerdesk_core::trayhost::Icon) -> TrayApp {
+    TrayApp {
+        key: i.key().into(),
+        id: i.id().into(),
+        tip: i.tip.clone().into(),
+        img: i.image.as_ref().map(|(w, h, px)| slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *w, *h))).unwrap_or_default(),
+    }
+}
+
+/// Ikony programów: przypięte (w kolejności z ustawień) na pasku głównego monitora, reszta
+/// w okienku nad strzałką; „wszystkie na pasku” – bez okienka.
 fn tray_apps() {
-    let apps: Vec<TrayApp> = powerdesk_core::trayhost::icons()
-        .into_iter()
-        .map(|i| TrayApp {
-            key: i.key().into(),
-            tip: i.tip.clone().into(),
-            img: i
-                .image
-                .as_ref()
-                .map(|(w, h, px)| slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *w, *h)))
-                .unwrap_or_default(),
-        })
-        .collect();
+    let icons = powerdesk_core::trayhost::icons();
+    let (mut pinned, mut all) = (Vec::new(), false);
+    crate::with_state(|s| {
+        let b = s.borrow();
+        pinned = b.prefs.tray_bar.clone();
+        all = b.prefs.tray_all;
+    });
+    let rank = |i: &powerdesk_core::trayhost::Icon| pinned.iter().position(|p| *p == i.id());
+    let mut on_bar: Vec<&powerdesk_core::trayhost::Icon> = icons.iter().filter(|i| all || rank(i).is_some()).collect();
+    on_bar.sort_by_key(|i| rank(i).unwrap_or(usize::MAX));
+    let shown: Vec<TrayApp> = on_bar.iter().map(|i| tray_app(i)).collect();
+    let hidden: Vec<TrayApp> = icons.iter().filter(|i| !all && rank(i).is_none()).map(tray_app).collect();
     // Ikony programów tylko na pasku głównego monitora (jak w Windows).
     BARS.with(|b| {
         for bar in b.borrow().iter() {
-            let here = if bar.origin == (0, 0) { apps.clone() } else { Vec::new() };
-            bar.w.set_tray_apps(ModelRc::new(VecModel::from(here)));
+            let main = bar.origin == (0, 0);
+            bar.w.set_tray_apps(ModelRc::new(VecModel::from(if main { shown.clone() } else { Vec::new() })));
+            bar.w.set_tray_hidden(if main { hidden.len() as i32 } else { 0 });
+        }
+    });
+    // Otwarte okienko ukrytych – nowa zawartość i wysokość.
+    let open = POPUP.with(|p| match &*p.borrow() {
+        Some(Popup::Tray(w, bar, x)) => {
+            w.set_apps(ModelRc::new(VecModel::from(hidden.clone())));
+            w.set_show_all(all);
+            Some((*bar, *x, hidden.len()))
+        }
+        _ => None,
+    });
+    if let Some((bar, x, n)) = open {
+        place_tray_overflow(bar, x, n);
+    }
+}
+
+fn tray_click(key: &str, b: i32) {
+    use powerdesk_core::trayhost::{self, Click};
+    let (x, y) = taskwin::cursor();
+    let button = match b {
+        1 => Click::Double,
+        2 => Click::Right,
+        _ => Click::Left,
+    };
+    trayhost::click(key, button, x, y);
+}
+
+/// Zmiana listy ikon na pasku (zapis i odświeżenie).
+fn edit_tray(f: impl FnOnce(&mut crate::model::Prefs)) {
+    crate::with_state(|s| {
+        let mut b = s.borrow_mut();
+        f(&mut b.prefs);
+        b.prefs.save();
+    });
+    tray_apps();
+}
+
+/// Kursor nad którymś paskiem (puszczenie ikony na pasku).
+fn cursor_on_bar() -> bool {
+    let (cx, cy) = taskwin::cursor();
+    BARS.with(|b| {
+        b.borrow().iter().any(|bar| {
+            let h = (HEIGHT * bar.w.window().scale_factor()) as i32;
+            cx >= bar.origin.0 && cx < bar.origin.0 + bar.mon.0 && cy >= bar.pos.1 && cy < bar.pos.1 + h
+        })
+    })
+}
+
+/// Ikona z paska puszczona: nad paskiem – do okienka ukrytych, na pasku – nowe miejsce.
+fn tray_drop_on_bar(id: &str, dx: f32) {
+    let id = id.to_string();
+    let icons: Vec<String> = powerdesk_core::trayhost::icons().iter().map(|i| i.id()).collect();
+    let off = !cursor_on_bar();
+    edit_tray(move |p| {
+        // „Wszystkie na pasku”: zaczynamy od pełnej listy w obecnej kolejności.
+        if p.tray_all {
+            let mut full: Vec<String> = p.tray_bar.iter().filter(|x| icons.contains(x)).cloned().collect();
+            let rest: Vec<String> = icons.iter().filter(|x| !full.contains(x)).cloned().collect();
+            full.extend(rest);
+            p.tray_bar = full;
+            p.tray_all = false;
+        }
+        let Some(from) = p.tray_bar.iter().position(|x| *x == id) else { return };
+        let item = p.tray_bar.remove(from);
+        if off {
+            return;
+        }
+        // Ikona 28 px + odstęp 2 px.
+        let to = (from as i32 + (dx / 30.0).round() as i32).clamp(0, p.tray_bar.len() as i32) as usize;
+        p.tray_bar.insert(to, item);
+    });
+}
+
+/// Ikona z okienka puszczona na pasku – zostaje na nim (na końcu).
+fn tray_drop_from_overflow(id: &str) {
+    if !cursor_on_bar() {
+        return;
+    }
+    let id = id.to_string();
+    edit_tray(move |p| {
+        if !p.tray_bar.contains(&id) {
+            p.tray_bar.push(id);
+        }
+    });
+}
+
+fn tray_first_run() {
+    let mut done = true;
+    crate::with_state(|s| done = s.borrow().prefs.tray_init);
+    if done {
+        return;
+    }
+    let first: Vec<String> = powerdesk_core::trayhost::icons().iter().take(6).map(|i| i.id()).collect();
+    edit_tray(move |p| {
+        p.tray_init = true;
+        for id in first {
+            if !p.tray_bar.contains(&id) {
+                p.tray_bar.push(id);
+            }
+        }
+    });
+}
+
+/// Wysokość okienka ukrytych: te same wymiary co w TrayOverflowWindow (7 ikon w rzędzie).
+fn overflow_size(n: usize) -> (f32, f32) {
+    let rows = n.div_ceil(7).max(1) as f32;
+    (248.0, 12.0 + 20.0 + 8.0 + rows * 40.0 + (rows - 1.0) * 8.0 + 8.0 + 14.0 + 8.0 + 30.0 + 12.0)
+}
+
+fn place_tray_overflow(bar: usize, x: f32, n: usize) {
+    let Some(spot) = spot(bar) else { return };
+    let (w, h) = overflow_size(n);
+    POPUP.with(|p| {
+        if let Some(Popup::Tray(win, _, _)) = &*p.borrow() {
+            above_bar(win.window(), spot, w, h, x + 16.0 - w / 2.0);
+        }
+    });
+}
+
+/// Strzałka zasobnika: okienko z ukrytymi ikonami nad nią (drugi klik – zamknięcie).
+fn open_tray_overflow(bar: usize, x: f32) {
+    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Tray(..))));
+    close_menu();
+    close_popup();
+    if was {
+        return;
+    }
+    let Ok(w) = TrayOverflowWindow::new() else { return };
+    same_theme!(bar, w);
+    w.on_app_click(|key, b| tray_click(&key, b));
+    w.on_app_drop(|id| tray_drop_from_overflow(&id));
+    w.on_set_show_all(|on| {
+        edit_tray(move |p| p.tray_all = on);
+        // Wszystkie na pasku – okienko nie ma już czego pokazywać.
+        if on {
+            slint::Timer::single_shot(Duration::ZERO, close_popup);
+        }
+    });
+    close_on_blur(w.window());
+    POPUP.with(|p| *p.borrow_mut() = Some(Popup::Tray(w, bar, x)));
+    tray_apps();
+    POPUP.with(|p| {
+        if let Some(Popup::Tray(w, _, _)) = &*p.borrow() {
+            show_above(w.window());
         }
     });
 }

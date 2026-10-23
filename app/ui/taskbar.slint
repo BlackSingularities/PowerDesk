@@ -78,21 +78,31 @@ component TrayIcon inherits Rectangle {
 
 /// Ikona programu w zasobniku (tryb powłoki – własny Shell_TrayWnd, trayhost.rs).
 export struct TrayApp {
+    /// Klucz do kliknięć (ważny w tym uruchomieniu).
     key: string,
+    /// Stały identyfikator – do zapamiętania miejsca ikony (pasek albo okienko ukrytych).
+    id: string,
     img: image,
     tip: string,
 }
 
-/// Ikona programu w zasobniku: obraz od programu, kliki odsyłane do niego.
+/// Ikona programu w zasobniku: obraz od programu, kliki odsyłane do niego. Przeciągnięcie
+/// (lewy przycisk, ponad 6 px) zamiast kliku – taskbar.rs sprawdza, gdzie ją puszczono.
 component TrayAppIcon inherits Rectangle {
     in property <image> img;
     in property <string> tip;
     /// 0 – lewy, 1 – dwuklik, 2 – prawy (współrzędne kursora wylicza taskbar.rs).
     callback pressed(int);
+    /// Puszczona po przeciągnięciu – przesunięcie w poziomie od miejsca chwycenia.
+    callback dropped(length);
+    property <bool> dragging;
+    /// Klik po przeciągnięciu się nie liczy.
+    property <bool> was-drag;
     width: 28px;
     height: 40px;
     border-radius: Theme.r;
-    background: ta-ta.has-hover ? Theme.hover : transparent;
+    background: ta-ta.has-hover || root.dragging ? Theme.hover : transparent;
+    opacity: root.dragging ? 0.45 : 1;
     Image {
         source: root.img;
         width: 16px;
@@ -100,16 +110,126 @@ component TrayAppIcon inherits Rectangle {
         image-rendering: smooth;
     }
     ta-ta := TipArea {
-        tip: root.tip;
+        tip: root.dragging ? "" : root.tip;
+        mouse-cursor: root.dragging ? MouseCursor.grabbing : MouseCursor.default;
         clicked => {
-            root.pressed(0);
+            if (root.was-drag) {
+                root.was-drag = false;
+            } else {
+                root.pressed(0);
+            }
         }
         double-clicked => {
             root.pressed(1);
         }
+        moved => {
+            if (self.pressed && !root.dragging && (abs(self.mouse-x - self.pressed-x) > 6px || abs(self.mouse-y - self.pressed-y) > 6px)) {
+                root.dragging = true;
+            }
+        }
         pointer-event(e) => {
+            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                root.was-drag = false;
+            }
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.dragging) {
+                root.dragging = false;
+                root.was-drag = true;
+                root.dropped(self.mouse-x - self.pressed-x);
+            }
             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                 root.pressed(2);
+            }
+        }
+    }
+}
+
+/// Ukryte ikony zasobnika nad strzałką: siatka po 7, przeciągnięcie na pasek przypina ikonę,
+/// przełącznik pokazuje wszystkie na pasku. Wysokość liczy taskbar.rs (te same wymiary).
+export component TrayOverflowWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    in property <[TrayApp]> apps;
+    in property <bool> show-all;
+    property <int> cols: 7;
+    callback app-click(string, int);
+    callback app-drop(string);
+    callback set-show-all(bool);
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        Text {
+            height: 20px;
+            text: "Ukryte ikony";
+            font-size: 13px;
+            font-weight: 600;
+            color: Theme.text;
+            vertical-alignment: center;
+        }
+        if root.apps.length == 0: Text {
+            height: 40px;
+            text: "Wszystkie ikony są na pasku";
+            font-size: 12px;
+            color: Theme.faint;
+            vertical-alignment: center;
+        }
+        for row[r] in ceil(root.apps.length / root.cols): HorizontalLayout {
+            height: 40px;
+            spacing: 4px;
+            alignment: start;
+            for a[i] in root.apps: TrayAppIcon {
+                property <bool> here: i >= r * root.cols && i < (r + 1) * root.cols;
+                visible: self.here;
+                width: self.here ? 28px : 0px;
+                img: a.img;
+                tip: a.tip;
+                pressed(b) => {
+                    root.app-click(a.key, b);
+                }
+                dropped(dx) => {
+                    root.app-drop(a.id);
+                }
+            }
+        }
+        Text {
+            height: 14px;
+            text: "Przeciągnij ikonę na pasek albo z paska tutaj";
+            font-size: 10.5px;
+            color: Theme.faint;
+            vertical-alignment: center;
+        }
+        Rectangle {
+            height: 30px;
+            border-radius: Theme.r-s;
+            background: sa-ta.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 6px;
+                spacing: 8px;
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 4px;
+                    border-width: root.show-all ? 0 : 1px;
+                    border-color: Theme.dim;
+                    background: root.show-all ? Theme.accent : transparent;
+                    if root.show-all: Icon {
+                        commands: Icons.check;
+                        size: 12px;
+                        color: Theme.on-accent;
+                    }
+                }
+                Text {
+                    text: "Wszystkie ikony na pasku";
+                    font-size: 12px;
+                    color: Theme.text;
+                    vertical-alignment: center;
+                }
+            }
+            sa-ta := TouchArea {
+                clicked => {
+                    root.set-show-all(!root.show-all);
+                }
             }
         }
     }
@@ -867,13 +987,16 @@ export component TaskbarWindow inherits Window {
     callback vd-menu(length);
     /// Kółko nad przełącznikiem – sąsiedni pulpit (-1 / +1).
     callback vd-wheel(int);
-    /// Ikony programów w zasobniku (tylko w trybie powłoki).
+    /// Ikony programów w zasobniku przypięte do paska; ukryte – w okienku nad strzałką.
     in property <[TrayApp]> tray-apps;
-    /// Ile ikon programów widać bez rozwijania.
-    in property <int> tray-max: 6;
-    in-out property <bool> tray-open;
+    /// Ile ikon czeka w okienku ukrytych (0 – bez strzałki).
+    in property <int> tray-hidden;
+    /// Strzałka – okienko ukrytych ikon nad nią (x w oknie paska).
+    callback tray-overflow(length);
     /// Klik na ikonie programu: klucz ikony i przycisk (0 – lewy, 1 – dwuklik, 2 – prawy).
     callback tray-app-click(string, int);
+    /// Ikona przeciągnięta po pasku: identyfikator i przesunięcie w poziomie.
+    callback tray-app-drop(string, length);
     /// Okienko głośności i kalendarz – x w oknie paska.
     callback volume-open(length);
     /// Kółko nad ikoną głośności – krok w górę (+1) albo w dół (-1).
@@ -1098,24 +1221,23 @@ export component TaskbarWindow inherits Window {
             spacing: 2px;
             padding-top: 4px;
             padding-bottom: 4px;
-            // Wiele ikon: widać pierwsze `tray-max`, reszta po rozwinięciu strzałką.
-            if root.tray-apps.length > root.tray-max: TrayIcon {
+            // Ukryte ikony: strzałka w górę jak w Windows – okienko nad nią.
+            if root.tray-hidden > 0: TrayIcon {
                 icon: Icons.chevron-down;
-                tip: root.tray-open ? "Zwiń ikony" : "Pokaż ukryte ikony (" + (root.tray-apps.length - root.tray-max) + ")";
-                // Strzałka w górę jak w Windows: obrócona „w dół”, gdy zwinięte.
-                transform-rotation: root.tray-open ? 0deg : 180deg;
+                tip: "Pokaż ukryte ikony (" + root.tray-hidden + ")";
+                transform-rotation: 180deg;
                 clicked => {
-                    root.tray-open = !root.tray-open;
+                    root.tray-overflow(self.absolute-position.x);
                 }
             }
             for a[i] in root.tray-apps: TrayAppIcon {
-                property <bool> shown: root.tray-open || i < root.tray-max;
-                visible: self.shown;
-                width: self.shown ? 28px : 0px;
                 img: a.img;
                 tip: a.tip;
                 pressed(b) => {
                     root.tray-app-click(a.key, b);
+                }
+                dropped(dx) => {
+                    root.tray-app-drop(a.id, dx);
                 }
             }
             TrayIcon {
