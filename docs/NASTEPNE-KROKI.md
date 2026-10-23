@@ -151,5 +151,41 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   na wierzchu co 0,5 s, róg monitora aktywnego programu; pełna (wykres czasu klatek, RAM, VRAM) albo mała.
   Skrót globalny `core/src/hotkey.rs` (RegisterHotKey Alt+R). Ustawienia → Nakładka (sekcja 10).
 
+## Rozbudowa 23.10.2026 (w kodzie, nieklikane – części sprawdzone testami albo odczytem na żywo)
+
+- Tryb awaryjny: Shift przy logowaniu z PowerDesk jako powłoką albo `--safe` – ta sesja z Eksploratorem
+  (wpis Shell zdjęty na czas startu Eksploratora i założony z powrotem). Dziennik
+  `%LOCALAPPDATA%\PowerDesk\log.txt` (`core/src/log.rs`, awarie ze śladem stosu), Ustawienia → O aplikacji
+  → „Zgłoś problem…” (raport do schowka + folder dziennika).
+- Wydajność: widżety pobierają dane tylko dla rodzajów, które gdzieś stoją (`widgets::in_use`).
+- Start: wyszukiwanie plików (`core/src/quickindex.rs` – własny indeks folderów użytkownika co 10 min),
+  ustawień Windows (lista ms-settings), kalkulator i jednostki (`core/src/calc.rs`, testy), „Polecane”
+  (licznik uruchomień `prefs.app_launches`) i „Ostatnio używane” (folder Recent).
+- Pasek: przełącznik pulpitów wirtualnych (`core/src/vdesk.rs`, rejestr + Win+Ctrl+strzałki; w trybie
+  powłoki ukryty – pulpity prowadzi Eksplorator), centrum powiadomień (`app/src/notices.rs`, licznik przy
+  zegarze, dymek nad paskiem; dymki zasobnika, przypomnienia, aktualizacje).
+- Strefy okien: Shift przy przeciąganiu okna (`core/src/snap.rs`, `app/src/zones.rs`), 5 układów w
+  Ustawieniach → Pulpit.
+- Tapety: z Windows / pokaz slajdów z folderu / zdjęcie dnia Bing (`core/src/bing.rs`), własny obraz
+  monitora z menu pulpitu (`app/src/wallpapers.rs`).
+- Pliki: „Porównaj foldery” (dwa zaznaczone foldery, `core/src/compare.rs`) – różnice w karcie,
+  „Wyrównaj” kopiuje brakujące i nowsze w obie strony. Podgląd SVG (resvg), czcionek (ab_glyph),
+  STL/OBJ (`core/src/render.rs`, własny renderer) i Markdown sformatowany (`syntax::markdown`).
+- Nakładka: tryb gry – plan „Najwyższa wydajność”, gdy program zajmuje cały monitor (`app/src/game.rs`),
+  limit klatek NVIDIA przez profil sterownika (`core/src/gamemode.rs`, NVAPI DRS, FRL_FPS; zapis może
+  wymagać administratora; nieuruchamiane).
+- Widżety (razem 15): + Zadania, Odliczanie, Sieć (`core/src/netspeed.rs`), Schowek, Kursy walut NBP
+  (`app/src/widgetmore.rs`).
+
+## Podpis cyfrowy (do zrobienia przez użytkownika)
+
+CI podpisuje pliki .exe sam, gdy w sekretach repozytorium są: `WINDOWS_CERTIFICATE` (plik .pfx
+zakodowany base64) i `WINDOWS_CERTIFICATE_PASSWORD`. Potrzebny certyfikat „Code Signing” dla osoby albo
+firmy (np. Certum Open Source Code Signing – najtańszy dla projektów otwartych; Sectigo/SSL.com – OV).
+Od 2023 klucze certyfikatów OV/EV muszą być na tokenie sprzętowym albo w chmurze (HSM) – wtedy zamiast
+pliku .pfx w CI trzeba podpisu w chmurze (np. SSL.com eSigner, Azure Trusted Signing ~10 $/mies.
+– najprostsze dla GitHub Actions: akcja `azure/trusted-signing-action`). SmartScreen przestaje ostrzegać
+po zebraniu reputacji (EV – od razu).
+
 ## Kolejne zadania z planu
 
