@@ -2,9 +2,11 @@
 resolver = "2"
 members = ["core", "src-tauri", "app"]
 
+# Wydanie: „thin” LTO i równoległe generowanie kodu – kilka razy krótsza budowa w CI,
+# a program praktycznie tak samo szybki (pełne LTO + 1 jednostka: ok. 15 min samego PowerDesk).
 [profile.release]
-codegen-units = 1
-lto = true
+codegen-units = 16
+lto = "thin"
 opt-level = 3
 panic = "unwind"
 strip = true

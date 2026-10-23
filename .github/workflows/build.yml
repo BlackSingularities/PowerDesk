@@ -17,10 +17,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
@@ -44,13 +40,9 @@ jobs:
           (Get-Content package.json -Raw) -replace '"version": "[^"]+"', "`"version`": `"$v`"" | Set-Content package.json -NoNewline
           "version=$v" >> $env:GITHUB_OUTPUT
 
-      - run: npm ci
-      - name: Sprawdzenie typów
-        run: npm run check
+      # Testy w profilu wydania – te same skompilowane zależności co budowa PowerDesk niżej.
       - name: Testy silnika synchronizacji
-        run: cargo test -p powerdesk-core --test sync_core
-      - name: Build (instalator NSIS)
-        run: npx tauri build
+        run: cargo test --release -p powerdesk-core --test sync_core
 
       # PowerDesk (natywny, Slint). Klucz aktualizacji (token tylko do odczytu tego repozytorium)
       # z sekretu POWERDESK_UPDATE_TOKEN trafia do programu – prywatne wydania są bez niego niewidoczne.
@@ -68,8 +60,6 @@ jobs:
         run: |
           $v = "${{ steps.ver.outputs.version }}"
           New-Item -ItemType Directory out | Out-Null
-          Copy-Item "target/release/bundle/nsis/*.exe" "out/OpenFilePower-$v-setup.exe"
-          Copy-Item "target/release/openfilepower-win.exe" "out/OpenFilePower-$v-portable.exe"
           Copy-Item "target/release/powerdesk.exe" "out/PowerDesk-$v.exe"
           # Podpis cyfrowy (bez ostrzeżeń SmartScreen) – tylko gdy w sekretach repozytorium jest certyfikat:
           # WINDOWS_CERTIFICATE (plik .pfx w base64) i WINDOWS_CERTIFICATE_PASSWORD.
@@ -77,14 +67,14 @@ jobs:
             $pfx = Join-Path $env:RUNNER_TEMP "cert.pfx"
             [IO.File]::WriteAllBytes($pfx, [Convert]::FromBase64String($env:WIN_CERT))
             $signtool = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName | Select-Object -Last 1
-            & $signtool.FullName sign /f $pfx /p $env:WIN_CERT_PASS /fd sha256 /tr http://timestamp.digicert.com /td sha256 /d "OpenFilePower" (Get-ChildItem out/*.exe).FullName
+            & $signtool.FullName sign /f $pfx /p $env:WIN_CERT_PASS /fd sha256 /tr http://timestamp.digicert.com /td sha256 /d "PowerDesk" (Get-ChildItem out/*.exe).FullName
             if ($LASTEXITCODE -ne 0) { throw "Podpisywanie nie powiodło się" }
             Remove-Item $pfx
           }
           Get-FileHash out/*.exe -Algorithm SHA256 | ForEach-Object { "$($_.Hash.ToLower())  $(Split-Path $_.Path -Leaf)" } | Set-Content out/SHA256SUMS.txt
       - uses: actions/upload-artifact@v4
         with:
-          name: OpenFilePower-${{ steps.ver.outputs.version }}
+          name: PowerDesk-${{ steps.ver.outputs.version }}
           path: out/*
 
       - name: Wydanie
@@ -94,5 +84,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = "v${{ steps.ver.outputs.version }}"
-          $notes = "Automatyczne wydanie z commita ${{ github.sha }}.`n`n**Instalator:** OpenFilePower-*-setup.exe (bez uprawnień administratora)`n**PowerDesk:** PowerDesk-*.exe (aktualizuje się sam)`n**Wersja przenośna:** OpenFilePower-*-portable.exe (wymaga WebView2, obecnego w Windows 10/11)"
-          gh release create $v out/* --title "OpenFilePower $v" --notes $notes --target ${{ github.sha }}
+          $notes = "Automatyczne wydanie z commita ${{ github.sha }}.`n`n**PowerDesk-*.exe** – jeden plik: przy pierwszym uruchomieniu proponuje instalację (bez uprawnień administratora), potem aktualizuje się sam. Zastępuje OpenFilePower – przenosi jego ustawienia i proponuje odinstalowanie."
+          gh release create $v out/* --title "PowerDesk $v" --notes $notes --target ${{ github.sha }}
