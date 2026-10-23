@@ -39,6 +39,31 @@ unsafe fn title(w: HWND) -> String {
     String::from_utf16_lossy(&buf[..got as usize])
 }
 
+/// Okno, które nigdy nie bierze fokusu ani kliknięć (dymek podpowiedzi nad paskiem).
+pub fn make_passive(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowLongPtrW, WS_EX_NOACTIVATE, WS_EX_TOPMOST, WS_EX_TRANSPARENT};
+    unsafe {
+        let ex = GetWindowLongPtrW(h(hwnd), GWL_EXSTYLE);
+        let add = WS_EX_NOACTIVATE.0 | WS_EX_TRANSPARENT.0 | WS_EX_TOOLWINDOW.0 | WS_EX_TOPMOST.0;
+        SetWindowLongPtrW(h(hwnd), GWL_EXSTYLE, (ex | add as isize) & !(WS_EX_APPWINDOW.0 as isize));
+    }
+}
+
+/// Pokazuje okno w danym miejscu (piksele ekranu) na wierzchu, bez aktywowania.
+pub fn show_passive(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
+    unsafe {
+        let _ = SetWindowPos(h(hwnd), Some(HWND_TOPMOST), x, y, width, height, SWP_NOACTIVATE | SWP_SHOWWINDOW);
+    }
+}
+
+/// Chowa okno bez zamykania (Slint dalej je rysuje).
+pub fn hide_native(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
+    unsafe {
+        let _ = ShowWindow(h(hwnd), SW_HIDE);
+    }
+}
+
 /// Plik programu, do którego należy okno (pusty, gdy nie da się odczytać).
 pub fn exe_of_window(hwnd: isize) -> String {
     unsafe { exe_of(h(hwnd)) }

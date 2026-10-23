@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon, TipArea } from "components.slint";
+import { Icon, TipArea, Tip } from "components.slint";
 import { MenuBody, MenuEntry } from "menu.slint";
 import { Track } from "player.slint";
 
@@ -143,6 +143,26 @@ component TrayAppIcon inherits Rectangle {
     }
 }
 
+/// Dymek podpowiedzi nad paskiem i jego okienkami – osobne okno, bo pasek ma 48 px wysokości.
+/// Nie bierze fokusu ani myszy (taskbar.rs); rozmiar z `want-w` × `want-h`.
+export component TipWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.higher;
+    in property <string> text;
+    out property <length> want-w: min(t.preferred-width, 420px) + 20px;
+    out property <length> want-h: t.preferred-height + 12px;
+    t := Text {
+        x: 10px;
+        y: 6px;
+        width: parent.width - 20px;
+        text: root.text;
+        overflow: elide;
+        font-size: 12px;
+        color: Theme.text;
+    }
+}
+
 /// Ukryte ikony zasobnika nad strzałką: siatka po 7, przeciągnięcie na pasek przypina ikonę,
 /// przełącznik pokazuje wszystkie na pasku. Wysokość liczy taskbar.rs (te same wymiary).
 export component TrayOverflowWindow inherits Window {
@@ -155,6 +175,18 @@ export component TrayOverflowWindow inherits Window {
     callback app-click(string, int);
     callback app-drop(string);
     callback set-show-all(bool);
+    /// Podpowiedź pod kursorem zmieniona (tekst i punkt w oknie; pusty tekst – schować).
+    callback tip(string, length, length);
+    property <int> tip-serial: Tip.serial;
+    property <string> tip-now: Tip.text;
+    changed tip-serial => {
+        root.tip(Tip.text, Tip.x, Tip.y);
+    }
+    changed tip-now => {
+        if (self.tip-now == "") {
+            root.tip("", 0, 0);
+        }
+    }
     VerticalLayout {
         padding: 12px;
         spacing: 8px;
@@ -989,8 +1021,22 @@ export component TaskbarWindow inherits Window {
     callback vd-wheel(int);
     /// Ikony programów w zasobniku przypięte do paska; ukryte – w okienku nad strzałką.
     in property <[TrayApp]> tray-apps;
-    /// Ile ikon czeka w okienku ukrytych (0 – bez strzałki).
+    /// Ile ikon czeka w okienku ukrytych (0 – bez strzałki, chyba że wszystkie są na pasku).
     in property <int> tray-hidden;
+    /// Wszystkie ikony na pasku – strzałka zostaje, żeby dało się to wyłączyć.
+    in property <bool> tray-all;
+    /// Podpowiedź pod kursorem zmieniona (tekst i punkt w oknie; pusty tekst – schować).
+    callback tip(string, length, length);
+    property <int> tip-serial: Tip.serial;
+    property <string> tip-now: Tip.text;
+    changed tip-serial => {
+        root.tip(Tip.text, Tip.x, Tip.y);
+    }
+    changed tip-now => {
+        if (self.tip-now == "") {
+            root.tip("", 0, 0);
+        }
+    }
     /// Strzałka – okienko ukrytych ikon nad nią (x w oknie paska).
     callback tray-overflow(length);
     /// Klik na ikonie programu: klucz ikony i przycisk (0 – lewy, 1 – dwuklik, 2 – prawy).
@@ -1222,9 +1268,9 @@ export component TaskbarWindow inherits Window {
             padding-top: 4px;
             padding-bottom: 4px;
             // Ukryte ikony: strzałka w górę jak w Windows – okienko nad nią.
-            if root.tray-hidden > 0: TrayIcon {
+            if root.tray-hidden > 0 || root.tray-all: TrayIcon {
                 icon: Icons.chevron-down;
-                tip: "Pokaż ukryte ikony (" + root.tray-hidden + ")";
+                tip: root.tray-all ? "Ikony zasobnika" : "Pokaż ukryte ikony (" + root.tray-hidden + ")";
                 transform-rotation: 180deg;
                 clicked => {
                     root.tray-overflow(self.absolute-position.x);

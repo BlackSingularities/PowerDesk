@@ -15,7 +15,7 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{NoticesWindow, OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, TrayOverflowWindow, VolumeWindow};
+use crate::{NoticesWindow, OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, TipWindow, TrayOverflowWindow, VolumeWindow};
 
 /// Wysokość paska w pikselach logicznych.
 const HEIGHT: f32 = 48.0;
@@ -70,6 +70,11 @@ thread_local! {
     static THUMB_GEN: Cell<u64> = const { Cell::new(0) };
     /// Okienko głośności: miejsce nad paskiem, x i wysokość bez listy urządzeń.
     static VOL_GEOM: Cell<Option<(Spot, f32, f32)>> = const { Cell::new(None) };
+    /// Dymek podpowiedzi (jeden na proces) i numer ostatniej zmiany podpowiedzi.
+    static TIP: RefCell<Option<TipWindow>> = const { RefCell::new(None) };
+    static TIP_SEQ: Cell<u64> = const { Cell::new(0) };
+    /// Ostatnio zamknięte okienko: rodzaj i chwila zamknięcia.
+    static CLOSED: Cell<Option<(u8, std::time::Instant)>> = const { Cell::new(None) };
 }
 
 enum Popup {
@@ -157,6 +162,12 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             slint::Timer::single_shot(Duration::from_millis(400), vd_status);
         });
         w.set_notice_count(crate::notices::unread());
+        let ww = w.as_weak();
+        w.on_tip(move |t, x, y| {
+            if let Some(w) = ww.upgrade() {
+                tip(w.window(), &t, x, y);
+            }
+        });
         w.on_tray_app_click(|key, b| tray_click(&key, b));
         w.on_tray_app_drop(|id, dx| tray_drop_on_bar(&id, dx));
         w.on_tray_overflow(move |x| open_tray_overflow(n, x));
@@ -164,6 +175,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
+    ensure_tip();
     // Zasobnik z ikonami innych programów (własny Shell_TrayWnd, przed paskiem Eksploratora).
     // `start` działa raz na proces – po przebudowie pasków (zmiana monitorów) tylko odświeżenie.
     powerdesk_core::trayhost::on_balloon(|title, text| {
@@ -619,7 +631,29 @@ fn own_popups() -> Vec<isize> {
     out
 }
 
+/// Rodzaj okienka (do rozpoznania drugiego kliku w tę samą ikonę).
+fn popup_kind(p: &Popup) -> u8 {
+    match p {
+        Popup::Volume(_) => 1,
+        Popup::Calendar(_) => 2,
+        Popup::Network(_) => 3,
+        Popup::Notices(_) => 4,
+        Popup::Tray(..) => 5,
+    }
+}
+
+/// Okienko tego rodzaju jest otwarte albo właśnie się zamknęło. Klik w ikonę paska najpierw
+/// zabiera fokus okienku (zamyka je), a dopiero potem dociera do paska – bez tego drugi klik
+/// otwierałby je od nowa zamiast zwinąć.
+fn popup_was(kind: u8) -> bool {
+    let open = POPUP.with(|p| p.borrow().as_ref().map(popup_kind)) == Some(kind);
+    open || CLOSED.with(|c| c.get()).is_some_and(|(k, at)| k == kind && at.elapsed() < Duration::from_millis(350))
+}
+
 fn close_popup() {
+    if let Some(k) = POPUP.with(|p| p.borrow().as_ref().map(popup_kind)) {
+        CLOSED.with(|c| c.set(Some((k, std::time::Instant::now()))));
+    }
     match POPUP.with(|p| p.borrow_mut().take()) {
         Some(Popup::Volume(w)) => {
             let _ = w.hide();
@@ -642,7 +676,7 @@ fn close_popup() {
 
 /// Okienko głośności nad ikoną; drugi klik w ikonę je zamyka.
 fn open_volume(bar: usize, x: f32) {
-    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Volume(_))));
+    let was = popup_was(1);
     close_menu();
     close_popup();
     if was {
@@ -793,7 +827,7 @@ pub fn notices_changed() {
 }
 
 fn open_notices(bar: usize, x: f32) {
-    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Notices(_))));
+    let was = popup_was(4);
     close_menu();
     close_popup();
     if was {
@@ -828,7 +862,7 @@ pub fn place_toast(win: &slint::Window, width: f32, height: f32) {
 }
 
 fn open_calendar(bar: usize, x: f32) {
-    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Calendar(_))));
+    let was = popup_was(2);
     close_menu();
     close_popup();
     if was {
@@ -913,7 +947,7 @@ fn apps_status() {
 
 /// Okienko sieci nad ikoną: kabel albo lista Wi-Fi z łączeniem; przy otwarciu skanuje.
 fn open_network(bar: usize, x: f32) {
-    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Network(_))));
+    let was = popup_was(3);
     close_menu();
     close_popup();
     if was {
@@ -1387,12 +1421,13 @@ fn refresh() {
     vd_status();
 }
 
-/// Ikona zasobnika do Slint.
+/// Ikona zasobnika do Slint. Bez własnej podpowiedzi – nazwa programu.
 fn tray_app(i: &powerdesk_core::trayhost::Icon) -> TrayApp {
+    let tip = if i.tip.trim().is_empty() { program_name(&i.exe) } else { i.tip.trim().to_string() };
     TrayApp {
         key: i.key().into(),
         id: i.id().into(),
-        tip: i.tip.clone().into(),
+        tip: tip.into(),
         img: i.image.as_ref().map(|(w, h, px)| slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *w, *h))).unwrap_or_default(),
     }
 }
@@ -1418,6 +1453,7 @@ fn tray_apps() {
             let main = bar.origin == (0, 0);
             bar.w.set_tray_apps(ModelRc::new(VecModel::from(if main { shown.clone() } else { Vec::new() })));
             bar.w.set_tray_hidden(if main { hidden.len() as i32 } else { 0 });
+            bar.w.set_tray_all(main && all);
         }
     });
     // Otwarte okienko ukrytych – nowa zawartość i wysokość.
@@ -1521,6 +1557,63 @@ fn tray_first_run() {
     });
 }
 
+/// Okno dymka – tworzone raz przy otwarciu pasków (pokazanie okna Slint zabiera fokus;
+/// potem już tylko natywne pokaż/schowaj bez aktywacji).
+fn ensure_tip() {
+    if TIP.with(|t| t.borrow().is_some()) {
+        return;
+    }
+    let Ok(w) = TipWindow::new() else { return };
+    same_theme!(0, w);
+    let fg = taskwin::foreground();
+    let _ = w.show();
+    let hwnd = crate::window_hwnd(w.window());
+    taskwin::make_passive(hwnd);
+    popup_look(hwnd);
+    taskwin::hide_native(hwnd);
+    if fg != 0 {
+        taskwin::activate(fg);
+    }
+    TIP.with(|t| *t.borrow_mut() = Some(w));
+}
+
+/// Podpowiedź z okna paska (albo jego okienka): po 0,6 s bez zmian dymek nad oknem, przy
+/// kursorze; pusty tekst chowa go od razu.
+fn tip(win: &slint::Window, text: &str, x: f32, _y: f32) {
+    let seq = TIP_SEQ.with(|s| {
+        s.set(s.get() + 1);
+        s.get()
+    });
+    if text.is_empty() {
+        TIP.with(|t| {
+            if let Some(w) = t.borrow().as_ref() {
+                taskwin::hide_native(crate::window_hwnd(w.window()));
+            }
+        });
+        return;
+    }
+    let (pos, scale) = (win.position(), win.scale_factor());
+    let (ax, top) = (pos.x + (x * scale) as i32, pos.y);
+    let text = text.to_string();
+    slint::Timer::single_shot(Duration::from_millis(600), move || {
+        if TIP_SEQ.with(|s| s.get()) != seq {
+            return;
+        }
+        TIP.with(|t| {
+            let t = t.borrow();
+            let Some(w) = t.as_ref() else { return };
+            w.set_text(text.clone().into());
+            let s = w.window().scale_factor();
+            let (tw, th) = ((w.get_want_w() * s) as i32, (w.get_want_h() * s) as i32);
+            let (mx, mw) = monitor_under_cursor().map(|(o, m, _)| (o.0, m.0)).unwrap_or((0, 1920));
+            let tx = (ax - tw / 2).clamp(mx + 4, (mx + mw - tw - 4).max(mx + 4));
+            let ty = top - th - (6.0 * s) as i32;
+            w.window().set_size(PhysicalSize::new(tw as u32, th as u32));
+            taskwin::show_passive(crate::window_hwnd(w.window()), tx, ty, tw, th);
+        });
+    });
+}
+
 /// Wysokość okienka ukrytych: te same wymiary co w TrayOverflowWindow (7 ikon w rzędzie).
 fn overflow_size(n: usize) -> (f32, f32) {
     let rows = n.div_ceil(7).max(1) as f32;
@@ -1539,7 +1632,7 @@ fn place_tray_overflow(bar: usize, x: f32, n: usize) {
 
 /// Strzałka zasobnika: okienko z ukrytymi ikonami nad nią (drugi klik – zamknięcie).
 fn open_tray_overflow(bar: usize, x: f32) {
-    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Tray(..))));
+    let was = popup_was(5);
     close_menu();
     close_popup();
     if was {
@@ -1549,6 +1642,12 @@ fn open_tray_overflow(bar: usize, x: f32) {
     same_theme!(bar, w);
     w.on_app_click(|key, b| tray_click(&key, b));
     w.on_app_drop(|id| tray_drop_from_overflow(&id));
+    let ww = w.as_weak();
+    w.on_tip(move |t, x, y| {
+        if let Some(w) = ww.upgrade() {
+            tip(w.window(), &t, x, y);
+        }
+    });
     w.on_set_show_all(|on| {
         edit_tray(move |p| p.tray_all = on);
         // Wszystkie na pasku – okienko nie ma już czego pokazywać.

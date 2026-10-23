@@ -352,16 +352,22 @@ component Chip inherits Rectangle {
 
 export component HomeView inherits Rectangle {
     background: Theme.bg;
-    property <length> cols-w: self.width - 48px;
+    /// Szerokość treści – widoczna część przewijanego obszaru (bez paska przewijania) bez marginesów.
+    property <length> cols-w: sv.visible-width - 48px;
     /// Szeroko – karty obok siebie, wąsko – jedna pod drugą.
-    property <bool> wide: self.width > 900px;
+    property <bool> wide: sv.visible-width > 900px;
     property <int> per-row: max(1, floor((root.cols-w - 22px) / 130px));
     /// Kafelki narzędzi: co najmniej 190 px szerokości, rozciągnięte na cały wiersz.
     property <int> tools-per-row: max(1, floor((root.cols-w - 22px) / 200px));
     property <length> tool-w: (root.cols-w - 32px - (root.tools-per-row - 1) * 10px) / root.tools-per-row;
 
-    ScrollView {
-        VerticalLayout {
+    // Treść zawsze na szerokość okna (bez tego ScrollView brałby jej preferowaną szerokość
+    // i ekran nie dopasowywał się przy zmianie rozmiaru); przewijanie tylko w pionie.
+    sv := ScrollView {
+        content-width: self.visible-width;
+        content-height: max(body.preferred-height, self.visible-height);
+        body := VerticalLayout {
+            width: sv.visible-width;
             padding: 24px;
             spacing: 16px;
             alignment: start;
