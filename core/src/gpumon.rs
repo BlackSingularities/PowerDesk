@@ -57,6 +57,29 @@ fn adapter(name: &str) -> String {
 }
 
 /// Największa pamięć dedykowana kart (bez karty programowej).
+/// Nazwa karty graficznej z największą pamięcią (bez kart programowych).
+pub fn name() -> String {
+    use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE};
+    static NAME: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    NAME.get_or_init(|| unsafe {
+        let Ok(f) = CreateDXGIFactory1::<IDXGIFactory1>() else { return String::new() };
+        let (mut best, mut name) = (0u64, String::new());
+        let mut i = 0;
+        while let Ok(a) = f.EnumAdapters1(i) {
+            if let Ok(d) = a.GetDesc1() {
+                if d.Flags & DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32 == 0 && (name.is_empty() || d.DedicatedVideoMemory as u64 > best) {
+                    best = d.DedicatedVideoMemory as u64;
+                    let n = d.Description.iter().position(|&c| c == 0).unwrap_or(d.Description.len());
+                    name = String::from_utf16_lossy(&d.Description[..n]).trim().to_string();
+                }
+            }
+            i += 1;
+        }
+        name
+    })
+    .clone()
+}
+
 fn vram_total() -> u64 {
     use windows::Win32::Graphics::Dxgi::{CreateDXGIFactory1, IDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE};
     unsafe {

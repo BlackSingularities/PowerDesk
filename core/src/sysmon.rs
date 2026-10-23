@@ -20,6 +20,8 @@ pub struct Info {
     pub cores: usize,
     pub threads: usize,
     pub cpu_usage: f32,
+    /// Bieżące taktowanie procesora (MHz; 0 – nieznane).
+    pub cpu_mhz: u64,
     pub mem_total: u64,
     pub mem_used: u64,
     pub uptime: u64,
@@ -29,6 +31,7 @@ pub fn info() -> Info {
     let mut s = SYS.lock();
     // Zużycie procesora liczy się z różnicy między odczytami – kolejne wywołania co kilka sekund są dokładne.
     s.refresh_cpu_usage();
+    s.refresh_cpu_frequency();
     s.refresh_memory();
     Info {
         host: System::host_name().unwrap_or_default(),
@@ -37,6 +40,7 @@ pub fn info() -> Info {
         cores: s.physical_core_count().unwrap_or(0),
         threads: s.cpus().len(),
         cpu_usage: s.global_cpu_usage(),
+        cpu_mhz: s.cpus().first().map(|c| c.frequency()).unwrap_or(0),
         mem_total: s.total_memory(),
         mem_used: s.used_memory(),
         uptime: System::uptime(),

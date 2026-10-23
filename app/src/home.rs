@@ -15,7 +15,7 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 use crate::fmt::{self, Kind};
 use crate::menus::{it, sep};
 use crate::model::HOME;
-use crate::{HomeActivity, HomeDay, HomeDrive, HomeFile, HomeFolder, HomeSection, HomeState, HomeTool, Shared};
+use crate::{HomeActivity, HomeDay, HomeDrive, HomeFile, HomeFolder, HomeMetric, HomeSection, HomeState, HomeTool, Shared};
 
 /// Ile ostatnich plików wczytujemy i pokazujemy.
 const RECENT_LIMIT: usize = 120;
@@ -40,6 +40,10 @@ thread_local! {
     /// Rozmiary folderów użytkownika – liczone raz na uruchomienie.
     static SIZES: RefCell<HashMap<String, u64>> = RefCell::new(HashMap::new());
     static CPU: RefCell<Vec<f32>> = const { RefCell::new(Vec::new()) };
+    static GPU: RefCell<Vec<f32>> = const { RefCell::new(Vec::new()) };
+    /// Prędkość pobierania (B/s) z kolejnych odczytów i ostatni stan liczników sieci.
+    static NET: RefCell<Vec<f64>> = const { RefCell::new(Vec::new()) };
+    static NET_LAST: RefCell<Option<(std::time::Instant, u64, u64)>> = const { RefCell::new(None) };
     /// Liczba zmienionych plików w kolejnych dniach (od najstarszego, ostatni – dziś).
     static DAILY: RefCell<Vec<usize>> = const { RefCell::new(Vec::new()) };
 }
@@ -282,6 +286,8 @@ pub fn sync(s: &Shared) {
     if was {
         return;
     }
+    // Karta graficzna: liczniki odczytywane co sekundę we własnym wątku (raz na program).
+    powerdesk_core::gpumon::start();
     render_static(s);
     tick(s);
     let s2 = s.clone();
@@ -367,18 +373,98 @@ fn today(d: &chrono::DateTime<Local>) -> String {
     format!("{}, {} {} {}", DAYS[d.weekday().num_days_from_monday() as usize], d.day(), MONTHS[d.month0() as usize], d.year())
 }
 
-/// Zegar, procesor, pamięć, czas pracy i aktywność.
-fn tick(s: &Shared) {
-    let i = sysmon::info();
-    let hist = CPU.with(|h| {
+/// Dopisuje odczyt do historii wykresu (ostatnie 20 – minuta przy odczycie co 3 s).
+fn push<T: Copy>(h: &'static std::thread::LocalKey<RefCell<Vec<T>>>, v: T) -> Vec<T> {
+    h.with(|h| {
         let mut h = h.borrow_mut();
-        h.push(i.cpu_usage);
+        h.push(v);
         let n = h.len();
         if n > 20 {
             h.drain(..n - 20);
         }
         h.clone()
+    })
+}
+
+/// „1,2 MB/s”.
+fn rate(bps: f64) -> String {
+    format!("{}/s", fmt::size(bps.max(0.0) as u64))
+}
+
+/// Pomiary na karcie „Komputer”: procesor, pamięć, karta graficzna, sieć i bateria.
+fn metrics(i: &sysmon::Info, cpu_hist: Vec<f32>) -> Vec<HomeMetric> {
+    let spark = |v: Vec<f32>| ModelRc::new(VecModel::from(v));
+    let mut out = Vec::new();
+    let ghz = if i.cpu_mhz > 0 { format!(" · {:.1} GHz", i.cpu_mhz as f64 / 1000.0).replace('.', ",") } else { String::new() };
+    out.push(HomeMetric {
+        icon: ic("bolt"),
+        label: "Procesor".into(),
+        value: format!("{:.0}%", i.cpu_usage).into(),
+        detail: format!("{} · {} rdz. / {} wątków{ghz}", i.cpu, i.cores, i.threads).into(),
+        bar: -1.0,
+        spark: spark(cpu_hist),
     });
+    let mem = if i.mem_total > 0 { i.mem_used as f32 / i.mem_total as f32 } else { 0.0 };
+    out.push(HomeMetric {
+        icon: ic("app"),
+        label: "Pamięć RAM".into(),
+        value: format!("{} / {}", fmt::size(i.mem_used), fmt::size(i.mem_total)).into(),
+        detail: format!("{:.0}% zajęte · wolne {}", mem * 100.0, fmt::size(i.mem_total.saturating_sub(i.mem_used))).into(),
+        bar: mem,
+        spark: Default::default(),
+    });
+    let g = powerdesk_core::gpumon::snapshot();
+    let gname = powerdesk_core::gpumon::name();
+    if !gname.is_empty() || g.vram_total > 0 {
+        let hist = push(&GPU, g.usage);
+        let mut detail = gname;
+        if g.vram_total > 0 {
+            detail.push_str(&format!(" · VRAM {} / {}", fmt::size(g.vram_used), fmt::size(g.vram_total)));
+        }
+        if let Some(t) = g.temp {
+            detail.push_str(&format!(" · {t}°C"));
+        }
+        out.push(HomeMetric { icon: ic("image"), label: "Karta graficzna".into(), value: format!("{:.0}%", g.usage).into(), detail: detail.trim_start_matches(" · ").to_string().into(), bar: -1.0, spark: spark(hist) });
+    }
+    // Sieć: własny pomiar (widżet ma swój), wykres względem najszybszej chwili z minuty.
+    if let Some((d, u)) = powerdesk_core::netspeed::totals() {
+        let now = std::time::Instant::now();
+        let (down, up) = NET_LAST.with(|l| {
+            let prev = l.borrow_mut().replace((now, d, u));
+            prev.map_or((0.0, 0.0), |(t, pd, pu)| {
+                let secs = now.duration_since(t).as_secs_f64().max(0.001);
+                (d.saturating_sub(pd) as f64 / secs, u.saturating_sub(pu) as f64 / secs)
+            })
+        });
+        let hist = push(&NET, down);
+        let top = hist.iter().copied().fold(1.0, f64::max);
+        let net = powerdesk_core::sysbar::network();
+        out.push(HomeMetric {
+            icon: ic("network"),
+            label: "Sieć".into(),
+            value: format!("↓ {}  ↑ {}", rate(down), rate(up)).into(),
+            detail: if net.name.is_empty() { "Brak połączenia".to_string() } else { net.name }.into(),
+            bar: -1.0,
+            spark: spark(hist.iter().map(|&v| (v / top * 100.0) as f32).collect()),
+        });
+    }
+    if let Some(b) = powerdesk_core::sysbar::battery() {
+        out.push(HomeMetric {
+            icon: ic("battery"),
+            label: "Bateria".into(),
+            value: format!("{}%", b.percent).into(),
+            detail: if b.charging { "Zasilacz podłączony" } else { "Na baterii" }.into(),
+            bar: b.percent as f32 / 100.0,
+            spark: Default::default(),
+        });
+    }
+    out
+}
+
+/// Zegar, pomiary komputera, czas pracy i aktywność.
+fn tick(s: &Shared) {
+    let i = sysmon::info();
+    let hist = push(&CPU, i.cpu_usage);
     let up = i.uptime;
     let uptime = match (up / 86_400, up / 3600 % 24, up / 60 % 60) {
         (0, 0, m) => format!("{m} min"),
@@ -387,7 +473,10 @@ fn tick(s: &Shared) {
     };
     render_activity(s);
     render_greeting(s);
+    let rows = metrics(&i, hist.clone());
     with_ui(s, |g| {
+        g.set_metrics(ModelRc::new(VecModel::from(rows)));
+        g.set_sys_note(format!("{} · działa od {uptime}", i.os).into());
         g.set_clock(Local::now().format("%H:%M").to_string().into());
         g.set_host(i.host.clone().into());
         g.set_os(i.os.clone().into());

@@ -7,7 +7,8 @@ use windows::Win32::NetworkManagement::Ndis::IfOperStatusUp;
 
 static LAST: Mutex<Option<(std::time::Instant, u64, u64)>> = Mutex::new(None);
 
-fn totals() -> Option<(u64, u64)> {
+/// Bajty odebrane i wysłane od startu systemu przez działające karty (do własnych pomiarów).
+pub fn totals() -> Option<(u64, u64)> {
     unsafe {
         let mut t: *mut MIB_IF_TABLE2 = std::ptr::null_mut();
         if GetIfTable2(&mut t).is_err() || t.is_null() {

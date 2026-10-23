@@ -29,6 +29,18 @@ export struct HomeFile {
     media: bool,
 }
 
+/// Pomiar na karcie „Komputer”: procesor, pamięć, karta graficzna, sieć, bateria.
+export struct HomeMetric {
+    icon: string,
+    label: string,
+    value: string,
+    detail: string,
+    /// Pasek zajętości 0–1; ujemny – bez paska.
+    bar: float,
+    /// Ostatnia minuta (0–100, najstarsze pierwsze); pusta – bez wykresu.
+    spark: [float],
+}
+
 /// Narzędzie systemu (Ustawienia, Menedżer urządzeń…) – `key` rozpoznaje home.rs.
 export struct HomeTool {
     name: string,
@@ -94,6 +106,9 @@ export global HomeState {
     in-out property <[HomeDay]> days;
     in-out property <string> changes-note;
     in-out property <[HomeTool]> tools;
+    in-out property <[HomeMetric]> metrics;
+    /// Wiersz pod pomiarami: system i czas pracy.
+    in-out property <string> sys-note;
     callback tool(string);
     callback drive-menu(string, length, length);
     callback move-section(string, int);
@@ -117,6 +132,8 @@ component Card inherits Rectangle {
     VerticalLayout {
         padding: 16px;
         spacing: 10px;
+        // Karta wyższa od treści (sąsiednia w rzędzie jest wyższa) – treść zostaje u góry.
+        alignment: start;
         if root.title != "" || root.note != "": HorizontalLayout {
             Label {
                 horizontal-stretch: 1;
@@ -144,6 +161,70 @@ component Bar inherits Rectangle {
         width: parent.width * clamp(root.value, 0, 1);
         border-radius: 3px;
         background: root.value > 0.92 ? Theme.rec : root.value > 0.8 ? Theme.warn : Theme.accent;
+    }
+}
+
+/// Wykres ostatniej minuty: słupki na całą szerokość, stała liczba miejsc, najnowsze z prawej.
+component Spark inherits Rectangle {
+    in property <[float]> values;
+    in property <int> slots: 20;
+    height: 30px;
+    for v[i] in root.values: Rectangle {
+        property <length> step: root.width / root.slots;
+        x: (root.slots - root.values.length + i) * self.step;
+        y: root.height - self.height;
+        width: max(1px, self.step - 2px);
+        height: max(2px, root.height * clamp(v / 100, 0, 1));
+        border-radius: 1px;
+        background: Theme.accent.with-alpha(i == root.values.length - 1 ? 0.9 : 0.5);
+    }
+}
+
+/// Kafelek pomiaru: ikona, nazwa i wartość, wykres albo pasek, szczegóły.
+component Metric inherits Rectangle {
+    in property <HomeMetric> m;
+    height: 98px;
+    border-radius: Theme.r;
+    background: Theme.panel;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        alignment: start;
+        HorizontalLayout {
+            spacing: 8px;
+            Icon {
+                y: (parent.height - self.height) / 2;
+                commands: root.m.icon;
+                size: 15px;
+                color: Theme.dim;
+            }
+            Label {
+                horizontal-stretch: 1;
+                text: root.m.label;
+                font-size: 12px;
+                color: Theme.dim;
+            }
+            Label {
+                text: root.m.value;
+                font-size: 13px;
+                font-weight: 600;
+            }
+        }
+        if root.m.spark.length > 0: Spark {
+            values: root.m.spark;
+        }
+        if root.m.spark.length == 0 && root.m.bar >= 0: VerticalLayout {
+            height: 30px;
+            alignment: center;
+            Bar {
+                value: root.m.bar;
+            }
+        }
+        Label {
+            text: root.m.detail;
+            font-size: 11px;
+            color: Theme.faint;
+        }
     }
 }
 
@@ -355,11 +436,14 @@ export component HomeView inherits Rectangle {
     /// Szerokość treści – widoczna część przewijanego obszaru (bez paska przewijania) bez marginesów.
     property <length> cols-w: sv.visible-width - 48px;
     /// Szeroko – karty obok siebie, wąsko – jedna pod drugą.
-    property <bool> wide: sv.visible-width > 900px;
+    property <bool> wide: sv.visible-width > 760px;
     property <int> per-row: max(1, floor((root.cols-w - 22px) / 130px));
     /// Kafelki narzędzi: co najmniej 190 px szerokości, rozciągnięte na cały wiersz.
     property <int> tools-per-row: max(1, floor((root.cols-w - 22px) / 200px));
     property <length> tool-w: (root.cols-w - 32px - (root.tools-per-row - 1) * 10px) / root.tools-per-row;
+    /// Kafelki pomiarów: co najmniej 220 px.
+    property <int> metric-per-row: max(1, floor((root.cols-w - 22px) / 230px));
+    property <length> metric-w: (root.cols-w - 32px - (root.metric-per-row - 1) * 10px) / root.metric-per-row;
 
     // Treść zawsze na szerokość okna (bez tego ScrollView brałby jej preferowaną szerokość
     // i ekran nie dopasowywał się przy zmianie rozmiaru); przewijanie tylko w pionie.
@@ -448,139 +532,83 @@ export component HomeView inherits Rectangle {
                     note: sec.key == "changes" ? HomeState.changes-note : sec.key == "recent" ? "zmienione w ciągu 14 dni" : "";
                 }
             // Pamięć, system i foldery – obok siebie na szerokim oknie.
-            if !sec.shut && sec.key == "overview": GridLayout {
+            // Komputer na całą szerokość (pomiary w rzędach), pod nim dyski i foldery użytkownika.
+            if !sec.shut && sec.key == "overview": VerticalLayout {
                 spacing: 16px;
                 Card {
-                    row: 0;
-                    col: 0;
-                    title: "Dyski";
-                    note: HomeState.storage;
-                    for d in HomeState.drives: LinkRow {
-                        icon: d.icon;
-                        text: d.name;
-                        value: d.detail;
-                        bar: d.usage;
-                        tip: d.path + " – kliknij, aby otworzyć";
-                        clicked => {
-                            HomeState.go(d.path);
-                        }
-                        middle => {
-                            HomeState.go-new-tab(d.path);
-                        }
-                        menu(x, y) => {
-                            HomeState.drive-menu(d.path, x, y);
-                        }
-                    }
-                    HorizontalLayout {
-                        spacing: 6px;
-                        alignment: start;
-                        if HomeState.drives.length > 0: Chip {
-                            text: "Co zajmuje miejsce?";
-                            clicked => {
-                                HomeState.go("ofp:space|" + HomeState.drives[0].path);
-                            }
-                        }
-                        Chip {
-                            text: "Mapuj dysk sieciowy…";
-                            clicked => {
-                                HomeState.tool("map");
-                            }
-                        }
-                    }
-                }
-                Card {
-                    row: root.wide ? 0 : 1;
-                    col: root.wide ? 1 : 0;
                     title: "Komputer";
                     note: HomeState.host;
+                    for row[r] in ceil(HomeState.metrics.length / root.metric-per-row): HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        for m[i] in HomeState.metrics: Metric {
+                            visible: i >= r * root.metric-per-row && i < (r + 1) * root.metric-per-row;
+                            width: self.visible ? root.metric-w : 0;
+                            m: m;
+                        }
+                    }
                     Label {
-                        text: HomeState.os;
+                        text: HomeState.sys-note;
                         font-size: 11.5px;
                         color: Theme.faint;
                     }
-                    VerticalLayout {
-                        spacing: 5px;
-                        HorizontalLayout {
-                            Label {
-                                horizontal-stretch: 1;
-                                text: "Procesor";
-                                font-size: 12px;
+                }
+                GridLayout {
+                    spacing: 16px;
+                    Card {
+                        row: 0;
+                        col: 0;
+                        title: "Dyski";
+                        note: HomeState.storage;
+                        for d in HomeState.drives: LinkRow {
+                            icon: d.icon;
+                            text: d.name;
+                            value: d.detail;
+                            bar: d.usage;
+                            tip: d.path + " – kliknij, aby otworzyć";
+                            clicked => {
+                                HomeState.go(d.path);
                             }
-                            Label {
-                                text: round(HomeState.cpu-usage) + "%";
-                                font-size: 12px;
-                                font-weight: 600;
+                            middle => {
+                                HomeState.go-new-tab(d.path);
+                            }
+                            menu(x, y) => {
+                                HomeState.drive-menu(d.path, x, y);
                             }
                         }
-                        // Ostatnia minuta obciążenia – słupki co 3 s.
-                        Rectangle {
-                            height: 34px;
-                            HorizontalLayout {
-                                spacing: 2px;
-                                alignment: end;
-                                for v in HomeState.cpu-hist: Rectangle {
-                                    width: 5px;
-                                    Rectangle {
-                                        y: parent.height - self.height;
-                                        height: max(2px, parent.height * clamp(v / 100, 0, 1));
-                                        border-radius: 1px;
-                                        background: Theme.accent.with-alpha(0.7);
-                                    }
+                        HorizontalLayout {
+                            spacing: 6px;
+                            alignment: start;
+                            if HomeState.drives.length > 0: Chip {
+                                text: "Co zajmuje miejsce?";
+                                clicked => {
+                                    HomeState.go("ofp:space|" + HomeState.drives[0].path);
+                                }
+                            }
+                            Chip {
+                                text: "Mapuj dysk sieciowy…";
+                                clicked => {
+                                    HomeState.tool("map");
                                 }
                             }
                         }
-                        Label {
-                            text: HomeState.cpu;
-                            font-size: 11px;
-                            color: Theme.faint;
-                        }
                     }
-                    VerticalLayout {
-                        spacing: 5px;
-                        HorizontalLayout {
-                            Label {
-                                horizontal-stretch: 1;
-                                text: "Pamięć RAM";
-                                font-size: 12px;
+                    Card {
+                        row: root.wide ? 0 : 1;
+                        col: root.wide ? 1 : 0;
+                        title: "Twoje foldery";
+                        for f in HomeState.folders: LinkRow {
+                            icon: f.icon;
+                            text: f.name;
+                            value: f.ratio < 0 ? "liczę…" : f.size;
+                            bar: max(f.ratio, 0);
+                            tip: f.path;
+                            clicked => {
+                                HomeState.go(f.path);
                             }
-                            Label {
-                                text: HomeState.mem;
-                                font-size: 12px;
-                                font-weight: 600;
+                            middle => {
+                                HomeState.go-new-tab(f.path);
                             }
-                        }
-                        Bar {
-                            value: HomeState.mem-usage;
-                        }
-                    }
-                    HorizontalLayout {
-                        Label {
-                            horizontal-stretch: 1;
-                            text: "Działa od";
-                            font-size: 12px;
-                            color: Theme.dim;
-                        }
-                        Label {
-                            text: HomeState.uptime;
-                            font-size: 12px;
-                        }
-                    }
-                }
-                Card {
-                    row: root.wide ? 0 : 2;
-                    col: root.wide ? 2 : 0;
-                    title: "Twoje foldery";
-                    for f in HomeState.folders: LinkRow {
-                        icon: f.icon;
-                        text: f.name;
-                        value: f.ratio < 0 ? "liczę…" : f.size;
-                        bar: max(f.ratio, 0);
-                        tip: f.path;
-                        clicked => {
-                            HomeState.go(f.path);
-                        }
-                        middle => {
-                            HomeState.go-new-tab(f.path);
                         }
                     }
                 }
