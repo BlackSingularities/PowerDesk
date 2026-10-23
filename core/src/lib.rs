@@ -44,6 +44,7 @@ pub mod terminal;
 pub mod tray;
 pub mod update;
 pub mod trayhost;
+pub mod vdesk;
 pub mod weather;
 pub mod wifi;
 pub mod winkey;

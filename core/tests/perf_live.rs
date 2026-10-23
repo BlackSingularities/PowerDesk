@@ -13,3 +13,9 @@ fn fps_and_gpu() {
     println!("GPU: {:?}", powerdesk_core::gpumon::snapshot());
     powerdesk_core::fpsmon::stop();
 }
+
+#[test]
+#[ignore]
+fn virtual_desktops() {
+    println!("pulpity: {:?}", powerdesk_core::vdesk::list());
+}

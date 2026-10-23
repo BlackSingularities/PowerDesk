@@ -139,6 +139,11 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_battery_open(|| sysbar::open_settings("batterysaver"));
         w.on_calendar_open(move |x| open_calendar(n, x));
         w.on_notices_open(move |x| open_notices(n, x));
+        w.on_vd_menu(move |x| vd_menu(n, x));
+        w.on_vd_wheel(|d| {
+            std::thread::spawn(move || powerdesk_core::vdesk::step(d));
+            slint::Timer::single_shot(Duration::from_millis(400), vd_status);
+        });
         w.set_notice_count(crate::notices::unread());
         w.on_tray_app_click(|key, b| {
             use powerdesk_core::trayhost::{self, Click};
@@ -673,6 +678,53 @@ fn open_volume(bar: usize, x: f32) {
 }
 
 /// Kalendarz nad zegarem, dosunięty do prawej krawędzi monitora.
+/// Przełącznik pulpitów wirtualnych na wszystkich paskach (z Eksploratorem; w trybie powłoki – ukryty).
+fn vd_status() {
+    let vd = if powerdesk_core::shellmode::active() { None } else { powerdesk_core::vdesk::list() };
+    BARS.with(|b| {
+        for bar in b.borrow().iter() {
+            match &vd {
+                Some((names, cur)) => {
+                    bar.w.set_vd_show(true);
+                    bar.w.set_vd_name(names.get(*cur).cloned().unwrap_or_default().into());
+                    bar.w.set_vd_count(format!("{}/{}", cur + 1, names.len()).into());
+                }
+                None => bar.w.set_vd_show(false),
+            }
+        }
+    });
+}
+
+/// Lista pulpitów: przejście, nowy pulpit, zamknięcie bieżącego.
+fn vd_menu(bar: usize, x: f32) {
+    let Some((names, cur)) = powerdesk_core::vdesk::list() else { return };
+    let mut items: Vec<Item> = names
+        .into_iter()
+        .enumerate()
+        .map(|(i, n)| {
+            it(n, "desktop", move |_| {
+                std::thread::spawn(move || powerdesk_core::vdesk::go(i));
+                slint::Timer::single_shot(Duration::from_millis(500), vd_status);
+            })
+            .checked(i == cur)
+        })
+        .collect();
+    items.extend([
+        sep(),
+        it("Nowy pulpit", "plus", |_| {
+            powerdesk_core::vdesk::add();
+            slint::Timer::single_shot(Duration::from_millis(500), vd_status);
+        })
+        .kbd("Win+Ctrl+D"),
+        it("Zamknij ten pulpit", "close", |_| {
+            powerdesk_core::vdesk::close_current();
+            slint::Timer::single_shot(Duration::from_millis(500), vd_status);
+        })
+        .kbd("Win+Ctrl+F4"),
+    ]);
+    show_menu(bar, items, x);
+}
+
 /// Licznik nieprzeczytanych na wszystkich paskach i odświeżona lista, jeśli otwarta.
 pub fn notices_changed() {
     let n = crate::notices::unread();
@@ -1244,6 +1296,7 @@ fn refresh() {
         }
     });
     tray_status();
+    vd_status();
 }
 
 /// Ikony programów w zasobniku na wszystkich paskach.

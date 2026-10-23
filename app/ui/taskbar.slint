@@ -849,6 +849,13 @@ export component TaskbarWindow inherits Window {
     /// Nieprzeczytane powiadomienia (centrum powiadomień przy zegarze).
     in property <int> notice-count;
     callback notices-open(length);
+    /// Pulpity wirtualne: widoczny przełącznik, nazwa bieżącego i numer/liczba.
+    in property <bool> vd-show;
+    in property <string> vd-name;
+    in property <string> vd-count;
+    callback vd-menu(length);
+    /// Kółko nad przełącznikiem – sąsiedni pulpit (-1 / +1).
+    callback vd-wheel(int);
     /// Ikony programów w zasobniku (tylko w trybie powłoki).
     in property <[TrayApp]> tray-apps;
     /// Ile ikon programów widać bez rozwijania.
@@ -924,6 +931,46 @@ export component TaskbarWindow inherits Window {
                     if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                         root.start-context(self.absolute-position.x + self.mouse-x);
                     }
+                }
+            }
+        }
+
+        // Pulpity wirtualne: numer bieżącego, klik – lista, kółko – sąsiedni.
+        if root.vd-show: Rectangle {
+            width: vd.preferred-width + 16px;
+            height: 40px;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.r;
+            background: vd-ta.has-hover ? Theme.hover : transparent;
+            vd := HorizontalLayout {
+                padding-left: 8px;
+                padding-right: 8px;
+                spacing: 6px;
+                alignment: center;
+                Icon {
+                    y: (parent.height - 16px) / 2;
+                    commands: Icons.grid;
+                    size: 16px;
+                    color: Theme.dim;
+                }
+                Text {
+                    vertical-alignment: center;
+                    text: root.vd-count;
+                    font-size: 11.5px;
+                    color: Theme.text;
+                }
+            }
+            vd-ta := TipArea {
+                tip: root.vd-name + " · kółko – sąsiedni pulpit";
+                clicked => {
+                    root.vd-menu(self.absolute-position.x);
+                }
+                scroll-event(e) => {
+                    if (e.delta-y == 0) {
+                        return reject;
+                    }
+                    root.vd-wheel(e.delta-y > 0 ? -1 : 1);
+                    accept
                 }
             }
         }
