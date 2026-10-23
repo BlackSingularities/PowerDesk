@@ -40,7 +40,9 @@ pub fn ensure() -> Result<(), String> {
     if !autostart::enabled() {
         keep(autostart::set(true));
     }
-    if !shellmode::registered() {
+    // Powłoka tylko z zainstalowanej kopii: plik z Pobranych albo z folderu budowania mógłby
+    // zniknąć albo być w trakcie podmiany – wtedy po zalogowaniu nie byłoby pulpitu ani paska.
+    if crate::install::running_installed() && !shellmode::registered() {
         keep(shellmode::register());
     }
     err
