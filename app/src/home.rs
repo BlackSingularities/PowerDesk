@@ -1,4 +1,4 @@
-//! Ekran „Komputer” (Home.svelte): powitanie z wyszukiwaniem, dyski, stan komputera,
+//! Ekran „Komputer” (Home.svelte): dyski, stan komputera,
 //! rozmiary folderów użytkownika, narzędzia systemu i ostatnio zmienione pliki. Pokazuje się na karcie `ofp:home`
 //! zamiast listy; dane o systemie odświeża co 3 s, tylko gdy ekran jest widoczny.
 
@@ -300,21 +300,6 @@ pub fn sync(s: &Shared) {
     count_folders();
 }
 
-/// Powitanie i data według bieżącej godziny (ekran bywa otwarty całą noc).
-fn render_greeting(s: &Shared) {
-    let now = Local::now();
-    let greeting = match now.hour() {
-        5..=11 => "Dzień dobry",
-        12..=17 => "Miłego popołudnia",
-        18..=22 => "Dobry wieczór",
-        _ => "Dobranoc",
-    };
-    with_ui(s, |g| {
-        g.set_greeting(greeting.into());
-        g.set_today(today(&now).into());
-    });
-}
-
 /// Rodzaj dysku w opisie: „USB”, „sieciowy”, „napęd optyczny”.
 fn drive_kind(kind: &str) -> &'static str {
     match kind {
@@ -354,23 +339,14 @@ fn render_drives(s: &Shared) {
     });
 }
 
-/// Powitanie, dyski, foldery i narzędzia – to, co zmienia się rzadko.
+/// Dyski, foldery i narzędzia – to, co zmienia się rzadko.
 fn render_static(s: &Shared) {
-    render_greeting(s);
     render_drives(s);
     render_tools(s);
     render_folders(s);
     render_sections(s);
     render_favorites(s);
     render_days(s);
-}
-
-/// „Środa, 22 października 2026”.
-fn today(d: &chrono::DateTime<Local>) -> String {
-    use chrono::Datelike;
-    const DAYS: [&str; 7] = ["Poniedziałek", "Wtorek", "Środa", "Czwartek", "Piątek", "Sobota", "Niedziela"];
-    const MONTHS: [&str; 12] = ["stycznia", "lutego", "marca", "kwietnia", "maja", "czerwca", "lipca", "sierpnia", "września", "października", "listopada", "grudnia"];
-    format!("{}, {} {} {}", DAYS[d.weekday().num_days_from_monday() as usize], d.day(), MONTHS[d.month0() as usize], d.year())
 }
 
 /// Dopisuje odczyt do historii wykresu (ostatnie 20 – minuta przy odczycie co 3 s).
@@ -472,12 +448,10 @@ fn tick(s: &Shared) {
         (d, h, _) => format!("{d} d {h} h"),
     };
     render_activity(s);
-    render_greeting(s);
     let rows = metrics(&i, hist.clone());
     with_ui(s, |g| {
         g.set_metrics(ModelRc::new(VecModel::from(rows)));
         g.set_sys_note(format!("{} · działa od {uptime}", i.os).into());
-        g.set_clock(Local::now().format("%H:%M").to_string().into());
         g.set_host(i.host.clone().into());
         g.set_os(i.os.clone().into());
         g.set_cpu(format!("{} · {} rdz. / {} wątków", i.cpu, i.cores, i.threads).into());
@@ -608,13 +582,6 @@ pub fn refresh_files(s: &Shared) {
     load_files(s);
 }
 
-/// Wyszukiwanie z ekranu – w folderze domowym, w tej samej karcie.
-pub fn search(s: &Shared, q: &str) {
-    let Some(home) = dirs::home_dir() else { return };
-    crate::navigate(s, &home.to_string_lossy(), true);
-    crate::start_search(s, q);
-}
-
 fn reveal(s: &Shared, path: &str) {
     if let Some(dir) = std::path::Path::new(path).parent() {
         crate::navigate(s, &dir.to_string_lossy(), true);
@@ -649,8 +616,6 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     });
     let s = st.clone();
     g.on_file_menu(move |p, x, y| file_menu(&s, p.into(), x, y));
-    let s = st.clone();
-    g.on_search(move |q| search(&s, &q));
     let s = st.clone();
     g.on_set_kind(move |k| set_kind(&s, k));
     let s = st.clone();

@@ -80,9 +80,6 @@ export struct HomeDay {
 /// Ekran „Komputer” (Home.svelte) – dane podaje home.rs.
 export global HomeState {
     in-out property <bool> open;
-    in-out property <string> greeting;
-    in-out property <string> today;
-    in-out property <string> clock;
     in-out property <[HomeDrive]> drives;
     in-out property <string> storage;
     in-out property <float> storage-usage;
@@ -99,7 +96,6 @@ export global HomeState {
     in-out property <string> mem;
     in-out property <float> mem-usage;
     in-out property <string> uptime;
-    in-out property <string> activity;
     in-out property <[HomeSection]> sections;
     in-out property <[HomeFolder]> favorites;
     in-out property <[HomeActivity]> activities;
@@ -117,7 +113,6 @@ export global HomeState {
     callback go-new-tab(string);
     callback open-file(string);
     callback file-menu(string, length, length);
-    callback search(string);
     callback set-kind(int);
     callback refresh-files;
 }
@@ -153,6 +148,8 @@ component Card inherits Rectangle {
 
 component Bar inherits Rectangle {
     in property <float> value;
+    /// Porównanie (rozmiary folderów) – zawsze kolor akcentu, bez ostrzeżeń.
+    in property <bool> plain;
     height: 6px;
     border-radius: 3px;
     background: Theme.line;
@@ -160,7 +157,7 @@ component Bar inherits Rectangle {
         x: 0;
         width: parent.width * clamp(root.value, 0, 1);
         border-radius: 3px;
-        background: root.value > 0.92 ? Theme.rec : root.value > 0.8 ? Theme.warn : Theme.accent;
+        background: root.plain ? Theme.accent : root.value > 0.92 ? Theme.rec : root.value > 0.8 ? Theme.warn : Theme.accent;
     }
 }
 
@@ -235,6 +232,7 @@ component LinkRow inherits Rectangle {
     in property <string> value;
     in property <string> tip;
     in property <float> bar: -1;
+    in property <bool> plain;
     callback clicked;
     callback middle;
     /// Prawy przycisk – punkt w oknie.
@@ -271,6 +269,7 @@ component LinkRow inherits Rectangle {
             }
             if root.bar >= 0: Bar {
                 value: root.bar;
+                plain: root.plain;
             }
         }
     }
@@ -436,14 +435,17 @@ export component HomeView inherits Rectangle {
     /// Szerokość treści – widoczna część przewijanego obszaru (bez paska przewijania) bez marginesów.
     property <length> cols-w: sv.visible-width - 48px;
     /// Szeroko – karty obok siebie, wąsko – jedna pod drugą.
-    property <bool> wide: sv.visible-width > 760px;
+    property <bool> wide: sv.visible-width > 980px;
     property <int> per-row: max(1, floor((root.cols-w - 22px) / 130px));
     /// Kafelki narzędzi: co najmniej 190 px szerokości, rozciągnięte na cały wiersz.
     property <int> tools-per-row: max(1, floor((root.cols-w - 22px) / 200px));
     property <length> tool-w: (root.cols-w - 32px - (root.tools-per-row - 1) * 10px) / root.tools-per-row;
-    /// Kafelki pomiarów: co najmniej 220 px.
-    property <int> metric-per-row: max(1, floor((root.cols-w - 22px) / 230px));
-    property <length> metric-w: (root.cols-w - 32px - (root.metric-per-row - 1) * 10px) / root.metric-per-row;
+    /// Szeroko: Komputer, Dyski i Twoje foldery w trzech równych kolumnach.
+    property <length> col-w: root.wide ? (root.cols-w - 32px) / 3 : root.cols-w;
+    /// Kafelki pomiarów (co najmniej 220 px) rozciągnięte na szerokość karty Komputer.
+    property <length> metric-area: root.col-w - 32px;
+    property <int> metric-per-row: max(1, min(HomeState.metrics.length, floor((root.metric-area + 10px) / 230px)));
+    property <length> metric-w: (root.metric-area - (root.metric-per-row - 1) * 10px) / root.metric-per-row;
 
     // Treść zawsze na szerokość okna (bez tego ScrollView brałby jej preferowaną szerokość
     // i ekran nie dopasowywał się przy zmianie rozmiaru); przewijanie tylko w pionie.
@@ -456,74 +458,6 @@ export component HomeView inherits Rectangle {
             spacing: 16px;
             alignment: start;
 
-            // Powitanie, zegar, wyszukiwanie.
-            Rectangle {
-                border-radius: Theme.r-l;
-                background: Theme.card;
-                border-width: 1px;
-                border-color: Theme.line;
-                height: hero.preferred-height;
-                hero := VerticalLayout {
-                    padding: 20px;
-                    spacing: 12px;
-                    HorizontalLayout {
-                        VerticalLayout {
-                            horizontal-stretch: 1;
-                            spacing: 2px;
-                            Label {
-                                text: HomeState.today;
-                                font-size: 12px;
-                                color: Theme.faint;
-                            }
-                            Label {
-                                text: HomeState.greeting;
-                                font-size: 24px;
-                                font-weight: 600;
-                            }
-                        }
-                        Label {
-                            text: HomeState.clock;
-                            font-size: 30px;
-                            font-weight: 300;
-                            color: Theme.dim;
-                        }
-                    }
-                    HorizontalLayout {
-                        spacing: 8px;
-                        q := LineEdit {
-                            horizontal-stretch: 1;
-                            placeholder-text: "Szukaj plików w folderze domowym…";
-                            accepted(t) => {
-                                if (t != "") {
-                                    HomeState.search(t);
-                                }
-                            }
-                        }
-                        Rectangle {
-                            width: 90px;
-                            border-radius: Theme.r;
-                            background: q.text == "" ? Theme.panel : sb-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
-                            Label {
-                                horizontal-alignment: center;
-                                text: "Szukaj";
-                                color: q.text == "" ? Theme.faint : Theme.on-accent;
-                            }
-                            sb-ta := TouchArea {
-                                enabled: q.text != "";
-                                clicked => {
-                                    HomeState.search(q.text);
-                                }
-                            }
-                        }
-                    }
-                    if HomeState.activity != "": Label {
-                        text: HomeState.activity;
-                        font-size: 12px;
-                        color: Theme.dim;
-                    }
-                }
-            }
-
             // Sekcje w kolejności z ustawień; zwinięta zostawia sam nagłówek.
             for sec in HomeState.sections: VerticalLayout {
                 spacing: 8px;
@@ -532,10 +466,13 @@ export component HomeView inherits Rectangle {
                     note: sec.key == "changes" ? HomeState.changes-note : sec.key == "recent" ? "zmienione w ciągu 14 dni" : "";
                 }
             // Pamięć, system i foldery – obok siebie na szerokim oknie.
-            // Komputer na całą szerokość (pomiary w rzędach), pod nim dyski i foldery użytkownika.
-            if !sec.shut && sec.key == "overview": VerticalLayout {
+            // Szeroko: Komputer, Dyski i Twoje foldery obok siebie, równe kolumny; wąsko – jedna pod drugą.
+            if !sec.shut && sec.key == "overview": GridLayout {
                 spacing: 16px;
                 Card {
+                    row: 0;
+                    col: 0;
+                    width: root.col-w;
                     title: "Komputer";
                     note: HomeState.host;
                     for row[r] in ceil(HomeState.metrics.length / root.metric-per-row): HorizontalLayout {
@@ -553,11 +490,10 @@ export component HomeView inherits Rectangle {
                         color: Theme.faint;
                     }
                 }
-                GridLayout {
-                    spacing: 16px;
                     Card {
-                        row: 0;
-                        col: 0;
+                        row: root.wide ? 0 : 1;
+                        col: root.wide ? 1 : 0;
+                        width: root.col-w;
                         title: "Dyski";
                         note: HomeState.storage;
                         for d in HomeState.drives: LinkRow {
@@ -594,14 +530,16 @@ export component HomeView inherits Rectangle {
                         }
                     }
                     Card {
-                        row: root.wide ? 0 : 1;
-                        col: root.wide ? 1 : 0;
+                        row: root.wide ? 0 : 2;
+                        col: root.wide ? 2 : 0;
+                        width: root.col-w;
                         title: "Twoje foldery";
                         for f in HomeState.folders: LinkRow {
                             icon: f.icon;
                             text: f.name;
                             value: f.ratio < 0 ? "liczę…" : f.size;
                             bar: max(f.ratio, 0);
+                            plain: true;
                             tip: f.path;
                             clicked => {
                                 HomeState.go(f.path);
@@ -611,7 +549,6 @@ export component HomeView inherits Rectangle {
                             }
                         }
                     }
-                }
             }
 
             // Przypięte foldery (te same co w panelu bocznym).
