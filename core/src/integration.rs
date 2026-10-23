@@ -19,7 +19,14 @@ pub fn status() -> Vec<(&'static str, &'static str, bool)> {
 }
 
 /// Ustawia brakujące wpisy (te, które nie wskazują tego pliku .exe). Zwraca pierwszy błąd.
+/// Zakłada wpisy tylko zainstalowana kopia. Plik z Pobranych albo z folderu budowania niczego
+/// w Windows nie zmienia – foldery dalej otwiera Eksplorator (gdyby plik zniknął albo był
+/// podmieniany, Windows zostałby z martwymi skojarzeniami). Zwraca Ok bez zmian, gdy to nie instalacja.
 pub fn ensure() -> Result<(), String> {
+    if !crate::install::running_installed() {
+        return Ok(());
+    }
+    remove_legacy();
     let mut err = Ok(());
     let mut keep = |r: Result<(), String>| {
         if err.is_ok() {
@@ -40,9 +47,7 @@ pub fn ensure() -> Result<(), String> {
     if !autostart::enabled() {
         keep(autostart::set(true));
     }
-    // Powłoka tylko z zainstalowanej kopii: plik z Pobranych albo z folderu budowania mógłby
-    // zniknąć albo być w trakcie podmiany – wtedy po zalogowaniu nie byłoby pulpitu ani paska.
-    if crate::install::running_installed() && !shellmode::registered() {
+    if !shellmode::registered() {
         keep(shellmode::register());
     }
     err
@@ -50,9 +55,21 @@ pub fn ensure() -> Result<(), String> {
 
 /// Przywraca Eksplorator: usuwa wszystkie nasze wpisy.
 pub fn remove() -> Result<(), String> {
+    remove_legacy();
     filemgr::set_default(false)?;
     winkey::set(false)?;
     filemgr::set_menu(false)?;
     shellmode::unregister()?;
     autostart::set(false)
+}
+
+/// Pozostałości po OpenFilePower: „Otwórz w OpenFilePower” w menu folderów i dysków, które po jego
+/// odinstalowaniu wskazują nieistniejący plik.
+pub fn remove_legacy() {
+    for class in ["Directory", "Drive", r"Directory\Background"] {
+        let key = format!(r"HKCU\Software\Classes\{class}\shell\OpenFilePower");
+        if winkey::reg(&["query", &key]).is_ok() {
+            let _ = winkey::reg(&["delete", &key, "/f"]);
+        }
+    }
 }
