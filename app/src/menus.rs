@@ -114,12 +114,11 @@ pub fn show(s: &Shared, items: Vec<Item>, x: f32, y: f32) {
 // ---------- Menu jako osobne okienko ----------
 //
 // Wszystkie menu podręczne (okno folderów, pulpit, Start, pasek) to to samo okienko
-// `BarMenuWindow` – ten sam wygląd, krycie i rozmycie z ustawień, podmenu obok pozycji.
+// `BarMenuWindow` – ten sam wygląd, krycie i rozmycie z ustawień. Podmenu to kolejne okienko
+// obok pozycji; menu nadrzędne zostaje widoczne (stos poziomów).
 
 thread_local! {
-    static POP: std::cell::RefCell<Option<Pop>> = const { std::cell::RefCell::new(None) };
-    /// Numer otwarcia – utrata fokusu starego okienka (przy podmenu) nie zamyka nowego.
-    static POP_GEN: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+    static POP: std::cell::RefCell<Vec<Pop>> = const { std::cell::RefCell::new(Vec::new()) };
 }
 
 struct Pop {
@@ -139,8 +138,30 @@ pub fn show_in(win: &slint::Window, items: Vec<Item>, x: f32, y: f32) {
 
 /// Menu w punkcie ekranu (piksele): w prawo i w dół, przy krawędzi monitora (albo pasku) – w drugą stronę.
 pub fn show_at(items: Vec<Item>, sx: i32, sy: i32) {
+    open_level(items, sx, sy, 0, None);
+}
+
+/// Zamyka poziomy od `level` w górę (0 – wszystkie).
+fn truncate(level: usize) {
+    let gone: Vec<Pop> = POP.with(|p| {
+        let mut p = p.borrow_mut();
+        let n = p.len();
+        if level < n {
+            p.drain(level..).collect()
+        } else {
+            Vec::new()
+        }
+    });
+    for g in gone {
+        let _ = g.w.hide();
+    }
+}
+
+/// Okienko menu na poziomie `level` (0 – główne). `beside` – lewa krawędź menu nadrzędnego:
+/// podmenu, które nie mieści się z prawej, staje po lewej stronie rodzica.
+fn open_level(items: Vec<Item>, sx: i32, sy: i32, level: usize, beside: Option<i32>) {
     use slint::winit_030::WinitWindowAccessor;
-    close_pop();
+    truncate(level);
     if items.is_empty() {
         return;
     }
@@ -151,28 +172,40 @@ pub fn show_at(items: Vec<Item>, sx: i32, sy: i32) {
     let ((mx, my), (mw, mh), scale) = crate::taskbar::monitor_at(sx, sy);
     let (pw, ph) = ((width * scale) as i32, (height * scale) as i32);
     let bottom = my + mh - (crate::taskbar::HEIGHT * scale) as i32;
-    let x = if sx + pw > mx + mw - 4 { (sx - pw).max(mx + 4) } else { sx };
-    let y = if sy + ph > bottom - 4 { (sy - ph).max(my + 4) } else { sy };
+    let x = if sx + pw > mx + mw - 4 {
+        match beside {
+            Some(left) => (left - pw + (4.0 * scale) as i32).max(mx + 4),
+            None => (sx - pw).max(mx + 4),
+        }
+    } else {
+        sx
+    };
+    let y = if sy + ph > bottom - 4 { if beside.is_some() { (bottom - 4 - ph).max(my + 4) } else { (sy - ph).max(my + 4) } } else { sy };
     w.set_entries(ModelRc::new(VecModel::from(entries)));
     w.set_menu_width(width);
     w.window().set_position(slint::PhysicalPosition::new(x, y));
     w.window().set_size(slint::PhysicalSize::new(pw as u32, ph as u32));
-    let gen = POP_GEN.with(|g| {
-        g.set(g.get() + 1);
-        g.get()
-    });
-    w.on_chosen(|i| pop_chosen(i as usize));
-    w.on_dismiss(|| {
-        slint::Timer::single_shot(std::time::Duration::ZERO, || {
-            close_pop();
-            crate::start::menu_closed(false);
+    w.on_chosen(move |i| pop_chosen(level, i as usize));
+    // Escape: ten poziom (i głębsze); w głównym – całe menu.
+    w.on_dismiss(move || {
+        slint::Timer::single_shot(std::time::Duration::ZERO, move || {
+            if level == 0 {
+                close_pop();
+                crate::start::menu_closed(false);
+            } else {
+                truncate(level);
+                if let Some(h) = POP.with(|p| p.borrow().last().map(|p| crate::window_hwnd(p.w.window()))) {
+                    powerdesk_core::taskwin::activate(h);
+                }
+            }
         })
     });
-    // Klik obok (utrata fokusu) – zamknięcie.
-    w.window().on_winit_window_event(move |_, ev| {
+    // Fokus poza wszystkimi poziomami menu (klik obok) – zamknięcie całości.
+    w.window().on_winit_window_event(|_, ev| {
         if let slint::winit_030::winit::event::WindowEvent::Focused(false) = ev {
-            slint::Timer::single_shot(std::time::Duration::ZERO, move || {
-                if POP_GEN.with(|g| g.get()) == gen {
+            slint::Timer::single_shot(std::time::Duration::from_millis(30), || {
+                let fg = powerdesk_core::taskwin::foreground();
+                if pop_open() && !pop_hwnd().contains(&fg) {
                     close_pop();
                     crate::start::menu_closed(false);
                 }
@@ -185,23 +218,22 @@ pub fn show_at(items: Vec<Item>, sx: i32, sy: i32) {
     powerdesk_core::desktop::hide_from_taskbar(hwnd);
     crate::taskbar::popup_look(hwnd);
     powerdesk_core::taskwin::activate(hwnd);
-    POP.with(|p| *p.borrow_mut() = Some(Pop { w, items, at: (x, y), pw, scale }));
+    POP.with(|p| p.borrow_mut().push(Pop { w, items, at: (x, y), pw, scale }));
 }
 
-fn pop_chosen(i: usize) {
-    let Some((item, sub_at)) = POP.with(|p| {
+fn pop_chosen(level: usize, i: usize) {
+    let Some((item, sub_at, left)) = POP.with(|p| {
         let p = p.borrow();
-        let p = p.as_ref()?;
+        let p = p.get(level)?;
         let item = p.items.get(i)?.clone();
         // Podmenu obok pozycji, która je otwiera.
         let off: f32 = p.items[..i].iter().map(|e| if e.sep { 11.0 } else { 32.0 }).sum();
-        Some((item, (p.at.0 + p.pw - (4.0 * p.scale) as i32, p.at.1 + (off * p.scale) as i32)))
+        Some((item, (p.at.0 + p.pw - (4.0 * p.scale) as i32, p.at.1 + (off * p.scale) as i32), p.at.0))
     }) else {
         return;
     };
     if !item.sub.is_empty() {
-        let sub = item.sub.clone();
-        slint::Timer::single_shot(std::time::Duration::from_millis(1), move || show_at(sub, sub_at.0, sub_at.1));
+        open_level(item.sub.clone(), sub_at.0, sub_at.1, level + 1, Some(left));
         return;
     }
     // Najpierw zamykamy menu – polecenie może przenieść fokus na inne okno.
@@ -211,21 +243,18 @@ fn pop_chosen(i: usize) {
     crate::taskbar::refresh_soon();
 }
 
-/// Zamyka otwarte menu (bez wyboru).
+/// Zamyka otwarte menu ze wszystkimi podmenu (bez wyboru).
 pub fn close_pop() {
-    POP_GEN.with(|g| g.set(g.get() + 1));
-    if let Some(p) = POP.with(|p| p.borrow_mut().take()) {
-        let _ = p.w.hide();
-    }
+    truncate(0);
 }
 
 pub fn pop_open() -> bool {
-    POP.with(|p| p.borrow().is_some())
+    POP.with(|p| !p.borrow().is_empty())
 }
 
-/// Okno otwartego menu (żeby pasek nie brał go za okno programu).
-pub fn pop_hwnd() -> Option<isize> {
-    POP.with(|p| p.borrow().as_ref().map(|p| crate::window_hwnd(p.w.window())))
+/// Okna otwartego menu i podmenu (żeby pasek nie brał ich za okna programów).
+pub fn pop_hwnd() -> Vec<isize> {
+    POP.with(|p| p.borrow().iter().map(|p| crate::window_hwnd(p.w.window())).collect())
 }
 
 pub fn chosen(s: &Shared, i: usize) {

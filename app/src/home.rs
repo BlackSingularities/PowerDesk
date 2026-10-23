@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::time::Duration;
 
-use chrono::{Local, Timelike};
+use chrono::Local;
 use powerdesk_core::fsx::{self, Entry};
 use powerdesk_core::{shell, sysmon};
 use slint::{ComponentHandle, ModelRc, VecModel};

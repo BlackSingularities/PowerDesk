@@ -1230,16 +1230,6 @@ export component TaskbarWindow inherits Window {
                         color: b.minimized ? Theme.faint : Theme.text;
                     }
                 }
-                // Aktywne okno – kreska u dołu przycisku; przypięty bez okien jej nie ma.
-                if b.count > 0: Rectangle {
-                    x: (parent.width - self.width) / 2;
-                    y: parent.height - 3px;
-                    width: b.active ? 18px : 8px;
-                    height: 3px;
-                    border-radius: 1.5px;
-                    background: b.active ? Theme.accent : Theme.faint;
-                    animate width { duration: 120ms; }
-                }
                 // Przy oknach podpowiedź zastępują podglądy (jak w Windows).
                 property <bool> hov: tb-ta.has-hover;
                 changed hov => {
