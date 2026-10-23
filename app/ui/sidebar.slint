@@ -19,6 +19,28 @@ export struct SideItem {
     header-only: bool,
 }
 
+/// Przycisk w stopce panelu: ikona z podpowiedzią.
+component FootButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    callback clicked;
+    width: 30px;
+    height: 30px;
+    border-radius: Theme.r-s;
+    background: fb-ta.has-hover ? Theme.hover : transparent;
+    Icon {
+        commands: root.icon;
+        size: 16px;
+        color: fb-ta.has-hover ? Theme.text : Theme.dim;
+    }
+    fb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 /// Panel boczny (Sidebar.svelte): sekcje z nagłówkami (klik zwija), pozycje 34 px, dyski z paskiem zajętości.
 /// `mini` – pasek samych ikon; nazwy w dymkach.
 export component Sidebar inherits Rectangle {
@@ -29,6 +51,8 @@ export component Sidebar inherits Rectangle {
     callback context(string, length, length);
     callback toggle-section(string);
     callback toggle-mini;
+    /// Przycisk ustawień w stopce panelu.
+    callback open-settings;
     /// F6 / Esc – fokus wraca dalej (`true` – Shift+F6, wstecz).
     callback leave(bool);
     /// Pozycja wskazana z klawiatury (strzałki, Enter) – liczona w Rust, -1 – brak.
@@ -70,33 +94,75 @@ export component Sidebar inherits Rectangle {
     border-radius: Theme.r-l;
     clip: true;
 
+    /// Stopka: ustawienia i zwijanie panelu w prawym dolnym rogu (zwinięty – jeden nad drugim).
+    property <length> foot-h: root.mini ? 76px : 44px;
+    foot := Rectangle {
+        y: root.height - root.foot-h;
+        height: root.foot-h;
+        Rectangle {
+            y: 0;
+            height: 1px;
+            x: 8px;
+            width: parent.width - 16px;
+            background: Theme.line;
+        }
+        if root.mini: VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            padding-top: 4px;
+            HorizontalLayout {
+                alignment: center;
+                FootButton {
+                    icon: Icons.settings;
+                    tip: "Ustawienia PowerDesk (Ctrl+,)";
+                    clicked => {
+                        root.open-settings();
+                    }
+                }
+            }
+            HorizontalLayout {
+                alignment: center;
+                FootButton {
+                    icon: Icons.sidebar;
+                    tip: "Rozwiń panel boczny (Ctrl+B)";
+                    clicked => {
+                        root.toggle-mini();
+                    }
+                }
+            }
+        }
+        if !root.mini: HorizontalLayout {
+            alignment: end;
+            spacing: 4px;
+            padding-right: 8px;
+            padding-top: 1px;
+            FootButton {
+                y: (parent.height - self.height) / 2;
+                icon: Icons.settings;
+                tip: "Ustawienia PowerDesk (Ctrl+,)";
+                clicked => {
+                    root.open-settings();
+                }
+            }
+            FootButton {
+                y: (parent.height - self.height) / 2;
+                icon: Icons.sidebar;
+                tip: "Zwiń panel boczny (Ctrl+B)";
+                clicked => {
+                    root.toggle-mini();
+                }
+            }
+        }
+    }
+
     Flickable {
+        height: root.height - root.foot-h;
+        y: 0;
         VerticalLayout {
             padding: root.mini ? 6px : 8px;
             padding-top: 8px;
             padding-bottom: 12px;
             alignment: start;
-            // Zwijanie całego panelu.
-            HorizontalLayout {
-                alignment: root.mini ? center : end;
-                Rectangle {
-                    width: 30px;
-                    height: 28px;
-                    border-radius: Theme.r-s;
-                    background: mini-ta.has-hover ? Theme.hover : transparent;
-                    Icon {
-                        commands: Icons.sidebar;
-                        size: 16px;
-                        color: mini-ta.has-hover ? Theme.text : Theme.dim;
-                    }
-                    mini-ta := TipArea {
-                        tip: root.mini ? "Rozwiń panel boczny (Ctrl+B)" : "Zwiń panel boczny (Ctrl+B)";
-                        clicked => {
-                            root.toggle-mini();
-                        }
-                    }
-                }
-            }
             // Miejsce do przypinania – widoczne tylko w trakcie przeciągania.
             if Drag.active: Rectangle {
                 height: root.mini ? 40px : 44px;

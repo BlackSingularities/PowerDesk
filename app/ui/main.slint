@@ -202,6 +202,8 @@ export component MainWindow inherits Window {
     callback rename-next(string, bool);
     callback zoom-step(int);
     callback menu-chosen(int);
+    /// Ustawienia PowerDesk (przycisk w stopce panelu bocznego).
+    callback open-settings;
     callback key(string, bool, bool, bool);
 
     public function show-menu() {
@@ -423,6 +425,9 @@ export component MainWindow inherits Window {
                     }
                     toggle-mini => {
                         root.toggle-side-mini();
+                    }
+                    open-settings => {
+                        root.open-settings();
                     }
                     open(p) => {
                         root.navigate(p);

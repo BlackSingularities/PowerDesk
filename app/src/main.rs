@@ -518,6 +518,8 @@ fn wire(ui: &MainWindow, st: &Shared) {
     });
 
     let s = st.clone();
+    ui.on_open_settings(move || settings::open(&s));
+    let s = st.clone();
     ui.on_navigate(move |p| match p.strip_prefix(SAVED) {
         Some(id) => run_saved(&s, id, false),
         None if p == ADD_NET => add_network_place(&s),
