@@ -1182,6 +1182,7 @@ fn place(bar: &mut Bar) {
         bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
         // Tło paska może być półprzezroczyste (krycie z ustawień) – DWM pokazuje, co pod spodem.
         powerdesk_core::system::see_through(hwnd);
+        powerdesk_core::system::no_frame_border(hwnd);
         // Bez Eksploratora nikt nie zostawi miejsca na pasek – obszar roboczy ustawiamy sami.
         if powerdesk_core::shellmode::active() {
             let (x, y) = bar.origin;

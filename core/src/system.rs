@@ -252,3 +252,20 @@ pub fn style_popup(hwnd: isize, border: Option<(u8, u8, u8)>) {
         let _ = DwmSetWindowAttribute(h, DWMWA_BORDER_COLOR, &color as *const u32 as *const _, 4);
     }
 }
+
+/// Okno bez ramki DWM i z prostymi rogami (pasek zadań, pulpit) – Windows 11 rysuje wokół okien
+/// jednopikselową obwódkę i zaokrągla rogi, co na pasku przy krawędzi ekranu widać jako linię.
+pub fn no_frame_border(hwnd: isize) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_BORDER_COLOR, DWMWA_WINDOW_CORNER_PREFERENCE};
+    if hwnd == 0 {
+        return;
+    }
+    let h = HWND(hwnd as *mut _);
+    // DWMWCP_DONOTROUND = 1, DWMWA_COLOR_NONE = 0xFFFFFFFE.
+    let (corner, color): (i32, u32) = (1, 0xFFFF_FFFE);
+    unsafe {
+        let _ = DwmSetWindowAttribute(h, DWMWA_WINDOW_CORNER_PREFERENCE, &corner as *const i32 as *const _, 4);
+        let _ = DwmSetWindowAttribute(h, DWMWA_BORDER_COLOR, &color as *const u32 as *const _, 4);
+    }
+}

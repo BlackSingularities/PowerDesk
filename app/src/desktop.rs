@@ -174,6 +174,7 @@ fn attach() {
                 continue;
             }
             data::hide_from_taskbar(hwnd);
+            powerdesk_core::system::no_frame_border(hwnd);
             if powerdesk_core::shellmode::active() {
                 // Powłoka bez Eksploratora: zwykłe okna na dnie, pod wszystkimi programami.
                 powerdesk_core::shellmode::keep_at_bottom(hwnd);

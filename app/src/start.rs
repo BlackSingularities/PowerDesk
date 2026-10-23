@@ -130,11 +130,12 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
         }
     });
     w.on_tiles_context(|x, y| {
+        // Płaska lista: podmenu wyszłoby poza okno Startu (menu rysuje się w jego obrębie).
         let add: Vec<Item> = crate::widgets::KINDS
             .iter()
-            .map(|&(kind, name, icon, size, _)| it(name, icon, move |_| edit_groups(|gs| tiles::add_widget(gs, kind, size))))
+            .map(|&(kind, name, icon, size, _)| it(format!("Dodaj widżet: {name}"), icon, move |_| edit_groups(|gs| tiles::add_widget(gs, kind, size))))
             .collect();
-        show_menu(vec![sub("Dodaj widżet", "plus", add)], x, y);
+        show_menu(add, x, y);
     });
     w.on_tile_note(|i, text| {
         let Some(at) = placed(i as usize) else { return };
