@@ -30,6 +30,12 @@ export global ViewerState {
     in-out property <[PropSection]> sections;
     in-out property <bool> info-open;
     in-out property <bool> slideshow;
+    /// Szczypanie dwoma palcami (main.rs, zdarzenia dotyku okna): mnożnik i środek gestu
+    /// w oknie; każda zmiana licznika to jeden krok zoomu.
+    in-out property <int> pinch-serial;
+    in-out property <float> pinch-factor: 1;
+    in-out property <length> pinch-x;
+    in-out property <length> pinch-y;
     callback close;
     callback escape;
     callback step(int);
@@ -107,6 +113,10 @@ export component ViewerView inherits Rectangle {
 
     changed iw => {
         root.reset();
+    }
+    property <int> pinch: ViewerState.pinch-serial;
+    changed pinch => {
+        root.zoom-at(ViewerState.pinch-factor, ViewerState.pinch-x - stage.absolute-position.x, ViewerState.pinch-y - stage.absolute-position.y);
     }
 
     // Pokaz slajdów – co 4 s następne zdjęcie.

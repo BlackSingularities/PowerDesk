@@ -29,8 +29,8 @@ Zasady:
 | 0 | Fundament: workspace, `core`, kanał zdarzeń, okno Slint, motyw, ikony, pasek tytułu, panel boczny, lista plików, karty, nawigacja, ikony systemowe | gotowe |
 | 1 | Menedżer plików – przeglądanie (pełny Toolbar, widoki, sortowanie, filtrowanie, wyszukiwanie) | gotowe |
 | 2 | Operacje na plikach, menu kontekstowe, okna dialogowe, schowek, przeciąganie | gotowe |
-| 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | **w toku** |
-| 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | – |
+| 3 | Podgląd i przeglądarka (zdjęcia, wideo, dokumenty) | gotowe (szczypanie – nieklikane) |
+| 4 | Ekrany specjalne: Ten komputer, Ustawienia, Synchronizacja, Analiza miejsca, Terminal | gotowe (nowe ustawienia – nieklikane) |
 | 5 | Pulpit PowerDesk na wszystkich monitorach (zastępuje pulpit Windows) | **w toku** |
 | 6 | Pasek zadań: AppBar na każdym monitorze, lista okien, zegar, Start | **w toku** |
 | 7 | Zasobnik (ikony tray), menu Start, miniatury okien | – |
@@ -99,13 +99,13 @@ Zasady:
 - [x] Panel podglądu: przewijanie stron PDF (Windows.Data.Pdf; przyciski i kółko nad stroną)
 - [x] Przeglądarka zdjęć w osobnej karcie tego samego okna (pasek tytułu z kartami i przyciskami okna zostaje, minimalizacja działa; pełny ekran tylko przyciskiem albo F11): zoom do kursora, przesuwanie, obrót, pokaz slajdów, pasek miniatur, EXIF
 - [x] Przeglądarka: przesuwanie palcem (w bok – następne i poprzednie, w dół – zamknięcie)
-- [ ] Przeglądarka: szczypanie (Slint nie daje jeszcze wielodotyku)
+- [x] Przeglądarka: szczypanie – dwa palce (zdarzenia dotyku winit, własne liczenie) i gest gładzika; nieklikane
 
 ### Ekrany specjalne
 - [x] Ten komputer (Home): powitanie z wyszukiwaniem, dyski, stan komputera (procesor z historią, RAM, czas pracy), rozmiary folderów, ostatnie pliki z filtrem i menu
 - [x] Ten komputer: zmiana kolejności i zwijanie sekcji, ulubione, aktywność transferów i synchronizacji, wykres zmian z 14 dni
 - [x] Ustawienia (karta, Ctrl+,): motyw i akcent, start (folder domowy / Ten komputer / wybrany folder), domyślny widok, przeglądanie, podgląd, pytanie przed Koszem, skróty, o aplikacji
-- [ ] Ustawienia: jedno kliknięcie, sekcje panelu bocznego, krycie tła okna (Mica/Acrylic), zamykanie do zasobnika, okno przy starcie z Windows – w kodzie, nieklikane; aktualizacje – w menu Start; integracja – sekcja System
+- [x] Ustawienia: jedno kliknięcie, sekcje panelu bocznego, krycie tła okna (Mica/Acrylic), zamykanie do zasobnika, okno przy starcie z Windows – w kodzie, nieklikane; aktualizacje – w menu Start; integracja – sekcja System
 - [x] Synchronizacja (karta, paleta): profile ze stanem i postępem, edytor, podgląd planu, potwierdzanie masowych usunięć, historia; silnik startuje po wejściu na ekran i czeka, gdy działa stary OpenFilePower
 - [x] Synchronizacja: praca z zasobnika i od startu systemu, wejście z panelu bocznego
 - [x] Zajętość i porządki (karta `ofp:space|folder`, menu tła, paleta, Ten komputer): mapa kafelkowa z wchodzeniem w głąb, lista największych, menu kafelka z Koszem; porządki – puste foldery, śmieci, TEMP, zaznaczanie grup
@@ -133,7 +133,7 @@ Zasady:
 - [ ] Menu Start (najpierw jak w Windows) (w kodzie, nieklikane: układ Windows 10 – konto, Dokumenty, Obrazy, Ustawienia, zasilanie; lista z folderu „Aplikacje” z literami, szukanie bez polskich znaków, Enter uruchamia pierwszą; kafelki przypiętych; menu aplikacji – jako administrator, przypnij do Startu i paska; samo Win otwiera Start PowerDesk, skróty z Win zostają systemowe; zasilanie i sesja – zablokuj, przełącz użytkownika, wyloguj, uśpij, hibernuj, zamknij, uruchom ponownie; ukrywanie aplikacji z „Pokaż ukryte”; widok lista albo duże ikony; zmiana rozmiaru przeciąganiem górnej i prawej krawędzi; grupy kafelków z nazwami, foldery (kafelek na środek innego), przeciąganie z podglądem, rozmiary mały/średni/szeroki/duży – w kodzie, nieklikane)
 
 ### Nowe: widżety
-- [ ] Widżety w kafelkach Startu i na pulpicie (w kodzie, nieklikane): zegar, kalendarz, system, dyski, notatka
+- [ ] Widżety w kafelkach Startu i na pulpicie (w kodzie, nieklikane): zegar, kalendarz, pogoda, zegary świata, co teraz gra, zdjęcia, przypomnienia, system, dyski, notatka
 
 ### Instalator i deinstalator
 - [ ] Instalacja per użytkownik i per maszyna, skróty, autostart

@@ -1,4 +1,5 @@
-//! Widżety: zegar, kalendarz, system, dyski i notatka. Te same widżety stoją w kafelkach Startu
+//! Widżety: zegar, kalendarz, system, dyski, notatka, zegary świata, pogoda, multimedia, zdjęcia
+//! i przypomnienia (te z ustawieniami – widgetfeeds.rs). Te same widżety stoją w kafelkach Startu
 //! (rozmiar kafelka) i na pulpicie (miejsce i rozmiar wolne). Dane liczymy raz na sekundę
 //! i rozsyłamy do globalnego `WidgetData` każdego okna, które widżety pokazuje.
 
@@ -13,9 +14,14 @@ use crate::{fmt, WDay, WDrive, WidgetData};
 
 /// Rodzaje widżetów: identyfikator, nazwa w menu, ikona menu i domyślny rozmiar kafelka
 /// (0 – średni, 2 – szeroki, 3 – duży) oraz na pulpicie (szerokość, wysokość).
-pub const KINDS: [(&str, &str, &str, u8, (f32, f32)); 5] = [
+pub const KINDS: [(&str, &str, &str, u8, (f32, f32)); 10] = [
     ("clock", "Zegar", "history", 2, (260.0, 130.0)),
     ("calendar", "Kalendarz", "grid", 3, (260.0, 250.0)),
+    ("weather", "Pogoda", "cloud", 3, (280.0, 200.0)),
+    ("clocks", "Zegary świata", "history", 2, (260.0, 180.0)),
+    ("media", "Co teraz gra", "play", 2, (300.0, 130.0)),
+    ("photos", "Zdjęcia", "image", 3, (300.0, 220.0)),
+    ("reminders", "Przypomnienia", "check", 2, (260.0, 200.0)),
     ("system", "System", "bolt", 2, (280.0, 200.0)),
     ("drives", "Dyski", "drive", 2, (280.0, 180.0)),
     ("note", "Notatka", "edit", 0, (220.0, 200.0)),
@@ -134,6 +140,7 @@ fn tick() {
     if n % 30 == 1 {
         refresh_drives();
     }
+    crate::widgetfeeds::tick(n);
     push_all();
 }
 
@@ -160,9 +167,10 @@ pub fn apply(g: &WidgetData) {
         g.set_cpu_hist(ModelRc::new(VecModel::from(hist)));
         g.set_drives(ModelRc::new(VecModel::from(d.drives.clone())));
     });
+    crate::widgetfeeds::apply(g);
 }
 
-fn push_all() {
+pub fn push_all() {
     crate::desktop::each_window(|w| apply(&w.global::<WidgetData>()));
     crate::start::each_window(|w| apply(&w.global::<WidgetData>()));
 }

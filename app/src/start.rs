@@ -363,6 +363,8 @@ fn launch_tile(i: usize) {
             "system" => {
                 let _ = std::process::Command::new("taskmgr.exe").spawn();
             }
+            "media" => crate::widgetfeeds::media(1),
+            "photos" => crate::widgetfeeds::next_photo(),
             _ => {}
         }
         return;
@@ -409,6 +411,7 @@ fn tile_menu(i: usize, x: f32, y: f32) {
                 })
             }));
         }
+        items.extend(crate::widgetfeeds::config_items(&pin.widget));
         items.push(size_menu(at, pin.size));
         items.push(sep());
         items.push(it("Usuń widżet", "trash", move |_| edit_groups(|gs| tiles::remove(gs, at))).danger());

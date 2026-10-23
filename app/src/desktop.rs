@@ -263,7 +263,12 @@ fn wire_widgets(w: &DesktopWindow, n: usize) {
     w.on_widget_note(move |i, text| crate::with_state(|s| edit_widget(s, n, i as usize, false, |d| d.note = text.to_string())));
     w.on_widget_context(move |i, x, y| {
         let i = i as usize;
-        let items = vec![
+        let kind = widget_kind(n, i);
+        let mut items = crate::widgetfeeds::config_items(&kind);
+        if !items.is_empty() {
+            items.push(sep());
+        }
+        items.extend([
             it("Usuń widżet", "trash", move |s| {
                 if let Some(k) = widget_index(s, n, i) {
                     {
@@ -275,9 +280,20 @@ fn wire_widgets(w: &DesktopWindow, n: usize) {
                 }
             })
             .danger(),
-        ];
+        ]);
         show_menu(n, items, x, y);
     });
+}
+
+/// Rodzaj widżetu `i` okna pulpitu `n`.
+pub fn widget_kind(n: usize, i: usize) -> String {
+    let mut k = String::new();
+    crate::with_state(|s| {
+        if let Some(x) = widget_index(s, n, i) {
+            k = s.borrow().prefs.desktop_widgets[x].kind.clone();
+        }
+    });
+    k
 }
 
 /// Nowy widżet w miejscu kliknięcia (x, y w oknie monitora `n`).

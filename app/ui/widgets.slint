@@ -17,6 +17,29 @@ export struct WDrive {
     detail: string,
 }
 
+/// Zegar w innej strefie czasowej.
+export struct WZone {
+    city: string,
+    time: string,
+    /// Różnica względem czasu lokalnego („+6 h”, „jutro”).
+    note: string,
+}
+
+/// Dzień prognozy pogody.
+export struct WFc {
+    name: string,
+    kind: int,
+    hi: string,
+    lo: string,
+}
+
+/// Przypomnienie: kiedy i co.
+export struct WRem {
+    when: string,
+    text: string,
+    soon: bool,
+}
+
 /// Widżet na pulpicie (miejsce i rozmiar wolne) albo w kafelku Startu.
 export struct WidgetItem {
     kind: string,
@@ -46,6 +69,123 @@ export global WidgetData {
     /// Zużycie procesora z ostatnich 40 odczytów (0–1).
     in-out property <[float]> cpu-hist;
     in-out property <[WDrive]> drives;
+    // Zegary świata.
+    in-out property <[WZone]> zones;
+    // Pogoda: miejscowość, temperatura, opis, rodzaj (ikona), wiatr, prognoza, stan pobierania.
+    in-out property <bool> w-ok;
+    in-out property <string> w-city;
+    in-out property <string> w-temp;
+    in-out property <string> w-desc;
+    in-out property <int> w-kind;
+    in-out property <string> w-wind;
+    in-out property <[WFc]> w-days;
+    in-out property <string> w-status;
+    // Co teraz gra.
+    in-out property <bool> m-has;
+    in-out property <string> m-title;
+    in-out property <string> m-artist;
+    in-out property <bool> m-playing;
+    /// Przyciski: 0 – poprzedni, 1 – odtwórz/wstrzymaj, 2 – następny.
+    callback media(int);
+    // Zdjęcia z folderu.
+    in-out property <bool> p-has;
+    in-out property <image> p-img;
+    in-out property <string> p-name;
+    in-out property <string> p-status;
+    // Przypomnienia (najbliższe).
+    in-out property <[WRem]> rems;
+}
+
+/// Ikona pogody rysowana kształtami (bez czcionek z emoji): słońce, chmura, deszcz, śnieg, burza, mgła.
+export component WeatherIcon inherits Rectangle {
+    in property <int> kind;
+    in property <length> size: 40px;
+    width: root.size;
+    height: root.size;
+    property <bool> sun: root.kind == 0 || root.kind == 1;
+    property <bool> cloud: root.kind >= 1;
+    // Słońce: tarcza i promienie (przy częściowym zachmurzeniu – mniejsze, w rogu).
+    if root.sun: Rectangle {
+        property <length> r: root.kind == 0 ? root.size * 0.24 : root.size * 0.18;
+        property <length> cx: root.kind == 0 ? root.size / 2 : root.size * 0.36;
+        property <length> cy: root.kind == 0 ? root.size / 2 : root.size * 0.34;
+        for a in [0, 45, 90, 135, 180, 225, 270, 315]: Rectangle {
+            x: parent.cx + cos(a * 1deg) * parent.r * 1.55 - self.width / 2;
+            y: parent.cy + sin(a * 1deg) * parent.r * 1.55 - self.height / 2;
+            width: root.size * 0.07;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: #f5b83d;
+        }
+        Rectangle {
+            x: parent.cx - parent.r;
+            y: parent.cy - parent.r;
+            width: parent.r * 2;
+            height: self.width;
+            border-radius: parent.r;
+            background: #f5b83d;
+        }
+    }
+    // Chmura: trzy koła i podstawa.
+    if root.cloud: Rectangle {
+        property <color> c: root.kind == 6 ? #8a8f99 : root.kind >= 4 ? #b4bac4 : #e6e9ee;
+        property <length> base: root.kind >= 4 ? root.size * 0.58 : root.size * 0.72;
+        Rectangle {
+            x: root.size * 0.16;
+            y: parent.base - root.size * 0.22;
+            width: root.size * 0.7;
+            height: root.size * 0.22;
+            border-radius: self.height / 2;
+            background: parent.c;
+        }
+        Rectangle {
+            x: root.size * 0.24;
+            y: parent.base - root.size * 0.36;
+            width: root.size * 0.28;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: parent.c;
+        }
+        Rectangle {
+            x: root.size * 0.4;
+            y: parent.base - root.size * 0.46;
+            width: root.size * 0.36;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: parent.c;
+        }
+    }
+    // Opady: krople albo płatki; burza – błyskawica; mgła – poziome kreski.
+    if root.kind == 4 || root.kind == 5: Rectangle {
+        for k in [0, 1, 2]: Rectangle {
+            x: root.size * (0.3 + k * 0.17);
+            y: root.size * (0.66 + mod(k, 2) * 0.08);
+            width: root.kind == 5 ? root.size * 0.08 : root.size * 0.05;
+            height: root.kind == 5 ? self.width : root.size * 0.14;
+            border-radius: self.width / 2;
+            background: root.kind == 5 ? #ffffff : #4f8cff;
+        }
+    }
+    if root.kind == 6: Path {
+        x: root.size * 0.38;
+        y: root.size * 0.56;
+        width: root.size * 0.24;
+        height: root.size * 0.38;
+        viewbox-width: 6;
+        viewbox-height: 10;
+        commands: "M 4 0 L 0 6 L 3 6 L 2 10 L 6 4 L 3 4 Z";
+        fill: #f5b83d;
+    }
+    if root.kind == 3: Rectangle {
+        for k in [0, 1, 2]: Rectangle {
+            x: root.size * (0.14 + mod(k, 2) * 0.08);
+            y: root.size * (0.3 + k * 0.18);
+            width: root.size * 0.64;
+            height: root.size * 0.06;
+            border-radius: self.height / 2;
+            background: #c9ced6;
+        }
+    }
 }
 
 /// Pasek zajętości: tło, wypełnienie w kolorze akcentu (czerwone powyżej 90%).
@@ -286,6 +426,256 @@ export component WidgetBody inherits Rectangle {
             }
             Meter {
                 value: d.used;
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Zegary świata ----------
+    if root.kind == "clocks": VerticalLayout {
+        padding: root.pad;
+        spacing: root.compact ? 4px : 8px;
+        if !root.compact: WTitle {
+            icon: Icons.history;
+            text: "Zegary świata";
+        }
+        for z in WidgetData.zones: HorizontalLayout {
+            spacing: 8px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: z.city;
+                    font-size: 12.5px;
+                    color: Theme.text;
+                    overflow: elide;
+                }
+                if !root.compact: Text {
+                    text: z.note;
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+            }
+            Text {
+                text: z.time;
+                font-size: root.compact ? 16px : 22px;
+                font-weight: 300;
+                color: Theme.text;
+                vertical-alignment: center;
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Pogoda ----------
+    if root.kind == "weather" && !WidgetData.w-ok: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 6px;
+        HorizontalLayout {
+            alignment: center;
+            WeatherIcon {
+                kind: 2;
+                size: 36px;
+            }
+        }
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.w-status;
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.dim;
+        }
+    }
+    if root.kind == "weather" && WidgetData.w-ok: VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 10px;
+            WeatherIcon {
+                kind: WidgetData.w-kind;
+                size: root.compact ? 40px : 54px;
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: WidgetData.w-temp;
+                    font-size: root.compact ? 26px : 34px;
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+                Text {
+                    text: WidgetData.w-desc;
+                    font-size: 11.5px;
+                    color: Theme.dim;
+                    overflow: elide;
+                }
+            }
+        }
+        if !root.compact: Text {
+            text: WidgetData.w-city + " · wiatr " + WidgetData.w-wind;
+            font-size: 11px;
+            color: Theme.faint;
+            overflow: elide;
+        }
+        // Prognoza na kolejne dni, gdy jest miejsce.
+        if root.height >= 170px: HorizontalLayout {
+            spacing: 4px;
+            for d in WidgetData.w-days: VerticalLayout {
+                horizontal-stretch: 1;
+                spacing: 2px;
+                Text {
+                    horizontal-alignment: center;
+                    text: d.name;
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    WeatherIcon {
+                        kind: d.kind;
+                        size: 24px;
+                    }
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: d.hi + " " + d.lo;
+                    font-size: 10.5px;
+                    color: Theme.text;
+                }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Co teraz gra ----------
+    if root.kind == "media": VerticalLayout {
+        padding: root.pad;
+        padding-top: root.compact ? root.pad : 24px;
+        spacing: 4px;
+        alignment: center;
+        Text {
+            text: WidgetData.m-has ? WidgetData.m-title : "Nic nie gra";
+            font-size: 13.5px;
+            font-weight: 600;
+            color: WidgetData.m-has ? Theme.text : Theme.faint;
+            overflow: elide;
+        }
+        if WidgetData.m-has && WidgetData.m-artist != "": Text {
+            text: WidgetData.m-artist;
+            font-size: 11.5px;
+            color: Theme.dim;
+            overflow: elide;
+        }
+        if WidgetData.m-has && root.height >= 90px: HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            for k in [0, 1, 2]: Rectangle {
+                width: k == 1 ? 36px : 30px;
+                height: self.width;
+                border-radius: self.width / 2;
+                background: k == 1 ? Theme.accent : mb-ta.has-hover ? Theme.hover : transparent;
+                Icon {
+                    commands: k == 1 ? (WidgetData.m-playing ? Icons.pause : Icons.play) : k == 0 ? Icons.back : Icons.fwd;
+                    size: 16px;
+                    color: k == 1 ? white : Theme.text;
+                }
+                mb-ta := TouchArea {
+                    clicked => {
+                        WidgetData.media(k);
+                    }
+                }
+            }
+        }
+    }
+
+    // ---------- Zdjęcia ----------
+    if root.kind == "photos" && WidgetData.p-has: Rectangle {
+        Image {
+            width: root.width;
+            height: root.height;
+            source: WidgetData.p-img;
+            image-fit: cover;
+        }
+        if root.height >= 120px: Rectangle {
+            y: root.height - 26px;
+            height: 26px;
+            background: @linear-gradient(0deg, #00000099 0%, #00000000 100%);
+            Text {
+                x: 10px;
+                width: parent.width - 20px;
+                text: WidgetData.p-name;
+                font-size: 11px;
+                color: #ffffffdd;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+        }
+    }
+    if root.kind == "photos" && !WidgetData.p-has: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 6px;
+        HorizontalLayout {
+            alignment: center;
+            Icon {
+                commands: Icons.image;
+                size: 28px;
+                color: Theme.faint;
+            }
+        }
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.p-status;
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.dim;
+        }
+    }
+
+    // ---------- Przypomnienia ----------
+    if root.kind == "reminders": VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        if !root.compact: WTitle {
+            icon: Icons.check;
+            text: "Przypomnienia";
+        }
+        if WidgetData.rems.length == 0: Text {
+            text: "Brak – prawy przycisk → „Dodaj przypomnienie…”";
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.faint;
+        }
+        for r in WidgetData.rems: HorizontalLayout {
+            spacing: 8px;
+            Rectangle {
+                width: 6px;
+                height: 6px;
+                y: 6px;
+                border-radius: 3px;
+                background: r.soon ? Theme.accent : Theme.faint;
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                Text {
+                    text: r.text;
+                    font-size: 12px;
+                    color: Theme.text;
+                    overflow: elide;
+                }
+                Text {
+                    text: r.when;
+                    font-size: 10.5px;
+                    color: r.soon ? Theme.accent : Theme.dim;
+                }
             }
         }
         Rectangle {

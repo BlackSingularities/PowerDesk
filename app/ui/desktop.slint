@@ -276,8 +276,10 @@ export component DesktopWindow inherits Window {
         drop-shadow-blur: 18px;
         drop-shadow-color: #00000055;
         border-radius: Theme.r;
+        // Notatka i multimedia mają w środku pole albo przyciski – chwyta się je za górny pasek.
+        property <bool> grab-bar: wd.kind == "note" || wd.kind == "media";
         mv-ta := TouchArea {
-            height: wd.kind == "note" ? 22px : parent.height;
+            height: parent.grab-bar ? 22px : parent.height;
             y: 0;
             mouse-cursor: self.pressed ? MouseCursor.grabbing : MouseCursor.default;
             moved => {
@@ -307,7 +309,7 @@ export component DesktopWindow inherits Window {
                 root.widget-note(i, txt);
             }
         }
-        if wd.kind != "note": TouchArea {
+        if !wbox.grab-bar: TouchArea {
             mouse-cursor: self.pressed ? MouseCursor.grabbing : MouseCursor.default;
             moved => {
                 if (self.pressed) {
@@ -327,7 +329,7 @@ export component DesktopWindow inherits Window {
             }
         }
         // Pasek do chwytania notatki – widoczny pod kursorem.
-        if wd.kind == "note": Rectangle {
+        if wbox.grab-bar: Rectangle {
             y: 0;
             height: 22px;
             border-radius: Theme.r;

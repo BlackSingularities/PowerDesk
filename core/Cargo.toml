@@ -76,6 +76,7 @@ features = [
   "Win32_Graphics_Dxgi_Common",
   "Foundation",
   "Data_Pdf",
+  "Media_Control",
   "Storage",
   "Storage_Streams",
 ]

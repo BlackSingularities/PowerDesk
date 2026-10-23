@@ -114,7 +114,13 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   system – Menedżer zadań.
 - Pulpit: menu tła → „Dodaj widżet” w miejscu kliknięcia; przeciąganie (notatka – za górny pasek), róg
   – rozmiar, siatka 8 px, prawy przycisk – „Usuń widżet”; zapis w `prefs.desktop_widgets` (monitor, x, y, w, h).
-- Pomysły na dalej: pogoda, wiele zegarów (strefy), multimedia (co gra), zdjęcia z folderu, przypomnienia.
+- Druga partia (`app/src/widgetfeeds.rs`, ustawienia wspólne dla rodzaju, zmiana z menu widżetu):
+  Pogoda (Open-Meteo bez klucza, miejscowość – domyślnie Warszawa, co 30 min, prognoza 4 dni, ikony
+  rysowane kształtami), Zegary świata (`chrono-tz`, polskie nazwy miast albo strefy IANA), Co teraz gra
+  (`core/src/nowplaying.rs` – sterowanie multimediami Windows, przyciski), Zdjęcia (folder – domyślnie
+  Obrazy, co 15 s, zmniejszane w tle), Przypomnienia („14:30 tekst”, „24.12 18:00 tekst”, „za 15 min
+  tekst”; dymek i powiadomienie, potem znika). Na pulpicie notatkę i multimedia chwyta się za górny pasek.
+- Przeglądarka: szczypanie dwoma palcami i gestem gładzika (`pinch` w main.rs → `ViewerState.pinch-*`).
 
 ## Kolejne zadania z planu
 

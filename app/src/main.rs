@@ -24,6 +24,7 @@ mod preview;
 mod props;
 mod viewer;
 mod widgets;
+mod widgetfeeds;
 mod palette;
 mod player;
 mod shelf;
@@ -335,10 +336,73 @@ fn main() -> Result<(), slint::PlatformError> {
     slint::run_event_loop_until_quit()
 }
 
+thread_local! {
+    /// Palce na ekranie (id → położenie w pikselach okna) i odległość dwóch z poprzedniego ruchu.
+    static TOUCHES: RefCell<(HashMap<u64, (f64, f64)>, Option<f64>)> = RefCell::new((HashMap::new(), None));
+}
+
+/// Szczypanie w przeglądarce: dwa palce na ekranie dotykowym albo gest gładzika. Zmiana
+/// odległości palców to mnożnik zoomu wokół ich środka. Zwraca true, gdy zdarzenie zużyte.
+fn pinch(win: &slint::Window, ev: &slint::winit_030::winit::event::WindowEvent) -> bool {
+    use slint::winit_030::winit::event::{TouchPhase, WindowEvent};
+    let Some(ui) = STATE.with(|s| s.borrow().as_ref().and_then(|s| s.borrow().ui.upgrade())) else { return false };
+    let g = ui.global::<ViewerState>();
+    if !g.get_open() {
+        TOUCHES.with(|t| *t.borrow_mut() = (HashMap::new(), None));
+        return false;
+    }
+    let scale = win.scale_factor() as f64;
+    let step = |f: f64, x: f64, y: f64| {
+        g.set_pinch_factor(f as f32);
+        g.set_pinch_x((x / scale) as f32);
+        g.set_pinch_y((y / scale) as f32);
+        g.set_pinch_serial(g.get_pinch_serial().wrapping_add(1));
+    };
+    match ev {
+        WindowEvent::PinchGesture { delta, .. } => {
+            let (cx, cy) = (win.size().width as f64 / 2.0, win.size().height as f64 / 2.0);
+            step(1.0 + delta, cx, cy);
+            true
+        }
+        WindowEvent::Touch(t) => TOUCHES.with(|tt| {
+            let (pts, last) = &mut *tt.borrow_mut();
+            match t.phase {
+                TouchPhase::Started | TouchPhase::Moved => {
+                    pts.insert(t.id, (t.location.x, t.location.y));
+                }
+                TouchPhase::Ended | TouchPhase::Cancelled => {
+                    pts.remove(&t.id);
+                }
+            }
+            if pts.len() != 2 {
+                *last = None;
+                return false;
+            }
+            let mut it = pts.values();
+            let (Some(a), Some(b)) = (it.next(), it.next()) else { return false };
+            let d = ((a.0 - b.0).powi(2) + (a.1 - b.1).powi(2)).sqrt();
+            if let Some(prev) = *last {
+                if prev > 10.0 && (d / prev - 1.0).abs() > 0.01 {
+                    step(d / prev, (a.0 + b.0) / 2.0, (a.1 + b.1) / 2.0);
+                    *last = Some(d);
+                }
+            } else {
+                *last = Some(d);
+            }
+            // Dwa palce – to gest, nie przesuwanie ani przewijanie.
+            true
+        }),
+        _ => false,
+    }
+}
+
 fn wire(ui: &MainWindow, st: &Shared) {
     // Boczne przyciski myszy: wstecz / dalej – w całym oknie.
-    ui.window().on_winit_window_event(|_, ev| {
+    ui.window().on_winit_window_event(|win, ev| {
         use slint::winit_030::winit::event::{ElementState, MouseButton, WindowEvent};
+        if pinch(win, ev) {
+            return slint::winit_030::EventResult::PreventDefault;
+        }
         if let WindowEvent::MouseInput { state: ElementState::Released, button, .. } = ev {
             let go: Option<fn(&Shared)> = match button {
                 MouseButton::Back => Some(back),
