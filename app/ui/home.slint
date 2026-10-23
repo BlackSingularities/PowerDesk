@@ -29,6 +29,14 @@ export struct HomeFile {
     media: bool,
 }
 
+/// Narzędzie systemu (Ustawienia, Menedżer urządzeń…) – `key` rozpoznaje home.rs.
+export struct HomeTool {
+    name: string,
+    hint: string,
+    icon: string,
+    key: string,
+}
+
 /// Sekcja ekranu w kolejności z ustawień.
 export struct HomeSection {
     key: string,
@@ -57,7 +65,7 @@ export struct HomeDay {
     today: bool,
 }
 
-/// Ekran „Ten komputer” (Home.svelte) – dane podaje home.rs.
+/// Ekran „Komputer” (Home.svelte) – dane podaje home.rs.
 export global HomeState {
     in-out property <bool> open;
     in-out property <string> greeting;
@@ -85,6 +93,9 @@ export global HomeState {
     in-out property <[HomeActivity]> activities;
     in-out property <[HomeDay]> days;
     in-out property <string> changes-note;
+    in-out property <[HomeTool]> tools;
+    callback tool(string);
+    callback drive-menu(string, length, length);
     callback move-section(string, int);
     callback toggle-section(string);
     callback go(string);
@@ -145,6 +156,8 @@ component LinkRow inherits Rectangle {
     in property <float> bar: -1;
     callback clicked;
     callback middle;
+    /// Prawy przycisk – punkt w oknie.
+    callback menu(length, length);
     height: root.bar >= 0 ? 42px : 32px;
     border-radius: Theme.r-s;
     background: lr-ta.has-hover ? Theme.hover : transparent;
@@ -189,6 +202,48 @@ component LinkRow inherits Rectangle {
             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
                 root.middle();
             }
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                root.menu(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            }
+        }
+    }
+}
+
+/// Kafelek narzędzia systemu: ikona, nazwa i krótki opis.
+component ToolTile inherits Rectangle {
+    in property <HomeTool> tool;
+    height: 52px;
+    border-radius: Theme.r;
+    background: tt-ta.has-hover ? Theme.hover : Theme.panel;
+    HorizontalLayout {
+        padding-left: 12px;
+        padding-right: 10px;
+        spacing: 10px;
+        Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.tool.icon;
+            size: 18px;
+            color: tt-ta.has-hover ? Theme.accent : Theme.dim;
+        }
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            spacing: 2px;
+            Label {
+                text: root.tool.name;
+                font-size: 12.5px;
+            }
+            Label {
+                text: root.tool.hint;
+                font-size: 10.5px;
+                color: Theme.faint;
+            }
+        }
+    }
+    tt-ta := TipArea {
+        tip: root.tool.name + " – " + root.tool.hint;
+        clicked => {
+            HomeState.tool(root.tool.key);
         }
     }
 }
@@ -301,6 +356,9 @@ export component HomeView inherits Rectangle {
     /// Szeroko – karty obok siebie, wąsko – jedna pod drugą.
     property <bool> wide: self.width > 900px;
     property <int> per-row: max(1, floor((root.cols-w - 22px) / 130px));
+    /// Kafelki narzędzi: co najmniej 190 px szerokości, rozciągnięte na cały wiersz.
+    property <int> tools-per-row: max(1, floor((root.cols-w - 22px) / 200px));
+    property <length> tool-w: (root.cols-w - 32px - (root.tools-per-row - 1) * 10px) / root.tools-per-row;
 
     ScrollView {
         VerticalLayout {
@@ -403,18 +461,31 @@ export component HomeView inherits Rectangle {
                         middle => {
                             HomeState.go-new-tab(d.path);
                         }
+                        menu(x, y) => {
+                            HomeState.drive-menu(d.path, x, y);
+                        }
                     }
-                    if HomeState.drives.length > 0: Chip {
-                        text: "Co zajmuje miejsce?";
-                        clicked => {
-                            HomeState.go("ofp:space|" + HomeState.drives[0].path);
+                    HorizontalLayout {
+                        spacing: 6px;
+                        alignment: start;
+                        if HomeState.drives.length > 0: Chip {
+                            text: "Co zajmuje miejsce?";
+                            clicked => {
+                                HomeState.go("ofp:space|" + HomeState.drives[0].path);
+                            }
+                        }
+                        Chip {
+                            text: "Mapuj dysk sieciowy…";
+                            clicked => {
+                                HomeState.tool("map");
+                            }
                         }
                     }
                 }
                 Card {
                     row: root.wide ? 0 : 1;
                     col: root.wide ? 1 : 0;
-                    title: "Ten komputer";
+                    title: "Komputer";
                     note: HomeState.host;
                     Label {
                         text: HomeState.os;
@@ -583,6 +654,19 @@ export component HomeView inherits Rectangle {
                             font-size: 10px;
                             color: d.today ? Theme.text : Theme.faint;
                         }
+                    }
+                }
+            }
+
+            // Narzędzia systemu – kafelki w rzędach.
+            if !sec.shut && sec.key == "tools": Card {
+                for row[r] in ceil(HomeState.tools.length / root.tools-per-row): HorizontalLayout {
+                    spacing: 10px;
+                    alignment: start;
+                    for t[i] in HomeState.tools: ToolTile {
+                        visible: i >= r * root.tools-per-row && i < (r + 1) * root.tools-per-row;
+                        width: self.visible ? root.tool-w : 0;
+                        tool: t;
                     }
                 }
             }

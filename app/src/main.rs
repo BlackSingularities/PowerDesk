@@ -904,7 +904,7 @@ fn tab_mut<R>(s: &Shared, f: impl FnOnce(&mut Tab) -> R) -> R {
     f(&mut b.tabs[a])
 }
 
-/// Nowa karta (Ctrl+T, „+”) – „Ten komputer”, jak nowe okno Eksploratora.
+/// Nowa karta (Ctrl+T, „+”) – „Komputer”, jak nowe okno Eksploratora.
 fn new_tab(s: &Shared) {
     new_tab_at(s, crate::model::HOME, true);
 }
@@ -1721,7 +1721,7 @@ fn render_all(s: &Shared) {
     render_items(s);
     // Półka pokazuje folder docelowy – zmienia się razem z kartą.
     shelf::render(s);
-    // Ekran „Ten komputer” zamiast listy, gdy to jego karta.
+    // Ekran „Komputer” zamiast listy, gdy to jego karta.
     home::sync(s);
     settings::sync(s);
     syncview::sync_tab(s);
@@ -2638,6 +2638,7 @@ fn on_event(s: &Shared, name: &str, payload: serde_json::Value) {
         "drives-changed" => {
             s.borrow_mut().drives = drives::list();
             render_side(s);
+            home::drives_changed(s);
         }
         "fs-changed" => {
             let Ok(dirs) = serde_json::from_value::<Vec<String>>(payload) else { return };

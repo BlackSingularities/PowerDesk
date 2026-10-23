@@ -445,7 +445,7 @@ impl Tab {
             return format!("„{}”", s.query);
         }
         if self.path == HOME {
-            return "Ten komputer".into();
+            return "Komputer".into();
         }
         if self.path == "ofp:settings" {
             return "Ustawienia".into();
@@ -841,7 +841,7 @@ pub struct Prefs {
     pub theme: String,
     /// Akcent: „mono” (biały / czarny), „system” (z Windows) albo kolor #rrggbb.
     pub accent: String,
-    /// Po uruchomieniu: „home” (folder domowy), „computer” (Ten komputer) albo „folder” (`start_folder`).
+    /// Po uruchomieniu: „home” (folder domowy), „computer” (Komputer) albo „folder” (`start_folder`).
     pub start: String,
     pub start_folder: String,
     /// Widok folderu, dla którego nic nie zapamiętano.
@@ -860,7 +860,7 @@ pub struct Prefs {
     pub side_width: f32,
     /// Lokalizacje sieciowe dodane w panelu bocznym (ścieżki UNC).
     pub net_places: Vec<String>,
-    /// Kolejność sekcji ekranu „Ten komputer” (klucze z home.rs) i sekcje zwinięte.
+    /// Kolejność sekcji ekranu „Komputer” (klucze z home.rs) i sekcje zwinięte.
     pub home_order: Vec<String>,
     pub home_shut: Vec<String>,
     /// Ikony pulpitu ustawione ręcznie: ścieżka (małymi literami) → kolumna i wiersz siatki.
@@ -882,7 +882,7 @@ pub struct Prefs {
     pub desktop_widgets: Vec<DeskWidget>,
     /// Ustawienia z OpenFilePower już przeniesione (migrate.rs).
     pub migrated_ofp: bool,
-    /// Jednorazowo: dawny domyślny start (folder domowy) zamieniony na „Ten komputer”.
+    /// Jednorazowo: dawny domyślny start (folder domowy) zamieniony na „Komputer”.
     /// Brak pola w zapisanych ustawieniach = false (stare ustawienia), w nowych – true.
     #[serde(default)]
     pub start_v2: bool,

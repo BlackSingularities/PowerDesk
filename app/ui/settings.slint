@@ -26,7 +26,7 @@ export global SettingsState {
     /// „mono”, „system” albo #rrggbb.
     in-out property <string> accent;
     in-out property <color> system-accent;
-    /// 0 – folder domowy, 1 – Ten komputer, 2 – wybrany folder.
+    /// 0 – folder domowy, 1 – Komputer, 2 – wybrany folder.
     in-out property <int> start;
     in-out property <string> start-folder;
     /// 0 – lista, 1 – siatka, 2 – galeria.
@@ -592,7 +592,7 @@ export component SettingsView inherits Rectangle {
                     }
                     Choice {
                         icon: Icons.pc;
-                        text: "Ten komputer";
+                        text: "Komputer";
                         hint: "Dyski, foldery i ostatnie pliki";
                         on: SettingsState.start == 1;
                         clicked => {

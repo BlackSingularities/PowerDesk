@@ -602,10 +602,16 @@ pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
             })),
             _ => {}
         }
+        let space = d.path.clone();
+        v.push(it("Co zajmuje miejsce?", "grid", move |s| crate::navigate(s, &format!("ofp:space|{space}"), true)));
         if d.kind == "fixed" || d.kind == "removable" {
             let l = d.letter.clone();
             v.push(it("Oczyszczanie dysku", "trash", move |_| drives::cleanup(&l)));
         }
+        let props = d.path.clone();
+        v.push(it("Właściwości", "info", move |s| {
+            powerdesk_core::shell::show_properties(crate::hwnd(s), &props);
+        }));
         v.push(it("Mapuj dysk sieciowy…", "network", |s| drives::map_dialog(crate::hwnd(s))));
     }
     v.push(it("Terminal tutaj", "terminal", move |_| terminal(&path)));

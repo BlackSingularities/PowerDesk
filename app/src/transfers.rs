@@ -287,6 +287,7 @@ pub fn on_progress(s: &Shared, p: Progress) {
         // Wolne miejsce na dyskach się zmieniło.
         s.borrow_mut().drives = drives::list();
         crate::render_side(s);
+        crate::home::drives_changed(s);
     }
     render(s);
 }

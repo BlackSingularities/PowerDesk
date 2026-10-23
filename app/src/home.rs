@@ -1,5 +1,5 @@
-//! Ekran „Ten komputer” (Home.svelte): powitanie z wyszukiwaniem, dyski, stan komputera,
-//! rozmiary folderów użytkownika i ostatnio zmienione pliki. Pokazuje się na karcie `ofp:home`
+//! Ekran „Komputer” (Home.svelte): powitanie z wyszukiwaniem, dyski, stan komputera,
+//! rozmiary folderów użytkownika, narzędzia systemu i ostatnio zmienione pliki. Pokazuje się na karcie `ofp:home`
 //! zamiast listy; dane o systemie odświeża co 3 s, tylko gdy ekran jest widoczny.
 
 use std::cell::RefCell;
@@ -15,7 +15,7 @@ use slint::{ComponentHandle, ModelRc, VecModel};
 use crate::fmt::{self, Kind};
 use crate::menus::{it, sep};
 use crate::model::HOME;
-use crate::{HomeActivity, HomeDay, HomeDrive, HomeFile, HomeFolder, HomeSection, HomeState, Shared};
+use crate::{HomeActivity, HomeDay, HomeDrive, HomeFile, HomeFolder, HomeSection, HomeState, HomeTool, Shared};
 
 /// Ile ostatnich plików wczytujemy i pokazujemy.
 const RECENT_LIMIT: usize = 120;
@@ -24,8 +24,9 @@ const SHOWN: usize = 30;
 const DAYS: usize = 14;
 
 /// Sekcje ekranu pod powitaniem: klucz (w ustawieniach) i nagłówek, w domyślnej kolejności.
-const SECTIONS: [(&str, &str); 5] = [
+const SECTIONS: [(&str, &str); 6] = [
     ("overview", "Dyski i system"),
+    ("tools", "Narzędzia systemu"),
     ("favorites", "Ulubione"),
     ("activity", "Aktywność"),
     ("changes", "Zmiany w 14 dniach"),
@@ -215,6 +216,60 @@ fn ic(name: &str) -> slint::SharedString {
     crate::icons::icon(name).into()
 }
 
+/// Narzędzia systemu: nazwa, opis, ikona i klucz (zob. `run_tool`).
+const TOOLS: [(&str, &str, &str, &str); 12] = [
+    ("Ustawienia Windows", "Wszystkie ustawienia systemu", "settings", "settings"),
+    ("Informacje o systemie", "Wersja, nazwa komputera, sprzęt", "info", "about"),
+    ("Aplikacje", "Instalowanie i odinstalowywanie", "app", "apps"),
+    ("Panel sterowania", "Klasyczne ustawienia", "list", "control"),
+    ("Menedżer urządzeń", "Sterowniki i sprzęt", "usb", "devmgmt"),
+    ("Zarządzanie dyskami", "Partycje i woluminy", "drive", "diskmgmt"),
+    ("Menedżer zadań", "Programy i wydajność", "bolt", "taskmgr"),
+    ("Połączenia sieciowe", "Karty sieciowe", "network", "ncpa"),
+    ("Mapuj dysk sieciowy", "Udział sieciowy jako litera dysku", "link", "map"),
+    ("Zasilanie", "Uśpienie, ekran, bateria", "power", "power"),
+    ("Windows Update", "Aktualizacje systemu", "refresh", "update"),
+    ("Zabezpieczenia Windows", "Antywirus i zapora", "shield", "security"),
+];
+
+/// Uruchamia narzędzie z kafelka.
+pub fn run_tool(s: &Shared, key: &str) {
+    let uri = |u: &str| {
+        let _ = open::that_detached(u);
+    };
+    match key {
+        "settings" => uri("ms-settings:"),
+        "about" => uri("ms-settings:about"),
+        "apps" => uri("ms-settings:appsfeatures"),
+        "power" => uri("ms-settings:powersleep"),
+        "update" => uri("ms-settings:windowsupdate"),
+        "security" => uri("windowsdefender:"),
+        "control" => {
+            let _ = std::process::Command::new("control.exe").spawn();
+        }
+        "devmgmt" => uri("devmgmt.msc"),
+        "diskmgmt" => uri("diskmgmt.msc"),
+        "ncpa" => uri("ncpa.cpl"),
+        "taskmgr" => {
+            let _ = std::process::Command::new("taskmgr.exe").spawn();
+        }
+        "map" => powerdesk_core::drives::map_dialog(crate::hwnd(s)),
+        _ => {}
+    }
+}
+
+fn render_tools(s: &Shared) {
+    let rows: Vec<HomeTool> = TOOLS.iter().map(|(n, h, i, k)| HomeTool { name: (*n).into(), hint: (*h).into(), icon: ic(i), key: (*k).into() }).collect();
+    with_ui(s, |g| g.set_tools(ModelRc::new(VecModel::from(rows))));
+}
+
+/// Dyski podłączone albo odłączone – ekran od razu, jeśli jest otwarty.
+pub fn drives_changed(s: &Shared) {
+    if s.borrow().ui.upgrade().is_some_and(|u| u.global::<HomeState>().get_open()) {
+        render_drives(s);
+    }
+}
+
 /// Wołane po każdym przełączeniu karty: włącza albo wyłącza ekran.
 pub fn sync(s: &Shared) {
     let on = crate::tab_mut(s, |t| t.path == HOME && t.viewer.is_none() && t.search.is_none());
@@ -239,8 +294,8 @@ pub fn sync(s: &Shared) {
     count_folders();
 }
 
-/// Powitanie, dyski i foldery – to, co zmienia się rzadko.
-fn render_static(s: &Shared) {
+/// Powitanie i data według bieżącej godziny (ekran bywa otwarty całą noc).
+fn render_greeting(s: &Shared) {
     let now = Local::now();
     let greeting = match now.hour() {
         5..=11 => "Dzień dobry",
@@ -248,6 +303,25 @@ fn render_static(s: &Shared) {
         18..=22 => "Dobry wieczór",
         _ => "Dobranoc",
     };
+    with_ui(s, |g| {
+        g.set_greeting(greeting.into());
+        g.set_today(today(&now).into());
+    });
+}
+
+/// Rodzaj dysku w opisie: „USB”, „sieciowy”, „napęd optyczny”.
+fn drive_kind(kind: &str) -> &'static str {
+    match kind {
+        "removable" => "USB · ",
+        "network" => "sieciowy · ",
+        "cdrom" => "napęd optyczny · ",
+        "ram" => "RAM-dysk · ",
+        _ => "",
+    }
+}
+
+/// Dyski z wolnym miejscem i suma dla dysków lokalnych.
+fn render_drives(s: &Shared) {
     let drives: Vec<HomeDrive> = s
         .borrow()
         .drives
@@ -256,19 +330,29 @@ fn render_static(s: &Shared) {
         .map(|d| HomeDrive {
             name: if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) }.into(),
             path: d.path.clone().into(),
-            detail: format!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)).into(),
+            detail: format!("{}{} wolne z {}{}", drive_kind(&d.kind), fmt::size(d.free), fmt::size(d.total), if d.fs.is_empty() { String::new() } else { format!(" · {}", d.fs) }).into(),
             usage: 1.0 - d.free as f32 / d.total as f32,
-            icon: ic(if d.kind == "network" { "network" } else { "drive" }),
+            icon: ic(match d.kind.as_str() {
+                "network" => "network",
+                "removable" => "usb",
+                "cdrom" => "disc",
+                _ => "drive",
+            }),
         })
         .collect();
     let (total, free) = s.borrow().drives.iter().filter(|d| d.online && d.kind != "network").fold((0u64, 0u64), |(t, f), d| (t + d.total, f + d.free));
     with_ui(s, |g| {
-        g.set_greeting(greeting.into());
-        g.set_today(today(&now).into());
         g.set_drives(ModelRc::new(VecModel::from(drives)));
         g.set_storage(if total > 0 { format!("{} wolne z {}", fmt::size(free), fmt::size(total)) } else { String::new() }.into());
         g.set_storage_usage(if total > 0 { 1.0 - free as f32 / total as f32 } else { 0.0 });
     });
+}
+
+/// Powitanie, dyski, foldery i narzędzia – to, co zmienia się rzadko.
+fn render_static(s: &Shared) {
+    render_greeting(s);
+    render_drives(s);
+    render_tools(s);
     render_folders(s);
     render_sections(s);
     render_favorites(s);
@@ -302,6 +386,7 @@ fn tick(s: &Shared) {
         (d, h, _) => format!("{d} d {h} h"),
     };
     render_activity(s);
+    render_greeting(s);
     with_ui(s, |g| {
         g.set_clock(Local::now().format("%H:%M").to_string().into());
         g.set_host(i.host.clone().into());
@@ -312,7 +397,6 @@ fn tick(s: &Shared) {
         g.set_mem(format!("{} / {}", fmt::size(i.mem_used), fmt::size(i.mem_total)).into());
         g.set_mem_usage(if i.mem_total > 0 { i.mem_used as f32 / i.mem_total as f32 } else { 0.0 });
         g.set_uptime(uptime.into());
-        g.set_activity(Default::default());
     });
 }
 
@@ -486,4 +570,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_move_section(move |k, d| move_section(&s, &k, d));
     let s = st.clone();
     g.on_toggle_section(move |k| toggle_section(&s, &k));
+    let s = st.clone();
+    g.on_tool(move |k| run_tool(&s, &k));
+    let s = st.clone();
+    g.on_drive_menu(move |p, x, y| crate::menus::side_menu(&s, p.into(), x, y));
 }
