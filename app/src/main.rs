@@ -156,8 +156,8 @@ fn open_args(s: &Shared, args: Vec<String>) {
     show_window(s);
 }
 
-/// Ikona programu do zasobnika (ta sama co wersji webowej).
-const TRAY_ICO: &[u8] = include_bytes!("../../src-tauri/icons/icon.ico");
+/// Ikona programu do zasobnika.
+const TRAY_ICO: &[u8] = include_bytes!("../icon.ico");
 
 /// Ikona w zasobniku – zawsze: PowerDesk działa w tle jako powłoka systemu.
 fn start_tray() {

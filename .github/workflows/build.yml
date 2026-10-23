@@ -22,7 +22,7 @@ jobs:
         with:
           workspaces: .
 
-      # Wersja: MAJOR.MINOR z package.json. Pierwsze wydanie danej linii dostaje dokładnie wersję z package.json
+      # Wersja: MAJOR.MINOR z app/Cargo.toml. Pierwsze wydanie danej linii dostaje dokładnie tę wersję
       # (np. 1.0.0), każde kolejne – następny numer poprawki (1.0.1, 1.0.2…) na podstawie istniejących wydań.
       - name: Wersja
         id: ver
@@ -30,14 +30,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $pkg = Get-Content package.json -Raw | ConvertFrom-Json
-          $parts = $pkg.version.Split('.')
+          $ver = (Select-String -Path app/Cargo.toml -Pattern '^version = "([^"]+)"').Matches[0].Groups[1].Value
+          $parts = $ver.Split('.')
           $line = "$($parts[0]).$($parts[1])"
           $tags = @(gh release list --limit 200 --json tagName --jq '.[].tagName' 2>$null)
           $nums = $tags | Where-Object { $_ -match "^v$([regex]::Escape($line))\.(\d+)$" } | ForEach-Object { [int]($_ -replace "^v$([regex]::Escape($line))\.", '') }
           if ($nums) { $patch = ($nums | Measure-Object -Maximum).Maximum + 1 } else { $patch = [int]$parts[2] }
           $v = "$line.$patch"
-          (Get-Content package.json -Raw) -replace '"version": "[^"]+"', "`"version`": `"$v`"" | Set-Content package.json -NoNewline
           "version=$v" >> $env:GITHUB_OUTPUT
 
       # Testy w profilu wydania – te same skompilowane zależności co budowa PowerDesk niżej.

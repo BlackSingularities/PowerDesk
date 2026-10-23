@@ -1,50 +1,42 @@
-# OpenFilePower dla Windows
+# PowerDesk
 
-Minimalistyczny menedżer plików AMOLED dla Windows 10/11 – siostrzana aplikacja [OpenFilePower](https://github.com/BlackSingularities/OpenFilePower) na Androida. Rust (Tauri 2) + Svelte 5.
+Pulpit, pasek zadań, menu Start i menedżer plików dla Windows 10/11 w jednym programie – natywnie
+w Rust + Slint, bez przeglądarki w środku. Zastępuje Eksplorator Windows (także jako powłoka po
+zalogowaniu) i wcześniejszą aplikację OpenFilePower.
 
-## Funkcje
+## Najważniejsze
 
-**Przeglądanie**
-- Karty (przeciąganie, przywracanie zamkniętych, upuszczanie plików na kartę), podział na dwa panele.
-- Lista, siatka i galeria z wirtualnym przewijaniem – płynnie także przy dziesiątkach tysięcy plików.
-- Foldery ze zdjęciami same otwierają się jako galeria; widok i sortowanie zapamiętywane per folder.
-- Okruszki z rozwijanymi podfolderami, edycja ścieżki z podpowiedziami, paleta szybkiego przejścia (Ctrl+K).
-- Filtrowanie na żywo i wyszukiwanie w podfolderach (wieloznaczniki `*.jpg`), filtry typów.
+- **Menedżer plików:** karty i dwa panele, lista / siatka / galeria, podgląd (zdjęcia, wideo, PDF, dokumenty,
+  kod, SVG, czcionki, modele 3D, Markdown), operacje w tle z cofaniem, archiwa, porównywanie folderów,
+  synchronizacja, analiza miejsca, terminal.
+- **Pulpit:** ikony, tapety (z Windows, pokaz slajdów, zdjęcie dnia), widżety, strefy okien (Shift przy przeciąganiu).
+- **Pasek zadań:** okna z podglądami, przypięte programy, zasobnik (sieć, głośność, bateria, ikony programów),
+  centrum powiadomień, kalendarz, pulpity wirtualne (opcjonalnie).
+- **Menu Start:** aplikacje, wyszukiwanie plików i ustawień, kalkulator z jednostkami, kafelki w grupach
+  i folderach, widżety w kafelkach.
+- **Widżety:** zegar, zegary świata, kalendarz, pogoda, co teraz gra, zdjęcia, przypomnienia, zadania,
+  odliczanie, system, dyski, sieć, schowek, kursy walut, notatka.
+- **Nakładka (Alt+R):** FPS i czas klatki dowolnego programu (zdarzenia systemowe Windows, bez wstrzykiwania),
+  procesor, karta graficzna, pamięć; tryb gry i limit klatek NVIDIA.
+- **Bezpieczeństwo:** strażnik przywraca pulpit i pasek Windows po awarii; Shift przy logowaniu – sesja
+  z Eksploratorem; dziennik i „Zgłoś problem”.
 
-**Miniatury i podgląd – bez generowania własnych miniatur**
-- Miniatury i ikony z systemowej pamięci podręcznej Windows (`IShellItemImageFactory`), w tym RAW/HEIC przez kodeki WIC.
-- Miniatury PDF z systemu; jeśli Windows ich nie ma – render pierwszej strony tylko w pamięci.
-- Panel podglądu: zdjęcia, wideo, audio, PDF (wbudowany czytnik), tekst i kod, DOCX/XLSX/PPTX/ODT/EPUB, archiwa ZIP.
-- Pełnoekranowa przeglądarka: zoom do kursora, przesuwanie, obrót, pokaz slajdów, pasek miniatur, metadane EXIF.
+## Instalacja
 
-**Operacje na plikach**
-- Kopiowanie/przenoszenie w tle z postępem, prędkością, czasem do końca i anulowaniem; atomowe zapisy.
-- Konflikty: zastąp, zastąp starsze, zachowaj oba, pomiń. Cofanie (Ctrl+Z).
-- Kosz systemowy, schowek zgodny z Eksploratorem, przeciąganie, zaznaczanie ramką, zmiana nazwy w miejscu.
-- Rozbudowane menu kontekstowe + pełne menu Eksploratora (Shift + prawy przycisk).
-- Właściwości: wszystkie metadane systemowe, rozmiar folderu, SHA-256, systemowe okno właściwości.
-
-**Dyski**
-- Dyski lokalne, wymienne i sieciowe z zajętością; automatyczne odświeżanie po podłączeniu pendrive’a.
-- Mapowanie udziałów SMB/NAS (logowanie w oknie Windows), widoczne także rozłączone, zapamiętane dyski.
-
-**Synchronizacja**
-- Kopia lustrzana, dwukierunkowa (z konfliktami) lub kopia zapasowa – z dyskiem zewnętrznym albo sieciowym.
-- Dysk rozpoznawany po numerze seryjnym woluminu – działa pod dowolną literą.
-- Gdy cel jest podłączony – synchronizacja na bieżąco; gdy nie – informacja, kiedy był widziany i ile zmian czeka.
-- Wersjonowanie (`.ofp-versions`), ochrona przed masowym usuwaniem, podgląd planu, historia, działanie z zasobnika i autostart.
+Pobierz `PowerDesk-<wersja>.exe` z [Wydań](../../releases) i uruchom – przy pierwszym uruchomieniu
+zaproponuje instalację dla bieżącego użytkownika (bez uprawnień administratora). Aktualizuje się sam.
+Odinstalowanie: Ustawienia Windows → Aplikacje albo Ustawienia PowerDesk → System – pulpit, pasek
+i Eksplorator Windows wracają na miejsce.
 
 ## Budowanie
 
-```bash
-npm ci
-npx tauri build
+```
+cargo build --release -p powerdesk
 ```
 
-Każdy push na `main` buduje instalator i wersję przenośną w GitHub Actions i publikuje wydanie.
+Struktura: `core/` – backend bez interfejsu (pliki, integracja z Windows), `app/` – interfejs Slint
+(`app/ui/*.slint`), `docs/` – plan i notatki (`PLAN-POWERDESK.md`, `NASTEPNE-KROKI.md`).
 
----
+## Licencja
 
-**Projekt i wykonanie: [redzikowski.com](https://redzikowski.com)**
-
-<a href="https://buycoffee.to/adamredzikowski" target="_blank"><img src="https://buycoffee.to/static/img/share/share-button-dark--pl.png" style="width: 351px; height: 92px" width="351" height="92" alt="Postaw kawę dla adamredzikowski na buycoffee.to"></a>
+Zobacz [LICENSE](LICENSE).

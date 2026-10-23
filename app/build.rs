@@ -1,16 +1,16 @@
-//! Ikony są wspólne z wersją webową (`src/lib/icons.ts`) – generujemy z nich globalny `Icons` dla Slint.
+//! Ikony programu (`icons.ts` – nazwa: ścieżka SVG) – generujemy z nich globalny `Icons` dla Slint.
 
 use std::fmt::Write;
 
 fn main() {
-    let src = "../src/lib/icons.ts";
+    let src = "icons.ts";
     println!("cargo:rerun-if-changed={src}");
     let ts = std::fs::read_to_string(src).expect("icons.ts");
     let mut rs = String::from("/// Ścieżki SVG ikon po nazwie z icons.ts.
 pub fn icon(name: &str) -> &'static str {
     match name {
 ");
-    let mut out = String::from("// Wygenerowane przez build.rs z src/lib/icons.ts – nie edytować.\nexport global Icons {\n");
+    let mut out = String::from("// Wygenerowane przez build.rs z app/icons.ts – nie edytować.\nexport global Icons {\n");
     for line in ts.lines() {
         let l = line.trim();
         // Linie w postaci `nazwa: 'ścieżka SVG',`

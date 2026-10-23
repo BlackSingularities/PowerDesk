@@ -1,13 +1,9 @@
 //! Integracja z Windows: domyślny menedżer plików, pozycja w menu Eksploratora,
-//! instalacja aktualizacji prosto z aplikacji.
+//! okna, tło i kolory z Windows.
 
-use std::io::{Read, Write};
 use std::os::windows::process::CommandExt;
-use std::path::PathBuf;
 
 use serde::Serialize;
-use sha2::{Digest, Sha256};
-use crate::events::{AppHandle, Emitter};
 
 const NO_WINDOW: u32 = 0x0800_0000;
 const VERB: &str = "OpenFilePower";
@@ -114,86 +110,6 @@ pub fn accent_color() -> Option<String> {
     // Zapis w rejestrze: 0xAABBGGRR.
     let v = u32::from_str_radix(&hex, 16).ok()?;
     Some(format!("#{:02x}{:02x}{:02x}", v & 0xff, (v >> 8) & 0xff, (v >> 16) & 0xff))
-}
-
-// ---------- Aktualizacje ----------
-
-#[derive(Serialize, Clone)]
-struct Progress {
-    done: u64,
-    total: u64,
-}
-
-fn release(repo: &str) -> Result<serde_json::Value, String> {
-    ureq::get(&format!("https://api.github.com/repos/{repo}/releases/latest"))
-        .set("User-Agent", "OpenFilePowerWin")
-        .set("Accept", "application/vnd.github+json")
-        .timeout(std::time::Duration::from_secs(15))
-        .call()
-        .map_err(|e| e.to_string())?
-        .into_json()
-        .map_err(|e| e.to_string())
-}
-
-/// Pobiera instalator najnowszej wersji i sprawdza jego sumę SHA-256 z pliku SHA256SUMS.txt w wydaniu.
-pub fn download_update(app: &AppHandle, repo: &str) -> Result<String, String> {
-    let r = release(repo)?;
-    let assets = r["assets"].as_array().ok_or("Wydanie nie ma plików")?;
-    let find = |pred: &dyn Fn(&str) -> bool| {
-        assets.iter().find(|a| a["name"].as_str().map(|n| pred(&n.to_lowercase())).unwrap_or(false)).cloned()
-    };
-    let setup = find(&|n| n.ends_with("-setup.exe")).ok_or("W wydaniu nie ma instalatora")?;
-    let name = setup["name"].as_str().unwrap_or("setup.exe").to_string();
-    let url = setup["browser_download_url"].as_str().ok_or("Brak adresu pobierania")?;
-    let total = setup["size"].as_u64().unwrap_or(0);
-
-    let expected = find(&|n| n == "sha256sums.txt").and_then(|s| {
-        let u = s["browser_download_url"].as_str()?.to_string();
-        let body = ureq::get(&u).set("User-Agent", "OpenFilePowerWin").call().ok()?.into_string().ok()?;
-        body.lines().find(|l| l.ends_with(&name)).and_then(|l| l.split_whitespace().next()).map(|h| h.to_lowercase())
-    });
-
-    let dir = std::env::temp_dir().join("OpenFilePower").join("update");
-    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path: PathBuf = dir.join(&name);
-    let resp = ureq::get(url).set("User-Agent", "OpenFilePowerWin").call().map_err(|e| e.to_string())?;
-    let mut rd = resp.into_reader();
-    let mut f = std::fs::File::create(&path).map_err(|e| e.to_string())?;
-    let mut h = Sha256::new();
-    let mut buf = vec![0u8; 1 << 16];
-    let mut done = 0u64;
-    let mut last = std::time::Instant::now();
-    loop {
-        let n = rd.read(&mut buf).map_err(|e| e.to_string())?;
-        if n == 0 {
-            break;
-        }
-        f.write_all(&buf[..n]).map_err(|e| e.to_string())?;
-        h.update(&buf[..n]);
-        done += n as u64;
-        if last.elapsed().as_millis() > 150 {
-            let _ = app.emit("update-progress", Progress { done, total });
-            last = std::time::Instant::now();
-        }
-    }
-    let _ = app.emit("update-progress", Progress { done, total: total.max(done) });
-    let got = format!("{:x}", h.finalize());
-    match expected {
-        Some(e) if e != got => {
-            let _ = std::fs::remove_file(&path);
-            Err("Suma kontrolna pobranego instalatora się nie zgadza – aktualizacja przerwana".into())
-        }
-        _ => Ok(path.to_string_lossy().to_string()),
-    }
-}
-
-/// Uruchamia instalator po cichu i po zakończeniu otwiera aplikację ponownie.
-pub fn install_update(app: &AppHandle, setup: &str) -> Result<(), String> {
-    let me = exe();
-    let script = format!("start \"\" /wait \"{setup}\" /S & start \"\" \"{me}\"");
-    std::process::Command::new("cmd").raw_arg(format!("/c {script}")).creation_flags(NO_WINDOW).spawn().map_err(|e| e.to_string())?;
-    app.exit(0);
-    Ok(())
 }
 
 /// Tło okna z Windows 11: 0 – pełne (bez efektu), 1 – Mica, 2 – Acrylic.
