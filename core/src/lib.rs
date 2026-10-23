@@ -15,6 +15,7 @@ pub mod events;
 pub mod filemgr;
 pub mod fpsmon;
 pub mod fsx;
+pub mod gamemode;
 pub mod gpumon;
 pub mod hotkey;
 pub mod install;

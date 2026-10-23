@@ -22,6 +22,7 @@ mod termview;
 mod addr;
 mod menus;
 mod migrate;
+mod game;
 mod notices;
 mod overlay;
 mod setup;
@@ -227,6 +228,7 @@ pub fn quit(_s: &Shared) {
     cliphistory::close();
     desktop::close();
     taskbar::close();
+    game::restore();
     powerdesk_core::shellswap::restore();
     powerdesk_core::tray::hide();
     let _ = slint::quit_event_loop();
@@ -369,6 +371,8 @@ fn main() -> Result<(), slint::PlatformError> {
     overlay::init();
     // Strefy okien: Shift przy przeciąganiu okna.
     zones::init();
+    // Tryb gry (plan zasilania), jeśli włączony.
+    game::init();
     // Własna historia schowka (Win+V) – nasłuch od startu, żeby nic nie umknęło.
     cliphistory::start();
     // Z autostartu: bez okna folderów – pojawia się z menu Start albo po Win+E.

@@ -19,3 +19,9 @@ fn fps_and_gpu() {
 fn virtual_desktops() {
     println!("pulpity: {:?}", powerdesk_core::vdesk::list());
 }
+
+#[test]
+#[ignore]
+fn power_scheme() {
+    println!("plan zasilania: {:?}", powerdesk_core::gamemode::active_scheme());
+}

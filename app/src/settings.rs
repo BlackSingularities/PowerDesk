@@ -275,6 +275,10 @@ pub fn toggle(s: &Shared, key: &str) {
         }
         "overlay-full" => change(s, |p| p.overlay_full = !p.overlay_full),
         "zones" => change(s, |p| p.zones_on = !p.zones_on),
+        "game-power" => {
+            change(s, |p| p.game_power = !p.game_power);
+            crate::game::init();
+        }
         _ => return,
     }
     // Karty z folderami wczytają się od nowa przy następnym wejściu.
@@ -329,9 +333,9 @@ pub fn set_window_opacity(s: &Shared, v: f32) {
 /// Sekcja Nakładka: przełączniki i stan pomiaru FPS.
 pub fn render_overlay(s: &Shared) {
     use powerdesk_core::fpsmon::State;
-    let (on, corner, full) = {
+    let (on, corner, full, game, limit) = {
         let b = s.borrow();
-        (crate::overlay::is_open(), b.prefs.overlay_corner as i32, b.prefs.overlay_full)
+        (crate::overlay::is_open(), b.prefs.overlay_corner as i32, b.prefs.overlay_full, b.prefs.game_power, b.prefs.fps_limit as i32)
     };
     let st = powerdesk_core::fpsmon::state();
     let (text, need) = match st {
@@ -346,6 +350,8 @@ pub fn render_overlay(s: &Shared) {
         g.set_overlay_full(full);
         g.set_fps_status(text.into());
         g.set_fps_need_access(need);
+        g.set_game_power(game);
+        g.set_fps_limit(limit);
     });
 }
 
@@ -369,6 +375,21 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
+    let s = st.clone();
+    g.on_set_fps_limit(move |f| {
+        let fps = f.max(0) as u32;
+        match powerdesk_core::gamemode::set_fps_limit(fps) {
+            Ok(()) => {
+                change(&s, |p| p.fps_limit = fps);
+                let msg = if fps == 0 { "Limit klatek wyłączony".to_string() } else { format!("Limit klatek: {fps} – działa w grach uruchomionych od teraz") };
+                crate::transfers::toast(&s, msg, crate::transfers::Kind::Ok, None);
+            }
+            Err(e) => {
+                powerdesk_core::log::error(format!("limit klatek: {e}"));
+                crate::transfers::toast(&s, format!("Nie udało się ustawić limitu klatek: {e}"), crate::transfers::Kind::Error, None);
+            }
+        }
+    });
     let s = st.clone();
     g.on_set_zones_layout(move |k| change(&s, |p| p.zones_layout = k.clamp(0, 4) as u8));
     let s = st.clone();

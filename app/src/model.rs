@@ -898,6 +898,10 @@ pub struct Prefs {
     pub overlay_on: bool,
     pub overlay_corner: u8,
     pub overlay_full: bool,
+    /// Tryb gry: plan „Najwyższa wydajność”, gdy program zajmuje cały monitor.
+    pub game_power: bool,
+    /// Limit klatek NVIDIA ustawiony z PowerDesk (0 – brak).
+    pub fps_limit: u32,
     /// Ustawienia widżetów: strefy zegarów świata (puste – domyślne), miejscowość pogody,
     /// folder zdjęć (pusty – Obrazy) i przypomnienia.
     pub world_zones: Vec<String>,
@@ -996,7 +1000,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, desktop_widgets: Vec::new(), migrated_ofp: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, desktop_widgets: Vec::new(), migrated_ofp: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
     }
 }
 
