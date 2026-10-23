@@ -177,6 +177,7 @@ fn render(s: &Shared) {
     g.set_wall_folder(p.wallpaper_folder.clone().into());
     g.set_zones_on(p.zones_on);
     g.set_vd_button(p.vd_button);
+    g.set_taskbar_all(p.taskbar_all_monitors);
     g.set_zones_layout(p.zones_layout as i32);
     g.set_wall_minutes(p.wallpaper_minutes as i32);
     g.set_remembered(p.folders.len() as i32);
@@ -278,6 +279,12 @@ pub fn toggle(s: &Shared, key: &str) {
         "zones" => change(s, |p| p.zones_on = !p.zones_on),
         // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
         "vd-button" => change(s, |p| p.vd_button = !p.vd_button),
+        // Paski od nowa – na wszystkich monitorach albo tylko na głównym.
+        "taskbar-all" => {
+            change(s, |p| p.taskbar_all_monitors = !p.taskbar_all_monitors);
+            crate::taskbar::close();
+            crate::taskbar::open(s);
+        }
         "game-power" => {
             change(s, |p| p.game_power = !p.game_power);
             crate::game::init();

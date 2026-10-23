@@ -26,6 +26,16 @@ pub fn icon(name: &str) -> &'static str {
     rs.push_str("        _ => \"\",\n    }\n}\n");
     std::fs::write("ui/icons.slint", out).expect("ui/icons.slint");
     std::fs::write(std::path::Path::new(&std::env::var("OUT_DIR").unwrap()).join("icons.rs"), rs).expect("icons.rs");
+    // Ikona i opis pliku .exe (Eksplorator, pasek zadań, „Aplikacje i funkcje”). Brak narzędzia
+    // do zasobów (rc.exe / windres) – budowa idzie dalej, tylko bez ikony w pliku.
+    println!("cargo:rerun-if-changed=icon.ico");
+    if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {
+        let mut res = winresource::WindowsResource::new();
+        res.set_icon("icon.ico").set("FileDescription", "PowerDesk").set("ProductName", "PowerDesk").set("CompanyName", "adam001d");
+        if let Err(e) = res.compile() {
+            println!("cargo:warning=ikona .exe pominięta: {e}");
+        }
+    }
     slint_build::compile_with_config("ui/main.slint", slint_build::CompilerConfiguration::new().with_style("fluent".into())).expect("slint");
 }
 

@@ -5,6 +5,7 @@ pub mod archive;
 pub mod autostart;
 pub mod bing;
 pub mod calc;
+pub mod capture;
 pub mod clip;
 pub mod compare;
 pub mod cliphist;

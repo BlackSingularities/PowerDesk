@@ -89,6 +89,9 @@ pub fn open(_s: &Shared) {
 }
 
 fn build(s: &Shared, mons: Vec<data::Monitor>) {
+    // Jeden pasek (tylko monitor główny) albo na każdym monitorze – Ustawienia → Pasek zadań.
+    let all = s.borrow().prefs.taskbar_all_monitors;
+    let mons: Vec<data::Monitor> = if all || mons.len() < 2 { mons } else { mons.into_iter().filter(|m| m.primary).collect() };
     if mons.is_empty() {
         crate::transfers::toast(s, "Nie udało się odczytać monitorów", crate::transfers::Kind::Error, None);
         return;
@@ -170,16 +173,47 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         tray_apps();
     }
     // Tryb powłoki: Win+E – okno PowerDesk, Win+R – „Uruchom”, Win+D – pulpit, Win+Tab – widok zadań.
-    powerdesk_core::startmenu::hook_shell_keys(|k| match k {
-        b'E' => {
-            let _ = slint::invoke_from_event_loop(|| crate::with_state(|s| crate::open_args(s, Vec::new())));
+    powerdesk_core::startmenu::hook_shell_keys(|k, shift| {
+        let ui = |f: fn()| {
+            let _ = slint::invoke_from_event_loop(f);
+        };
+        let uri = |u: &'static str| {
+            let _ = open::that_detached(u);
+        };
+        match k {
+            b'E' => ui(|| crate::with_state(|s| crate::open_args(s, Vec::new()))),
+            b'R' => powerdesk_core::shellmode::run_dialog(),
+            b'D' | b'M' => taskwin::show_desktop(),
+            0x09 => ui(crate::taskview::toggle),
+            // Win+Shift+S i PrtScn – wycinek; Win+PrtScn – cały ekran do pliku i schowka.
+            b'S' if shift => screenshot(false),
+            0x2C => screenshot(shift),
+            // Win+S – szukanie: Start z polem szukania.
+            b'S' => ui(|| open_start(bar_under_cursor())),
+            // Win+A – szybkie ustawienia (sieć), Win+N – powiadomienia, Win+X – menu Startu.
+            b'A' => ui(|| {
+                let bar = bar_under_cursor();
+                let x = BARS.with(|b| b.borrow().get(bar).map(|b| b.mon.0 as f32 / b.w.window().scale_factor())).unwrap_or(0.0);
+                open_network(bar, x - 300.0);
+            }),
+            b'N' => ui(crate::taskbar::open_notices_here),
+            b'X' => ui(|| start_menu(bar_under_cursor(), 0.0)),
+            b'I' => uri("ms-settings:"),
+            b'P' => {
+                let _ = std::process::Command::new("DisplaySwitch.exe").spawn();
+            }
+            b'K' => uri("ms-settings:connecteddevices"),
+            // Win+1…9 – n-ty przycisk paska (jak w Windows: przełącza albo uruchamia przypięty).
+            b'1'..=b'9' => {
+                let n = (k - b'1') as usize;
+                let _ = slint::invoke_from_event_loop(move || {
+                    if let Some(g) = group_at(bar_under_cursor(), n) {
+                        click(&g);
+                    }
+                });
+            }
+            _ => {}
         }
-        b'R' => powerdesk_core::shellmode::run_dialog(),
-        b'D' => taskwin::show_desktop(),
-        0x09 => {
-            let _ = slint::invoke_from_event_loop(crate::taskview::toggle);
-        }
-        _ => {}
     });
     // Samo Win otwiera Start PowerDesk na monitorze z kursorem.
     powerdesk_core::startmenu::hook_win_key(|| {
@@ -725,6 +759,19 @@ fn vd_menu(bar: usize, x: f32) {
         .kbd("Win+Ctrl+F4"),
     ]);
     show_menu(bar, items, x);
+}
+
+/// Zrzut ekranu: `full` – cały ekran do Obrazy\Zrzuty ekranu i do schowka (z powiadomieniem),
+/// inaczej wycinek w systemowym Wycinaniu.
+fn screenshot(full: bool) {
+    std::thread::spawn(move || {
+        let res = if full { powerdesk_core::capture::full().map(Some) } else { powerdesk_core::capture::snip() };
+        let _ = slint::invoke_from_event_loop(move || match res {
+            Ok(Some(p)) => crate::notices::add("Zrzut ekranu", "Zapisano i skopiowano do schowka", &p.display().to_string()),
+            Ok(None) => {}
+            Err(e) => crate::notices::add("Zrzut ekranu", "Nie udało się", &e),
+        });
+    });
 }
 
 /// Licznik nieprzeczytanych na wszystkich paskach i odświeżona lista, jeśli otwarta.
@@ -1316,9 +1363,11 @@ fn tray_apps() {
                 .unwrap_or_default(),
         })
         .collect();
+    // Ikony programów tylko na pasku głównego monitora (jak w Windows).
     BARS.with(|b| {
         for bar in b.borrow().iter() {
-            bar.w.set_tray_apps(ModelRc::new(VecModel::from(apps.clone())));
+            let here = if bar.origin == (0, 0) { apps.clone() } else { Vec::new() };
+            bar.w.set_tray_apps(ModelRc::new(VecModel::from(here)));
         }
     });
 }

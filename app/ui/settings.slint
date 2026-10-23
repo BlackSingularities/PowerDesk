@@ -70,6 +70,7 @@ export global SettingsState {
     callback report-problem();
     // Tapety: tryb (0 – Windows, 1 – pokaz slajdów, 2 – Bing), folder, co ile minut.
     in-out property <bool> vd-button;
+    in-out property <bool> taskbar-all;
     in-out property <bool> zones-on;
     in-out property <int> zones-layout;
     callback set-zones-layout(int);
@@ -967,6 +968,15 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.taskbar-clear-desktop;
                         toggled => {
                             SettingsState.toggle("taskbar-clear-desktop");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.desktop;
+                        text: "Pasek zadań na każdym monitorze";
+                        hint: "Wyłączone – jeden pasek, tylko na monitorze głównym";
+                        on: SettingsState.taskbar-all;
+                        toggled => {
+                            SettingsState.toggle("taskbar-all");
                         }
                     }
                     ToggleRow {

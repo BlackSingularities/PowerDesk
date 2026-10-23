@@ -119,9 +119,11 @@ static ON_START: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static ON_CLIPBOARD: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static WIN_DOWN: AtomicBool = AtomicBool::new(false);
 static COMBO: AtomicBool = AtomicBool::new(false);
-/// Tryb powłoki: Win+E, Win+R, Win+D, Win+Tab obsługuje PowerDesk (bez Eksploratora nie zrobi tego nikt).
-static ON_SHELL_KEY: OnceLock<Box<dyn Fn(u8) + Send + Sync>> = OnceLock::new();
-const SHELL_KEYS: [u8; 4] = [b'E', b'R', b'D', 0x09];
+/// Tryb powłoki: skróty z Win, które bez Eksploratora nie miałyby kto obsłużyć – (klawisz, Shift).
+/// Win+D obsługujemy zawsze. PrtScn (bez Win) – kod 0x2C z Shift = false, Win+PrtScn – Shift = true.
+static ON_SHELL_KEY: OnceLock<Box<dyn Fn(u8, bool) + Send + Sync>> = OnceLock::new();
+const SHELL_KEYS: [u8; 22] = [b'E', b'R', b'D', 0x09, b'S', b'A', b'N', b'I', b'X', b'P', b'K', b'M', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0x2C];
+const PRINT_SCREEN: u32 = 0x2C;
 /// Klawisz z Win połknięty przez nas (Win+V) – system widział samo Win, trzeba je zamaskować.
 static SWALLOWED: AtomicBool = AtomicBool::new(false);
 /// Nieprzypisany kod klawisza – „maskuje” samotne Win, żeby Windows nie otwierał swojego Start.
@@ -177,7 +179,17 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
                 SWALLOWED.store(true, Ordering::SeqCst);
                 if down {
                     if let Some(f) = ON_SHELL_KEY.get() {
-                        f(k.vkCode as u8);
+                        // Win+PrtScn: cały ekran do pliku (Shift = true jako znacznik „z Win”).
+                        let shift = k.vkCode == PRINT_SCREEN || shift_held();
+                        f(k.vkCode as u8, shift);
+                    }
+                }
+                return LRESULT(1);
+            } else if k.vkCode == PRINT_SCREEN && !WIN_DOWN.load(Ordering::SeqCst) && ON_SHELL_KEY.get().is_some() && crate::shellmode::active() && !alt_held() {
+                // Samo PrtScn – wycinek (jak w Windows 11); Alt+PrtScn zostaje systemowe (okno do schowka).
+                if down {
+                    if let Some(f) = ON_SHELL_KEY.get() {
+                        f(PRINT_SCREEN as u8, false);
                     }
                 }
                 return LRESULT(1);
@@ -201,6 +213,16 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
     CallNextHookEx(None, code, wp, lp)
 }
 
+fn shift_held() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_SHIFT};
+    unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) < 0 }
+}
+
+fn alt_held() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU};
+    unsafe { GetAsyncKeyState(VK_MENU.0 as i32) < 0 }
+}
+
 /// Czy któryś klawisz Win jest teraz fizycznie wciśnięty.
 fn win_held() -> bool {
     use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
@@ -212,8 +234,8 @@ pub fn hook_win_v(on_clipboard: impl Fn() + Send + Sync + 'static) {
     let _ = ON_CLIPBOARD.set(Box::new(on_clipboard));
 }
 
-/// Skróty z Win w trybie powłoki (kod klawisza: E, R, D, Tab); wywołać przed `hook_win_key`.
-pub fn hook_shell_keys(on_key: impl Fn(u8) + Send + Sync + 'static) {
+/// Skróty z Win w trybie powłoki (kod klawisza i Shift – zob. ON_SHELL_KEY); wywołać przed `hook_win_key`.
+pub fn hook_shell_keys(on_key: impl Fn(u8, bool) + Send + Sync + 'static) {
     let _ = ON_SHELL_KEY.set(Box::new(on_key));
 }
 

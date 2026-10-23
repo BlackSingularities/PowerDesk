@@ -899,9 +899,9 @@ fn tab_mut<R>(s: &Shared, f: impl FnOnce(&mut Tab) -> R) -> R {
     f(&mut b.tabs[a])
 }
 
+/// Nowa karta (Ctrl+T, „+”) – „Ten komputer”, jak nowe okno Eksploratora.
 fn new_tab(s: &Shared) {
-    let p = tab_mut(s, |t| t.path.clone());
-    new_tab_at(s, &p, true);
+    new_tab_at(s, crate::model::HOME, true);
 }
 
 /// Nowa karta obok bieżącej; w tle (`activate == false`) jak „Otwórz w nowej karcie”.
@@ -1805,6 +1805,8 @@ fn render_chrome(s: &Shared) {
     ui.set_search_active(t.search.is_some());
     ui.set_total_height(t.total_h);
     ui.set_empty_text(empty_text(t).into());
+    // Tytuł okna = bieżąca karta – tak widać ją na pasku zadań i w Alt+Tab (jak w Eksploratorze).
+    ui.set_window_title(t.title().into());
     ui.set_tabs(ModelRc::new(VecModel::from(
         b.tabs
             .iter()

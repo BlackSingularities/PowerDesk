@@ -82,6 +82,7 @@ pub fn from_openfilepower(p: &mut Prefs) -> bool {
             }
         }
     }
+    p.sanitize();
     for e in v["shelf"].as_array().into_iter().flatten() {
         if let Some(path) = e["path"].as_str() {
             if !p.shelf.iter().any(|x| x.eq_ignore_ascii_case(path)) {

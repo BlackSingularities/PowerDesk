@@ -882,6 +882,12 @@ pub struct Prefs {
     pub desktop_widgets: Vec<DeskWidget>,
     /// Ustawienia z OpenFilePower już przeniesione (migrate.rs).
     pub migrated_ofp: bool,
+    /// Jednorazowo: dawny domyślny start (folder domowy) zamieniony na „Ten komputer”.
+    /// Brak pola w zapisanych ustawieniach = false (stare ustawienia), w nowych – true.
+    #[serde(default)]
+    pub start_v2: bool,
+    /// Pasek zadań na każdym monitorze (false – tylko na głównym).
+    pub taskbar_all_monitors: bool,
     /// Przełącznik pulpitów wirtualnych na pasku (domyślnie ukryty).
     pub vd_button: bool,
     /// Strefy okien (Shift przy przeciąganiu) i układ (zones::LAYOUTS).
@@ -1014,7 +1020,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, desktop_widgets: Vec::new(), migrated_ofp: false, vd_button: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), todos: Vec::new(), countdown_label: String::new(), countdown_at: 0, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "computer".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, desktop_widgets: Vec::new(), migrated_ofp: false, start_v2: true, taskbar_all_monitors: true, vd_button: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), todos: Vec::new(), countdown_label: String::new(), countdown_at: 0, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
     }
 }
 
@@ -1048,7 +1054,26 @@ impl Prefs {
         Some(d.join("prefs.json"))
     }
     pub fn load() -> Prefs {
-        Self::file().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default()
+        let mut p: Prefs = Self::file().and_then(|p| std::fs::read_to_string(p).ok()).and_then(|s| serde_json::from_str(&s).ok()).unwrap_or_default();
+        p.sanitize();
+        p
+    }
+
+    /// Wartości spoza zakresów suwaków (np. przeniesione z OpenFilePower, który miał inną skalę)
+    /// – siatka z jedną kolumną albo bez miniatur. Wołane po wczytaniu i po przeniesieniu.
+    pub fn sanitize(&mut self) {
+        self.grid_size = if self.grid_size.is_finite() { self.grid_size.clamp(84.0, 280.0) } else { 132.0 };
+        self.gallery_row = if self.gallery_row.is_finite() { self.gallery_row.clamp(120.0, 420.0) } else { 210.0 };
+        self.side_width = self.side_width.clamp(180.0, 420.0);
+        self.preview_width = self.preview_width.clamp(240.0, 720.0);
+        self.popup_opacity = self.popup_opacity.clamp(60.0, 100.0);
+        // Ustawienia sprzed zmiany domyślnego startu: folder domowy był wartością domyślną, nie wyborem.
+        if !self.start_v2 {
+            if self.start == "home" {
+                self.start = "computer".into();
+            }
+            self.start_v2 = true;
+        }
     }
     pub fn save(&self) {
         if let (Some(p), Ok(s)) = (Self::file(), serde_json::to_string(self)) {

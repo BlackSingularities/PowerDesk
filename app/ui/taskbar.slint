@@ -1079,11 +1079,14 @@ export component TaskbarWindow inherits Window {
             }
         }
 
-        // Zasobnik: sieć, głośność, bateria – jak w Windows, tuż przed zegarem.
+        // Zasobnik: sieć, głośność, bateria – jak w Windows, tuż przed zegarem; ikony 40 px
+        // wyśrodkowane w pionie w pasku 48 px (jak zegar).
         HorizontalLayout {
             horizontal-stretch: 0;
             alignment: center;
             spacing: 2px;
+            padding-top: 4px;
+            padding-bottom: 4px;
             // Wiele ikon: widać pierwsze `tray-max`, reszta po rozwinięciu strzałką.
             if root.tray-apps.length > root.tray-max: TrayIcon {
                 icon: Icons.chevron-down;
