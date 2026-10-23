@@ -21,6 +21,7 @@ mod termview;
 mod addr;
 mod menus;
 mod migrate;
+mod notices;
 mod overlay;
 mod setup;
 mod model;

@@ -846,6 +846,9 @@ export component TaskbarWindow inherits Window {
     in property <bool> has-battery;
     in property <int> battery;
     in property <bool> charging;
+    /// Nieprzeczytane powiadomienia (centrum powiadomień przy zegarze).
+    in property <int> notice-count;
+    callback notices-open(length);
     /// Ikony programów w zasobniku (tylko w trybie powłoki).
     in property <[TrayApp]> tray-apps;
     /// Ile ikon programów widać bez rozwijania.
@@ -1093,6 +1096,40 @@ export component TaskbarWindow inherits Window {
             }
         }
 
+        // Centrum powiadomień – z licznikiem nieprzeczytanych.
+        nt := Rectangle {
+            width: 32px;
+            height: 40px;
+            y: (parent.height - self.height) / 2;
+            border-radius: Theme.r;
+            background: nt-ta.has-hover ? Theme.hover : transparent;
+            Icon {
+                commands: Icons.menu-lines;
+                size: 16px;
+                color: root.notice-count > 0 ? Theme.text : Theme.dim;
+            }
+            if root.notice-count > 0: Rectangle {
+                x: parent.width - 16px;
+                y: 6px;
+                width: max(14px, nc.preferred-width + 6px);
+                height: 14px;
+                border-radius: 7px;
+                background: Theme.accent;
+                nc := Text {
+                    text: root.notice-count > 99 ? "99+" : root.notice-count;
+                    font-size: 9px;
+                    font-weight: 700;
+                    color: white;
+                }
+            }
+            nt-ta := TipArea {
+                tip: root.notice-count > 0 ? "Powiadomienia (" + root.notice-count + " nowe)" : "Powiadomienia";
+                clicked => {
+                    root.notices-open(nt.absolute-position.x);
+                }
+            }
+        }
+
         // Zegar i data – klik otwiera kalendarz.
         clock := Rectangle {
             height: 40px;
@@ -1252,6 +1289,168 @@ export component TaskViewWindow inherits Window {
                         root.close-win(i);
                     }
                 }
+            }
+        }
+    }
+}
+
+
+/// Powiadomienie w historii centrum powiadomień.
+export struct NoticeRow {
+    source: string,
+    title: string,
+    text: string,
+    time: string,
+}
+
+/// Historia powiadomień pod ikoną przy zegarze (notices.rs).
+export component NoticesWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    in property <[NoticeRow]> rows;
+    callback clear();
+    width: 340px;
+    height: 460px;
+    VerticalLayout {
+        padding: 12px;
+        spacing: 8px;
+        HorizontalLayout {
+            Text {
+                horizontal-stretch: 1;
+                text: "Powiadomienia";
+                font-size: 14px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+            if root.rows.length > 0: Rectangle {
+                width: cl.preferred-width + 16px;
+                height: 26px;
+                border-radius: Theme.r-s;
+                background: cl-ta.has-hover ? Theme.hover : transparent;
+                cl := Text {
+                    text: "Wyczyść wszystko";
+                    font-size: 12px;
+                    color: Theme.accent;
+                }
+                cl-ta := TipArea {
+                    tip: "Usuń wszystkie powiadomienia z listy";
+                    clicked => {
+                        root.clear();
+                    }
+                }
+            }
+        }
+        if root.rows.length == 0: Text {
+            vertical-stretch: 1;
+            horizontal-alignment: center;
+            vertical-alignment: center;
+            text: "Brak nowych powiadomień";
+            font-size: 12.5px;
+            color: Theme.faint;
+        }
+        if root.rows.length > 0: Flickable {
+            vertical-stretch: 1;
+            VerticalLayout {
+                spacing: 6px;
+                for n in root.rows: Rectangle {
+                    border-radius: Theme.r;
+                    background: Theme.card;
+                    height: nv.preferred-height;
+                    nv := VerticalLayout {
+                        padding: 10px;
+                        spacing: 2px;
+                        HorizontalLayout {
+                            Text {
+                                horizontal-stretch: 1;
+                                text: n.source;
+                                font-size: 10.5px;
+                                color: Theme.dim;
+                            }
+                            Text {
+                                text: n.time;
+                                font-size: 10.5px;
+                                color: Theme.faint;
+                            }
+                        }
+                        if n.title != "": Text {
+                            text: n.title;
+                            font-size: 12.5px;
+                            font-weight: 600;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                        Text {
+                            text: n.text;
+                            font-size: 12px;
+                            color: Theme.text;
+                            wrap: word-wrap;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Dymek nowego powiadomienia nad paskiem (6 s): klik w treść – historia, krzyżyk – zamknij.
+export component NoticeToastWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    background: Theme.popup-high;
+    in property <string> source;
+    in property <string> title-text;
+    in property <string> text;
+    callback dismiss();
+    callback open-list();
+    width: 340px;
+    height: 96px;
+    TouchArea {
+        clicked => {
+            root.open-list();
+        }
+    }
+    VerticalLayout {
+        padding: 12px;
+        padding-right: 34px;
+        spacing: 2px;
+        Text {
+            text: root.source;
+            font-size: 10.5px;
+            color: Theme.dim;
+        }
+        if root.title-text != "": Text {
+            text: root.title-text;
+            font-size: 13px;
+            font-weight: 600;
+            color: Theme.text;
+            overflow: elide;
+        }
+        Text {
+            text: root.text;
+            font-size: 12px;
+            color: Theme.text;
+            wrap: word-wrap;
+            overflow: elide;
+            vertical-stretch: 1;
+        }
+    }
+    Rectangle {
+        x: parent.width - 30px;
+        y: 6px;
+        width: 24px;
+        height: 24px;
+        border-radius: Theme.r-s;
+        background: nx-ta.has-hover ? Theme.hover : transparent;
+        Icon {
+            commands: Icons.close;
+            size: 12px;
+            color: Theme.dim;
+        }
+        nx-ta := TipArea {
+            tip: "Zamknij";
+            clicked => {
+                root.dismiss();
             }
         }
     }

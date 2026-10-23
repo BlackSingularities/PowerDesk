@@ -307,9 +307,9 @@ fn fire_due(s: &Shared) {
         }
         due
     };
+    let _ = s;
     for r in due {
-        powerdesk_core::tray::balloon("Przypomnienie", &r.text);
-        transfers::toast(s, format!("Przypomnienie: {}", r.text), Kind::Info, None);
+        crate::notices::add("Przypomnienie", "Przypomnienie", &r.text);
     }
 }
 

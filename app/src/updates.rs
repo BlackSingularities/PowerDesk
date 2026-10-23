@@ -47,10 +47,7 @@ fn found(s: &Shared, res: Result<Option<Release>, String>, manual: bool) {
             FOUND.with(|f| *f.borrow_mut() = Some(rel));
             let new = TOLD.with(|t| t.replace(v.clone()) != v);
             if new || manual {
-                // W trybie powłoki dymek i tak wróciłby jako to samo powiadomienie.
-                if !powerdesk_core::shellmode::active() {
-                    powerdesk_core::tray::balloon("Jest nowa wersja PowerDesk", &format!("Wersja {v} – kliknij, żeby zaktualizować."));
-                }
+                crate::notices::add("PowerDesk", "Jest nowa wersja", &format!("Wersja {v} – „Zaktualizuj” w oknie PowerDesk albo w menu Start → Sprawdź aktualizacje."));
                 transfers::toast(s, format!("Jest nowa wersja PowerDesk: {v} (masz {})", update::current()), Kind::Info, Some(("Zaktualizuj", std::rc::Rc::new(install))));
             }
         }

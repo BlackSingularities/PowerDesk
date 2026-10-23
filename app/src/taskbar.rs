@@ -15,7 +15,7 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
+use crate::{NoticesWindow, OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
 
 /// Wysokość paska w pikselach logicznych.
 const HEIGHT: f32 = 48.0;
@@ -71,6 +71,7 @@ enum Popup {
     Volume(VolumeWindow),
     Calendar(CalendarWindow),
     Network(NetworkWindow),
+    Notices(NoticesWindow),
 }
 
 pub fn is_open() -> bool {
@@ -137,6 +138,8 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_network_open(move |x| open_network(n, x));
         w.on_battery_open(|| sysbar::open_settings("batterysaver"));
         w.on_calendar_open(move |x| open_calendar(n, x));
+        w.on_notices_open(move |x| open_notices(n, x));
+        w.set_notice_count(crate::notices::unread());
         w.on_tray_app_click(|key, b| {
             use powerdesk_core::trayhost::{self, Click};
             let (x, y) = taskwin::cursor();
@@ -154,8 +157,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     // Powłoka: zasobnik z ikonami innych programów (własny Shell_TrayWnd).
     if powerdesk_core::shellmode::active() {
         powerdesk_core::trayhost::on_balloon(|title, text| {
-            let msg = if title.is_empty() { text } else { format!("{title}: {text}") };
-            let _ = slint::invoke_from_event_loop(move || crate::with_state(|s| crate::transfers::toast(s, msg, crate::transfers::Kind::Info, None)));
+            let _ = slint::invoke_from_event_loop(move || crate::notices::add("Program w zasobniku", &title, &text));
         });
         powerdesk_core::trayhost::start(|| {
             let _ = slint::invoke_from_event_loop(tray_apps);
@@ -565,6 +567,7 @@ fn own_popups() -> Vec<isize> {
             Popup::Volume(w) => crate::window_hwnd(w.window()),
             Popup::Calendar(w) => crate::window_hwnd(w.window()),
             Popup::Network(w) => crate::window_hwnd(w.window()),
+            Popup::Notices(w) => crate::window_hwnd(w.window()),
         }))
     });
     THUMBS.with(|t| out.extend(t.borrow().as_ref().map(|t| crate::window_hwnd(t.w.window()))));
@@ -582,6 +585,9 @@ fn close_popup() {
             let _ = w.hide();
         }
         Some(Popup::Network(w)) => {
+            let _ = w.hide();
+        }
+        Some(Popup::Notices(w)) => {
             let _ = w.hide();
         }
         None => {}
@@ -667,6 +673,52 @@ fn open_volume(bar: usize, x: f32) {
 }
 
 /// Kalendarz nad zegarem, dosunięty do prawej krawędzi monitora.
+/// Licznik nieprzeczytanych na wszystkich paskach i odświeżona lista, jeśli otwarta.
+pub fn notices_changed() {
+    let n = crate::notices::unread();
+    BARS.with(|b| b.borrow().iter().for_each(|bar| bar.w.set_notice_count(n)));
+    POPUP.with(|p| {
+        if let Some(Popup::Notices(w)) = &*p.borrow() {
+            w.set_rows(slint::ModelRc::new(slint::VecModel::from(crate::notices::rows())));
+        }
+    });
+}
+
+fn open_notices(bar: usize, x: f32) {
+    let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Notices(_))));
+    close_menu();
+    close_popup();
+    if was {
+        return;
+    }
+    let Some(spot) = spot(bar) else { return };
+    let Ok(w) = NoticesWindow::new() else { return };
+    same_theme!(bar, w);
+    w.set_rows(slint::ModelRc::new(slint::VecModel::from(crate::notices::rows())));
+    w.on_clear(crate::notices::clear);
+    above_bar(w.window(), spot, 340.0, 460.0, x - 300.0);
+    close_on_blur(w.window());
+    show_above(w.window());
+    POPUP.with(|p| *p.borrow_mut() = Some(Popup::Notices(w)));
+    crate::notices::mark_read();
+}
+
+/// Historia powiadomień z dymka – na pasku monitora z kursorem, przy prawej krawędzi.
+pub fn open_notices_here() {
+    let bar = bar_under_cursor();
+    let x = BARS.with(|b| b.borrow().get(bar).map(|b| b.mon.0 as f32 / b.w.window().scale_factor())).unwrap_or(0.0);
+    open_notices(bar, x);
+}
+
+/// Dymek powiadomienia nad paskiem monitora z kursorem, przy prawej krawędzi.
+pub fn place_toast(win: &slint::Window, width: f32, height: f32) {
+    let bar = bar_under_cursor();
+    if let Some(spot) = spot(bar) {
+        let right = spot.2 .0 as f32 / spot.3;
+        above_bar(win, spot, width, height, right - width - 8.0);
+    }
+}
+
 fn open_calendar(bar: usize, x: f32) {
     let was = POPUP.with(|p| matches!(*p.borrow(), Some(Popup::Calendar(_))));
     close_menu();
