@@ -51,8 +51,13 @@ Moduły: `core/src/shellswap.rs` (podmiana i przywracanie, strażnik `--shell-gu
   (w głównym oknie). `Shell_NotifyIconGetRect` – miejsce ostatniego kliku albo zasobnika przy zegarze.
   AppBar: tylko ABM_GETSTATE (układ APPBARMSGDATA 64-bitowy, przesunięcie 56 – niesprawdzone).
 - Skróty: Win+E (okno PowerDesk), Win+R (RunFileDlg), Win+D (własne minimalizowanie i przywracanie);
-  Win+L i Alt+Tab działają bez Eksploratora. Brak: Win+Tab (widok zadań), przepełnienie zasobnika,
-  rezerwacja krawędzi przez cudze AppBary, okno `SetShellWindow`.
+  Win+L i Alt+Tab działają bez Eksploratora. Win+Tab – własny widok zadań (`app/src/taskview.rs`:
+  karty wszystkich okien z podglądami DWM na monitorze z kursorem, klik przełącza, środkowy/krzyżyk
+  zamyka, Esc i klik w tło wracają).
+- AppBary innych programów (SHAppBarMessage przez nasz `Shell_TrayWnd`): NEW/REMOVE/QUERYPOS/SETPOS/
+  GETSTATE/GETTASKBARPOS; obszar roboczy = monitor − nasz pasek − AppBary (`shellmode::set_bar`,
+  `appbar_*`), wynik przez SHLockShared. Dwa układy danych (80 B x64, 52 B) – niesprawdzone na żywo.
+- Pierwsze okno pulpitu rejestrowane przez `SetShellWindow` (user32, nieudokumentowane).
 - Menu paska i Startu jako powłoka: „Uruchom ponownie PowerDesk” (strażnik restartuje; liczy się do
   limitu) i „Przełącz na Eksplorator Windows” (wpis zdjęty, strażnik uruchamia `explorer.exe`).
 - Strażnik: po końcu procesu w trybie powłoki – przy wylogowaniu nic; restart PowerDesk; 3 końce w 2 min

@@ -162,13 +162,16 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         });
         tray_apps();
     }
-    // Tryb powłoki: Win+E – okno PowerDesk, Win+R – „Uruchom”, Win+D – pulpit.
+    // Tryb powłoki: Win+E – okno PowerDesk, Win+R – „Uruchom”, Win+D – pulpit, Win+Tab – widok zadań.
     powerdesk_core::startmenu::hook_shell_keys(|k| match k {
         b'E' => {
             let _ = slint::invoke_from_event_loop(|| crate::with_state(|s| crate::open_args(s, Vec::new())));
         }
         b'R' => powerdesk_core::shellmode::run_dialog(),
         b'D' => taskwin::show_desktop(),
+        0x09 => {
+            let _ = slint::invoke_from_event_loop(crate::taskview::toggle);
+        }
         _ => {}
     });
     // Samo Win otwiera Start PowerDesk na monitorze z kursorem.
@@ -191,7 +194,7 @@ pub fn close() {
     for b in bars {
         if powerdesk_core::shellmode::active() {
             let (x, y) = b.origin;
-            powerdesk_core::shellmode::reset_work_area(x, y, x + b.mon.0, y + b.mon.1);
+            powerdesk_core::shellmode::clear_bar(x, y, x + b.mon.0, y + b.mon.1);
         }
         let _ = b.w.hide();
     }
@@ -292,6 +295,12 @@ pub fn popup_place() -> Option<(bool, slint::Color, f32, (i32, i32, i32), f32)> 
 }
 
 /// Pasek na monitorze, na którym jest kursor (pierwszy, gdy nie da się ustalić).
+/// Monitor pod kursorem: lewy górny róg, rozmiar (piksele ekranu) i skala.
+pub fn monitor_under_cursor() -> Option<((i32, i32), (i32, i32), f32)> {
+    let i = bar_under_cursor();
+    BARS.with(|b| b.borrow().get(i).map(|b| (b.origin, b.mon, b.w.window().scale_factor())))
+}
+
 fn bar_under_cursor() -> usize {
     let (cx, cy) = taskwin::cursor();
     BARS.with(|b| b.borrow().iter().position(|bar| cx >= bar.origin.0 && cx < bar.origin.0 + bar.mon.0 && cy >= bar.origin.1 && cy < bar.origin.1 + bar.mon.1).unwrap_or(0))
@@ -1072,7 +1081,7 @@ fn place(bar: &mut Bar) {
         // Bez Eksploratora nikt nie zostawi miejsca na pasek – obszar roboczy ustawiamy sami.
         if powerdesk_core::shellmode::active() {
             let (x, y) = bar.origin;
-            powerdesk_core::shellmode::set_work_area(x, y, x + bar.mon.0, y + bar.mon.1 - h);
+            powerdesk_core::shellmode::set_bar(x, y, x + bar.mon.0, y + bar.mon.1, h);
             if bar.origin == (0, 0) {
                 // Zasobnik stoi przy zegarze – przybliżone miejsce dla programów pytających o ikonę.
                 let w = (240.0 * scale) as i32;

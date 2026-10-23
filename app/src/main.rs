@@ -6,6 +6,7 @@ mod bulk;
 mod desktop;
 mod dragdrop;
 mod taskbar;
+mod taskview;
 mod start;
 mod starttiles;
 mod cliphistory;

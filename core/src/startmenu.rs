@@ -119,9 +119,9 @@ static ON_START: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static ON_CLIPBOARD: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static WIN_DOWN: AtomicBool = AtomicBool::new(false);
 static COMBO: AtomicBool = AtomicBool::new(false);
-/// Tryb powłoki: Win+E, Win+R, Win+D obsługuje PowerDesk (bez Eksploratora nie zrobi tego nikt).
+/// Tryb powłoki: Win+E, Win+R, Win+D, Win+Tab obsługuje PowerDesk (bez Eksploratora nie zrobi tego nikt).
 static ON_SHELL_KEY: OnceLock<Box<dyn Fn(u8) + Send + Sync>> = OnceLock::new();
-const SHELL_KEYS: [u8; 3] = [b'E', b'R', b'D'];
+const SHELL_KEYS: [u8; 4] = [b'E', b'R', b'D', 0x09];
 /// Klawisz z Win połknięty przez nas (Win+V) – system widział samo Win, trzeba je zamaskować.
 static SWALLOWED: AtomicBool = AtomicBool::new(false);
 /// Nieprzypisany kod klawisza – „maskuje” samotne Win, żeby Windows nie otwierał swojego Start.
@@ -194,7 +194,7 @@ pub fn hook_win_v(on_clipboard: impl Fn() + Send + Sync + 'static) {
     let _ = ON_CLIPBOARD.set(Box::new(on_clipboard));
 }
 
-/// Skróty z Win w trybie powłoki (kod klawisza: E, R, D); wywołać przed `hook_win_key`.
+/// Skróty z Win w trybie powłoki (kod klawisza: E, R, D, Tab); wywołać przed `hook_win_key`.
 pub fn hook_shell_keys(on_key: impl Fn(u8) + Send + Sync + 'static) {
     let _ = ON_SHELL_KEY.set(Box::new(on_key));
 }

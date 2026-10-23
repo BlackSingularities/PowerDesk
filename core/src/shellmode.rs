@@ -62,6 +62,157 @@ pub fn unregister() -> Result<(), String> {
     Ok(())
 }
 
+// ---------- Obszar roboczy: nasz pasek i cudze AppBary ----------
+
+/// Monitor (lewo, góra, prawo, dół) i wysokość paska PowerDesk na jego dole.
+static BARS: parking_lot::Mutex<Vec<(RECT, i32)>> = parking_lot::Mutex::new(Vec::new());
+/// Paski innych programów przyklejone do krawędzi (SHAppBarMessage): okno, krawędź, prostokąt.
+static APPBARS: parking_lot::Mutex<Vec<AppBar>> = parking_lot::Mutex::new(Vec::new());
+
+#[derive(Clone, Copy, Debug)]
+pub struct AppBar {
+    pub hwnd: isize,
+    pub callback: u32,
+    /// ABE_LEFT 0, ABE_TOP 1, ABE_RIGHT 2, ABE_BOTTOM 3.
+    pub edge: u32,
+    pub rc: RECT,
+}
+
+fn overlaps(a: &RECT, b: &RECT) -> bool {
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+}
+
+/// Pasek PowerDesk na dole monitora – zapamiętany i od razu w obszarze roboczym.
+pub fn set_bar(left: i32, top: i32, right: i32, bottom: i32, height: i32) {
+    let mon = RECT { left, top, right, bottom };
+    {
+        let mut bars = BARS.lock();
+        bars.retain(|(m, _)| !(m.left == left && m.top == top));
+        bars.push((mon, height));
+    }
+    recompute();
+}
+
+/// Pasek zamknięty – monitor wraca do pełnego obszaru (bez cudzych AppBarów).
+pub fn clear_bar(left: i32, top: i32, right: i32, bottom: i32) {
+    BARS.lock().retain(|(m, _)| !(m.left == left && m.top == top));
+    reset_work_area(left, top, right, bottom);
+}
+
+/// Monitor, na którym leży prostokąt, i wolne miejsce na nim po odjęciu naszego paska
+/// i AppBarów innych niż `skip`.
+fn free_area(rc: &RECT, skip: isize) -> Option<(RECT, RECT)> {
+    let bars = BARS.lock().clone();
+    let (mon, h) = bars.iter().find(|(m, _)| overlaps(m, rc)).copied().or_else(|| bars.first().copied())?;
+    let mut area = RECT { bottom: mon.bottom - h, ..mon };
+    for a in APPBARS.lock().iter().filter(|a| a.hwnd != skip && overlaps(&a.rc, &mon)) {
+        match a.edge {
+            0 => area.left = area.left.max(a.rc.right),
+            1 => area.top = area.top.max(a.rc.bottom),
+            2 => area.right = area.right.min(a.rc.left),
+            _ => area.bottom = area.bottom.min(a.rc.top),
+        }
+    }
+    Some((mon, area))
+}
+
+/// Obszar roboczy każdego monitora: bez naszego paska i bez cudzych AppBarów.
+fn recompute() {
+    let bars = BARS.lock().clone();
+    for (mon, _) in bars {
+        if let Some((_, area)) = free_area(&mon, 0) {
+            set_work_area(area.left, area.top, area.right, area.bottom);
+        }
+    }
+}
+
+/// AppBar pyta o miejsce (QUERYPOS/SETPOS): prostokąt przycięty do wolnego obszaru przy jego krawędzi.
+pub fn appbar_fit(hwnd: isize, edge: u32, mut rc: RECT) -> RECT {
+    let Some((_, area)) = free_area(&rc, hwnd) else { return rc };
+    let (w, h) = (rc.right - rc.left, rc.bottom - rc.top);
+    match edge {
+        0 => {
+            rc.left = area.left;
+            rc.right = area.left + w;
+        }
+        1 => {
+            rc.top = area.top;
+            rc.bottom = area.top + h;
+        }
+        2 => {
+            rc.right = area.right;
+            rc.left = area.right - w;
+        }
+        _ => {
+            rc.bottom = area.bottom;
+            rc.top = area.bottom - h;
+        }
+    }
+    if edge == 0 || edge == 2 {
+        rc.top = rc.top.max(area.top);
+        rc.bottom = rc.bottom.min(area.bottom);
+    } else {
+        rc.left = rc.left.max(area.left);
+        rc.right = rc.right.min(area.right);
+    }
+    rc
+}
+
+pub fn appbar_new(hwnd: isize, callback: u32) -> bool {
+    let mut bars = APPBARS.lock();
+    if bars.iter().any(|a| a.hwnd == hwnd) {
+        return false;
+    }
+    bars.push(AppBar { hwnd, callback, edge: 3, rc: RECT::default() });
+    true
+}
+
+pub fn appbar_remove(hwnd: isize) {
+    APPBARS.lock().retain(|a| a.hwnd != hwnd);
+    recompute();
+    notify_appbars(hwnd);
+}
+
+/// Zapis położenia AppBaru i nowy obszar roboczy; pozostałe AppBary dostają ABN_POSCHANGED.
+pub fn appbar_set(hwnd: isize, edge: u32, rc: RECT) {
+    {
+        let mut bars = APPBARS.lock();
+        if let Some(a) = bars.iter_mut().find(|a| a.hwnd == hwnd) {
+            a.edge = edge;
+            a.rc = rc;
+        }
+    }
+    recompute();
+    notify_appbars(hwnd);
+}
+
+/// Zamknięte okna AppBarów (bez ABM_REMOVE) – zwolnienie ich miejsca.
+pub fn appbar_prune() {
+    use windows::Win32::UI::WindowsAndMessaging::IsWindow;
+    let before = APPBARS.lock().len();
+    APPBARS.lock().retain(|a| unsafe { IsWindow(Some(HWND(a.hwnd as *mut _))).as_bool() });
+    if APPBARS.lock().len() != before {
+        recompute();
+    }
+}
+
+fn notify_appbars(except: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
+    for a in APPBARS.lock().iter().filter(|a| a.hwnd != except && a.callback != 0) {
+        // ABN_POSCHANGED = 1.
+        unsafe {
+            let _ = PostMessageW(Some(HWND(a.hwnd as *mut _)), a.callback, WPARAM(1), LPARAM(0));
+        }
+    }
+}
+
+/// Prostokąt naszego paska na monitorze głównym (ABM_GETTASKBARPOS).
+pub fn taskbar_rect() -> Option<RECT> {
+    let bars = BARS.lock();
+    let (m, h) = bars.iter().find(|(m, _)| m.left == 0 && m.top == 0).or(bars.first())?;
+    Some(RECT { top: m.bottom - h, ..*m })
+}
+
 /// Obszar roboczy monitora (bez paska). Bez Eksploratora nikt inny go nie ustawi.
 pub fn set_work_area(left: i32, top: i32, right: i32, bottom: i32) {
     let mut r = RECT { left, top, right, bottom };
@@ -96,6 +247,20 @@ pub fn keep_at_bottom(hwnd: isize) {
     }
     unsafe {
         let _ = SetWindowSubclass(HWND(hwnd as *mut _), Some(proc), 0x5044, 0);
+    }
+}
+
+/// Okno pulpitu jako okno powłoki (GetShellWindow) – programy i system traktują je jak pulpit
+/// (np. przy szukaniu okna do aktywacji). SetShellWindow z user32 – nieudokumentowane, bez nagłówka.
+pub fn register_shell_window(hwnd: isize) {
+    use windows::Win32::System::LibraryLoader::{GetModuleHandleW, GetProcAddress};
+    type SetShell = unsafe extern "system" fn(HWND) -> i32;
+    unsafe {
+        let Ok(user) = GetModuleHandleW(w!("user32.dll")) else { return };
+        if let Some(f) = GetProcAddress(user, windows::core::s!("SetShellWindow")) {
+            let f: SetShell = std::mem::transmute(f);
+            f(HWND(hwnd as *mut _));
+        }
     }
 }
 

@@ -1145,3 +1145,114 @@ export component TaskbarWindow inherits Window {
         }
     }
 }
+
+/// Karta okna w widoku zadań (Win+Tab w trybie powłoki): miejsce liczy taskview.rs,
+/// podgląd okna rysuje DWM pod paskiem tytułu karty.
+export struct TaskCard {
+    title: string,
+    img: image,
+    has-img: bool,
+    active: bool,
+    x: length,
+    y: length,
+    w: length,
+    h: length,
+}
+
+/// Widok zadań na cały monitor: przyciemnione tło i karty okien. Klik – przełącza, środkowy
+/// przycisk albo krzyżyk – zamyka okno, Esc i klik w tło – powrót.
+export component TaskViewWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    title: "PowerDesk – widok zadań";
+    background: #000000b0;
+    in property <[TaskCard]> cards;
+    callback pick(int);
+    callback close-win(int);
+    callback dismiss();
+    forward-focus: tv-fs;
+    tv-fs := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                root.dismiss();
+                return accept;
+            }
+            reject
+        }
+    }
+    TouchArea {
+        clicked => {
+            root.dismiss();
+        }
+    }
+    if root.cards.length == 0: Text {
+        text: "Brak otwartych okien";
+        font-size: 16px;
+        color: #ffffffcc;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    for c[i] in root.cards: Rectangle {
+        x: c.x;
+        y: c.y;
+        width: c.w;
+        height: c.h;
+        border-radius: Theme.r;
+        background: tc-ta.has-hover ? Theme.hover.with-alpha(1) : Theme.popup-high.with-alpha(1);
+        border-width: c.active ? 2px : 1px;
+        border-color: c.active ? Theme.accent : Theme.line;
+        tc-ta := TouchArea {
+            mouse-cursor: pointer;
+            clicked => {
+                root.pick(i);
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.middle) {
+                    root.close-win(i);
+                }
+            }
+        }
+        HorizontalLayout {
+            y: 0;
+            height: 30px;
+            padding-left: 8px;
+            padding-right: 4px;
+            spacing: 6px;
+            Rectangle {
+                width: 16px;
+                if c.has-img: Image {
+                    y: (parent.height - 16px) / 2;
+                    width: 16px;
+                    height: 16px;
+                    source: c.img;
+                }
+            }
+            Text {
+                horizontal-stretch: 1;
+                vertical-alignment: center;
+                text: c.title;
+                overflow: elide;
+                font-size: 12px;
+                color: Theme.text;
+            }
+            Rectangle {
+                width: 26px;
+                y: 2px;
+                height: 26px;
+                border-radius: Theme.r;
+                background: tx-ta.has-hover ? #e5484d : transparent;
+                Icon {
+                    commands: Icons.close;
+                    size: 14px;
+                    color: tx-ta.has-hover ? white : Theme.dim;
+                }
+                tx-ta := TipArea {
+                    tip: "Zamknij okno";
+                    clicked => {
+                        root.close-win(i);
+                    }
+                }
+            }
+        }
+    }
+}

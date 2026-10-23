@@ -275,16 +275,75 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             let (a, b) = if what == 1 { (x, y) } else { (x + w, y + h) };
             return LRESULT((((b as u16) as isize) << 16) | (a as u16 as isize));
         }
-        // AppBar: odpowiadamy tylko na ABM_GETSTATE (pasek zawsze na wierzchu, bez autoukrywania).
-        if cds.dwData == 0 && cds.cbData >= 60 {
-            let what = *(cds.lpData as *const u8).add(56).cast::<u32>();
-            if what == 4 {
-                return LRESULT(2);
-            }
+        if cds.dwData == 0 {
+            return LRESULT(appbar(cds.lpData as *const u8, cds.cbData as usize));
         }
         return LRESULT(0);
     }
     DefWindowProcW(hwnd, msg, wp, lp)
+}
+
+/// SHAppBarMessage od innego programu. Dwa układy danych: 64-bitowy z wyrównaniem (80 bajtów,
+/// Windows 10/11 x64) i spakowany z 32-bitowymi uchwytami (52 bajty). Wynik (prostokąt) wraca
+/// przez pamięć współdzieloną nadawcy (SHLockShared).
+unsafe fn appbar(p: *const u8, len: usize) -> isize {
+    use crate::shellmode;
+    use windows::Win32::Foundation::{HANDLE, RECT};
+    use windows::Win32::UI::Shell::{SHLockShared, SHUnlockShared};
+    let rd32 = |off: usize| std::ptr::read_unaligned(p.add(off) as *const u32);
+    let rd64 = |off: usize| std::ptr::read_unaligned(p.add(off) as *const u64);
+    let rect = |off: usize| std::ptr::read_unaligned(p.add(off) as *const RECT);
+    // (okno, komunikat zwrotny, krawędź, prostokąt, lParam, wiadomość, pamięć, proces, przesunięcia krawędzi i rc w APPBARDATA)
+    let (hwnd, cb, edge, rc, lparam, msg, shared, pid, edge_off, rc_off) = if len >= 80 {
+        (rd64(8) as isize, rd32(16), rd32(24), rect(32), rd64(48) as isize, rd32(56), rd64(64) as isize, rd32(72), 24usize, 32usize)
+    } else if len >= 52 {
+        (rd32(4) as i32 as isize, rd32(8), rd32(12), rect(16), rd64(32) as isize, rd32(40), rd32(44) as i32 as isize, rd32(48), 12usize, 16usize)
+    } else {
+        return 0;
+    };
+    let _ = lparam;
+    // Zapis prostokąta (i krawędzi) do APPBARDATA nadawcy.
+    let write_back = |rc: RECT, edge: Option<u32>| {
+        if shared == 0 {
+            return;
+        }
+        let m = SHLockShared(HANDLE(shared as *mut _), pid) as *mut u8;
+        if m.is_null() {
+            return;
+        }
+        std::ptr::write_unaligned(m.add(rc_off) as *mut RECT, rc);
+        if let Some(e) = edge {
+            std::ptr::write_unaligned(m.add(edge_off) as *mut u32, e);
+        }
+        let _ = SHUnlockShared(m as *const _);
+    };
+    match msg {
+        0 => shellmode::appbar_new(hwnd, cb) as isize,
+        1 => {
+            shellmode::appbar_remove(hwnd);
+            1
+        }
+        2 => {
+            write_back(shellmode::appbar_fit(hwnd, edge, rc), None);
+            1
+        }
+        3 => {
+            let fit = shellmode::appbar_fit(hwnd, edge, rc);
+            shellmode::appbar_set(hwnd, edge, fit);
+            write_back(fit, None);
+            1
+        }
+        // ABM_GETSTATE: zawsze na wierzchu, bez autoukrywania.
+        4 => 2,
+        5 => match shellmode::taskbar_rect() {
+            Some(r) => {
+                write_back(r, Some(3));
+                1
+            }
+            None => 0,
+        },
+        _ => 1,
+    }
 }
 
 /// Położenie ikony na ekranie: przy ostatnim kliku, inaczej zasobnik na pasku.
@@ -324,6 +383,7 @@ pub fn start(on_change: impl Fn() + Send + Sync + 'static) {
         icons.retain(|i| unsafe { IsWindow(Some(HWND(i.hwnd as *mut _))).as_bool() });
         let gone = icons.len() != before;
         drop(icons);
+        crate::shellmode::appbar_prune();
         if gone {
             changed();
         }

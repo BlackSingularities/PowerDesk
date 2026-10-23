@@ -154,6 +154,10 @@ fn attach() {
                 // Powłoka bez Eksploratora: zwykłe okna na dnie, pod wszystkimi programami.
                 powerdesk_core::shellmode::keep_at_bottom(hwnd);
                 powerdesk_core::shellmode::place_desktop(hwnd, x, y, wd, ht);
+                // Pierwsze okno (monitor główny) – okno powłoki systemu.
+                if hwnds.is_empty() {
+                    powerdesk_core::shellmode::register_shell_window(hwnd);
+                }
                 hwnds.push(hwnd);
             } else if powerdesk_core::shellswap::attach_desktop(hwnd, x, y, wd, ht) {
                 hwnds.push(hwnd);
