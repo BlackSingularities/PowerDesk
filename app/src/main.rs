@@ -34,6 +34,7 @@ mod wallpapers;
 mod widgets;
 mod zones;
 mod widgetfeeds;
+mod widgetmore;
 mod palette;
 mod player;
 mod shelf;

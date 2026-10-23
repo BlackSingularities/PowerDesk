@@ -25,3 +25,11 @@ fn virtual_desktops() {
 fn power_scheme() {
     println!("plan zasilania: {:?}", powerdesk_core::gamemode::active_scheme());
 }
+
+#[test]
+#[ignore]
+fn network_speed() {
+    powerdesk_core::netspeed::sample();
+    std::thread::sleep(std::time::Duration::from_secs(2));
+    println!("sieć B/s: {:?}", powerdesk_core::netspeed::sample());
+}

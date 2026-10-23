@@ -505,7 +505,7 @@ pub fn config_items(kind: &str) -> Vec<Item> {
             })
             .danger(),
         ],
-        _ => Vec::new(),
+        other => crate::widgetmore::config_items(other),
     }
 }
 

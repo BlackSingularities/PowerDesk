@@ -277,7 +277,7 @@ export component DesktopWindow inherits Window {
         drop-shadow-color: #00000055;
         border-radius: Theme.r;
         // Notatka i multimedia mają w środku pole albo przyciski – chwyta się je za górny pasek.
-        property <bool> grab-bar: wd.kind == "note" || wd.kind == "media";
+        property <bool> grab-bar: wd.kind == "note" || wd.kind == "media" || wd.kind == "todo" || wd.kind == "clipboard";
         mv-ta := TouchArea {
             height: parent.grab-bar ? 22px : parent.height;
             y: 0;

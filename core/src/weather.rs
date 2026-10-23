@@ -60,6 +60,11 @@ pub struct Weather {
     pub days: Vec<Day>,
 }
 
+/// JSON spod adresu (też dla innych widżetów, np. kursów NBP).
+pub fn get_json(url: &str) -> Result<Value, String> {
+    get(url)
+}
+
 fn get(url: &str) -> Result<Value, String> {
     ureq::get(url)
         .set("User-Agent", "PowerDesk")

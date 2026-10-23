@@ -14,7 +14,7 @@ use crate::{fmt, WDay, WDrive, WidgetData};
 
 /// Rodzaje widżetów: identyfikator, nazwa w menu, ikona menu i domyślny rozmiar kafelka
 /// (0 – średni, 2 – szeroki, 3 – duży) oraz na pulpicie (szerokość, wysokość).
-pub const KINDS: [(&str, &str, &str, u8, (f32, f32)); 10] = [
+pub const KINDS: [(&str, &str, &str, u8, (f32, f32)); 15] = [
     ("clock", "Zegar", "history", 2, (260.0, 130.0)),
     ("calendar", "Kalendarz", "grid", 3, (260.0, 250.0)),
     ("weather", "Pogoda", "cloud", 3, (280.0, 200.0)),
@@ -25,6 +25,11 @@ pub const KINDS: [(&str, &str, &str, u8, (f32, f32)); 10] = [
     ("system", "System", "bolt", 2, (280.0, 200.0)),
     ("drives", "Dyski", "drive", 2, (280.0, 180.0)),
     ("note", "Notatka", "edit", 0, (220.0, 200.0)),
+    ("todo", "Zadania", "check", 3, (260.0, 240.0)),
+    ("countdown", "Odliczanie", "history", 0, (220.0, 140.0)),
+    ("network", "Sieć", "wifi", 2, (280.0, 150.0)),
+    ("clipboard", "Schowek", "paste", 2, (280.0, 200.0)),
+    ("currency", "Kursy walut", "hash", 2, (240.0, 190.0)),
 ];
 
 pub fn name(kind: &str) -> &'static str {
@@ -157,6 +162,7 @@ fn tick() {
         refresh_drives();
     }
     crate::widgetfeeds::tick(n, &used);
+    crate::widgetmore::tick(n, &used);
     // Bez widżetów nie ma czego przerysowywać (przypomnienia sprawdza widgetfeeds::tick).
     if !used.is_empty() {
         push_all();
@@ -187,6 +193,7 @@ pub fn apply(g: &WidgetData) {
         g.set_drives(ModelRc::new(VecModel::from(d.drives.clone())));
     });
     crate::widgetfeeds::apply(g);
+    crate::widgetmore::apply(g);
 }
 
 pub fn push_all() {

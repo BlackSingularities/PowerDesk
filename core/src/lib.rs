@@ -24,6 +24,7 @@ pub mod integration;
 pub mod library;
 pub mod log;
 pub mod maps;
+pub mod netspeed;
 pub mod nowplaying;
 pub mod media;
 pub mod ops;

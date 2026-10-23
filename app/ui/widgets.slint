@@ -50,6 +50,20 @@ export struct WidgetItem {
     h: length,
 }
 
+/// Zadanie na liście.
+export struct WTodo {
+    text: string,
+    done: bool,
+}
+
+/// Kurs waluty: kod, wartość w zł i zmiana od poprzedniej tabeli (+/−).
+export struct WFx {
+    code: string,
+    value: string,
+    change: string,
+    up: bool,
+}
+
 /// Dane wspólne dla wszystkich widżetów okna – odświeża widgets.rs co sekundę.
 export global WidgetData {
     in-out property <string> time;
@@ -94,6 +108,24 @@ export global WidgetData {
     in-out property <string> p-status;
     // Przypomnienia (najbliższe).
     in-out property <[WRem]> rems;
+    // Sieć: prędkości i historia pobierania (0–1 względem najwyższej).
+    in-out property <string> net-down;
+    in-out property <string> net-up;
+    in-out property <[float]> net-hist;
+    // Schowek: ostatnie teksty; klik – z powrotem do schowka.
+    in-out property <[string]> clips;
+    callback clip-pick(int);
+    // Zadania: tekst i czy zrobione; klik – przełącza.
+    in-out property <[WTodo]> todos;
+    callback todo-toggle(int);
+    // Kursy walut NBP i data tabeli.
+    in-out property <[WFx]> fx;
+    in-out property <string> fx-date;
+    // Odliczanie: do czego, duża liczba z jednostką, reszta.
+    in-out property <string> cd-label;
+    in-out property <string> cd-big;
+    in-out property <string> cd-unit;
+    in-out property <string> cd-rest;
 }
 
 /// Ikona pogody rysowana kształtami (bez czcionek z emoji): słońce, chmura, deszcz, śnieg, burza, mgła.
@@ -680,6 +712,223 @@ export component WidgetBody inherits Rectangle {
         }
         Rectangle {
             vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Sieć ----------
+    if root.kind == "network": VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        if !root.compact: WTitle {
+            icon: Icons.wifi;
+            text: "Sieć";
+        }
+        HorizontalLayout {
+            spacing: 12px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                Text {
+                    text: "↓ pobieranie";
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+                Text {
+                    text: WidgetData.net-down;
+                    font-size: root.compact ? 15px : 19px;
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                Text {
+                    text: "↑ wysyłanie";
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+                Text {
+                    text: WidgetData.net-up;
+                    font-size: root.compact ? 15px : 19px;
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+            }
+        }
+        if root.height >= 140px: Rectangle {
+            vertical-stretch: 1;
+            min-height: 26px;
+            for v[i] in WidgetData.net-hist: Rectangle {
+                x: i * parent.width / 40;
+                width: max(1px, parent.width / 40 - 1px);
+                height: max(1px, v * parent.height);
+                y: parent.height - self.height;
+                border-radius: 1px;
+                background: Theme.accent.with-alpha(0.3 + v * 0.55);
+            }
+        }
+    }
+
+    // ---------- Schowek ----------
+    if root.kind == "clipboard": VerticalLayout {
+        padding: root.pad;
+        spacing: 4px;
+        if !root.compact: WTitle {
+            icon: Icons.paste;
+            text: "Schowek · klik – skopiuj ponownie";
+        }
+        if WidgetData.clips.length == 0: Text {
+            text: "Nic jeszcze nie skopiowano";
+            font-size: 11.5px;
+            color: Theme.faint;
+        }
+        for c[i] in WidgetData.clips: Rectangle {
+            height: 24px;
+            border-radius: Theme.r-s;
+            background: cp-ta.has-hover ? Theme.hover : transparent;
+            Text {
+                x: 6px;
+                width: parent.width - 12px;
+                text: c;
+                font-size: 12px;
+                color: Theme.text;
+                overflow: elide;
+                vertical-alignment: center;
+            }
+            cp-ta := TouchArea {
+                clicked => {
+                    WidgetData.clip-pick(i);
+                }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Zadania ----------
+    if root.kind == "todo": VerticalLayout {
+        padding: root.pad;
+        padding-top: root.compact ? root.pad : 24px;
+        spacing: 2px;
+        if WidgetData.todos.length == 0: Text {
+            text: "Brak zadań – prawy przycisk → „Dodaj zadanie…”";
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.faint;
+        }
+        for t[i] in WidgetData.todos: Rectangle {
+            height: 26px;
+            border-radius: Theme.r-s;
+            background: td-ta.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 4px;
+                spacing: 8px;
+                Rectangle {
+                    y: (parent.height - 14px) / 2;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 4px;
+                    border-width: 1.5px;
+                    border-color: t.done ? Theme.accent : Theme.dim;
+                    background: t.done ? Theme.accent : transparent;
+                    if t.done: Icon {
+                        commands: Icons.check;
+                        size: 11px;
+                        color: white;
+                    }
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: t.text;
+                    font-size: 12px;
+                    color: t.done ? Theme.faint : Theme.text;
+                    overflow: elide;
+                }
+            }
+            td-ta := TouchArea {
+                clicked => {
+                    WidgetData.todo-toggle(i);
+                }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Kursy walut ----------
+    if root.kind == "currency": VerticalLayout {
+        padding: root.pad;
+        spacing: 4px;
+        if !root.compact: WTitle {
+            icon: Icons.hash;
+            text: "Kursy NBP · " + WidgetData.fx-date;
+        }
+        if WidgetData.fx.length == 0: Text {
+            text: "Pobieranie kursów…";
+            font-size: 11.5px;
+            color: Theme.faint;
+        }
+        for f in WidgetData.fx: HorizontalLayout {
+            spacing: 8px;
+            Text {
+                width: 40px;
+                text: f.code;
+                font-size: 12px;
+                font-weight: 600;
+                color: Theme.dim;
+            }
+            Text {
+                horizontal-stretch: 1;
+                text: f.value;
+                font-size: root.compact ? 13px : 15px;
+                color: Theme.text;
+            }
+            Text {
+                text: f.change;
+                font-size: 11px;
+                color: f.up ? #3ddc84 : #ff6b6b;
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Odliczanie ----------
+    if root.kind == "countdown": VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 2px;
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.cd-label;
+            font-size: 12px;
+            color: Theme.dim;
+            overflow: elide;
+        }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 6px;
+            Text {
+                text: WidgetData.cd-big;
+                font-size: min(root.height * 0.36, root.width * 0.26);
+                font-weight: 300;
+                color: Theme.text;
+            }
+            Text {
+                y: parent.height - self.height - 8px;
+                text: WidgetData.cd-unit;
+                font-size: 13px;
+                color: Theme.dim;
+            }
+        }
+        if root.height >= 100px: Text {
+            horizontal-alignment: center;
+            text: WidgetData.cd-rest;
+            font-size: 11px;
+            color: Theme.faint;
         }
     }
 
