@@ -119,6 +119,9 @@ static ON_START: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static ON_CLIPBOARD: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static WIN_DOWN: AtomicBool = AtomicBool::new(false);
 static COMBO: AtomicBool = AtomicBool::new(false);
+/// Tryb powłoki: Win+E, Win+R, Win+D obsługuje PowerDesk (bez Eksploratora nie zrobi tego nikt).
+static ON_SHELL_KEY: OnceLock<Box<dyn Fn(u8) + Send + Sync>> = OnceLock::new();
+const SHELL_KEYS: [u8; 3] = [b'E', b'R', b'D'];
 /// Klawisz z Win połknięty przez nas (Win+V) – system widział samo Win, trzeba je zamaskować.
 static SWALLOWED: AtomicBool = AtomicBool::new(false);
 /// Nieprzypisany kod klawisza – „maskuje” samotne Win, żeby Windows nie otwierał swojego Start.
@@ -157,6 +160,15 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
                     }
                 }
                 return LRESULT(1);
+            } else if WIN_DOWN.load(Ordering::SeqCst) && SHELL_KEYS.iter().any(|&c| k.vkCode == c as u32) && ON_SHELL_KEY.get().is_some() && crate::shellmode::active() {
+                COMBO.store(true, Ordering::SeqCst);
+                SWALLOWED.store(true, Ordering::SeqCst);
+                if down {
+                    if let Some(f) = ON_SHELL_KEY.get() {
+                        f(k.vkCode as u8);
+                    }
+                }
+                return LRESULT(1);
             } else if down && WIN_DOWN.load(Ordering::SeqCst) {
                 // Win+E, Win+D, Win+Tab… – skrót systemowy, nie Start.
                 COMBO.store(true, Ordering::SeqCst);
@@ -180,6 +192,11 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
 /// Win+V otwiera historię schowka PowerDesk (wywołać przed `hook_win_key`).
 pub fn hook_win_v(on_clipboard: impl Fn() + Send + Sync + 'static) {
     let _ = ON_CLIPBOARD.set(Box::new(on_clipboard));
+}
+
+/// Skróty z Win w trybie powłoki (kod klawisza: E, R, D); wywołać przed `hook_win_key`.
+pub fn hook_shell_keys(on_key: impl Fn(u8) + Send + Sync + 'static) {
+    let _ = ON_SHELL_KEY.set(Box::new(on_key));
 }
 
 /// Samo Win (bez innego klawisza) otwiera menu Start PowerDesk. Hak żyje na własnym wątku

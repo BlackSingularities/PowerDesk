@@ -2,7 +2,7 @@
 //! w menu oraz start z Windows. Wpisy (tylko HKCU) odnawiamy przy każdym starcie – zawsze
 //! wskazują bieżący plik .exe. Cofnięcie: `--remove-integration` (deinstalator).
 
-use crate::{autostart, filemgr, winkey};
+use crate::{autostart, filemgr, shellmode, winkey};
 
 /// Argument, który zdejmuje integrację i kończy program.
 pub const REMOVE_FLAG: &str = "--remove-integration";
@@ -14,6 +14,7 @@ pub fn status() -> Vec<(&'static str, &'static str, bool)> {
         ("Win+E", "Skrót klawiszowy otwiera nowe okno PowerDesk", winkey::enabled()),
         ("Menu Eksploratora", "„Otwórz w PowerDesk” dla folderów, dysków i tła folderu", filemgr::menu_enabled()),
         ("Start z Windows", "Po zalogowaniu PowerDesk działa w tle, w zasobniku", autostart::enabled()),
+        ("Powłoka", "Po zalogowaniu PowerDesk zamiast Eksploratora (pulpit, pasek, zasobnik)", shellmode::registered()),
     ]
 }
 
@@ -39,6 +40,9 @@ pub fn ensure() -> Result<(), String> {
     if !autostart::enabled() {
         keep(autostart::set(true));
     }
+    if !shellmode::registered() {
+        keep(shellmode::register());
+    }
     err
 }
 
@@ -47,5 +51,6 @@ pub fn remove() -> Result<(), String> {
     filemgr::set_default(false)?;
     winkey::set(false)?;
     filemgr::set_menu(false)?;
+    shellmode::unregister()?;
     autostart::set(false)
 }

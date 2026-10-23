@@ -275,12 +275,17 @@ pub fn spawn_guard() {
 }
 
 /// Strażnik: czeka na koniec procesu `pid`; jeśli zostawił podmianę (plik stanu) – przywraca.
+/// W trybie powłoki (Eksplorator nie działa) zamiast tego restartuje PowerDesk albo, po kilku
+/// awariach z rzędu, wraca do Eksploratora (`shellmode::after_exit`).
 pub fn guard(pid: u32) {
     unsafe {
         if let Ok(p) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
             WaitForSingleObject(p, INFINITE);
             let _ = windows::Win32::Foundation::CloseHandle(p);
         }
+    }
+    if crate::shellmode::detect() && crate::shellmode::after_exit() {
+        return;
     }
     if swapped() {
         restore();

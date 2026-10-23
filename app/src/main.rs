@@ -230,6 +230,10 @@ fn main() -> Result<(), slint::PlatformError> {
             eprintln!("{e}");
             std::process::exit(1);
         }
+        // Bez Eksploratora (PowerDesk był powłoką) – uruchamiamy go, żeby nie został czarny ekran.
+        if powerdesk_core::shellmode::detect() {
+            powerdesk_core::shellmode::fallback_to_explorer();
+        }
         return Ok(());
     }
     // Działa już okno – oddajemy mu argumenty (Win+E, „Otwórz w PowerDesk”) i kończymy.
@@ -237,6 +241,8 @@ fn main() -> Result<(), slint::PlatformError> {
     if powerdesk_core::instance::send_to_running(&args) {
         return Ok(());
     }
+    // Bez paska Eksploratora PowerDesk jest powłoką – przed własnym `Shell_TrayWnd`.
+    powerdesk_core::shellmode::detect();
     let ui = MainWindow::new()?;
     let prefs = Prefs::load();
     settings::apply_look(&ui, &prefs);

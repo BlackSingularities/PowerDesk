@@ -211,6 +211,11 @@ pub fn thumb_unregister(id: isize) {
 
 /// Pokaż pulpit (Win+D) – systemowe, jak przycisk na końcu paska Windows.
 pub fn show_desktop() {
+    // Bez Eksploratora systemowe Win+D nic nie robi – własne minimalizowanie i przywracanie.
+    if crate::shellmode::active() {
+        crate::shellmode::toggle_desktop();
+        return;
+    }
     use windows::Win32::UI::Input::KeyboardAndMouse::VIRTUAL_KEY;
     let key = |vk: VIRTUAL_KEY, up: bool| INPUT {
         r#type: INPUT_KEYBOARD,

@@ -76,6 +76,45 @@ component TrayIcon inherits Rectangle {
     }
 }
 
+/// Ikona programu w zasobniku (tryb powłoki – własny Shell_TrayWnd, trayhost.rs).
+export struct TrayApp {
+    key: string,
+    img: image,
+    tip: string,
+}
+
+/// Ikona programu w zasobniku: obraz od programu, kliki odsyłane do niego.
+component TrayAppIcon inherits Rectangle {
+    in property <image> img;
+    in property <string> tip;
+    /// 0 – lewy, 1 – dwuklik, 2 – prawy (współrzędne kursora wylicza taskbar.rs).
+    callback pressed(int);
+    width: 28px;
+    height: 40px;
+    border-radius: Theme.r;
+    background: ta-ta.has-hover ? Theme.hover : transparent;
+    Image {
+        source: root.img;
+        width: 16px;
+        height: 16px;
+        image-rendering: smooth;
+    }
+    ta-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.pressed(0);
+        }
+        double-clicked => {
+            root.pressed(1);
+        }
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                root.pressed(2);
+            }
+        }
+    }
+}
+
 /// Aplikacja w mikserze głośności.
 export struct AppVol {
     /// 0 – dźwięki systemowe.
@@ -807,6 +846,10 @@ export component TaskbarWindow inherits Window {
     in property <bool> has-battery;
     in property <int> battery;
     in property <bool> charging;
+    /// Ikony programów w zasobniku (tylko w trybie powłoki).
+    in property <[TrayApp]> tray-apps;
+    /// Klik na ikonie programu: klucz ikony i przycisk (0 – lewy, 1 – dwuklik, 2 – prawy).
+    callback tray-app-click(string, int);
     /// Okienko głośności i kalendarz – x w oknie paska.
     callback volume-open(length);
     /// Kółko nad ikoną głośności – krok w górę (+1) albo w dół (-1).
@@ -972,6 +1015,13 @@ export component TaskbarWindow inherits Window {
             horizontal-stretch: 0;
             alignment: center;
             spacing: 2px;
+            for a in root.tray-apps: TrayAppIcon {
+                img: a.img;
+                tip: a.tip;
+                pressed(b) => {
+                    root.tray-app-click(a.key, b);
+                }
+            }
             TrayIcon {
                 icon: root.net-kind == 0 ? Icons.wifi-off : root.net-kind == 1 ? Icons.wifi : Icons.ethernet;
                 dim: root.net-kind == 0;

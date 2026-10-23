@@ -37,18 +37,31 @@ Moduły: `core/src/shellswap.rs` (podmiana i przywracanie, strażnik `--shell-gu
 8. Strażnik: twarde zabicie głównego procesu przywraca pasek i ikony Windows (sprawdzone wcześniej, ale po
    zmianach w `shellswap.rs` – sprawdzić ponownie).
 
-## Decyzja do podjęcia z użytkownikiem: tryb powłoki
+## Tryb powłoki (decyzja: tak – w kodzie, nieuruchamiany)
 
-Użytkownik chce, żeby w wersji produkcyjnej pasek Windows i Eksplorator były **wyłączone**, a nie ukryte.
-Propozycja (czeka na „tak”):
-- PowerDesk jako powłoka: `HKCU\Software\Microsoft\Windows NT\CurrentVersion\Winlogon\Shell` = ścieżka do
-  `powerdesk.exe` (bez administratora, tylko bieżący użytkownik). Eksplorator nie startuje po zalogowaniu.
-- Pulpit: zwykłe okna na dnie (bez Progman), tapeta jak dziś.
-- Zasobnik: własne okno klasy `Shell_TrayWnd` – PowerDesk dostaje ikony innych programów (`Shell_NotifyIcon`),
-  czego teraz nie da się zrobić.
-- Własne skróty: Win+E, Win+R, Win+D, Win+L, Win+Tab (Alt+Tab działa bez Eksploratora); sprawdzić powiadomienia.
-- Bezpieczeństwo: strażnik restartuje PowerDesk po awarii, po kilku awariach z rzędu uruchamia `explorer.exe`.
-- Deinstalacja i `--remove-integration` przywracają `Shell` = `explorer.exe`.
+- `core/src/shellmode.rs`: wpis `HKCU\…\Winlogon\Shell` = `"powerdesk.exe" --shell`, odnawiany w
+  `integration::ensure` przy każdym starcie (bez przełącznika), zdejmowany w `--remove-integration`
+  (wtedy też start `explorer.exe`, jeśli go nie ma). `detect()` przy starcie: brak `Shell_TrayWnd` = powłoka.
+- Pulpit: zwykłe okna na dnie (podklasa okna wymusza `HWND_BOTTOM`), bez Progman. Monitory: zapasowo
+  `EnumDisplayMonitors` + tapeta z `HKCU\Control Panel\Desktop`, gdy IDesktopWallpaper nie działa.
+- Pasek: obszar roboczy monitorów ustawiany sami (`SPI_SETWORKAREA`), zerowany przy zamknięciu.
+- Zasobnik: `core/src/trayhost.rs` – własne okno `Shell_TrayWnd`, ikony programów z WM_COPYDATA
+  (NIM_ADD/MODIFY/DELETE/SETVERSION), klik lewy/dwuklik/prawy odsyłany komunikatem zwrotnym; na pasku
+  przed ikoną sieci (`TrayApp` w `taskbar.slint`). Dymki (NIF_INFO) – jako powiadomienie PowerDesk
+  (w głównym oknie). `Shell_NotifyIconGetRect` – miejsce ostatniego kliku albo zasobnika przy zegarze.
+  AppBar: tylko ABM_GETSTATE (układ APPBARMSGDATA 64-bitowy, przesunięcie 56 – niesprawdzone).
+- Skróty: Win+E (okno PowerDesk), Win+R (RunFileDlg), Win+D (własne minimalizowanie i przywracanie);
+  Win+L i Alt+Tab działają bez Eksploratora. Brak: Win+Tab (widok zadań), przepełnienie zasobnika,
+  rezerwacja krawędzi przez cudze AppBary, okno `SetShellWindow`.
+- Menu paska i Startu jako powłoka: „Uruchom ponownie PowerDesk” (strażnik restartuje; liczy się do
+  limitu) i „Przełącz na Eksplorator Windows” (wpis zdjęty, strażnik uruchamia `explorer.exe`).
+- Strażnik: po końcu procesu w trybie powłoki – przy wylogowaniu nic; restart PowerDesk; 3 końce w 2 min
+  (także „Zakończ PowerDesk”) albo zdjęty wpis – wpis usunięty i start `explorer.exe`.
+
+Do sprawdzenia przy pierwszym logowaniu z powłoką: czy Winlogon honoruje wpis HKCU (Windows 11 24H2),
+ikony zasobnika (struktura NOTIFYICONDATA 32-bitowa), menu ikon programów po prawym kliku, obszar
+roboczy przy kilku monitorach, czy pulpit nie wychodzi nad okna po kliknięciu. Awaryjnie: Ctrl+Alt+Del →
+Menedżer zadań → Uruchom `powerdesk.exe --remove-integration` albo `explorer.exe`.
 
 ## Kolejne zadania z planu
 

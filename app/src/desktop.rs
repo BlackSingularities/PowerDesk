@@ -147,7 +147,12 @@ fn attach() {
                 continue;
             }
             data::hide_from_taskbar(hwnd);
-            if powerdesk_core::shellswap::attach_desktop(hwnd, x, y, wd, ht) {
+            if powerdesk_core::shellmode::active() {
+                // Powłoka bez Eksploratora: zwykłe okna na dnie, pod wszystkimi programami.
+                powerdesk_core::shellmode::keep_at_bottom(hwnd);
+                powerdesk_core::shellmode::place_desktop(hwnd, x, y, wd, ht);
+                hwnds.push(hwnd);
+            } else if powerdesk_core::shellswap::attach_desktop(hwnd, x, y, wd, ht) {
                 hwnds.push(hwnd);
             }
         }
@@ -168,6 +173,9 @@ fn watch() {
     }
     if D.with(|d| d.borrow().hwnds.is_empty() && !d.borrow().windows.is_empty()) {
         attach();
+    }
+    if powerdesk_core::shellmode::active() {
+        return;
     }
     // Eksplorator potrafi wysunąć swoją warstwę tapety nad nasze okna – wracamy na wierzch.
     D.with(|d| d.borrow().hwnds.iter().for_each(|&h| powerdesk_core::shellswap::raise(h)));

@@ -46,7 +46,7 @@ unsafe fn take(p: PWSTR) -> String {
 
 /// Monitory z tapetami; osobny wątek, bo COM chce własnego mieszkania.
 pub fn monitors() -> Vec<Monitor> {
-    std::thread::spawn(|| unsafe {
+    let mons = std::thread::spawn(|| unsafe {
         let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
         let Ok(w) = CoCreateInstance::<_, IDesktopWallpaper>(&DesktopWallpaper, None, CLSCTX_ALL) else { return Vec::new() };
         let fit = match w.GetPosition() {
@@ -83,7 +83,40 @@ pub fn monitors() -> Vec<Monitor> {
         out
     })
     .join()
-    .unwrap_or_default()
+    .unwrap_or_default();
+    if mons.is_empty() {
+        plain_monitors()
+    } else {
+        mons
+    }
+}
+
+/// Bez IDesktopWallpaper (bez Eksploratora bywa niedostępny): monitory z systemu i tapeta
+/// z ustawień użytkownika – ten sam obraz na każdym.
+fn plain_monitors() -> Vec<Monitor> {
+    use windows::core::BOOL;
+    use windows::Win32::Foundation::LPARAM;
+    use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO};
+    unsafe extern "system" fn each(m: HMONITOR, _: HDC, _: *mut RECT, lp: LPARAM) -> BOOL {
+        let out = &mut *(lp.0 as *mut Vec<(RECT, bool)>);
+        let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        if GetMonitorInfoW(m, &mut mi).as_bool() {
+            out.push((mi.rcMonitor, mi.dwFlags & 1 != 0));
+        }
+        BOOL(1)
+    }
+    let mut rects: Vec<(RECT, bool)> = Vec::new();
+    unsafe {
+        let _ = EnumDisplayMonitors(None, None, Some(each), LPARAM(&mut rects as *mut _ as isize));
+    }
+    let wallpaper = crate::winkey::reg(&["query", r"HKCU\Control Panel\Desktop", "/v", "WallPaper"])
+        .ok()
+        .and_then(|o| o.lines().find(|l| l.contains("WallPaper")).and_then(|l| l.split("REG_SZ").nth(1)).map(|v| v.trim().to_string()))
+        .unwrap_or_default();
+    rects
+        .into_iter()
+        .map(|(r, primary)| Monitor { x: r.left, y: r.top, width: r.right - r.left, height: r.bottom - r.top, wallpaper: wallpaper.clone(), fit: Fit::Fill, color: (0, 0, 0), primary })
+        .collect()
 }
 
 /// Okno pulpitu bez przycisku na pasku zadań i bez miejsca w Alt+Tab (styl okna narzędziowego).

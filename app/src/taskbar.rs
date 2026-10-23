@@ -15,7 +15,7 @@ use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{OutDev, AppVol, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
+use crate::{OutDev, AppVol, TrayApp, BarMenuWindow, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, VolumeWindow};
 
 /// Wysokość paska w pikselach logicznych.
 const HEIGHT: f32 = 48.0;
@@ -136,10 +136,40 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_network_open(move |x| open_network(n, x));
         w.on_battery_open(|| sysbar::open_settings("batterysaver"));
         w.on_calendar_open(move |x| open_calendar(n, x));
+        w.on_tray_app_click(|key, b| {
+            use powerdesk_core::trayhost::{self, Click};
+            let (x, y) = taskwin::cursor();
+            let button = match b {
+                1 => Click::Double,
+                2 => Click::Right,
+                _ => Click::Left,
+            };
+            trayhost::click(key.as_str(), button, x, y);
+        });
         let _ = w.show();
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
+    // Powłoka: zasobnik z ikonami innych programów (własny Shell_TrayWnd).
+    if powerdesk_core::shellmode::active() {
+        powerdesk_core::trayhost::on_balloon(|title, text| {
+            let msg = if title.is_empty() { text } else { format!("{title}: {text}") };
+            let _ = slint::invoke_from_event_loop(move || crate::with_state(|s| crate::transfers::toast(s, msg, crate::transfers::Kind::Info, None)));
+        });
+        powerdesk_core::trayhost::start(|| {
+            let _ = slint::invoke_from_event_loop(tray_apps);
+        });
+        tray_apps();
+    }
+    // Tryb powłoki: Win+E – okno PowerDesk, Win+R – „Uruchom”, Win+D – pulpit.
+    powerdesk_core::startmenu::hook_shell_keys(|k| match k {
+        b'E' => {
+            let _ = slint::invoke_from_event_loop(|| crate::with_state(|s| crate::open_args(s, Vec::new())));
+        }
+        b'R' => powerdesk_core::shellmode::run_dialog(),
+        b'D' => taskwin::show_desktop(),
+        _ => {}
+    });
     // Samo Win otwiera Start PowerDesk na monitorze z kursorem.
     powerdesk_core::startmenu::hook_win_key(|| {
         let _ = slint::invoke_from_event_loop(|| open_start(bar_under_cursor()));
@@ -158,6 +188,10 @@ pub fn close() {
     TIMER.with(|t| t.stop());
     let bars = BARS.with(|b| std::mem::take(&mut *b.borrow_mut()));
     for b in bars {
+        if powerdesk_core::shellmode::active() {
+            let (x, y) = b.origin;
+            powerdesk_core::shellmode::reset_work_area(x, y, x + b.mon.0, y + b.mon.1);
+        }
         let _ = b.w.hide();
     }
 }
@@ -178,7 +212,7 @@ fn bar_menu(bar: usize, x: f32) {
         sep(),
     ];
     items.extend(crate::start::power_items());
-    items.extend([sep(), it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger()]);
+    items.extend(quit_items());
     show_menu(bar, items, x);
 }
 
@@ -190,7 +224,7 @@ fn start_menu(bar: usize, x: f32) {
             let _ = std::process::Command::new(cmd).spawn();
         }
     };
-    let items = vec![
+    let mut items = vec![
         it("Otwórz PowerDesk", "folder", |s| crate::show_window(s)),
         it("Ustawienia paska zadań", "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_TASKBAR);
@@ -199,13 +233,31 @@ fn start_menu(bar: usize, x: f32) {
         sep(),
         it("Menedżer zadań", "app", run("taskmgr.exe")),
         it("Ustawienia Windows", "settings", |_| sysbar::open_settings("")),
-        it("Uruchom…", "terminal", |_| {
-            let _ = std::process::Command::new("explorer.exe").arg("shell:::{2559a1f3-21d7-11d4-bdaf-00c04f60b9f0}").spawn();
-        }),
-        sep(),
-        it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger(),
+        // Okno „Uruchom” wprost z shell32 – działa także bez Eksploratora.
+        it("Uruchom…", "terminal", |_| powerdesk_core::shellmode::run_dialog()).kbd("Win+R"),
     ];
+    items.extend(quit_items());
     show_menu(bar, items, x);
+}
+
+/// Koniec PowerDesk. Jako powłoka: restart (strażnik uruchamia go od nowa) albo przejście
+/// na Eksplorator (wpis zdjęty – strażnik uruchamia `explorer.exe`); inaczej zwykłe wyjście.
+fn quit_items() -> Vec<Item> {
+    if !powerdesk_core::shellmode::active() {
+        return vec![sep(), it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger()];
+    }
+    vec![
+        sep(),
+        it("Uruchom ponownie PowerDesk", "refresh", |s| crate::quit(s)),
+        it("Przełącz na Eksplorator Windows", "close", |s| {
+            if let Err(e) = powerdesk_core::shellmode::unregister() {
+                crate::transfers::toast(s, format!("Nie udało się zdjąć wpisu powłoki: {e}"), crate::transfers::Kind::Error, None);
+                return;
+            }
+            crate::quit(s)
+        })
+        .danger(),
+    ]
 }
 
 /// Menu Start nad lewym końcem paska `bar`.
@@ -986,6 +1038,16 @@ fn place(bar: &mut Bar) {
         bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
         // Tło paska może być półprzezroczyste (krycie z ustawień) – DWM pokazuje, co pod spodem.
         powerdesk_core::system::see_through(hwnd);
+        // Bez Eksploratora nikt nie zostawi miejsca na pasek – obszar roboczy ustawiamy sami.
+        if powerdesk_core::shellmode::active() {
+            let (x, y) = bar.origin;
+            powerdesk_core::shellmode::set_work_area(x, y, x + bar.mon.0, y + bar.mon.1 - h);
+            if bar.origin == (0, 0) {
+                // Zasobnik stoi przy zegarze – przybliżone miejsce dla programów pytających o ikonę.
+                let w = (240.0 * scale) as i32;
+                powerdesk_core::trayhost::set_anchor(x + bar.mon.0 - w, bar.pos.1, w, h);
+            }
+        }
         bar.placed = true;
     }
     // Okno na cały monitor (gra, film) – pasek pod nim; inaczej na wierzchu.
@@ -1090,6 +1152,27 @@ fn refresh() {
         }
     });
     tray_status();
+}
+
+/// Ikony programów w zasobniku na wszystkich paskach.
+fn tray_apps() {
+    let apps: Vec<TrayApp> = powerdesk_core::trayhost::icons()
+        .into_iter()
+        .map(|i| TrayApp {
+            key: i.key().into(),
+            tip: i.tip.clone().into(),
+            img: i
+                .image
+                .as_ref()
+                .map(|(w, h, px)| slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *w, *h)))
+                .unwrap_or_default(),
+        })
+        .collect();
+    BARS.with(|b| {
+        for bar in b.borrow().iter() {
+            bar.w.set_tray_apps(ModelRc::new(VecModel::from(apps.clone())));
+        }
+    });
 }
 
 /// Ikony programów dochodzą w tle – przerysowujemy paski, na których są.
