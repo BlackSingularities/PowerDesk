@@ -680,7 +680,9 @@ fn open_volume(bar: usize, x: f32) {
 /// Kalendarz nad zegarem, dosunięty do prawej krawędzi monitora.
 /// Przełącznik pulpitów wirtualnych na wszystkich paskach (z Eksploratorem; w trybie powłoki – ukryty).
 fn vd_status() {
-    let vd = if powerdesk_core::shellmode::active() { None } else { powerdesk_core::vdesk::list() };
+    let mut on = false;
+    crate::with_state(|s| on = s.borrow().prefs.vd_button);
+    let vd = if !on || powerdesk_core::shellmode::active() { None } else { powerdesk_core::vdesk::list() };
     BARS.with(|b| {
         for bar in b.borrow().iter() {
             match &vd {

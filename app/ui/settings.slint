@@ -69,6 +69,7 @@ export global SettingsState {
     /// Raport (wersja, system, dziennik) do schowka i folder z dziennikiem.
     callback report-problem();
     // Tapety: tryb (0 – Windows, 1 – pokaz slajdów, 2 – Bing), folder, co ile minut.
+    in-out property <bool> vd-button;
     in-out property <bool> zones-on;
     in-out property <int> zones-layout;
     callback set-zones-layout(int);
@@ -966,6 +967,15 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.taskbar-clear-desktop;
                         toggled => {
                             SettingsState.toggle("taskbar-clear-desktop");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.grid;
+                        text: "Przycisk pulpitów wirtualnych";
+                        hint: "Numer pulpitu na pasku, lista i nowy pulpit; kółko – sąsiedni pulpit (tylko z Eksploratorem)";
+                        on: SettingsState.vd-button;
+                        toggled => {
+                            SettingsState.toggle("vd-button");
                         }
                     }
                 }

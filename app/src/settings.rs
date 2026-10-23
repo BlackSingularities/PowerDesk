@@ -176,6 +176,7 @@ fn render(s: &Shared) {
     });
     g.set_wall_folder(p.wallpaper_folder.clone().into());
     g.set_zones_on(p.zones_on);
+    g.set_vd_button(p.vd_button);
     g.set_zones_layout(p.zones_layout as i32);
     g.set_wall_minutes(p.wallpaper_minutes as i32);
     g.set_remembered(p.folders.len() as i32);
@@ -275,6 +276,8 @@ pub fn toggle(s: &Shared, key: &str) {
         }
         "overlay-full" => change(s, |p| p.overlay_full = !p.overlay_full),
         "zones" => change(s, |p| p.zones_on = !p.zones_on),
+        // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
+        "vd-button" => change(s, |p| p.vd_button = !p.vd_button),
         "game-power" => {
             change(s, |p| p.game_power = !p.game_power);
             crate::game::init();
