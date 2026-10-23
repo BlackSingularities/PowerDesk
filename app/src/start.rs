@@ -109,6 +109,24 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
             });
         }
     });
+    w.on_tiles_context(|x, y| {
+        let add: Vec<Item> = crate::widgets::KINDS
+            .iter()
+            .map(|&(kind, name, icon, size, _)| it(name, icon, move |_| edit_groups(|gs| tiles::add_widget(gs, kind, size))))
+            .collect();
+        show_menu(vec![sub("Dodaj widżet", "plus", add)], x, y);
+    });
+    w.on_tile_note(|i, text| {
+        let Some(at) = placed(i as usize) else { return };
+        // Bez przerysowania – pole pisania zostaje z kursorem.
+        crate::with_state(|s| {
+            let mut b = s.borrow_mut();
+            if let Some(p) = tiles::get_mut(&mut b.prefs.start_groups, at) {
+                p.note = text.to_string();
+            }
+            b.prefs.save();
+        });
+    });
     w.on_folder_back(|| {
         FOLDER.with(|f| f.set(None));
         render();
@@ -166,6 +184,7 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     powerdesk_core::system::see_through(hwnd);
     powerdesk_core::taskwin::activate(hwnd);
     w.invoke_focus_search();
+    crate::widgets::apply(&w.global::<crate::WidgetData>());
     START.with(|s| *s.borrow_mut() = Some(Start { w, shown: Vec::new(), menu: Vec::new() }));
     render();
     preload();
@@ -203,6 +222,15 @@ pub fn close() {
     if let Some(s) = START.with(|s| s.borrow_mut().take()) {
         let _ = s.w.hide();
     }
+}
+
+/// Okno Start, jeśli otwarte (widżety odświeżają jego dane).
+pub fn each_window(f: impl Fn(&StartWindow)) {
+    START.with(|s| {
+        if let Some(s) = s.borrow().as_ref() {
+            f(&s.w);
+        }
+    });
 }
 
 /// Okno Start (do pominięcia na liście okien paska).
@@ -321,6 +349,24 @@ fn launch_tile(i: usize) {
         render();
         return;
     }
+    // Widżet: notatka – pisanie, kalendarz – kalendarz Windows, reszta nic nie uruchamia.
+    if !pin.widget.is_empty() {
+        match pin.widget.as_str() {
+            "note" => START.with(|s| {
+                if let Some(s) = s.borrow().as_ref() {
+                    s.w.set_editing(i as i32);
+                }
+            }),
+            "calendar" => {
+                let _ = open::that_detached("outlookcal:");
+            }
+            "system" => {
+                let _ = std::process::Command::new("taskmgr.exe").spawn();
+            }
+            _ => {}
+        }
+        return;
+    }
     startmenu::launch(&pin.path);
     slint::Timer::single_shot(Duration::ZERO, close);
 }
@@ -352,6 +398,23 @@ fn size_menu(at: At, now: u8) -> Item {
 fn tile_menu(i: usize, x: f32, y: f32) {
     let Some(at) = placed(i) else { return };
     let Some(pin) = tiles::get(&groups(), at).cloned() else { return };
+    if !pin.widget.is_empty() {
+        let mut items = Vec::new();
+        if pin.widget == "note" {
+            items.push(it("Edytuj notatkę", "edit", move |_| {
+                START.with(|s| {
+                    if let Some(s) = s.borrow().as_ref() {
+                        s.w.set_editing(i as i32);
+                    }
+                })
+            }));
+        }
+        items.push(size_menu(at, pin.size));
+        items.push(sep());
+        items.push(it("Usuń widżet", "trash", move |_| edit_groups(|gs| tiles::remove(gs, at))).danger());
+        show_menu(items, x, y);
+        return;
+    }
     if !pin.is_folder() {
         let id = pin.path.trim_start_matches("shell:AppsFolder\\").to_string();
         app_menu(&pin.path, &id, Some((at, pin.size)), x, y);
@@ -451,7 +514,9 @@ fn render() {
                 let px = ((if pin.size == 3 { 48.0 } else { 32.0 }) * scale) as u32;
                 let img = if pin.is_folder() { None } else { crate::thumbs::get(&pin.path, px, true) };
                 let minis: Vec<slint::Image> = pin.items.iter().take(4).filter_map(|c| crate::thumbs::get(&c.path, (18.0 * scale) as u32, true)).collect();
-                let name = if pin.is_folder() { if pin.name.is_empty() { format!("Folder ({})", pin.items.len()) } else { pin.name.clone() } } else { name_of(&pin.path) };
+                let name = if !pin.widget.is_empty() {
+                    crate::widgets::name(&pin.widget).to_string()
+                } else if pin.is_folder() { if pin.name.is_empty() { format!("Folder ({})", pin.items.len()) } else { pin.name.clone() } } else { name_of(&pin.path) };
                 Some(StartTile {
                     name: name.into(),
                     has_img: img.is_some(),
@@ -463,6 +528,8 @@ fn render() {
                     size: pin.size as i32,
                     folder: pin.is_folder(),
                     minis: ModelRc::new(VecModel::from(minis)),
+                    widget: pin.widget.clone().into(),
+                    note: pin.note.clone().into(),
                 })
             })
             .collect();

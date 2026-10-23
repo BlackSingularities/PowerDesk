@@ -132,6 +132,9 @@ Zasady:
 - [ ] Zegar, głośność, sieć, bateria; zasobnik (przechwytywanie ikon) (w kodzie, nieuruchamiane: ikony sieci, głośności i baterii przy zegarze, okienko głośności z suwakiem i wyciszeniem, kółko i środkowy przycisk na ikonie, kalendarz po kliknięciu w zegar, mikser – głośność i wyciszanie każdej aplikacji, wybór urządzenia odtwarzającego, okienko sieci – lista Wi-Fi, łączenie i rozłączanie, hasło dla nowej sieci (profil WPA2/WPA3-Personal); sprawdzone: pasek, okienko głośności, suwak; brak: ikony aplikacji w tle – wymagają własnego `Shell_TrayWnd`, więc dopiero w trybie zastępującym)
 - [ ] Menu Start (najpierw jak w Windows) (w kodzie, nieklikane: układ Windows 10 – konto, Dokumenty, Obrazy, Ustawienia, zasilanie; lista z folderu „Aplikacje” z literami, szukanie bez polskich znaków, Enter uruchamia pierwszą; kafelki przypiętych; menu aplikacji – jako administrator, przypnij do Startu i paska; samo Win otwiera Start PowerDesk, skróty z Win zostają systemowe; zasilanie i sesja – zablokuj, przełącz użytkownika, wyloguj, uśpij, hibernuj, zamknij, uruchom ponownie; ukrywanie aplikacji z „Pokaż ukryte”; widok lista albo duże ikony; zmiana rozmiaru przeciąganiem górnej i prawej krawędzi; grupy kafelków z nazwami, foldery (kafelek na środek innego), przeciąganie z podglądem, rozmiary mały/średni/szeroki/duży – w kodzie, nieklikane)
 
+### Nowe: widżety
+- [ ] Widżety w kafelkach Startu i na pulpicie (w kodzie, nieklikane): zegar, kalendarz, system, dyski, notatka
+
 ### Instalator i deinstalator
 - [ ] Instalacja per użytkownik i per maszyna, skróty, autostart
 - [ ] Migracja: odinstalowanie OpenFilePower i przeniesienie ustawień

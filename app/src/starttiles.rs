@@ -155,6 +155,22 @@ pub fn pin(groups: &mut Vec<StartGroup>, path: &str) {
     }
 }
 
+/// Widżet na koniec ostatniej grupy (bez grup – nowa), w domyślnym rozmiarze.
+pub fn add_widget(groups: &mut Vec<StartGroup>, kind: &str, size: u8) {
+    if groups.is_empty() {
+        groups.push(StartGroup::default());
+    }
+    if let Some(g) = groups.last_mut() {
+        g.tiles.push(StartPin { widget: kind.to_string(), size, ..Default::default() });
+    }
+}
+
+/// Usuwa kafelek (widżet albo aplikację) z miejsca `at`.
+pub fn remove(groups: &mut Vec<StartGroup>, at: At) {
+    let _ = take(groups, at);
+    cleanup(groups);
+}
+
 /// Odpina aplikację wszędzie, gdzie jest.
 pub fn unpin(groups: &mut Vec<StartGroup>, path: &str) {
     for g in groups.iter_mut() {
@@ -170,11 +186,11 @@ pub fn unpin(groups: &mut Vec<StartGroup>, path: &str) {
 pub fn cleanup(groups: &mut Vec<StartGroup>) {
     for g in groups.iter_mut() {
         for t in g.tiles.iter_mut() {
-            if t.path.is_empty() && t.items.len() == 1 {
+            if t.path.is_empty() && t.widget.is_empty() && t.items.len() == 1 {
                 *t = t.items.remove(0);
             }
         }
-        g.tiles.retain(|t| !t.path.is_empty() || !t.items.is_empty());
+        g.tiles.retain(|t| !t.path.is_empty() || !t.items.is_empty() || !t.widget.is_empty());
     }
     groups.retain(|g| !g.tiles.is_empty());
 }
@@ -205,9 +221,9 @@ pub fn drop(groups: &mut Vec<StartGroup>, from: At, target: Target) {
     if matches!(target, Target::Before(t) | Target::Into(t) if t == from) {
         return;
     }
-    // Folderu nie wkładamy do folderu.
-    if let (Target::Into(_), Some(p)) = (target, get(groups, from)) {
-        if p.is_folder() {
+    // Folderu ani widżetu nie wkładamy do folderu; widżet nie tworzy folderu.
+    if let (Target::Into(t), Some(p)) = (target, get(groups, from)) {
+        if p.is_folder() || !p.widget.is_empty() || get(groups, t).is_some_and(|d| !d.widget.is_empty()) {
             return;
         }
     }

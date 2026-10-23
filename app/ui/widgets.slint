@@ -1,0 +1,322 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon } from "components.slint";
+
+/// Dzień w widżecie kalendarza (siatka 7×6 od poniedziałku).
+export struct WDay {
+    day: int,
+    /// Dzień bieżącego miesiąca (inne – przygaszone).
+    cur: bool,
+    today: bool,
+}
+
+/// Dysk w widżecie dysków.
+export struct WDrive {
+    name: string,
+    used: float,
+    detail: string,
+}
+
+/// Widżet na pulpicie (miejsce i rozmiar wolne) albo w kafelku Startu.
+export struct WidgetItem {
+    kind: string,
+    note: string,
+    x: length,
+    y: length,
+    w: length,
+    h: length,
+}
+
+/// Dane wspólne dla wszystkich widżetów okna – odświeża widgets.rs co sekundę.
+export global WidgetData {
+    in-out property <string> time;
+    in-out property <string> seconds;
+    /// Część minuty, która minęła (0–1) – pasek sekund zegara.
+    in-out property <float> sec-frac;
+    in-out property <string> weekday;
+    in-out property <string> date;
+    in-out property <string> month;
+    in-out property <int> day;
+    in-out property <[WDay]> days;
+    in-out property <float> cpu;
+    in-out property <float> ram;
+    in-out property <string> cpu-text;
+    in-out property <string> ram-text;
+    in-out property <string> uptime;
+    /// Zużycie procesora z ostatnich 40 odczytów (0–1).
+    in-out property <[float]> cpu-hist;
+    in-out property <[WDrive]> drives;
+}
+
+/// Pasek zajętości: tło, wypełnienie w kolorze akcentu (czerwone powyżej 90%).
+component Meter inherits Rectangle {
+    in property <float> value;
+    height: 6px;
+    border-radius: 3px;
+    background: Theme.line-strong;
+    Rectangle {
+        x: 0;
+        width: parent.width * max(0, min(1, root.value));
+        height: parent.height;
+        border-radius: parent.border-radius;
+        background: root.value > 0.9 ? #e5484d : Theme.accent;
+        animate width { duration: 400ms; easing: ease-out; }
+    }
+}
+
+/// Mały nagłówek widżetu: ikona i nazwa.
+component WTitle inherits HorizontalLayout {
+    in property <string> icon;
+    in property <string> text;
+    height: 18px;
+    spacing: 6px;
+    Icon {
+        commands: root.icon;
+        size: 13px;
+        color: Theme.dim;
+    }
+    Text {
+        text: root.text;
+        font-size: 11px;
+        font-weight: 600;
+        color: Theme.dim;
+        vertical-alignment: center;
+    }
+}
+
+/// Treść widżetu dopasowana do rozmiaru: mały kafelek pokazuje najważniejsze, duży – więcej.
+export component WidgetBody inherits Rectangle {
+    in property <string> kind;
+    in property <string> note;
+    /// Notatka do pisania (na pulpicie zawsze, w Starcie – po „Edytuj notatkę”).
+    in property <bool> editable: true;
+    callback note-edited(string);
+    property <bool> compact: root.height < 120px;
+    property <length> pad: root.compact ? 10px : 14px;
+    border-radius: Theme.r;
+    clip: true;
+    background: root.kind == "note" ? Theme.accent.mix(Theme.popup-high, 0.18).with-alpha(0.92) : Theme.popup-high.with-alpha(0.86);
+
+    // ---------- Zegar ----------
+    if root.kind == "clock": clk := Rectangle {
+        property <length> big: min(root.height * (root.compact ? 0.42 : 0.34), root.width * 0.24);
+        VerticalLayout {
+            padding: root.pad;
+            spacing: 2px;
+            alignment: center;
+            HorizontalLayout {
+                alignment: center;
+                spacing: 4px;
+                Text {
+                    text: WidgetData.time;
+                    font-size: clk.big;
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+                if !root.compact: Text {
+                    y: parent.height - self.height - 6px;
+                    text: WidgetData.seconds;
+                    font-size: clk.big * 0.36;
+                    color: Theme.dim;
+                }
+            }
+            if root.height >= 90px: Text {
+                horizontal-alignment: center;
+                text: root.compact ? WidgetData.weekday : WidgetData.weekday + ", " + WidgetData.date;
+                font-size: root.compact ? 11px : 13px;
+                color: Theme.dim;
+                overflow: elide;
+            }
+        }
+        // Upływ minuty – cienka linia u dołu.
+        Rectangle {
+            x: 0;
+            y: root.height - 3px;
+            width: root.width * WidgetData.sec-frac;
+            height: 3px;
+            background: Theme.accent.with-alpha(0.8);
+        }
+    }
+
+    // ---------- Kalendarz ----------
+    // Mały: dzień tygodnia i duża liczba (jak kafelek Kalendarza w Windows 10); duży – cały miesiąc.
+    if root.kind == "calendar" && (root.height < 190px || root.width < 190px): VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.weekday;
+            font-size: 12px;
+            color: Theme.dim;
+        }
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.day;
+            font-size: min(root.height * 0.42, root.width * 0.4);
+            font-weight: 300;
+            color: Theme.text;
+        }
+        if root.height >= 110px: Text {
+            horizontal-alignment: center;
+            text: WidgetData.month;
+            font-size: 11px;
+            color: Theme.dim;
+        }
+    }
+    if root.kind == "calendar" && root.height >= 190px && root.width >= 190px: Rectangle {
+        property <length> cw: (root.width - 2 * root.pad) / 7;
+        property <length> ch: (root.height - 2 * root.pad - 46px) / 6;
+        Text {
+            x: root.pad;
+            y: root.pad;
+            text: WidgetData.month;
+            font-size: 13px;
+            font-weight: 600;
+            color: Theme.text;
+        }
+        for n[k] in ["pn", "wt", "śr", "cz", "pt", "so", "nd"]: Text {
+            x: root.pad + k * parent.cw;
+            y: root.pad + 22px;
+            width: parent.cw;
+            horizontal-alignment: center;
+            text: n;
+            font-size: 10.5px;
+            color: Theme.faint;
+        }
+        for d[i] in WidgetData.days: Rectangle {
+            x: root.pad + mod(i, 7) * parent.cw;
+            y: root.pad + 42px + floor(i / 7) * parent.ch;
+            width: parent.cw;
+            height: parent.ch;
+            Rectangle {
+                width: min(parent.width, parent.height) - 2px;
+                height: self.width;
+                border-radius: self.width / 2;
+                background: d.today ? Theme.accent : transparent;
+            }
+            Text {
+                text: d.day;
+                font-size: 11.5px;
+                font-weight: d.today ? 700 : 400;
+                color: d.today ? white : d.cur ? Theme.text : Theme.faint;
+            }
+        }
+    }
+
+    // ---------- System ----------
+    if root.kind == "system": VerticalLayout {
+        padding: root.pad;
+        spacing: root.compact ? 6px : 8px;
+        if !root.compact: WTitle {
+            icon: Icons.bolt;
+            text: "System · działa " + WidgetData.uptime;
+        }
+        HorizontalLayout {
+            Text {
+                text: "Procesor";
+                font-size: 11.5px;
+                color: Theme.dim;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: WidgetData.cpu-text;
+                font-size: 11.5px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+        }
+        Meter {
+            value: WidgetData.cpu;
+        }
+        HorizontalLayout {
+            Text {
+                text: "Pamięć";
+                font-size: 11.5px;
+                color: Theme.dim;
+                horizontal-stretch: 1;
+            }
+            Text {
+                text: WidgetData.ram-text;
+                font-size: 11.5px;
+                font-weight: 600;
+                color: Theme.text;
+            }
+        }
+        Meter {
+            value: WidgetData.ram;
+        }
+        // Historia procesora – słupki, gdy jest miejsce.
+        if root.height >= 170px: Rectangle {
+            vertical-stretch: 1;
+            min-height: 30px;
+            for v[i] in WidgetData.cpu-hist: Rectangle {
+                x: i * parent.width / 40;
+                width: max(1px, parent.width / 40 - 1px);
+                height: max(1px, v * parent.height);
+                y: parent.height - self.height;
+                border-radius: 1px;
+                background: Theme.accent.with-alpha(0.35 + v * 0.5);
+            }
+        }
+    }
+
+    // ---------- Dyski ----------
+    if root.kind == "drives": VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        if !root.compact: WTitle {
+            icon: Icons.drive;
+            text: "Dyski";
+        }
+        for d in WidgetData.drives: VerticalLayout {
+            spacing: 3px;
+            HorizontalLayout {
+                Text {
+                    text: d.name;
+                    font-size: 11.5px;
+                    color: Theme.text;
+                    overflow: elide;
+                    horizontal-stretch: 1;
+                }
+                if root.width >= 150px: Text {
+                    text: d.detail;
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+            }
+            Meter {
+                value: d.used;
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+
+    // ---------- Notatka ----------
+    if root.kind == "note": Rectangle {
+        if root.note == "" && !note-in.has-focus: Text {
+            x: root.pad;
+            y: root.pad;
+            text: root.editable ? "Kliknij i pisz…" : "Pusta notatka";
+            font-size: 13px;
+            color: Theme.faint;
+        }
+        note-in := TextInput {
+            x: root.pad;
+            y: root.pad;
+            width: root.width - 2 * root.pad;
+            height: root.height - 2 * root.pad;
+            text: root.note;
+            enabled: root.editable;
+            read-only: !root.editable;
+            single-line: false;
+            wrap: word-wrap;
+            font-size: 13px;
+            color: Theme.text;
+            edited => {
+                root.note-edited(self.text);
+            }
+        }
+    }
+}

@@ -21,6 +21,8 @@ export struct DeskIcon {
 /// Pulpit na jednym monitorze (desktop.rs): tapeta z ustawień Windows i ikony w siatce.
 /// Zaznaczanie kliknięciem, z Ctrl i Shift oraz ramką; przeciąganie przenosi zaznaczone
 /// ikony na inne miejsca; menu w stylu PowerDesk. Okno jest dzieckiem Progman (desktop.rs).
+import { WidgetBody, WidgetItem } from "widgets.slint";
+
 export component DesktopWindow inherits Window {
     no-frame: true;
     title: "PowerDesk – pulpit";
@@ -32,6 +34,12 @@ export component DesktopWindow inherits Window {
     in property <int> fit;
     in property <color> bg: #000000;
     in property <[DeskIcon]> icons;
+    /// Widżety na tym monitorze (miejsce i rozmiar wolne, przesuwane i zmieniane myszą).
+    in property <[WidgetItem]> widgets;
+    callback widget-moved(int, length, length);
+    callback widget-resized(int, length, length);
+    callback widget-context(int, length, length);
+    callback widget-note(int, string);
 
     // Menu (MenuPopup jak w głównym oknie) – pozycje i miejsce podaje desktop.rs.
     in property <[MenuEntry]> menu-entries;
@@ -250,6 +258,120 @@ export component DesktopWindow inherits Window {
                         reject
                     }
                 }
+            }
+        }
+    }
+
+    // Widżety: nad ikonami. Przeciąganie za cały widżet (notatka – za górny pasek),
+    // zmiana rozmiaru – prawy dolny róg; położenie zapisuje desktop.rs po puszczeniu.
+    for wd[i] in root.widgets: wbox := Rectangle {
+        property <length> dx;
+        property <length> dy;
+        property <length> dw;
+        property <length> dh;
+        x: wd.x + self.dx;
+        y: wd.y + self.dy;
+        width: max(120px, wd.w + self.dw);
+        height: max(80px, wd.h + self.dh);
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #00000055;
+        border-radius: Theme.r;
+        mv-ta := TouchArea {
+            height: wd.kind == "note" ? 22px : parent.height;
+            y: 0;
+            mouse-cursor: self.pressed ? MouseCursor.grabbing : MouseCursor.default;
+            moved => {
+                if (self.pressed) {
+                    parent.dx += self.mouse-x - self.pressed-x;
+                    parent.dy += self.mouse-y - self.pressed-y;
+                }
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && (parent.dx != 0 || parent.dy != 0)) {
+                    root.widget-moved(i, wd.x + parent.dx, wd.y + parent.dy);
+                    parent.dx = 0;
+                    parent.dy = 0;
+                }
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                    root.widget-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                }
+            }
+        }
+        WidgetBody {
+            width: parent.width;
+            height: parent.height;
+            kind: wd.kind;
+            note: wd.note;
+            // Poza notatką treść nie łapie myszy – przeciąganie działa w całym widżecie.
+            note-edited(txt) => {
+                root.widget-note(i, txt);
+            }
+        }
+        if wd.kind != "note": TouchArea {
+            mouse-cursor: self.pressed ? MouseCursor.grabbing : MouseCursor.default;
+            moved => {
+                if (self.pressed) {
+                    parent.dx += self.mouse-x - self.pressed-x;
+                    parent.dy += self.mouse-y - self.pressed-y;
+                }
+            }
+            pointer-event(e) => {
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && (parent.dx != 0 || parent.dy != 0)) {
+                    root.widget-moved(i, wd.x + parent.dx, wd.y + parent.dy);
+                    parent.dx = 0;
+                    parent.dy = 0;
+                }
+                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                    root.widget-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                }
+            }
+        }
+        // Pasek do chwytania notatki – widoczny pod kursorem.
+        if wd.kind == "note": Rectangle {
+            y: 0;
+            height: 22px;
+            border-radius: Theme.r;
+            background: mv-ta.has-hover ? #ffffff14 : transparent;
+            Rectangle {
+                y: 9px;
+                width: 28px;
+                height: 4px;
+                border-radius: 2px;
+                background: mv-ta.has-hover ? Theme.dim : transparent;
+            }
+        }
+        // Uchwyt rozmiaru.
+        Rectangle {
+            x: parent.width - 16px;
+            y: parent.height - 16px;
+            width: 16px;
+            height: 16px;
+            rs-ta := TouchArea {
+                mouse-cursor: MouseCursor.nwse-resize;
+                moved => {
+                    if (self.pressed) {
+                        wbox.dw += self.mouse-x - self.pressed-x;
+                        wbox.dh += self.mouse-y - self.pressed-y;
+                    }
+                }
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left) {
+                        root.widget-resized(i, max(120px, wd.w + wbox.dw), max(80px, wd.h + wbox.dh));
+                        wbox.dw = 0;
+                        wbox.dh = 0;
+                    }
+                }
+            }
+            Path {
+                width: 10px;
+                height: 10px;
+                x: 3px;
+                y: 3px;
+                commands: "M 10 0 L 0 10 M 10 5 L 5 10";
+                stroke: rs-ta.has-hover ? Theme.text : Theme.faint;
+                stroke-width: 1.2px;
+                viewbox-width: 10;
+                viewbox-height: 10;
             }
         }
     }

@@ -2,6 +2,7 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon, TipArea } from "components.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
+import { WidgetBody } from "widgets.slint";
 
 /// Wiersz listy aplikacji: litera (nagłówek grupy) albo aplikacja.
 export struct StartRow {
@@ -27,6 +28,9 @@ export struct StartTile {
     folder: bool,
     /// Folder: ikony pierwszych aplikacji (do czterech).
     minis: [image],
+    /// Widżet (rodzaj) zamiast aplikacji i treść notatki.
+    widget: string,
+    note: string,
 }
 
 /// Nagłówek grupy kafelków (nazwa do wpisania jak w Windows 10).
@@ -103,6 +107,12 @@ export component StartWindow inherits Window {
     callback group-rename(int, string);
     callback folder-rename(string);
     callback folder-back();
+    /// Prawy przycisk na pustym miejscu kafelków (x, y w oknie).
+    callback tiles-context(length, length);
+    /// Notatka w kafelku zmieniona.
+    callback tile-note(int, string);
+    /// Kafelek notatki, w którym teraz piszemy (-1 – żaden).
+    in-out property <int> editing: -1;
     /// Lewa kolumna: 0 – konto, 1 – Dokumenty, 2 – Obrazy, 3 – Ustawienia, 4 – zasilanie.
     callback rail(int, length, length);
     callback menu-chosen(int);
@@ -379,6 +389,16 @@ export component StartWindow inherits Window {
                 width: parent.width - 14px;
                 height: parent.height - self.y - 8px;
                 content-height: max(root.tiles-h + 60px, self.height);
+                // Puste miejsce: prawy przycisk – dodawanie widżetów.
+                TouchArea {
+                    width: parent.width;
+                    height: max(root.tiles-h + 60px, tiles-fl.height);
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                            root.tiles-context(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                        }
+                    }
+                }
                 for h[g] in root.heads: TextInput {
                     x: 0;
                     y: h.y;
@@ -411,13 +431,20 @@ export component StartWindow inherits Window {
                     background: tl-ta.has-hover ? Theme.hover : Theme.card;
                     opacity: root.drag-index == i ? 0.4 : 1;
                     property <length> icon: t.size == 1 ? 24px : t.size == 3 ? 48px : 32px;
-                    if !t.folder && t.has-img: Image {
+                    if t.widget != "": WidgetBody {
+                        width: parent.width;
+                        height: parent.height;
+                        kind: t.widget;
+                        note: t.note;
+                        editable: false;
+                    }
+                    if t.widget == "" && !t.folder && t.has-img: Image {
                         y: t.size == 1 ? (parent.height - parent.icon) / 2 : (parent.height - parent.icon) / 2 - 8px;
                         width: parent.icon;
                         height: parent.icon;
                         source: t.img;
                     }
-                    if !t.folder && !t.has-img: Icon {
+                    if t.widget == "" && !t.folder && !t.has-img: Icon {
                         y: t.size == 1 ? (parent.height - 20px) / 2 : (parent.height - 24px) / 2 - 8px;
                         commands: Icons.app;
                         size: t.size == 1 ? 20px : 24px;
@@ -431,7 +458,7 @@ export component StartWindow inherits Window {
                         height: 18px;
                         source: m;
                     }
-                    if t.size != 1: Text {
+                    if t.size != 1 && t.widget == "": Text {
                         x: 6px;
                         y: parent.height - 22px;
                         width: parent.width - 12px;
@@ -472,6 +499,17 @@ export component StartWindow inherits Window {
                             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                                 root.tile-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
                             }
+                        }
+                    }
+                    // Pisanie w notatce (z menu kafelka) – pole nad kafelkiem, Esc albo klik obok kończy.
+                    if root.editing == i: WidgetBody {
+                        width: parent.width;
+                        height: parent.height;
+                        kind: "note";
+                        note: t.note;
+                        editable: true;
+                        note-edited(txt) => {
+                            root.tile-note(i, txt);
                         }
                     }
                 }

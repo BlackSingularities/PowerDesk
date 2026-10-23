@@ -104,6 +104,18 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   (`close_to_tray`, domyślnie tak) i „Okno folderów przy starcie z Windows” (`autostart_window`, też przy
   `--shell`). Autostart sam w sobie zostaje zawsze włączony (integracja bez przełączników).
 
+## Widżety (nowe, w kodzie, nieklikane)
+
+- `app/ui/widgets.slint` (`WidgetBody`, globalny `WidgetData`) i `app/src/widgets.rs` (dane co 1 s,
+  dyski co 30 s). Rodzaje: Zegar, Kalendarz, System (procesor, pamięć, historia), Dyski, Notatka – każdy
+  dopasowuje układ do rozmiaru (mały kafelek – najważniejsze, duży – więcej).
+- Start: prawy przycisk na pustym miejscu kafelków → „Dodaj widżet”; widżet to kafelek (`StartPin.widget`),
+  rozmiary jak kafelki, nie wchodzi do folderów. Klik: notatka – pisanie, kalendarz – Kalendarz Windows,
+  system – Menedżer zadań.
+- Pulpit: menu tła → „Dodaj widżet” w miejscu kliknięcia; przeciąganie (notatka – za górny pasek), róg
+  – rozmiar, siatka 8 px, prawy przycisk – „Usuń widżet”; zapis w `prefs.desktop_widgets` (monitor, x, y, w, h).
+- Pomysły na dalej: pogoda, wiele zegarów (strefy), multimedia (co gra), zdjęcia z folderu, przypomnienia.
+
 ## Kolejne zadania z planu
 
 - Etap 8: instalator i deinstalator (przywrócenie pulpitu, paska i powłoki), migracja z OpenFilePower.

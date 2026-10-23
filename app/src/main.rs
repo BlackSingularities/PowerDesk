@@ -23,6 +23,7 @@ mod model;
 mod preview;
 mod props;
 mod viewer;
+mod widgets;
 mod palette;
 mod player;
 mod shelf;

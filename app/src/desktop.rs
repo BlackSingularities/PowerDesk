@@ -15,7 +15,7 @@ use powerdesk_core::{clip, ops};
 use slint::{Color, ComponentHandle, ModelRc, PhysicalPosition, PhysicalSize, Rgba8Pixel, SharedPixelBuffer, VecModel};
 
 use crate::menus::{self, it, sep, Item};
-use crate::{fmt, transfers, DeskIcon, DesktopWindow, Shared, Theme};
+use crate::{fmt, transfers, DeskIcon, DesktopWindow, Shared, Theme, WidgetItem};
 
 const CELL_W: f32 = 84.0;
 const CELL_H: f32 = 96.0;
@@ -122,6 +122,8 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
             w.on_menu_chosen(move |i| menu_chosen(&s2, i as usize));
         }
         w.on_refresh(refresh);
+        wire_widgets(&w, n);
+        crate::widgets::apply(&w.global::<crate::WidgetData>());
         let _ = w.show();
         out.push(w);
         rects.push((m.x, m.y, m.width, m.height));
@@ -133,6 +135,8 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<Option<SharedPixelBuffer
         d.items = items;
     });
     render(s);
+    render_widgets(s);
+    crate::widgets::start();
     // Okno systemowe powstaje dopiero w pętli zdarzeń – styl (bez paska zadań i Alt+Tab)
     // i wpięcie w Progman chwilę później.
     slint::Timer::single_shot(Duration::from_millis(100), attach);
@@ -197,6 +201,94 @@ fn watch() {
     // Eksplorator potrafi wysunąć swoją warstwę tapety nad nasze okna – wracamy na wierzch.
     D.with(|d| d.borrow().hwnds.iter().for_each(|&h| powerdesk_core::shellswap::raise(h)));
     powerdesk_core::shellswap::hide_desktop_icons();
+}
+
+/// Okna pulpitu (widżety odświeżają ich dane).
+pub fn each_window(f: impl Fn(&DesktopWindow)) {
+    D.with(|d| d.borrow().windows.iter().for_each(&f));
+}
+
+/// Widżety każdego monitora z ustawień; numer w modelu to miejsce na liście w ustawieniach.
+fn render_widgets(s: &Shared) {
+    let all = s.borrow().prefs.desktop_widgets.clone();
+    D.with(|d| {
+        let d = d.borrow();
+        for (n, w) in d.windows.iter().enumerate() {
+            let items: Vec<WidgetItem> = all
+                .iter()
+                .filter(|x| x.monitor == n || (n == 0 && x.monitor >= d.windows.len()))
+                .map(|x| WidgetItem { kind: x.kind.clone().into(), note: x.note.clone().into(), x: x.x, y: x.y, w: x.w, h: x.h })
+                .collect();
+            w.set_widgets(ModelRc::new(VecModel::from(items)));
+        }
+    });
+}
+
+/// Numer widżetu w ustawieniach z numeru w modelu okna `n`.
+fn widget_index(s: &Shared, n: usize, i: usize) -> Option<usize> {
+    let count = D.with(|d| d.borrow().windows.len());
+    let b = s.borrow();
+    b.prefs.desktop_widgets.iter().enumerate().filter(|(_, x)| x.monitor == n || (n == 0 && x.monitor >= count)).nth(i).map(|(k, _)| k)
+}
+
+/// Zmiana widżetu `i` okna `n` w ustawieniach i zapis; `redraw` – przerysowanie (nie przy pisaniu).
+fn edit_widget(s: &Shared, n: usize, i: usize, redraw: bool, f: impl FnOnce(&mut crate::model::DeskWidget)) {
+    let Some(k) = widget_index(s, n, i) else { return };
+    {
+        let mut b = s.borrow_mut();
+        if let Some(x) = b.prefs.desktop_widgets.get_mut(k) {
+            f(x);
+        }
+        b.prefs.save();
+    }
+    if redraw {
+        render_widgets(s);
+    }
+}
+
+/// Wyrównanie do siatki 8 px – widżety łatwo ustawić równo.
+fn snap(v: f32) -> f32 {
+    (v / 8.0).round() * 8.0
+}
+
+fn wire_widgets(w: &DesktopWindow, n: usize) {
+    w.on_widget_moved(move |i, x, y| crate::with_state(|s| edit_widget(s, n, i as usize, true, |d| {
+        d.x = snap(x.max(0.0));
+        d.y = snap(y.max(0.0));
+    })));
+    w.on_widget_resized(move |i, wd, ht| crate::with_state(|s| edit_widget(s, n, i as usize, true, |d| {
+        d.w = snap(wd);
+        d.h = snap(ht);
+    })));
+    w.on_widget_note(move |i, text| crate::with_state(|s| edit_widget(s, n, i as usize, false, |d| d.note = text.to_string())));
+    w.on_widget_context(move |i, x, y| {
+        let i = i as usize;
+        let items = vec![
+            it("Usuń widżet", "trash", move |s| {
+                if let Some(k) = widget_index(s, n, i) {
+                    {
+                        let mut b = s.borrow_mut();
+                        b.prefs.desktop_widgets.remove(k);
+                        b.prefs.save();
+                    }
+                    render_widgets(s);
+                }
+            })
+            .danger(),
+        ];
+        show_menu(n, items, x, y);
+    });
+}
+
+/// Nowy widżet w miejscu kliknięcia (x, y w oknie monitora `n`).
+fn add_widget(s: &Shared, n: usize, kind: &str, x: f32, y: f32) {
+    let (w, h) = crate::widgets::KINDS.iter().find(|k| k.0 == kind).map_or((240.0, 160.0), |k| k.4);
+    {
+        let mut b = s.borrow_mut();
+        b.prefs.desktop_widgets.push(crate::model::DeskWidget { kind: kind.to_string(), note: String::new(), monitor: n, x: snap(x), y: snap(y), w, h });
+        b.prefs.save();
+    }
+    render_widgets(s);
 }
 
 fn wire_icons(s: &Shared, w: &DesktopWindow) {
@@ -647,6 +739,11 @@ fn background_menu(_s: &Shared, win: usize, x: f32, y: f32) {
     v.extend([
         it("Odśwież", "refresh", |_| refresh()).kbd("F5"),
         it("Uporządkuj ikony", "grid", arrange),
+        menus::sub(
+            "Dodaj widżet",
+            "plus",
+            crate::widgets::KINDS.iter().map(|&(kind, name, icon, _, _)| it(name, icon, move |s| add_widget(s, win, kind, at.0, at.1))).collect(),
+        ),
         sep(),
         it("Otwórz folder Pulpit", "folder", |s| crate::open_args(s, vec![desktop_dir()])),
         it("Tapeta i personalizacja", "image", |_| {
