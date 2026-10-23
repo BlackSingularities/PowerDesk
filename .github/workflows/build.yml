@@ -24,7 +24,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri
+          workspaces: .
 
       # Wersja: MAJOR.MINOR z package.json. Pierwsze wydanie danej linii dostaje dokładnie wersję z package.json
       # (np. 1.0.0), każde kolejne – następny numer poprawki (1.0.1, 1.0.2…) na podstawie istniejących wydań.
@@ -48,8 +48,7 @@ jobs:
       - name: Sprawdzenie typów
         run: npm run check
       - name: Testy silnika synchronizacji
-        working-directory: src-tauri
-        run: cargo test --test sync_core
+        run: cargo test -p powerdesk-core --test sync_core
       - name: Build (instalator NSIS)
         run: npx tauri build
 
