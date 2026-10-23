@@ -138,5 +138,18 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
   i folderu (cmd po końcu procesu), ustawienia – na życzenie.
 - CI wydaje `PowerDesk-<v>.exe` – ten sam plik jest instalatorem.
 
+## Nakładka z wydajnością (Alt+R, w kodzie)
+
+- FPS: `core/src/fpsmon.rs` – sesja ETW „PowerDeskFrames” (DXGI Present_Start 42, D3D9 1, DxgKrnl
+  Present_Info 184 ze słowem Present), bez wstrzykiwania; proces z DXGI/D3D9 liczony z nich, reszta
+  z jądra. Wymaga administratora albo grupy S-1-5-32-559 – „Zezwól na pomiar FPS…” w Ustawieniach →
+  Nakładka (PowerShell Add-LocalGroupMember przez UAC, działa po ponownym zalogowaniu).
+- Karta: `core/src/gpumon.rs` – PDH (GPU Engine 3D, Dedicated Usage), DXGI (pojemność), NVML (temperatura).
+  Sprawdzone na żywo (`cargo test -p powerdesk-core --test perf_live -- --ignored --nocapture`):
+  karta, VRAM i temperatura działają; ETW bez uprawnień zwraca NoAccess – liczenia FPS nie sprawdzono.
+- Okno: `app/ui/overlay.slint` + `app/src/overlay.rs` – przezroczyste, `set_cursor_hittest(false)`,
+  na wierzchu co 0,5 s, róg monitora aktywnego programu; pełna (wykres czasu klatek, RAM, VRAM) albo mała.
+  Skrót globalny `core/src/hotkey.rs` (RegisterHotKey Alt+R). Ustawienia → Nakładka (sekcja 10).
+
 ## Kolejne zadania z planu
 

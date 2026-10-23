@@ -267,3 +267,31 @@ pub fn cursor() -> (i32, i32) {
     }
     (p.x, p.y)
 }
+
+/// Aktywny program dla nakładki: proces, nazwa pliku (bez .exe) i prostokąt jego monitora
+/// (lewo, góra, szerokość, wysokość). None – brak okna na pierwszym planie.
+pub fn foreground_app() -> Option<(u32, String, (i32, i32, i32, i32))> {
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromWindow, MONITORINFO, MONITOR_DEFAULTTONEAREST};
+    unsafe {
+        let w = GetForegroundWindow();
+        if w.is_invalid() {
+            return None;
+        }
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(w, Some(&mut pid));
+        let exe = exe_of(w);
+        let name = std::path::Path::new(&exe).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
+        let m = MonitorFromWindow(w, MONITOR_DEFAULTTONEAREST);
+        let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        let r = if GetMonitorInfoW(m, &mut mi).as_bool() { mi.rcMonitor } else { windows::Win32::Foundation::RECT::default() };
+        Some((pid, name, (r.left, r.top, r.right - r.left, r.bottom - r.top)))
+    }
+}
+
+/// Okno zawsze na samym wierzchu, bez zmiany położenia i bez aktywowania (nakładka nad grą).
+pub fn keep_topmost(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOPMOST, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE};
+    unsafe {
+        let _ = SetWindowPos(h(hwnd), Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
+}

@@ -172,6 +172,8 @@ fn render(s: &Shared) {
     g.set_remembered(p.folders.len() as i32);
     g.set_version(env!("CARGO_PKG_VERSION").into());
     g.set_prefs_path(prefs_path().into());
+    drop(b);
+    render_overlay(s);
 }
 
 /// Zmiana ustawień, zapis i odświeżenie ekranu.
@@ -258,6 +260,11 @@ pub fn toggle(s: &Shared, key: &str) {
         "single-click" => change(s, |p| p.single_click = !p.single_click),
         "close-to-tray" => change(s, |p| p.close_to_tray = !p.close_to_tray),
         "autostart-window" => change(s, |p| p.autostart_window = !p.autostart_window),
+        "overlay" => {
+            crate::overlay::toggle();
+            return;
+        }
+        "overlay-full" => change(s, |p| p.overlay_full = !p.overlay_full),
         _ => return,
     }
     // Karty z folderami wczytają się od nowa przy następnym wejściu.
@@ -309,6 +316,29 @@ pub fn set_window_opacity(s: &Shared, v: f32) {
     relook(s);
 }
 
+/// Sekcja Nakładka: przełączniki i stan pomiaru FPS.
+pub fn render_overlay(s: &Shared) {
+    use powerdesk_core::fpsmon::State;
+    let (on, corner, full) = {
+        let b = s.borrow();
+        (crate::overlay::is_open(), b.prefs.overlay_corner as i32, b.prefs.overlay_full)
+    };
+    let st = powerdesk_core::fpsmon::state();
+    let (text, need) = match st {
+        State::Running => ("Działa.".to_string(), false),
+        State::Off => ("Włącza się razem z nakładką.".to_string(), false),
+        State::NoAccess => ("Brak uprawnień: pomiar FPS wymaga administratora albo członkostwa w grupie „Użytkownicy dzienników wydajności”. Reszta nakładki działa.".to_string(), true),
+        State::Error(e) => (format!("Nie działa: {e}"), false),
+    };
+    with_ui(s, |g| {
+        g.set_overlay_on(on);
+        g.set_overlay_corner(corner);
+        g.set_overlay_full(full);
+        g.set_fps_status(text.into());
+        g.set_fps_need_access(need);
+    });
+}
+
 pub fn forget_views(s: &Shared) {
     change(s, |p| p.folders.clear());
 }
@@ -329,6 +359,15 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
+    let s = st.clone();
+    g.on_set_overlay_corner(move |k| change(&s, |p| p.overlay_corner = k.clamp(0, 3) as u8));
+    let s = st.clone();
+    g.on_grant_fps(move || {
+        match powerdesk_core::fpsmon::grant_access() {
+            Ok(()) => crate::transfers::toast(&s, "Gotowe po ponownym zalogowaniu – wtedy nakładka pokaże FPS", crate::transfers::Kind::Ok, None),
+            Err(e) => crate::transfers::toast(&s, e, crate::transfers::Kind::Error, None),
+        }
+    });
     g.on_uninstall(crate::setup::uninstall_from_settings);
     let s = st.clone();
     g.on_set_accent(move |a| {

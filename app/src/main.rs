@@ -20,6 +20,7 @@ mod termview;
 mod addr;
 mod menus;
 mod migrate;
+mod overlay;
 mod setup;
 mod model;
 mod preview;
@@ -345,6 +346,8 @@ fn main() -> Result<(), slint::PlatformError> {
     powerdesk_core::shellswap::spawn_guard();
     desktop::open(&st);
     taskbar::open(&st);
+    // Nakładka z wydajnością: skrót Alt+R, a jeśli była włączona – od razu.
+    overlay::init();
     // Własna historia schowka (Win+V) – nasłuch od startu, żeby nic nie umknęło.
     cliphistory::start();
     // Z autostartu: bez okna folderów – pojawia się z menu Start albo po Win+E.

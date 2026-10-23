@@ -135,6 +135,9 @@ Zasady:
 ### Nowe: widżety
 - [ ] Widżety w kafelkach Startu i na pulpicie (w kodzie, nieklikane): zegar, kalendarz, pogoda, zegary świata, co teraz gra, zdjęcia, przypomnienia, system, dyski, notatka
 
+### Nowe: nakładka z wydajnością
+- [ ] Nakładka Alt+R: FPS (ETW), czas klatki z wykresem, procesor, karta (obciążenie, temperatura NVIDIA), RAM, VRAM – w kodzie; karta sprawdzona, FPS czeka na uprawnienia
+
 ### Instalator i deinstalator
 - [ ] Instalacja per użytkownik i per maszyna, skróty, autostart (w kodzie: `--install [--all-users]`, propozycja przy pierwszym uruchomieniu, Ustawienia → System)
 - [ ] Migracja: odinstalowanie OpenFilePower i przeniesienie ustawień (w kodzie: migrate.rs, cichy deinstalator OpenFilePower po pytaniu)

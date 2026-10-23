@@ -1,0 +1,125 @@
+import { Theme } from "theme.slint";
+
+/// Nakładka z wydajnością nad dowolnym programem (Alt+R): FPS i czas klatki z wykresem,
+/// procesor, karta graficzna, pamięć. Przezroczysta, nie łapie myszy (overlay.rs).
+export component OverlayWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    title: "PowerDesk – nakładka";
+    background: transparent;
+    /// Pełna (wykres i wszystkie wiersze) albo mała (FPS i najważniejsze).
+    in property <bool> full: true;
+    in property <string> app;
+    in property <string> fps;
+    /// Kolor liczby FPS: 0 – brak, 1 – dobrze (≥ 55), 2 – średnio (≥ 30), 3 – słabo.
+    in property <int> fps-level;
+    in property <string> frame;
+    /// Czasy ostatnich klatek względem najdłuższej (0–1) – słupki wykresu.
+    in property <[float]> hist;
+    in property <string> cpu;
+    in property <string> gpu;
+    in property <string> gpu-temp;
+    in property <string> ram;
+    in property <string> vram;
+    /// Komunikat zamiast FPS (np. brak uprawnień do pomiaru).
+    in property <string> note;
+    width: 214px;
+    height: panel.preferred-height;
+
+    property <color> good: #3ddc84;
+    property <color> mid: #f5b83d;
+    property <color> bad: #ff5c5c;
+
+    panel := Rectangle {
+        border-radius: 10px;
+        background: #0b0b0bc8;
+        border-width: 1px;
+        border-color: #ffffff1c;
+        VerticalLayout {
+            padding: 10px;
+            padding-top: 8px;
+            spacing: 4px;
+            HorizontalLayout {
+                spacing: 6px;
+                Text {
+                    text: root.fps == "" ? "–" : root.fps;
+                    font-size: 26px;
+                    font-weight: 700;
+                    color: root.fps-level == 1 ? root.good : root.fps-level == 2 ? root.mid : root.fps-level == 3 ? root.bad : #ffffff99;
+                }
+                VerticalLayout {
+                    alignment: end;
+                    padding-bottom: 4px;
+                    Text {
+                        text: "FPS";
+                        font-size: 11px;
+                        font-weight: 600;
+                        color: #ffffffaa;
+                    }
+                }
+                Rectangle {
+                    horizontal-stretch: 1;
+                }
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        horizontal-alignment: right;
+                        text: root.frame;
+                        font-size: 11.5px;
+                        color: #ffffffcc;
+                    }
+                    Text {
+                        horizontal-alignment: right;
+                        text: root.app;
+                        font-size: 10px;
+                        color: #ffffff80;
+                        overflow: elide;
+                        width: 100px;
+                    }
+                }
+            }
+            if root.note != "": Text {
+                text: root.note;
+                wrap: word-wrap;
+                font-size: 10.5px;
+                color: root.mid;
+            }
+            // Czas klatek – im wyższy słupek, tym dłuższa klatka (przycięcia widać od razu).
+            if root.full: Rectangle {
+                height: 34px;
+                background: #ffffff0d;
+                border-radius: 4px;
+                for v[i] in root.hist: Rectangle {
+                    x: i * parent.width / max(1, root.hist.length);
+                    width: max(1px, parent.width / max(1, root.hist.length) - 0.5px);
+                    height: max(1px, v * (parent.height - 2px));
+                    y: parent.height - self.height - 1px;
+                    background: v > 0.75 ? root.bad : v > 0.45 ? root.mid : root.good.with-alpha(0.8);
+                }
+            }
+            for row in root.full ? [
+                { k: "CPU", v: root.cpu },
+                { k: "GPU", v: root.gpu + (root.gpu-temp != "" ? "  " + root.gpu-temp : "") },
+                { k: "RAM", v: root.ram },
+                { k: "VRAM", v: root.vram },
+            ] : [
+                { k: "CPU", v: root.cpu },
+                { k: "GPU", v: root.gpu + (root.gpu-temp != "" ? "  " + root.gpu-temp : "") },
+            ]: HorizontalLayout {
+                Text {
+                    width: 42px;
+                    text: row.k;
+                    font-size: 11px;
+                    font-weight: 600;
+                    color: #ffffff88;
+                }
+                Text {
+                    text: row.v;
+                    font-size: 11.5px;
+                    color: #ffffffe6;
+                    overflow: elide;
+                }
+            }
+        }
+    }
+}

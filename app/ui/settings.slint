@@ -54,6 +54,15 @@ export global SettingsState {
     in-out property <bool> installed;
     in-out property <string> install-place;
     callback install(bool);
+    // Nakładka z wydajnością.
+    in-out property <bool> overlay-on;
+    in-out property <int> overlay-corner;
+    in-out property <bool> overlay-full;
+    /// Stan pomiaru FPS (uprawnienia) – opis dla użytkownika i czy pokazać przycisk zgody.
+    in-out property <string> fps-status;
+    in-out property <bool> fps-need-access;
+    callback set-overlay-corner(int);
+    callback grant-fps();
     callback uninstall();
     in-out property <int> remembered;
     in-out property <string> version;
@@ -258,6 +267,7 @@ export component SettingsView inherits Rectangle {
         { title: "System", icon: Icons.shield },
         { title: "Skróty klawiszowe", icon: Icons.hash },
         { title: "O aplikacji", icon: Icons.info },
+        { title: "Nakładka", icon: Icons.bolt },
     ];
     property <[string]> accents: ["#4f8cff", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6"];
     property <[{keys: string, what: string}]> shortcuts: [
@@ -976,6 +986,86 @@ export component SettingsView inherits Rectangle {
                     for k in root.shortcuts: Key {
                         keys: k.keys;
                         what: k.what;
+                    }
+                }
+
+                if SettingsState.section == 10: VerticalLayout {
+                    spacing: 8px;
+                    Heading {
+                        title: "Nakładka";
+                        lead: "FPS, czas klatki, procesor, karta graficzna i pamięć nad dowolnym programem";
+                    }
+                    ToggleRow {
+                        icon: Icons.bolt;
+                        text: "Pokaż nakładkę";
+                        kbd: "Alt+R";
+                        hint: "Działa w każdym programie i grze w oknie albo w oknie bez ramki";
+                        on: SettingsState.overlay-on;
+                        toggled => {
+                            SettingsState.toggle("overlay");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.panel;
+                        text: "Pełna nakładka";
+                        hint: "Z wykresem czasu klatek, RAM i VRAM; wyłączone – tylko FPS, procesor i karta";
+                        on: SettingsState.overlay-full;
+                        toggled => {
+                            SettingsState.toggle("overlay-full");
+                        }
+                    }
+                    Label {
+                        text: "Miejsce na ekranie";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        for c[k] in ["Lewy górny róg", "Prawy górny róg", "Lewy dolny róg", "Prawy dolny róg"]: Choice {
+                            icon: Icons.grid;
+                            text: c;
+                            on: SettingsState.overlay-corner == k;
+                            clicked => {
+                                SettingsState.set-overlay-corner(k);
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Pomiar FPS";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: SettingsState.fps-status;
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: SettingsState.fps-need-access ? Theme.rec : Theme.dim;
+                    }
+                    if SettingsState.fps-need-access: HorizontalLayout {
+                        alignment: start;
+                        Rectangle {
+                            width: ga.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: ga-ta.has-hover ? Theme.press : Theme.card;
+                            ga := Label {
+                                horizontal-alignment: center;
+                                text: "Zezwól na pomiar FPS…";
+                                font-size: 12.5px;
+                            }
+                            ga-ta := TipArea {
+                                tip: "Dopisuje Twoje konto do grupy „Użytkownicy dzienników wydajności” (raz, Windows zapyta o uprawnienia); działa po ponownym zalogowaniu";
+                                clicked => {
+                                    SettingsState.grant-fps();
+                                }
+                            }
+                        }
+                    }
+                    Label {
+                        text: "FPS liczone ze zdarzeń systemowych Windows (jak PresentMon) – nic nie trafia do gry. DirectX 9–12, Vulkan i OpenGL. W grach w trybie „pełny ekran wyłączny” nakładka może być niewidoczna – wtedy tryb okna bez ramki. Temperatura karty – tylko NVIDIA.";
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: Theme.faint;
                     }
                 }
 
