@@ -867,8 +867,11 @@ pub struct Prefs {
     pub desktop_pos: HashMap<String, (i32, i32)>,
     /// Programy przypięte do paska zadań (pełne ścieżki .exe) w kolejności przycisków.
     pub taskbar_pins: Vec<String>,
-    /// Kafelki menu Start (ścieżki shell:AppsFolder…) w kolejności przypinania.
+    /// Kafelki menu Start (ścieżki shell:AppsFolder…) w kolejności przypinania – stary zapis,
+    /// przenoszony do `start_groups` przy pierwszym użyciu.
     pub start_pins: Vec<String>,
+    /// Grupy kafelków menu Start (jak w Windows 10): nazwa i kafelki, także foldery.
+    pub start_groups: Vec<StartGroup>,
     /// Aplikacje ukryte w menu Start (te same ścieżki).
     pub start_hidden: Vec<String>,
     /// Rozmiar menu Start (piksele logiczne) – zmieniany przeciąganiem górnej i prawej krawędzi.
@@ -879,6 +882,47 @@ pub struct Prefs {
     pub taskbar_opacity: f32,
     /// Pasek całkiem przezroczysty, gdy na jego monitorze nie ma otwartych okien.
     pub taskbar_clear_desktop: bool,
+}
+
+/// Grupa kafelków menu Start.
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct StartGroup {
+    pub name: String,
+    pub tiles: Vec<StartPin>,
+}
+
+/// Kafelek menu Start: aplikacja albo folder (niepuste `items`).
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct StartPin {
+    /// Ścieżka aplikacji (shell:AppsFolder…); pusta w folderze.
+    pub path: String,
+    /// Rozmiar: 0 – średni, 1 – mały, 2 – szeroki, 3 – duży.
+    pub size: u8,
+    /// Nazwa folderu (aplikacja ma nazwę z listy aplikacji).
+    pub name: String,
+    pub items: Vec<StartPin>,
+}
+
+impl StartPin {
+    pub fn app(path: &str) -> Self {
+        StartPin { path: path.to_string(), ..Default::default() }
+    }
+
+    pub fn is_folder(&self) -> bool {
+        !self.items.is_empty()
+    }
+
+    /// Szerokość i wysokość w polach siatki (pole 48 px + 4 px odstępu).
+    pub fn cells(&self) -> (usize, usize) {
+        match self.size {
+            1 => (1, 1),
+            2 => (4, 2),
+            3 => (4, 4),
+            _ => (2, 2),
+        }
+    }
 }
 
 /// Wyszukiwanie zapisane w panelu bocznym.
@@ -892,7 +936,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "home".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false }
     }
 }
 

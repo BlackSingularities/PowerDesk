@@ -88,7 +88,11 @@ w pilnowaniu pulpitu; zmiana – pulpit i pasek budowane od nowa.
 - Panel boczny, prawy przycisk na dysku: Wysuń (czasownik „eject”), Odłącz dysk sieciowy, Oczyszczanie dysku
   (`cleanmgr /dX`), Mapuj dysk sieciowy… (`WNetConnectionDialog`).
 
+- Start: kafelki w grupach (`prefs.start_groups`, stary `start_pins` przenoszony), siatka 6 pól po 52 px
+  (`app/src/starttiles.rs`, testy), nazwa grupy wpisywana w nagłówku, folder – upuszczenie na środek
+  kafelka (klik otwiera, „Rozgrupuj folder”), upuszczenie obok – miejsce przed kafelkiem, pod grupami – nowa
+  grupa; „Zmień rozmiar” w menu kafelka.
+
 ## Kolejne zadania z planu
 
-- Menu Start: foldery grup jak w Windows 10, przeciąganie i rozmiary kafelków.
 - Etap 8: instalator i deinstalator (przywrócenie pulpitu, paska i powłoki), migracja z OpenFilePower.

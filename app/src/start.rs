@@ -10,8 +10,10 @@ use powerdesk_core::startmenu::{self, App, Power};
 use slint::winit_030::WinitWindowAccessor;
 use slint::{ComponentHandle, ModelRc, PhysicalPosition, PhysicalSize, VecModel};
 
-use crate::menus::{self, it, sep, Item};
-use crate::{StartRow, StartTile, StartWindow, Theme};
+use crate::menus::{self, it, sep, sub, Item};
+use crate::model::StartGroup;
+use crate::starttiles::{self as tiles, At, Head, Placed};
+use crate::{StartHead, StartRow, StartTile, StartWindow, Theme};
 
 /// Najmniejszy rozmiar Startu (lista i kolumna) – mniejszy nie ma sensu.
 const MIN: (f32, f32) = (420.0, 360.0);
@@ -31,6 +33,10 @@ thread_local! {
     static DRAG: std::cell::Cell<Option<(i32, (i32, i32), (i32, i32), i32)>> = const { std::cell::Cell::new(None) };
     /// Lista aplikacji – czytana w tle przy starcie i przy każdym otwarciu.
     static APPS: RefCell<Vec<App>> = const { RefCell::new(Vec::new()) };
+    /// Otwarty folder kafelków (grupa, kafelek).
+    static FOLDER: std::cell::Cell<Option<(usize, usize)>> = const { std::cell::Cell::new(None) };
+    /// Ułożone kafelki i nagłówki z ostatniego rysowania – do kliknięć i upuszczania.
+    static PLACED: RefCell<(Vec<Placed>, Vec<Head>)> = const { RefCell::new((Vec::new(), Vec::new())) };
 }
 
 /// Lista aplikacji w tle (folder „Aplikacje” bywa wolny przy pierwszym czytaniu).
@@ -76,25 +82,36 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
             launch(i);
         }
     });
-    w.on_launch_tile(|t| {
-        if let Some(p) = tile_path(t as usize) {
-            startmenu::launch(&p);
-            slint::Timer::single_shot(Duration::ZERO, close);
-        }
-    });
+    w.on_launch_tile(|t| launch_tile(t as usize));
     w.on_row_context(|row, x, y| {
         if let Some(i) = app_at(row as usize) {
             let app = APPS.with(|a| a.borrow().get(i).cloned());
             if let Some(app) = app {
-                app_menu(&app.shell_path(), &app.id, x, y);
+                app_menu(&app.shell_path(), &app.id, None, x, y);
             }
         }
     });
-    w.on_tile_context(|t, x, y| {
-        if let Some(p) = tile_path(t as usize) {
-            let id = p.trim_start_matches("shell:AppsFolder\\").to_string();
-            app_menu(&p, &id, x, y);
+    w.on_tile_context(|t, x, y| tile_menu(t as usize, x, y));
+    w.on_tile_drop(|t, x, y| tile_drop(t as usize, x, y));
+    w.on_group_rename(|g, name| {
+        edit_groups(|gs| {
+            if let Some(gr) = gs.get_mut(g as usize) {
+                gr.name = name.trim().to_string();
+            }
+        })
+    });
+    w.on_folder_rename(|name| {
+        if let Some((g, t)) = FOLDER.with(|f| f.get()) {
+            edit_groups(|gs| {
+                if let Some(f) = gs.get_mut(g).and_then(|gr| gr.tiles.get_mut(t)) {
+                    f.name = name.trim().to_string();
+                }
+            });
         }
+    });
+    w.on_folder_back(|| {
+        FOLDER.with(|f| f.set(None));
+        render();
     });
     w.on_rail(rail);
     w.on_menu_chosen(|i| {
@@ -182,6 +199,7 @@ fn has_focus() -> bool {
 
 pub fn close() {
     SHOW_HIDDEN.with(|h| h.set(false));
+    FOLDER.with(|f| f.set(None));
     if let Some(s) = START.with(|s| s.borrow_mut().take()) {
         let _ = s.w.hide();
     }
@@ -196,10 +214,35 @@ fn app_at(row: usize) -> Option<usize> {
     START.with(|s| s.borrow().as_ref().and_then(|s| s.shown.get(row).copied().flatten()))
 }
 
-fn pins() -> Vec<String> {
-    let mut p = Vec::new();
-    crate::with_state(|s| p = s.borrow().prefs.start_pins.clone());
-    p
+/// Grupy kafelków; stary zapis (sama lista) przenoszony za pierwszym razem.
+fn groups() -> Vec<StartGroup> {
+    let mut g = Vec::new();
+    crate::with_state(|s| {
+        let mut b = s.borrow_mut();
+        let prefs = &mut b.prefs;
+        if tiles::migrate(&mut prefs.start_pins, &mut prefs.start_groups) {
+            prefs.save();
+        }
+        g = prefs.start_groups.clone();
+    });
+    g
+}
+
+/// Zmiana grup: zapis i przerysowanie. Otwarty folder, który zniknął, się zamyka.
+fn edit_groups(f: impl FnOnce(&mut Vec<StartGroup>)) {
+    let mut gs = groups();
+    f(&mut gs);
+    if let Some((g, t)) = FOLDER.with(|x| x.get()) {
+        if !gs.get(g).and_then(|gr| gr.tiles.get(t)).is_some_and(|p| p.is_folder()) {
+            FOLDER.with(|x| x.set(None));
+        }
+    }
+    crate::with_state(|s| {
+        let mut b = s.borrow_mut();
+        b.prefs.start_groups = gs;
+        b.prefs.save();
+    });
+    render();
 }
 
 fn hidden() -> Vec<String> {
@@ -265,8 +308,76 @@ fn hidden_switch() -> Option<Item> {
     })
 }
 
-fn tile_path(i: usize) -> Option<String> {
-    pins().get(i).cloned()
+fn placed(i: usize) -> Option<At> {
+    PLACED.with(|p| p.borrow().0.get(i).map(|p| p.at))
+}
+
+/// Klik w kafelek: aplikacja się uruchamia, folder otwiera.
+fn launch_tile(i: usize) {
+    let Some(at) = placed(i) else { return };
+    let Some(pin) = tiles::get(&groups(), at).cloned() else { return };
+    if pin.is_folder() {
+        FOLDER.with(|f| f.set(Some((at.group, at.tile))));
+        render();
+        return;
+    }
+    startmenu::launch(&pin.path);
+    slint::Timer::single_shot(Duration::ZERO, close);
+}
+
+fn tile_drop(i: usize, x: f32, y: f32) {
+    let Some(from) = placed(i) else { return };
+    let target = PLACED.with(|p| {
+        let p = p.borrow();
+        tiles::target(&p.0, &p.1, FOLDER.with(|f| f.get()).is_some(), x, y)
+    });
+    edit_groups(|gs| tiles::drop(gs, from, target));
+}
+
+/// Podmenu rozmiaru kafelka (zaznaczony bieżący).
+fn size_menu(at: At, now: u8) -> Item {
+    let opt = |label: &str, size: u8| {
+        it(label, "grid", move |_| {
+            edit_groups(|gs| {
+                if let Some(p) = tiles::get_mut(gs, at) {
+                    p.size = size;
+                }
+            })
+        })
+        .checked(now == size)
+    };
+    sub("Zmień rozmiar", "grid", vec![opt("Mały", 1), opt("Średni", 0), opt("Szeroki", 2), opt("Duży", 3)])
+}
+
+fn tile_menu(i: usize, x: f32, y: f32) {
+    let Some(at) = placed(i) else { return };
+    let Some(pin) = tiles::get(&groups(), at).cloned() else { return };
+    if !pin.is_folder() {
+        let id = pin.path.trim_start_matches("shell:AppsFolder\\").to_string();
+        app_menu(&pin.path, &id, Some((at, pin.size)), x, y);
+        return;
+    }
+    let items = vec![
+        it("Otwórz folder", "folder", move |_| {
+            FOLDER.with(|f| f.set(Some((at.group, at.tile))));
+            render();
+        }),
+        size_menu(at, pin.size),
+        sep(),
+        it("Rozgrupuj folder", "close", move |_| {
+            edit_groups(|gs| {
+                if let Some(gr) = gs.get_mut(at.group) {
+                    if at.tile < gr.tiles.len() {
+                        let f = gr.tiles.remove(at.tile);
+                        for (k, c) in f.items.into_iter().enumerate() {
+                            gr.tiles.insert(at.tile + k, c);
+                        }
+                    }
+                }
+            })
+        }),
+    ];
+    show_menu(items, x, y);
 }
 
 fn launch(i: usize) {
@@ -328,16 +439,41 @@ fn render() {
         });
         st.w.set_rows(ModelRc::new(VecModel::from(rows)));
         st.shown = shown;
-        let tpx = (32.0 * st.w.window().scale_factor()) as u32;
-        let tiles: Vec<StartTile> = pins()
+        let scale = st.w.window().scale_factor();
+        let gs = groups();
+        let folder = FOLDER.with(|f| f.get());
+        let (placed, heads, height) = tiles::layout(&gs, folder);
+        let name_of = |path: &str| APPS.with(|a| a.borrow().iter().find(|x| x.shell_path() == path).map(|x| x.name.clone())).unwrap_or_else(|| path.rsplit('\\').next().unwrap_or(path).to_string());
+        let model: Vec<StartTile> = placed
             .iter()
-            .map(|p| {
-                let name = APPS.with(|a| a.borrow().iter().find(|x| &x.shell_path() == p).map(|x| x.name.clone())).unwrap_or_else(|| p.rsplit('\\').next().unwrap_or(p).to_string());
-                let img = crate::thumbs::get(p, tpx, true);
-                StartTile { name: name.into(), has_img: img.is_some(), img: img.unwrap_or_default() }
+            .filter_map(|p| {
+                let pin = tiles::get(&gs, p.at)?;
+                let px = ((if pin.size == 3 { 48.0 } else { 32.0 }) * scale) as u32;
+                let img = if pin.is_folder() { None } else { crate::thumbs::get(&pin.path, px, true) };
+                let minis: Vec<slint::Image> = pin.items.iter().take(4).filter_map(|c| crate::thumbs::get(&c.path, (18.0 * scale) as u32, true)).collect();
+                let name = if pin.is_folder() { if pin.name.is_empty() { format!("Folder ({})", pin.items.len()) } else { pin.name.clone() } } else { name_of(&pin.path) };
+                Some(StartTile {
+                    name: name.into(),
+                    has_img: img.is_some(),
+                    img: img.unwrap_or_default(),
+                    x: p.x,
+                    y: p.y,
+                    w: p.w,
+                    h: p.h,
+                    size: pin.size as i32,
+                    folder: pin.is_folder(),
+                    minis: ModelRc::new(VecModel::from(minis)),
+                })
             })
             .collect();
-        st.w.set_tiles(ModelRc::new(VecModel::from(tiles)));
+        let head_model: Vec<StartHead> = heads.iter().map(|h| StartHead { name: gs.get(h.group).map(|g| g.name.clone()).unwrap_or_default().into(), y: h.y }).collect();
+        st.w.set_tiles(ModelRc::new(VecModel::from(model)));
+        st.w.set_heads(ModelRc::new(VecModel::from(head_model)));
+        st.w.set_tiles_h(height);
+        st.w.set_in_folder(folder.is_some());
+        let fname = folder.and_then(|(g, t)| gs.get(g).and_then(|gr| gr.tiles.get(t))).map(|f| f.name.clone()).unwrap_or_default();
+        st.w.set_folder_name(fname.into());
+        PLACED.with(|x| *x.borrow_mut() = (placed, heads));
     });
 }
 
@@ -363,23 +499,21 @@ fn show_menu(items: Vec<Item>, x: f32, y: f32) {
 }
 
 fn toggle_pin(path: &str) {
-    crate::with_state(|s| {
-        let mut b = s.borrow_mut();
-        let pins = &mut b.prefs.start_pins;
-        if let Some(i) = pins.iter().position(|p| p == path) {
-            pins.remove(i);
+    let path = path.to_string();
+    edit_groups(move |gs| {
+        if tiles::contains(gs, &path) {
+            tiles::unpin(gs, &path);
         } else {
-            pins.push(path.to_string());
+            tiles::pin(gs, &path);
         }
-        b.prefs.save();
     });
-    render();
 }
 
 /// Menu aplikacji: uruchom, jako administrator, kafelek, pasek (tylko zwykłe programy .exe).
-fn app_menu(path: &str, id: &str, x: f32, y: f32) {
+/// `tile` – menu kafelka: miejsce i rozmiar (dochodzi wybór rozmiaru).
+fn app_menu(path: &str, id: &str, tile: Option<(At, u8)>, x: f32, y: f32) {
     let (p1, p2, p3, p4) = (path.to_string(), path.to_string(), path.to_string(), path.to_string());
-    let pinned = pins().iter().any(|p| p == path);
+    let pinned = tiles::contains(&groups(), path);
     let is_hidden = hidden().iter().any(|p| p == path);
     let mut items = vec![
         it("Otwórz", "open", move |_| {
@@ -393,6 +527,9 @@ fn app_menu(path: &str, id: &str, x: f32, y: f32) {
         sep(),
         it(if pinned { "Odepnij od Startu" } else { "Przypnij do Startu" }, "pin", move |_| toggle_pin(&p3)),
     ];
+    if let Some((at, size)) = tile {
+        items.push(size_menu(at, size));
+    }
     // Pasek przypina pliki programów – tylko gdy aplikacja jest zwykłym .exe ze ścieżką.
     if id.contains(":\\") && id.to_lowercase().ends_with(".exe") {
         let exe = id.to_string();

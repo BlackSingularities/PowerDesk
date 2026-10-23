@@ -33,7 +33,7 @@ pub fn sep() -> Item {
     Item { label: String::new(), icon: "", kbd: "", checked: false, danger: false, disabled: false, sep: true, act: None, sub: Vec::new() }
 }
 
-fn sub(label: &str, icon: &'static str, items: Vec<Item>) -> Item {
+pub fn sub(label: &str, icon: &'static str, items: Vec<Item>) -> Item {
     Item { sub: items, act: None, ..it(label, icon, |_| {}) }
 }
 

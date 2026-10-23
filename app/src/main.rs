@@ -7,6 +7,7 @@ mod desktop;
 mod dragdrop;
 mod taskbar;
 mod start;
+mod starttiles;
 mod cliphistory;
 mod facets;
 mod fmt;

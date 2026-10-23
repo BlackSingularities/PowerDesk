@@ -13,11 +13,26 @@ export struct StartRow {
     hidden: bool,
 }
 
-/// Kafelek przypiętej aplikacji.
+/// Kafelek przypiętej aplikacji albo folder – miejsce i rozmiar liczy starttiles.rs.
 export struct StartTile {
     name: string,
     img: image,
     has-img: bool,
+    x: length,
+    y: length,
+    w: length,
+    h: length,
+    /// 0 – średni, 1 – mały (sama ikona), 2 – szeroki, 3 – duży.
+    size: int,
+    folder: bool,
+    /// Folder: ikony pierwszych aplikacji (do czterech).
+    minis: [image],
+}
+
+/// Nagłówek grupy kafelków (nazwa do wpisania jak w Windows 10).
+export struct StartHead {
+    name: string,
+    y: length,
 }
 
 /// Przycisk lewej kolumny (konto, foldery, ustawienia, zasilanie).
@@ -53,10 +68,22 @@ export component StartWindow inherits Window {
 
     in property <[StartRow]> rows;
     in property <[StartTile]> tiles;
+    in property <[StartHead]> heads;
+    /// Wysokość wszystkich grup (do przewijania).
+    in property <length> tiles-h;
+    /// Otwarty folder kafelków – jego nazwa i przycisk powrotu zamiast nagłówków grup.
+    in property <bool> in-folder;
+    in property <string> folder-name;
     in property <string> user;
     /// Duże ikony w siatce zamiast listy (bez liter grup).
     in property <bool> grid;
     in-out property <string> query;
+    /// Przeciągany kafelek (-1 – żaden) i jego podgląd w obszarze kafelków.
+    in-out property <int> drag-index: -1;
+    in-out property <length> drag-x;
+    in-out property <length> drag-y;
+    in-out property <length> drag-w;
+    in-out property <length> drag-h;
     // Menu podręczne (pozycje i miejsce podaje taskbar.rs).
     in property <[MenuEntry]> menu-entries;
     in property <length> menu-x;
@@ -71,6 +98,11 @@ export component StartWindow inherits Window {
     /// Prawy przycisk na aplikacji / kafelku – menu (współrzędne w oknie).
     callback row-context(int, length, length);
     callback tile-context(int, length, length);
+    /// Kafelek przeciągnięty i puszczony w (x, y) obszaru kafelków.
+    callback tile-drop(int, length, length);
+    callback group-rename(int, string);
+    callback folder-rename(string);
+    callback folder-back();
     /// Lewa kolumna: 0 – konto, 1 – Dokumenty, 2 – Obrazy, 3 – Ustawienia, 4 – zasilanie.
     callback rail(int, length, length);
     callback menu-chosen(int);
@@ -290,18 +322,11 @@ export component StartWindow inherits Window {
             }
         }
 
-        // Kafelki przypiętych aplikacji – trzy kolumny po 100 px.
+        // Kafelki: grupy z nazwami, siatka 6 pól po 52 px, przeciąganie z podglądem.
         Rectangle {
-            horizontal-stretch: 1;
-            Text {
-                x: 14px;
-                y: 14px;
-                text: "Przypięte";
-                font-size: 12px;
-                font-weight: 600;
-                color: Theme.dim;
-            }
-            if root.tiles.length == 0: Text {
+            horizontal-stretch: 0;
+            width: 6 * 52px + 28px;
+            if root.tiles.length == 0 && !root.in-folder: Text {
                 x: 14px;
                 y: 44px;
                 width: parent.width - 28px;
@@ -310,46 +335,158 @@ export component StartWindow inherits Window {
                 font-size: 12px;
                 color: Theme.faint;
             }
-            for t[i] in root.tiles: Rectangle {
-                x: 14px + mod(i, 3) * 104px;
-                y: 40px + floor(i / 3) * 104px;
-                width: 100px;
-                height: 100px;
-                border-radius: Theme.r;
-                background: tl-ta.has-hover ? Theme.hover : Theme.card;
-                if t.has-img: Image {
-                    y: 22px;
-                    width: 32px;
-                    height: 32px;
-                    source: t.img;
-                }
-                if !t.has-img: Icon {
-                    y: 26px;
-                    commands: Icons.app;
-                    size: 24px;
-                    color: Theme.dim;
-                }
-                Text {
-                    x: 6px;
-                    y: 64px;
-                    width: parent.width - 12px;
-                    horizontal-alignment: center;
-                    text: t.name;
-                    overflow: elide;
-                    font-size: 11px;
-                    color: Theme.text;
-                }
-                tl-ta := TouchArea {
-                    mouse-cursor: pointer;
-                    clicked => {
-                        root.launch-tile(i);
+            // Folder: powrót i nazwa folderu.
+            if root.in-folder: Rectangle {
+                x: 14px;
+                y: 8px;
+                width: parent.width - 28px;
+                height: 30px;
+                Rectangle {
+                    x: 0;
+                    width: 28px;
+                    height: 28px;
+                    border-radius: Theme.r;
+                    background: fb-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: Icons.back;
+                        size: 16px;
+                        color: Theme.text;
                     }
-                    pointer-event(e) => {
-                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
-                            root.tile-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                    fb-ta := TipArea {
+                        tip: "Wróć do grup";
+                        clicked => {
+                            root.folder-back();
                         }
                     }
                 }
+                TextInput {
+                    x: 36px;
+                    width: parent.width - 36px;
+                    height: 28px;
+                    vertical-alignment: center;
+                    text: root.folder-name;
+                    font-size: 13px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    accepted => {
+                        root.folder-rename(self.text);
+                    }
+                }
+            }
+            tiles-fl := Flickable {
+                x: 14px;
+                y: root.in-folder ? 44px : 8px;
+                width: parent.width - 14px;
+                height: parent.height - self.y - 8px;
+                content-height: max(root.tiles-h + 60px, self.height);
+                for h[g] in root.heads: TextInput {
+                    x: 0;
+                    y: h.y;
+                    width: 6 * 52px - 4px;
+                    height: 28px;
+                    vertical-alignment: center;
+                    text: h.name;
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    // Pusta nazwa – podpowiedź jak w Windows (wpis i Enter nadaje nazwę).
+                    if self.text == "" && !self.has-focus: Text {
+                        text: "Nazwij grupę";
+                        font-size: 12px;
+                        color: Theme.faint;
+                        x: 0;
+                        vertical-alignment: center;
+                        height: parent.height;
+                    }
+                    accepted => {
+                        root.group-rename(g, self.text);
+                    }
+                }
+                for t[i] in root.tiles: Rectangle {
+                    x: t.x;
+                    y: t.y;
+                    width: t.w;
+                    height: t.h;
+                    border-radius: Theme.r;
+                    background: tl-ta.has-hover ? Theme.hover : Theme.card;
+                    opacity: root.drag-index == i ? 0.4 : 1;
+                    property <length> icon: t.size == 1 ? 24px : t.size == 3 ? 48px : 32px;
+                    if !t.folder && t.has-img: Image {
+                        y: t.size == 1 ? (parent.height - parent.icon) / 2 : (parent.height - parent.icon) / 2 - 8px;
+                        width: parent.icon;
+                        height: parent.icon;
+                        source: t.img;
+                    }
+                    if !t.folder && !t.has-img: Icon {
+                        y: t.size == 1 ? (parent.height - 20px) / 2 : (parent.height - 24px) / 2 - 8px;
+                        commands: Icons.app;
+                        size: t.size == 1 ? 20px : 24px;
+                        color: Theme.dim;
+                    }
+                    // Folder: do czterech ikon w kratce.
+                    for m[k] in t.minis: Image {
+                        x: (parent.width - 40px) / 2 + mod(k, 2) * 22px;
+                        y: (t.size == 1 ? (parent.height - 40px) / 2 : (parent.height - 40px) / 2 - 8px) + floor(k / 2) * 22px;
+                        width: 18px;
+                        height: 18px;
+                        source: m;
+                    }
+                    if t.size != 1: Text {
+                        x: 6px;
+                        y: parent.height - 22px;
+                        width: parent.width - 12px;
+                        horizontal-alignment: t.size == 0 ? center : left;
+                        text: t.name;
+                        overflow: elide;
+                        font-size: 11px;
+                        color: Theme.text;
+                    }
+                    tl-ta := TipArea {
+                        tip: t.size == 1 ? t.name : "";
+                        mouse-cursor: pointer;
+                        property <bool> drag: self.pressed && (abs(self.mouse-x - self.pressed-x) > 6px || abs(self.mouse-y - self.pressed-y) > 6px);
+                        property <bool> was-drag;
+                        moved => {
+                            if (self.drag) {
+                                root.drag-index = i;
+                                root.drag-x = tiles-fl.x + tiles-fl.content-x + t.x + self.mouse-x - self.pressed-x;
+                                root.drag-y = tiles-fl.y + tiles-fl.content-y + t.y + self.mouse-y - self.pressed-y;
+                                root.drag-w = t.w;
+                                root.drag-h = t.h;
+                            }
+                        }
+                        clicked => {
+                            if (!self.was-drag) {
+                                root.launch-tile(i);
+                            }
+                        }
+                        pointer-event(e) => {
+                            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                self.was-drag = false;
+                            }
+                            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.drag-index == i) {
+                                self.was-drag = true;
+                                root.drag-index = -1;
+                                root.tile-drop(i, t.x + self.mouse-x, t.y + self.mouse-y);
+                            }
+                            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                                root.tile-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                            }
+                        }
+                    }
+                }
+            }
+            // Podgląd przeciąganego kafelka.
+            if root.drag-index >= 0: Rectangle {
+                x: root.drag-x;
+                y: root.drag-y;
+                width: root.drag-w;
+                height: root.drag-h;
+                border-radius: Theme.r;
+                background: Theme.sel;
+                border-width: 1px;
+                border-color: Theme.accent;
+                opacity: 0.8;
             }
         }
     }
