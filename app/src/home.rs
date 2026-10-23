@@ -227,8 +227,8 @@ fn ic(name: &str) -> slint::SharedString {
 
 /// Narzędzia systemu: nazwa, opis, ikona liniowa (zanim dotrze systemowa), źródło ikony
 /// systemowej (`sys:` – plik w System32, `app:` – aplikacja z menu Start) i polecenie
-/// (ShellExecute; `!map`, `!env` – obsługiwane osobno).
-const TOOLS: [(&str, &str, &str, &str, &str); 26] = [
+/// (ShellExecute; `!map`, `!env`, `!rel` – obsługiwane osobno).
+const TOOLS: [(&str, &str, &str, &str, &str); 27] = [
     ("Ustawienia Windows", "Wszystkie ustawienia systemu", "settings", SETTINGS_APP, "ms-settings:"),
     ("Informacje o systemie", "Wersja, sprzęt, nazwa komputera", "info", "sys:msinfo32.exe", "msinfo32.exe"),
     ("Aplikacje", "Instalowanie i odinstalowywanie", "app", "sys:appwiz.cpl", "ms-settings:appsfeatures"),
@@ -241,6 +241,7 @@ const TOOLS: [(&str, &str, &str, &str, &str); 26] = [
     ("Zarządzanie komputerem", "Usługi, dzienniki, dyski", "pc", "sys:compmgmt.msc", "compmgmt.msc"),
     ("Usługi", "Usługi systemu Windows", "settings", "sys:services.msc", "services.msc"),
     ("Podgląd zdarzeń", "Dzienniki błędów i ostrzeżeń", "history", "sys:eventvwr.msc", "eventvwr.msc"),
+    ("Monitor niezawodności", "Awarie, błędy i zmiany w czasie", "shield", "sys:perfmon.exe", "!rel"),
     ("Harmonogram zadań", "Zadania uruchamiane o czasie", "history", "sys:taskschd.msc", "taskschd.msc"),
     ("Edytor rejestru", "Ustawienia zapisane w rejestrze", "code", "sys:..\\regedit.exe", "regedit.exe"),
     ("Konfiguracja systemu", "Uruchamianie i rozruch", "settings", "sys:msconfig.exe", "msconfig.exe"),
@@ -275,6 +276,9 @@ fn tool_icon_path(src: &str) -> String {
 pub fn run_tool(s: &Shared, key: &str) {
     match key {
         "!map" | "map" => powerdesk_core::drives::map_dialog(crate::hwnd(s)),
+        "!rel" => {
+            let _ = std::process::Command::new("perfmon.exe").arg("/rel").spawn();
+        }
         "!env" => {
             let _ = std::process::Command::new("rundll32.exe").args(["sysdm.cpl,EditEnvironmentVariables"]).spawn();
         }
