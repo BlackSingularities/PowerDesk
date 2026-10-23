@@ -285,12 +285,9 @@ fn main() -> Result<(), slint::PlatformError> {
     if let Some(code) = setup::offer_install(&argv) {
         std::process::exit(code);
     }
-    // Bez paska Eksploratora PowerDesk jest powłoką – przed własnym `Shell_TrayWnd`.
-    let mut shell = powerdesk_core::shellmode::detect();
-    // Zainstalowany PowerDesk zastępuje Eksplorator od razu, nie dopiero po ponownym zalogowaniu.
-    if !shell && powerdesk_core::install::running_installed() {
-        shell = powerdesk_core::shellmode::take_over();
-    }
+    // Eksplorator zostaje w tle (Ustawienia, aplikacje UWP, powiadomienia) – PowerDesk chowa jego
+    // pasek i pulpit. Bez niego (nie daje się uruchomić) PowerDesk jest powłoką. Przed `Shell_TrayWnd`.
+    let shell = powerdesk_core::shellmode::ensure_explorer();
     powerdesk_core::log::info(format!(
         "start {} · {} · {}",
         powerdesk_core::update::current(),

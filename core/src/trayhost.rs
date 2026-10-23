@@ -1,7 +1,12 @@
-//! Zasobnik w trybie powłoki: własne okno klasy `Shell_TrayWnd`. `Shell_NotifyIcon` innych
-//! programów trafia do niego jako WM_COPYDATA – zbieramy ikony, a klik na pasku odsyłamy
-//! do programu jego komunikatem zwrotnym. Tylko bez Eksploratora (`shellmode::active`).
+//! Zasobnik: własne okno klasy `Shell_TrayWnd`. `Shell_NotifyIcon` innych programów szuka okna
+//! tej klasy (FindWindow – pierwsze w kolejności okien) i wysyła mu WM_COPYDATA – zbieramy ikony,
+//! a klik na pasku odsyłamy do programu jego komunikatem zwrotnym.
+//!
+//! Z Eksploratorem w tle nasze okno stoi przed jego paskiem (najwyżej wśród okien „zawsze na
+//! wierzchu”), a każdy komunikat przekazujemy też jemu – AppBary, obszar roboczy i jego okienka
+//! działają jak dotąd, a ikony zostają u niego, gdy PowerDesk się zamknie.
 
+use std::sync::atomic::{AtomicIsize, AtomicU32, AtomicU64, Ordering};
 use std::sync::OnceLock;
 
 use parking_lot::Mutex;
@@ -12,7 +17,8 @@ use windows::Win32::System::DataExchange::COPYDATASTRUCT;
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::WindowsAndMessaging::{
     CopyIcon, CreateWindowExW, DefWindowProcW, DestroyIcon, DispatchMessageW, GetIconInfo, GetMessageW, GetWindowThreadProcessId, IsWindow, PostMessageW, RegisterClassW,
-    RegisterWindowMessageW, TranslateMessage, HICON, HWND_BROADCAST, ICONINFO, MSG, WINDOW_EX_STYLE, WM_CONTEXTMENU, WM_COPYDATA, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP,
+    RegisterWindowMessageW, SendMessageTimeoutW, SetWindowPos, TranslateMessage, HICON, HWND_BROADCAST, HWND_TOPMOST, ICONINFO, MSG, SMTO_ABORTIFHUNG, SWP_NOACTIVATE, SWP_NOMOVE,
+    SWP_NOSIZE, WINDOW_EX_STYLE, WM_CONTEXTMENU, WM_COPYDATA, WM_LBUTTONDBLCLK, WM_LBUTTONDOWN, WM_LBUTTONUP,
     WM_RBUTTONDOWN, WM_RBUTTONUP, WM_USER, WNDCLASSW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 
@@ -90,6 +96,60 @@ static ON_BALLOON: OnceLock<Box<dyn Fn(String, String) + Send + Sync>> = OnceLoc
 static LAST_CLICK: Mutex<(i32, i32)> = Mutex::new((0, 0));
 /// Miejsce zasobnika na pasku (x, y, szerokość, wysokość – ekran), gdy jeszcze nic nie kliknięto.
 static ANCHOR: Mutex<(i32, i32, i32, i32)> = Mutex::new((0, 0, 0, 0));
+
+/// Nasze okno zasobnika.
+static OWN: AtomicIsize = AtomicIsize::new(0);
+/// Pasek Eksploratora, któremu przekazujemy komunikaty (0 – nie działa albo jeszcze nie znaleziony).
+static EXPLORER: AtomicIsize = AtomicIsize::new(0);
+/// Komunikat „TaskbarCreated” i chwila (ms od 1970) naszego ostatniego rozgłoszenia.
+static TASKBAR_CREATED: AtomicU32 = AtomicU32::new(0);
+static BROADCAST_AT: AtomicU64 = AtomicU64::new(0);
+
+fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// Pasek Eksploratora działającego w tle (None w trybie powłoki).
+fn explorer() -> Option<HWND> {
+    if crate::shellmode::active() {
+        return None;
+    }
+    let cached = EXPLORER.load(Ordering::SeqCst);
+    if cached != 0 && unsafe { IsWindow(Some(HWND(cached as *mut _))).as_bool() } {
+        return Some(HWND(cached as *mut _));
+    }
+    let found = crate::shellswap::explorer_tray()?;
+    EXPLORER.store(found, Ordering::SeqCst);
+    Some(HWND(found as *mut _))
+}
+
+/// Komunikat dla paska Eksploratora; wynik jego obsługi (0, gdy nie działa albo nie odpowiada).
+unsafe fn forward(to: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
+    let mut res = 0usize;
+    if SendMessageTimeoutW(to, msg, wp, lp, SMTO_ABORTIFHUNG, 2000, Some(&mut res)).0 == 0 {
+        return LRESULT(0);
+    }
+    LRESULT(res as isize)
+}
+
+/// Nasze okno na początek okien „zawsze na wierzchu” – przed paskiem Eksploratora.
+fn raise() {
+    let own = OWN.load(Ordering::SeqCst);
+    if own != 0 {
+        unsafe {
+            let _ = SetWindowPos(HWND(own as *mut _), Some(HWND_TOPMOST), 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        }
+    }
+}
+
+/// Programy dodają ikony od nowa – do nas (okno przed paskiem Eksploratora).
+fn broadcast_created() {
+    raise();
+    BROADCAST_AT.store(now_ms(), Ordering::SeqCst);
+    unsafe {
+        let _ = PostMessageW(Some(HWND_BROADCAST), TASKBAR_CREATED.load(Ordering::SeqCst), WPARAM(0), LPARAM(0));
+    }
+}
 
 /// Dymki programów z zasobnika (wywołać przed `start`).
 pub fn on_balloon(f: impl Fn(String, String) + Send + Sync + 'static) {
@@ -258,10 +318,28 @@ unsafe fn notify(data: &TrayData) -> bool {
 }
 
 unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) -> LRESULT {
+    let created = TASKBAR_CREATED.load(Ordering::SeqCst);
+    if msg == created && created != 0 {
+        // Eksplorator wstał od nowa i stanął przed nami – programy dodały ikony jemu. Po chwili
+        // wracamy na początek i prosimy o nie jeszcze raz (własne rozgłoszenie pomijamy).
+        if !crate::shellmode::active() && now_ms().saturating_sub(BROADCAST_AT.load(Ordering::SeqCst)) > 5000 {
+            BROADCAST_AT.store(now_ms(), Ordering::SeqCst);
+            EXPLORER.store(0, Ordering::SeqCst);
+            std::thread::spawn(|| {
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                broadcast_created();
+            });
+        }
+        return LRESULT(0);
+    }
     if msg == WM_COPYDATA {
         let cds = &*(lp.0 as *const COPYDATASTRUCT);
-        // 1 – ikona zasobnika; 0 – AppBar, 3 – położenie ikony: tych nie obsługujemy.
+        let ex = explorer();
+        // 1 – ikona zasobnika (nasza i – w tle – kopia u Eksploratora).
         if cds.dwData == 1 && cds.cbData as usize >= 8 + 24 {
+            if let Some(e) = ex {
+                forward(e, msg, wp, lp);
+            }
             let mut buf = vec![0u8; std::mem::size_of::<TrayData>()];
             let n = (cds.cbData as usize).min(buf.len());
             std::ptr::copy_nonoverlapping(cds.lpData as *const u8, buf.as_mut_ptr(), n);
@@ -275,10 +353,20 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             let (a, b) = if what == 1 { (x, y) } else { (x + w, y + h) };
             return LRESULT((((b as u16) as isize) << 16) | (a as u16 as isize));
         }
+        // AppBary i reszta: z Eksploratorem – jego sprawa (on liczy obszar roboczy).
+        if let Some(e) = ex {
+            return forward(e, msg, wp, lp);
+        }
         if cds.dwData == 0 {
             return LRESULT(appbar(cds.lpData as *const u8, cds.cbData as usize));
         }
         return LRESULT(0);
+    }
+    // Komunikaty programów do paska (WM_USER i zarejestrowane) – trafiły do nas zamiast do Eksploratora.
+    if msg >= WM_USER {
+        if let Some(e) = explorer() {
+            return forward(e, msg, wp, lp);
+        }
     }
     DefWindowProcW(hwnd, msg, wp, lp)
 }
@@ -366,9 +454,9 @@ pub fn start(on_change: impl Fn() + Send + Sync + 'static) {
         let wc = WNDCLASSW { lpfnWndProc: Some(wndproc), hInstance: inst.into(), lpszClassName: w!("Shell_TrayWnd"), ..Default::default() };
         RegisterClassW(&wc);
         let Ok(hwnd) = CreateWindowExW(WINDOW_EX_STYLE(WS_EX_TOOLWINDOW.0 | WS_EX_TOPMOST.0), w!("Shell_TrayWnd"), None, WS_POPUP, 0, 0, 0, 0, None, None, Some(inst.into()), None) else { return };
-        let _ = hwnd;
-        let created = RegisterWindowMessageW(w!("TaskbarCreated"));
-        let _ = PostMessageW(Some(HWND_BROADCAST), created, WPARAM(0), LPARAM(0));
+        OWN.store(hwnd.0 as isize, Ordering::SeqCst);
+        TASKBAR_CREATED.store(RegisterWindowMessageW(w!("TaskbarCreated")), Ordering::SeqCst);
+        broadcast_created();
         let mut msg = MSG::default();
         while GetMessageW(&mut msg, None, 0, 0).as_bool() {
             let _ = TranslateMessage(&msg);
@@ -383,7 +471,12 @@ pub fn start(on_change: impl Fn() + Send + Sync + 'static) {
         icons.retain(|i| unsafe { IsWindow(Some(HWND(i.hwnd as *mut _))).as_bool() });
         let gone = icons.len() != before;
         drop(icons);
-        crate::shellmode::appbar_prune();
+        if crate::shellmode::active() {
+            crate::shellmode::appbar_prune();
+        } else {
+            // Eksplorator potrafi wysunąć swój pasek przed nasze okno (zmiana ustawień, monitorów).
+            raise();
+        }
         if gone {
             changed();
         }

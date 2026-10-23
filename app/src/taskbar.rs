@@ -162,16 +162,15 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
-    // Powłoka: zasobnik z ikonami innych programów (własny Shell_TrayWnd).
-    if powerdesk_core::shellmode::active() {
-        powerdesk_core::trayhost::on_balloon(|title, text| {
-            let _ = slint::invoke_from_event_loop(move || crate::notices::add("Program w zasobniku", &title, &text));
-        });
-        powerdesk_core::trayhost::start(|| {
-            let _ = slint::invoke_from_event_loop(tray_apps);
-        });
-        tray_apps();
-    }
+    // Zasobnik z ikonami innych programów (własny Shell_TrayWnd, przed paskiem Eksploratora).
+    // `start` działa raz na proces – po przebudowie pasków (zmiana monitorów) tylko odświeżenie.
+    powerdesk_core::trayhost::on_balloon(|title, text| {
+        let _ = slint::invoke_from_event_loop(move || crate::notices::add("Program w zasobniku", &title, &text));
+    });
+    powerdesk_core::trayhost::start(|| {
+        let _ = slint::invoke_from_event_loop(tray_apps);
+    });
+    tray_apps();
     // Tryb powłoki: Win+E – okno PowerDesk, Win+R – „Uruchom”, Win+D – pulpit, Win+Tab – widok zadań.
     powerdesk_core::startmenu::hook_shell_keys(|k, shift| {
         let ui = |f: fn()| {
@@ -261,8 +260,7 @@ fn bar_menu(bar: usize, x: f32) {
     show_menu(bar, items, x);
 }
 
-/// Prawy przycisk na Start: PowerDesk i narzędzia systemowe (ikony PowerDesk w zasobniku
-/// Windows nie widać – pasek Windows jest ukryty).
+/// Prawy przycisk na Start: PowerDesk i narzędzia systemowe.
 fn start_menu(bar: usize, x: f32) {
     let run = |cmd: &'static str| {
         move |_: &Shared| {
@@ -1232,15 +1230,15 @@ fn place(bar: &mut Bar) {
         // Tło paska może być półprzezroczyste (krycie z ustawień) – DWM pokazuje, co pod spodem.
         powerdesk_core::system::see_through(hwnd);
         powerdesk_core::system::no_frame_border(hwnd);
+        let (x, y) = bar.origin;
         // Bez Eksploratora nikt nie zostawi miejsca na pasek – obszar roboczy ustawiamy sami.
         if powerdesk_core::shellmode::active() {
-            let (x, y) = bar.origin;
             powerdesk_core::shellmode::set_bar(x, y, x + bar.mon.0, y + bar.mon.1, h);
-            if bar.origin == (0, 0) {
-                // Zasobnik stoi przy zegarze – przybliżone miejsce dla programów pytających o ikonę.
-                let w = (240.0 * scale) as i32;
-                powerdesk_core::trayhost::set_anchor(x + bar.mon.0 - w, bar.pos.1, w, h);
-            }
+        }
+        if bar.origin == (0, 0) {
+            // Zasobnik stoi przy zegarze – przybliżone miejsce dla programów pytających o ikonę.
+            let w = (240.0 * scale) as i32;
+            powerdesk_core::trayhost::set_anchor(x + bar.mon.0 - w, bar.pos.1, w, h);
         }
         bar.placed = true;
     }

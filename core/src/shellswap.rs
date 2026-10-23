@@ -57,12 +57,20 @@ unsafe fn class_of(w: HWND) -> String {
     String::from_utf16_lossy(&buf[..n.max(0) as usize])
 }
 
-/// Paski Windows: główny i paski na pozostałych monitorach.
+/// Okno z innego procesu niż PowerDesk (nasz zasobnik też ma klasę `Shell_TrayWnd`).
+unsafe fn foreign(w: HWND) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::GetWindowThreadProcessId;
+    let mut pid = 0u32;
+    GetWindowThreadProcessId(w, Some(&mut pid));
+    pid != std::process::id()
+}
+
+/// Paski Windows: główny i paski na pozostałych monitorach (bez naszego okna zasobnika).
 fn system_bars() -> Vec<HWND> {
     unsafe extern "system" fn each(w: HWND, lp: LPARAM) -> BOOL {
         let out = &mut *(lp.0 as *mut Vec<HWND>);
         let c = class_of(w);
-        if c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd" {
+        if (c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") && foreign(w) {
             out.push(w);
         }
         BOOL(1)
@@ -93,16 +101,21 @@ fn desktop_views() -> Vec<HWND> {
     out
 }
 
+/// Główny pasek Eksploratora (`Shell_TrayWnd` spoza PowerDesk) – None, gdy Eksplorator nie działa.
+pub fn explorer_tray() -> Option<isize> {
+    system_bars().into_iter().find(|&w| unsafe { class_of(w) } == "Shell_TrayWnd").map(|w| w.0 as isize)
+}
+
 fn taskbar_state() -> u32 {
     let mut d = APPBARDATA { cbSize: std::mem::size_of::<APPBARDATA>() as u32, ..Default::default() };
-    if let Ok(t) = unsafe { FindWindowW(w!("Shell_TrayWnd"), None) } {
-        d.hWnd = t;
+    if let Some(t) = explorer_tray() {
+        d.hWnd = h(t);
     }
     unsafe { SHAppBarMessage(ABM_GETSTATE, &mut d) as u32 }
 }
 
 fn set_taskbar_state(state: u32) {
-    let Ok(t) = (unsafe { FindWindowW(w!("Shell_TrayWnd"), None) }) else { return };
+    let Some(t) = explorer_tray().map(h) else { return };
     let mut d = APPBARDATA { cbSize: std::mem::size_of::<APPBARDATA>() as u32, hWnd: t, lParam: LPARAM(state as isize), ..Default::default() };
     unsafe {
         SHAppBarMessage(ABM_SETSTATE, &mut d);
@@ -256,7 +269,7 @@ fn hook_taskbar() {
             return;
         }
         let c = class_of(w);
-        if (c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") && IsWindowVisible(w).as_bool() {
+        if (c == "Shell_TrayWnd" || c == "Shell_SecondaryTrayWnd") && IsWindowVisible(w).as_bool() && foreign(w) {
             let _ = ShowWindow(w, SW_HIDE);
         }
     }
@@ -274,20 +287,37 @@ pub fn spawn_guard() {
     }
 }
 
-/// Strażnik: czeka na koniec procesu `pid`; jeśli zostawił podmianę (plik stanu) – przywraca.
-/// W trybie powłoki (Eksplorator nie działa) zamiast tego restartuje PowerDesk albo, po kilku
-/// awariach z rzędu, wraca do Eksploratora (`shellmode::after_exit`).
+/// Strażnik: czeka na koniec procesu `pid`. Aktualizacja – nic (skrypt uruchamia nową wersję).
+/// Bez Eksploratora (tryb powłoki) – uruchamia go, żeby nie został czarny ekran. Plik stanu
+/// został – to awaria (zamknięcie go sprząta): PowerDesk wraca, a po kilku awariach z rzędu
+/// zostają pasek i pulpit Windows.
 pub fn guard(pid: u32) {
+    use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_SHUTTINGDOWN};
     unsafe {
         if let Ok(p) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
             WaitForSingleObject(p, INFINITE);
             let _ = windows::Win32::Foundation::CloseHandle(p);
         }
+        if GetSystemMetrics(SM_SHUTTINGDOWN) != 0 {
+            return;
+        }
     }
-    if crate::shellmode::detect() && crate::shellmode::after_exit() {
+    if crate::update::marker().exists() {
+        crate::update::wait_for_apply();
         return;
     }
-    if swapped() {
-        restore();
+    let crashed = swapped();
+    if crate::shellmode::detect() {
+        crate::shellmode::fallback_to_explorer();
     }
+    if !crashed {
+        return;
+    }
+    if crate::shellmode::count_crash() {
+        if let Ok(exe) = std::env::current_exe() {
+            let _ = std::process::Command::new(exe).arg(crate::autostart::FLAG).spawn();
+            return;
+        }
+    }
+    restore();
 }

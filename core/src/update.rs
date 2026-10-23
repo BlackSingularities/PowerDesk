@@ -149,7 +149,7 @@ pub fn marker() -> PathBuf {
 }
 
 /// Skrypt: czeka na koniec tego procesu, podmienia .exe (stary zostaje jako .old) i uruchamia
-/// nowy. W trybie powłoki uruchamia go strażnik – skrypt tylko zdejmuje znacznik.
+/// nowy (strażnik w tym czasie tylko czeka na zdjęcie znacznika).
 /// Po wywołaniu program powinien się zakończyć.
 pub fn apply(new_exe: &std::path::Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
@@ -159,7 +159,7 @@ pub fn apply(new_exe: &std::path::Path) -> Result<(), String> {
     let pid = std::process::id();
     let mark = marker();
     std::fs::write(&mark, pid.to_string()).map_err(|e| e.to_string())?;
-    let start = if crate::shellmode::active() { String::new() } else { format!("start \"\" \"{me_s}\"") };
+    let start = format!("start \"\" \"{me_s}\" {}", crate::autostart::FLAG);
     let script = format!(
         "@echo off\r\n:wait\r\ntasklist /fi \"PID eq {pid}\" | find \"{pid}\" >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\n\
          del /f /q \"{old}\" 2>nul\r\nmove /y \"{me_s}\" \"{old}\" >nul\r\ncopy /y \"{new}\" \"{me_s}\" >nul || move /y \"{old}\" \"{me_s}\" >nul\r\n\

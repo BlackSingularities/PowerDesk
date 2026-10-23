@@ -119,10 +119,13 @@ static ON_START: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static ON_CLIPBOARD: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static WIN_DOWN: AtomicBool = AtomicBool::new(false);
 static COMBO: AtomicBool = AtomicBool::new(false);
-/// Tryb powłoki: skróty z Win, które bez Eksploratora nie miałyby kto obsłużyć – (klawisz, Shift).
-/// Win+D obsługujemy zawsze. PrtScn (bez Win) – kod 0x2C z Shift = false, Win+PrtScn – Shift = true.
+/// Skróty z Win obsługiwane przez PowerDesk – (klawisz, Shift). Z Eksploratorem w tle tylko te,
+/// które dotyczą jego ukrytego paska (`ALWAYS`); resztę (Win+I/A/N/R/Tab…) obsługuje on sam.
+/// W trybie powłoki – wszystkie. PrtScn (bez Win) – kod 0x2C z Shift = false, Win+PrtScn – Shift = true.
 static ON_SHELL_KEY: OnceLock<Box<dyn Fn(u8, bool) + Send + Sync>> = OnceLock::new();
 const SHELL_KEYS: [u8; 22] = [b'E', b'R', b'D', 0x09, b'S', b'A', b'N', b'I', b'X', b'P', b'K', b'M', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0x2C];
+/// Win+D (pulpit Windows wyszedłby nad nasz), Win+S i Win+X (Start i jego menu), Win+1…9 (przyciski paska).
+const ALWAYS: [u8; 12] = [b'D', b'S', b'X', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
 const PRINT_SCREEN: u32 = 0x2C;
 /// Klawisz z Win połknięty przez nas (Win+V) – system widział samo Win, trzeba je zamaskować.
 static SWALLOWED: AtomicBool = AtomicBool::new(false);
@@ -172,8 +175,7 @@ unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
             } else if WIN_DOWN.load(Ordering::SeqCst)
                 && SHELL_KEYS.iter().any(|&c| k.vkCode == c as u32)
                 && ON_SHELL_KEY.get().is_some()
-                // Win+D zawsze nasze (systemowe wysunęłoby pulpit Windows nad pulpit PowerDesk), reszta – w trybie powłoki.
-                && (k.vkCode == b'D' as u32 || crate::shellmode::active())
+                && (ALWAYS.iter().any(|&c| k.vkCode == c as u32) || crate::shellmode::active())
             {
                 COMBO.store(true, Ordering::SeqCst);
                 SWALLOWED.store(true, Ordering::SeqCst);

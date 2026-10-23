@@ -347,5 +347,6 @@ pub fn battery() -> Option<Battery> {
 
 /// Otwiera stronę Ustawień Windows (ms-settings:…).
 pub fn open_settings(page: &str) {
-    let _ = std::process::Command::new("explorer.exe").arg(format!("ms-settings:{page}")).spawn();
+    // Protokół ms-settings: przez ShellExecute (aktywacja aplikacji – ImmersiveShell w Eksploratorze).
+    let _ = open::that_detached(format!("ms-settings:{page}"));
 }

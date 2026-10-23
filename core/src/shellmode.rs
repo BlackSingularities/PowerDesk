@@ -1,18 +1,18 @@
-//! Tryb powłoki: PowerDesk zamiast Eksploratora po zalogowaniu. Wpis
-//! `HKCU\…\Winlogon\Shell` (tylko bieżący użytkownik, bez administratora) wskazuje
-//! `powerdesk.exe --shell`; Eksplorator nie startuje, pasek i pulpit Windows nie istnieją.
+//! PowerDesk działa nad Eksploratorem: explorer.exe zostaje w tle (prowadzi ImmersiveShell –
+//! Ustawienia, aplikacje UWP/Store, powiadomienia, Win+A/N/V, przyciąganie okien), a PowerDesk
+//! chowa jego pasek i pulpit (`shellswap`) i pokazuje własne. Eksplorator uznaje się za powłokę
+//! tylko wtedy, gdy wpis `HKCU\…\Winlogon\Shell` wskazuje jego – nasz wpis ze starszych wersji
+//! zdejmujemy przy starcie.
 //!
-//! Bez Eksploratora sami ustawiamy obszar roboczy monitorów (miejsce na pasek), trzymamy
-//! pulpit na dnie, prowadzimy zasobnik (`trayhost`) i skróty Win+E/R/D.
-//! Strażnik restartuje PowerDesk po awarii; po kilku awariach z rzędu zdejmuje wpis
-//! i uruchamia `explorer.exe` – użytkownik nie zostaje z czarnym ekranem.
+//! Tryb powłoki (Eksplorator nie działa i nie daje się uruchomić) zostaje awaryjny: sami
+//! ustawiamy obszar roboczy monitorów, trzymamy pulpit na dnie i obsługujemy skróty Win.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use windows::core::w;
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, RECT, WPARAM};
-use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, GetSystemMetrics, SystemParametersInfoW, SM_SHUTTINGDOWN, SPIF_SENDCHANGE, SPI_SETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS};
+use windows::Win32::UI::WindowsAndMessaging::{FindWindowW, SystemParametersInfoW, SPIF_SENDCHANGE, SPI_SETWORKAREA, SYSTEM_PARAMETERS_INFO_UPDATE_FLAGS};
 
 use crate::winkey::{exe, reg};
 
@@ -33,36 +33,32 @@ pub fn active() -> bool {
     ACTIVE.load(Ordering::SeqCst)
 }
 
-/// Sprawdza przy starcie, czy działa pasek Eksploratora. Wołać przed `trayhost::start`,
-/// które tworzy własne okno `Shell_TrayWnd`.
+/// Sprawdza, czy działa pasek Eksploratora (nasz zasobnik, też `Shell_TrayWnd`, się nie liczy).
 pub fn detect() -> bool {
-    let explorer = unsafe { FindWindowW(w!("Shell_TrayWnd"), None).is_ok() };
-    let on = !explorer;
+    let on = crate::shellswap::explorer_tray().is_none();
     ACTIVE.store(on, Ordering::SeqCst);
     on
 }
 
-/// Zainstalowany PowerDesk zastępuje Eksplorator od razu, bez wylogowania: prosi pasek Eksploratora
-/// o zamknięcie (to samo co „Zakończ Eksploratora” z Ctrl+Shift+prawy przycisk na pasku), a gdy
-/// nie zdąży – kończy go. Potem PowerDesk działa jako powłoka (`detect` zwraca true).
-pub fn take_over() -> bool {
-    use windows::Win32::UI::WindowsAndMessaging::PostMessageW;
-    unsafe {
-        let Ok(tray) = FindWindowW(w!("Shell_TrayWnd"), None) else { return detect() };
-        crate::log::info("przejęcie: zamykanie Eksploratora");
-        // WM_USER + 436 – Eksplorator zamyka się porządnie (bez automatycznego ponownego startu).
-        let _ = PostMessageW(Some(tray), 0x0400 + 436, WPARAM(0), LPARAM(0));
-        for _ in 0..40 {
-            std::thread::sleep(std::time::Duration::from_millis(150));
-            if FindWindowW(w!("Shell_TrayWnd"), None).is_err() {
-                break;
-            }
-        }
+/// Eksplorator w tle zamiast zastępowania go: zdejmuje nasz wpis Winlogon (starsze wersje
+/// uruchamiały PowerDesk zamiast Eksploratora) i – gdy Eksplorator nie działa – uruchamia go
+/// jako powłokę i czeka na jego pasek. Zwraca true, gdy mimo to go nie ma (tryb powłoki).
+pub fn ensure_explorer() -> bool {
+    if registered() {
+        crate::log::info("zdjęcie wpisu powłoki – Eksplorator wraca w tle");
+        let _ = unregister();
     }
-    if unsafe { FindWindowW(w!("Shell_TrayWnd"), None).is_ok() } {
-        use std::os::windows::process::CommandExt;
-        let _ = std::process::Command::new("taskkill").args(["/f", "/im", "explorer.exe"]).creation_flags(0x0800_0000).status();
-        std::thread::sleep(std::time::Duration::from_millis(500));
+    if crate::shellswap::explorer_tray().is_some() {
+        return detect();
+    }
+    crate::log::info("uruchamianie Eksploratora w tle");
+    let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
+    let _ = std::process::Command::new(format!(r"{windir}\explorer.exe")).spawn();
+    for _ in 0..40 {
+        std::thread::sleep(std::time::Duration::from_millis(250));
+        if crate::shellswap::explorer_tray().is_some() {
+            break;
+        }
     }
     detect()
 }
@@ -71,12 +67,6 @@ pub fn take_over() -> bool {
 pub fn registered() -> bool {
     let Ok(exe) = exe() else { return false };
     reg(&["query", KEY, "/v", "Shell"]).is_ok_and(|o| o.to_lowercase().contains(&exe.to_lowercase()))
-}
-
-/// PowerDesk jako powłoka od następnego logowania.
-pub fn register() -> Result<(), String> {
-    reg(&["add", KEY, "/v", "Shell", "/d", &format!("\"{}\" {SHELL_FLAG}", exe()?), "/f"])?;
-    Ok(())
 }
 
 /// Usuwa nasz wpis – Windows wraca do powłoki z HKLM (`explorer.exe`).
@@ -383,26 +373,9 @@ fn now_secs() -> u64 {
     std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
 }
 
-/// Strażnik w trybie powłoki, po końcu procesu PowerDesk: przy wylogowaniu nic; inaczej
-/// restart PowerDesk, a po `CRASH_LIMIT` końcach w krótkim czasie – powrót do Eksploratora.
-/// Zwraca true, gdy czymś się zajął (wtedy zwykłe przywracanie nie jest potrzebne).
-pub fn after_exit() -> bool {
-    if unsafe { GetSystemMetrics(SM_SHUTTINGDOWN) } != 0 {
-        return true;
-    }
-    // Wpis zdjęty (deinstalacja, `--remove-integration`) – bez restartu, od razu Eksplorator.
-    if !registered() {
-        fallback_to_explorer();
-        return true;
-    }
-    // Podmiana .exe przy aktualizacji: czekamy na skrypt i restartujemy bez liczenia awarii.
-    if crate::update::marker().exists() {
-        crate::update::wait_for_apply();
-        if let Ok(exe) = std::env::current_exe() {
-            let _ = std::process::Command::new(exe).arg(SHELL_FLAG).spawn();
-        }
-        return true;
-    }
+/// Zapisuje awarię PowerDesk. False – za dużo awarii z rzędu (nie restartować). Przy true
+/// czeka chwilę, aż Windows posprząta po poprzednim procesie (okna, ikony zasobnika).
+pub fn count_crash() -> bool {
     let file = crash_file();
     let now = now_secs();
     let mut times: Vec<u64> = std::fs::read_to_string(&file)
@@ -414,18 +387,14 @@ pub fn after_exit() -> bool {
     times.push(now);
     crate::log::error(format!("PowerDesk zakończył się nieoczekiwanie ({}. raz w ciągu {CRASH_WINDOW_SECS} s)", times.len()));
     if times.len() >= CRASH_LIMIT {
-        crate::log::error("za dużo awarii z rzędu – powrót do Eksploratora");
+        crate::log::error("za dużo awarii z rzędu – bez ponownego uruchamiania");
         let _ = std::fs::remove_file(&file);
-        fallback_to_explorer();
-        return true;
+        return false;
     }
     let _ = std::fs::create_dir_all(file.parent().unwrap_or(&file));
-    let _ = std::fs::write(&file, times.iter().map(|t| format!("{t}\n")).collect::<String>());
-    // Chwila przerwy – Windows sprząta po poprzednim procesie (okna, ikony zasobnika).
+    let _ = std::fs::write(&file, times.iter().map(|t| format!("{t}
+")).collect::<String>());
     std::thread::sleep(std::time::Duration::from_millis(500));
-    if let Ok(exe) = std::env::current_exe() {
-        let _ = std::process::Command::new(exe).arg(SHELL_FLAG).spawn();
-    }
     true
 }
 
@@ -438,21 +407,10 @@ pub fn shift_held() -> bool {
     unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) < 0 }
 }
 
-/// Tryb awaryjny: ta sesja z Eksploratorem, wpis zostaje na następne logowanie. Eksplorator
-/// uznaje się za powłokę, gdy wpis `Shell` wskazuje jego – zdejmujemy nasz na czas jego startu.
+/// Tryb awaryjny: sam Eksplorator, bez PowerDesk, i bez wpisu powłoki.
 pub fn safe_mode() {
-    crate::log::info("tryb awaryjny – ta sesja z Eksploratorem");
-    let _ = unregister();
-    let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
-    let _ = std::process::Command::new(format!(r"{windir}\explorer.exe")).spawn();
-    // Eksplorator czyta wpis na samym początku; pasek pojawia się po kilku sekundach.
-    for _ in 0..30 {
-        std::thread::sleep(std::time::Duration::from_millis(500));
-        if unsafe { FindWindowW(w!("Shell_TrayWnd"), None).is_ok() } {
-            break;
-        }
-    }
-    let _ = register();
+    crate::log::info("tryb awaryjny – sam Eksplorator");
+    fallback_to_explorer();
 }
 
 /// Awaryjnie: wpis zdjęty (Eksplorator uzna się za powłokę) i start Eksploratora.
