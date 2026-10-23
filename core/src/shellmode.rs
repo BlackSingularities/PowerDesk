@@ -347,7 +347,9 @@ pub fn after_exit() -> bool {
         .filter(|&t| now.saturating_sub(t) < CRASH_WINDOW_SECS)
         .collect();
     times.push(now);
+    crate::log::error(format!("PowerDesk zakończył się nieoczekiwanie ({}. raz w ciągu {CRASH_WINDOW_SECS} s)", times.len()));
     if times.len() >= CRASH_LIMIT {
+        crate::log::error("za dużo awarii z rzędu – powrót do Eksploratora");
         let _ = std::fs::remove_file(&file);
         fallback_to_explorer();
         return true;
@@ -360,6 +362,32 @@ pub fn after_exit() -> bool {
         let _ = std::process::Command::new(exe).arg(SHELL_FLAG).spawn();
     }
     true
+}
+
+/// Argument awaryjny: jak przytrzymany Shift – ta sesja z Eksploratorem.
+pub const SAFE_FLAG: &str = "--safe";
+
+/// Shift przytrzymany w chwili startu (logowanie z PowerDesk jako powłoką).
+pub fn shift_held() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_SHIFT};
+    unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) < 0 }
+}
+
+/// Tryb awaryjny: ta sesja z Eksploratorem, wpis zostaje na następne logowanie. Eksplorator
+/// uznaje się za powłokę, gdy wpis `Shell` wskazuje jego – zdejmujemy nasz na czas jego startu.
+pub fn safe_mode() {
+    crate::log::info("tryb awaryjny – ta sesja z Eksploratorem");
+    let _ = unregister();
+    let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
+    let _ = std::process::Command::new(format!(r"{windir}\explorer.exe")).spawn();
+    // Eksplorator czyta wpis na samym początku; pasek pojawia się po kilku sekundach.
+    for _ in 0..30 {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        if unsafe { FindWindowW(w!("Shell_TrayWnd"), None).is_ok() } {
+            break;
+        }
+    }
+    let _ = register();
 }
 
 /// Awaryjnie: wpis zdjęty (Eksplorator uzna się za powłokę) i start Eksploratora.

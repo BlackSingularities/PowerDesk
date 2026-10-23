@@ -18,6 +18,7 @@ pub mod install;
 pub mod instance;
 pub mod integration;
 pub mod library;
+pub mod log;
 pub mod maps;
 pub mod nowplaying;
 pub mod media;

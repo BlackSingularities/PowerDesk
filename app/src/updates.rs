@@ -55,7 +55,12 @@ fn found(s: &Shared, res: Result<Option<Release>, String>, manual: bool) {
             }
         }
         Ok(None) if manual => transfers::toast(s, format!("Masz najnowszą wersję PowerDesk ({})", update::current()), Kind::Ok, None),
-        Err(e) if manual => transfers::toast(s, format!("Nie udało się sprawdzić aktualizacji: {e}"), Kind::Error, None),
+        Err(e) => {
+            powerdesk_core::log::error(format!("aktualizacje: {e}"));
+            if manual {
+                transfers::toast(s, format!("Nie udało się sprawdzić aktualizacji: {e}"), Kind::Error, None);
+            }
+        }
         _ => {}
     }
 }
@@ -73,7 +78,10 @@ pub fn install(s: &Shared) {
             BUSY.with(|b| b.set(false));
             crate::with_state(|s| match res {
                 Ok(()) => crate::quit(s),
-                Err(e) => transfers::toast(s, format!("Aktualizacja nie powiodła się: {e}"), Kind::Error, None),
+                Err(e) => {
+                    powerdesk_core::log::error(format!("aktualizacja: {e}"));
+                    transfers::toast(s, format!("Aktualizacja nie powiodła się: {e}"), Kind::Error, None);
+                }
             });
         });
     });

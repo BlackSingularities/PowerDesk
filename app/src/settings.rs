@@ -360,6 +360,13 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
     let s = st.clone();
+    g.on_report_problem(move || {
+        let text = powerdesk_core::log::report(powerdesk_core::update::current());
+        let _ = powerdesk_core::clip::set_text(&text);
+        let _ = open::that_detached(powerdesk_core::log::dir());
+        crate::transfers::toast(&s, "Raport skopiowany do schowka – wklej go w zgłoszeniu; obok otwarty folder z dziennikiem", crate::transfers::Kind::Ok, None);
+    });
+    let s = st.clone();
     g.on_set_overlay_corner(move |k| change(&s, |p| p.overlay_corner = k.clamp(0, 3) as u8));
     let s = st.clone();
     g.on_grant_fps(move || {

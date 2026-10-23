@@ -63,6 +63,8 @@ export global SettingsState {
     in-out property <bool> fps-need-access;
     callback set-overlay-corner(int);
     callback grant-fps();
+    /// Raport (wersja, system, dziennik) do schowka i folder z dziennikiem.
+    callback report-problem();
     callback uninstall();
     in-out property <int> remembered;
     in-out property <string> version;
@@ -1074,6 +1076,26 @@ export component SettingsView inherits Rectangle {
                     Heading {
                         title: "O aplikacji";
                         lead: "PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows";
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        Rectangle {
+                            width: zp.preferred-width + 24px;
+                            height: 30px;
+                            border-radius: Theme.r-s;
+                            background: zp-ta.has-hover ? Theme.press : Theme.card;
+                            zp := Label {
+                                horizontal-alignment: center;
+                                text: "Zgłoś problem…";
+                                font-size: 12.5px;
+                            }
+                            zp-ta := TipArea {
+                                tip: "Kopiuje raport (wersja, system, dziennik) do schowka i otwiera folder z dziennikiem";
+                                clicked => {
+                                    SettingsState.report-problem();
+                                }
+                            }
+                        }
                     }
                     HorizontalLayout {
                         spacing: 12px;

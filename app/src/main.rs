@@ -166,6 +166,7 @@ pub fn ensure_integration() {
         let _ = slint::invoke_from_event_loop(move || {
             with_state(|s| {
                 if let Err(e) = res {
+                    powerdesk_core::log::error(format!("integracja: {e}"));
                     transfers::toast(s, format!("Nie udało się zastąpić Eksploratora: {e}"), transfers::Kind::Error, None);
                 }
                 settings::render_system(s);
@@ -227,8 +228,15 @@ pub fn quit(_s: &Shared) {
 }
 
 fn main() -> Result<(), slint::PlatformError> {
+    powerdesk_core::log::install_panic_hook();
     // Strażnik: czeka na koniec PowerDesk i po awarii przywraca pulpit i pasek Windows.
     let argv: Vec<String> = std::env::args().collect();
+    // Logowanie z PowerDesk jako powłoką i przytrzymany Shift (albo --safe) – ta sesja z Eksploratorem.
+    let shell_start = argv.iter().any(|a| a == powerdesk_core::shellmode::SHELL_FLAG);
+    if argv.iter().any(|a| a == powerdesk_core::shellmode::SAFE_FLAG) || (shell_start && powerdesk_core::shellmode::shift_held()) {
+        powerdesk_core::shellmode::safe_mode();
+        return Ok(());
+    }
     if let Some(i) = argv.iter().position(|a| a == powerdesk_core::shellswap::GUARD_FLAG) {
         if let Some(pid) = argv.get(i + 1).and_then(|p| p.parse().ok()) {
             powerdesk_core::shellswap::guard(pid);
@@ -263,7 +271,13 @@ fn main() -> Result<(), slint::PlatformError> {
         std::process::exit(code);
     }
     // Bez paska Eksploratora PowerDesk jest powłoką – przed własnym `Shell_TrayWnd`.
-    powerdesk_core::shellmode::detect();
+    let shell = powerdesk_core::shellmode::detect();
+    powerdesk_core::log::info(format!(
+        "start {} · {} · {}",
+        powerdesk_core::update::current(),
+        if shell { "powłoka" } else { "z Eksploratorem" },
+        std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default()
+    ));
     let ui = MainWindow::new()?;
     let mut prefs = Prefs::load();
     // Pierwszy start bez własnych ustawień – to, co było w OpenFilePower.
