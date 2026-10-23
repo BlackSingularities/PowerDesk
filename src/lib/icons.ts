@@ -80,5 +80,7 @@ export const I = {
   wifiOff: 'M2 8.5a15 15 0 0 1 20 0M5 12a10 10 0 0 1 14 0M8.5 15.5a5 5 0 0 1 7 0M12 19h.01M3 3l18 18',
   ethernet: 'M6 10h12v8H6zM9 10V6h6v4M9 14v2M12 14v2M15 14v2',
   battery: 'M3 7h15v10H3zM21 10v4',
+  power: 'M12 3v9M6.3 6.3a8 8 0 1 0 11.4 0',
+  menuLines: 'M4 6h16M4 12h16M4 18h16',
 }
 export type IconName = keyof typeof I

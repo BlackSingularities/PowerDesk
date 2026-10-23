@@ -21,6 +21,7 @@ pub mod remote;
 pub mod shell;
 pub mod shellswap;
 pub mod space;
+pub mod startmenu;
 pub mod sync;
 pub mod sync_core;
 pub mod sysbar;

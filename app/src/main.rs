@@ -6,6 +6,7 @@ mod bulk;
 mod desktop;
 mod dragdrop;
 mod taskbar;
+mod start;
 mod facets;
 mod fmt;
 mod home;
@@ -202,6 +203,7 @@ fn close_window(s: &Shared) {
 
 /// Koniec programu: pulpit i pasek Windows wracają (strażnik niczego już nie zastanie).
 pub fn quit(_s: &Shared) {
+    start::close();
     desktop::close();
     taskbar::close();
     powerdesk_core::shellswap::restore();
@@ -1865,6 +1867,7 @@ fn paint_items(s: &Shared) {
 pub fn thumbs_arrived(s: &Shared, paths: &HashSet<String>) {
     desktop::thumbs_arrived(paths);
     taskbar::thumbs_arrived(paths);
+    start::thumbs_arrived(paths);
     let Some(ui) = s.borrow().ui.upgrade() else { return };
     let side = s.borrow().side_paths.iter().any(|p| paths.contains(p));
     {

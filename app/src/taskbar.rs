@@ -101,7 +101,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             t.set_light(l.light);
             t.set_accent_override(l.accent);
         }
-        w.on_start(taskwin::open_start);
+        w.on_start(move || open_start(n));
         w.on_start_context(move |x| start_menu(n, x));
         w.on_show_desktop(taskwin::show_desktop);
         w.on_activate(move |i| {
@@ -138,6 +138,11 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
+    // Samo Win otwiera Start PowerDesk na monitorze z kursorem.
+    powerdesk_core::startmenu::hook_win_key(|| {
+        let _ = slint::invoke_from_event_loop(|| open_start(bar_under_cursor()));
+    });
+    crate::start::preload();
     refresh();
     // Okno systemowe powstaje dopiero w pętli zdarzeń – ułożenie zaraz po pierwszym obiegu.
     slint::Timer::single_shot(Duration::from_millis(100), refresh);
@@ -182,6 +187,29 @@ fn start_menu(bar: usize, x: f32) {
         it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger(),
     ];
     show_menu(bar, items, x);
+}
+
+/// Menu Start nad lewym końcem paska `bar`.
+fn open_start(bar: usize) {
+    close_thumbs();
+    close_menu();
+    close_popup();
+    let Some(((x, y), _, _, scale)) = spot(bar) else { return };
+    let Some((light, accent)) = BARS.with(|b| b.borrow().get(bar).map(|b| (b.w.global::<Theme>().get_light(), b.w.global::<Theme>().get_accent_override()))) else { return };
+    crate::start::toggle(x, y, scale, light, accent);
+}
+
+/// Pasek na monitorze, na którym jest kursor (pierwszy, gdy nie da się ustalić).
+fn bar_under_cursor() -> usize {
+    let (cx, cy) = taskwin::cursor();
+    BARS.with(|b| b.borrow().iter().position(|bar| cx >= bar.origin.0 && cx < bar.origin.0 + bar.mon.0 && cy >= bar.origin.1 && cy < bar.origin.1 + bar.mon.1).unwrap_or(0))
+}
+
+/// Przypina program do paska (z menu Start); już przypięty zostaje.
+pub fn pin_program(exe: &str) {
+    if !pinned(exe) {
+        toggle_pin(exe);
+    }
 }
 
 fn group_at(bar: usize, i: usize) -> Option<Group> {
@@ -398,6 +426,7 @@ fn own_popups() -> Vec<isize> {
         }))
     });
     THUMBS.with(|t| out.extend(t.borrow().as_ref().map(|t| crate::window_hwnd(t.w.window()))));
+    out.extend(crate::start::hwnd());
     out
 }
 

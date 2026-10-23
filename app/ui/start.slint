@@ -1,0 +1,306 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, TipArea } from "components.slint";
+import { MenuPopup, MenuEntry } from "menu.slint";
+
+/// Wiersz listy aplikacji: litera (nagłówek grupy) albo aplikacja.
+export struct StartRow {
+    header: bool,
+    name: string,
+    img: image,
+    has-img: bool,
+}
+
+/// Kafelek przypiętej aplikacji.
+export struct StartTile {
+    name: string,
+    img: image,
+    has-img: bool,
+}
+
+/// Przycisk lewej kolumny (konto, foldery, ustawienia, zasilanie).
+component RailButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    callback clicked(length, length);
+    width: 48px;
+    height: 44px;
+    background: rb-ta.has-hover ? Theme.hover : transparent;
+    Icon {
+        commands: root.icon;
+        size: 18px;
+        color: Theme.text;
+    }
+    rb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+        }
+    }
+}
+
+/// Menu Start PowerDesk – układ Windows 10: wąska kolumna z kontem, folderami, ustawieniami
+/// i zasilaniem; lista aplikacji z literami; kafelki przypiętych. Pisanie od razu szuka.
+export component StartWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    title: "PowerDesk – Start";
+    background: Theme.popup-high;
+    width: 660px;
+    height: 640px;
+
+    in property <[StartRow]> rows;
+    in property <[StartTile]> tiles;
+    in property <string> user;
+    in-out property <string> query;
+    // Menu podręczne (pozycje i miejsce podaje taskbar.rs).
+    in property <[MenuEntry]> menu-entries;
+    in property <length> menu-x;
+    in property <length> menu-y;
+    in property <length> menu-width: 240px;
+
+    callback search(string);
+    /// Enter w polu szukania – pierwsza znaleziona aplikacja.
+    callback launch-first();
+    callback launch(int);
+    callback launch-tile(int);
+    /// Prawy przycisk na aplikacji / kafelku – menu (współrzędne w oknie).
+    callback row-context(int, length, length);
+    callback tile-context(int, length, length);
+    /// Lewa kolumna: 0 – konto, 1 – Dokumenty, 2 – Obrazy, 3 – Ustawienia, 4 – zasilanie.
+    callback rail(int, length, length);
+    callback menu-chosen(int);
+    callback dismiss();
+
+    public function show-menu() {
+        menu.show();
+    }
+    public function focus-search() {
+        q.focus();
+    }
+
+    HorizontalLayout {
+        // Lewa kolumna – jak w Windows 10: konto na górze, reszta przy dole.
+        VerticalLayout {
+            width: 48px;
+            padding-top: 6px;
+            padding-bottom: 6px;
+            RailButton {
+                icon: Icons.menu-lines;
+                tip: root.user;
+                clicked(x, y) => {
+                    root.rail(0, x, y);
+                }
+            }
+            Rectangle {
+                vertical-stretch: 1;
+            }
+            RailButton {
+                icon: Icons.doc;
+                tip: "Dokumenty";
+                clicked(x, y) => {
+                    root.rail(1, x, y);
+                }
+            }
+            RailButton {
+                icon: Icons.image;
+                tip: "Obrazy";
+                clicked(x, y) => {
+                    root.rail(2, x, y);
+                }
+            }
+            RailButton {
+                icon: Icons.settings;
+                tip: "Ustawienia";
+                clicked(x, y) => {
+                    root.rail(3, x, y);
+                }
+            }
+            RailButton {
+                icon: Icons.power;
+                tip: "Zasilanie";
+                clicked(x, y) => {
+                    root.rail(4, x, y);
+                }
+            }
+        }
+
+        // Lista aplikacji z polem szukania.
+        VerticalLayout {
+            width: 290px;
+            padding: 8px;
+            spacing: 6px;
+            Rectangle {
+                height: 34px;
+                border-radius: Theme.r-s;
+                background: Theme.panel;
+                border-width: 1px;
+                border-color: q.has-focus ? Theme.accent : Theme.line;
+                Icon {
+                    x: 10px;
+                    commands: Icons.search;
+                    size: 14px;
+                    color: Theme.dim;
+                }
+                if root.query == "": Text {
+                    x: 32px;
+                    text: "Wpisz, aby wyszukać";
+                    font-size: 12.5px;
+                    color: Theme.faint;
+                }
+                q := TextInput {
+                    x: 32px;
+                    width: parent.width - 42px;
+                    text <=> root.query;
+                    single-line: true;
+                    vertical-alignment: center;
+                    font-size: 12.5px;
+                    color: Theme.text;
+                    edited => {
+                        root.search(self.text);
+                    }
+                    accepted => {
+                        root.launch-first();
+                    }
+                    key-pressed(e) => {
+                        if (e.text == Key.Escape) {
+                            root.dismiss();
+                            return accept;
+                        }
+                        reject
+                    }
+                }
+            }
+            Flickable {
+                vertical-stretch: 1;
+                content-height: lst.preferred-height;
+                lst := VerticalLayout {
+                    alignment: start;
+                    for r[i] in root.rows: Rectangle {
+                        height: r.header ? 34px : 36px;
+                        border-radius: Theme.r-s;
+                        background: !r.header && ar-ta.has-hover ? Theme.hover : transparent;
+                        if r.header: Text {
+                            x: 10px;
+                            text: r.name;
+                            font-size: 13px;
+                            font-weight: 600;
+                            color: Theme.accent;
+                        }
+                        if !r.header: HorizontalLayout {
+                            padding-left: 8px;
+                            padding-right: 8px;
+                            spacing: 10px;
+                            Rectangle {
+                                width: 24px;
+                                if r.has-img: Image {
+                                    width: 24px;
+                                    height: 24px;
+                                    source: r.img;
+                                }
+                                if !r.has-img: Icon {
+                                    commands: Icons.app;
+                                    size: 18px;
+                                    color: Theme.dim;
+                                }
+                            }
+                            Text {
+                                horizontal-stretch: 1;
+                                vertical-alignment: center;
+                                text: r.name;
+                                overflow: elide;
+                                font-size: 12.5px;
+                                color: Theme.text;
+                            }
+                        }
+                        ar-ta := TouchArea {
+                            enabled: !r.header;
+                            mouse-cursor: pointer;
+                            clicked => {
+                                root.launch(i);
+                            }
+                            pointer-event(e) => {
+                                if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                                    root.row-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Kafelki przypiętych aplikacji – trzy kolumny po 100 px.
+        Rectangle {
+            horizontal-stretch: 1;
+            Text {
+                x: 14px;
+                y: 14px;
+                text: "Przypięte";
+                font-size: 12px;
+                font-weight: 600;
+                color: Theme.dim;
+            }
+            if root.tiles.length == 0: Text {
+                x: 14px;
+                y: 44px;
+                width: parent.width - 28px;
+                text: "Prawy przycisk na aplikacji → „Przypnij do Startu”.";
+                wrap: word-wrap;
+                font-size: 12px;
+                color: Theme.faint;
+            }
+            for t[i] in root.tiles: Rectangle {
+                x: 14px + mod(i, 3) * 104px;
+                y: 40px + floor(i / 3) * 104px;
+                width: 100px;
+                height: 100px;
+                border-radius: Theme.r;
+                background: tl-ta.has-hover ? Theme.hover : Theme.card;
+                if t.has-img: Image {
+                    y: 22px;
+                    width: 32px;
+                    height: 32px;
+                    source: t.img;
+                }
+                if !t.has-img: Icon {
+                    y: 26px;
+                    commands: Icons.app;
+                    size: 24px;
+                    color: Theme.dim;
+                }
+                Text {
+                    x: 6px;
+                    y: 64px;
+                    width: parent.width - 12px;
+                    horizontal-alignment: center;
+                    text: t.name;
+                    overflow: elide;
+                    font-size: 11px;
+                    color: Theme.text;
+                }
+                tl-ta := TouchArea {
+                    mouse-cursor: pointer;
+                    clicked => {
+                        root.launch-tile(i);
+                    }
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                            root.tile-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    menu := MenuPopup {
+        x: root.menu-x;
+        y: root.menu-y;
+        menu-width: root.menu-width;
+        entries: root.menu-entries;
+        chosen(i) => {
+            root.menu-chosen(i);
+        }
+    }
+}

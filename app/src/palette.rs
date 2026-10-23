@@ -262,7 +262,7 @@ pub fn is_open(s: &Shared) -> bool {
 }
 
 /// Polskie znaki na łacińskie i małe litery – „Zmień” znajdzie się po wpisaniu „zmien”.
-fn fold(t: &str) -> String {
+pub(crate) fn fold(t: &str) -> String {
     t.chars()
         .map(|c| match c.to_lowercase().next().unwrap_or(c) {
             'ą' => 'a',
