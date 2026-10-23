@@ -54,7 +54,7 @@ pub fn ensure_explorer() -> bool {
     crate::log::info("uruchamianie Eksploratora w tle");
     let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".into());
     let _ = std::process::Command::new(format!(r"{windir}\explorer.exe")).spawn();
-    for _ in 0..40 {
+    for _ in 0..80 {
         std::thread::sleep(std::time::Duration::from_millis(250));
         if crate::shellswap::explorer_tray().is_some() {
             break;

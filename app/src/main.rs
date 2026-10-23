@@ -133,11 +133,17 @@ fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
     Some((dir.to_string_lossy().to_string(), Some(p.to_string_lossy().to_string())))
 }
 
+/// Kolejne uruchomienie w tle (autostart przy działającym PowerDesk) – tylko sprawdza, że działa.
+const PING_ARG: &str = "--ping";
+
 /// Argumenty od kolejnego uruchomienia: każda ścieżka w nowej karcie, bez ścieżek – karta startowa.
 fn open_args(s: &Shared, args: Vec<String>) {
     // Instalator albo deinstalator prosi o zamknięcie.
     if args.iter().any(|a| a == setup::QUIT_ARG) {
         quit(s);
+        return;
+    }
+    if args.iter().any(|a| a == PING_ARG) {
         return;
     }
     let targets: Vec<_> = args.iter().filter_map(|a| arg_target(a)).collect();
@@ -277,7 +283,9 @@ fn main() -> Result<(), slint::PlatformError> {
         std::process::exit(code);
     }
     // Działa już okno – oddajemy mu argumenty (Win+E, „Otwórz w PowerDesk”) i kończymy.
-    let args: Vec<String> = std::env::args().skip(1).filter(|a| !a.starts_with("--")).collect();
+    // Start w tle (autostart, strażnik, stary wpis powłoki) przy działającym PowerDesk – bez okna.
+    let background = argv.iter().any(|a| a == powerdesk_core::autostart::FLAG || a == powerdesk_core::shellmode::SHELL_FLAG);
+    let args: Vec<String> = if background { vec![PING_ARG.into()] } else { std::env::args().skip(1).filter(|a| !a.starts_with("--")).collect() };
     if powerdesk_core::instance::send_to_running(&args) {
         return Ok(());
     }

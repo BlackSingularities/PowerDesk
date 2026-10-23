@@ -698,9 +698,10 @@ pub fn power_items() -> Vec<Item> {
     v
 }
 
-fn known(sub: &str) -> String {
-    let home = std::env::var("USERPROFILE").unwrap_or_default();
-    format!("{home}\\{sub}")
+/// Dokumenty albo Obrazy – z ustawień Windows (także przeniesione do OneDrive).
+fn known(documents: bool) -> String {
+    let dir = if documents { dirs::document_dir() } else { dirs::picture_dir() };
+    dir.map(|d| d.to_string_lossy().to_string()).unwrap_or_else(|| std::env::var("USERPROFILE").unwrap_or_default())
 }
 
 /// Lewa kolumna: konto, Dokumenty, Obrazy, Ustawienia, zasilanie.
@@ -723,7 +724,7 @@ fn rail(i: i32, x: f32, y: f32) {
             y,
         ),
         1 | 2 => {
-            let dir = known(if i == 1 { "Documents" } else { "Pictures" });
+            let dir = known(i == 1);
             crate::with_state(|s| {
                 crate::open_args(s, vec![dir]);
                 crate::show_window(s);
