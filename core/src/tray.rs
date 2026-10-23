@@ -8,7 +8,7 @@ use std::sync::OnceLock;
 use windows::core::{w, HSTRING, PCWSTR};
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, POINT, WPARAM};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::UI::Shell::{Shell_NotifyIconW, NIF_ICON, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NOTIFYICONDATAW};
+use windows::Win32::UI::Shell::{Shell_NotifyIconW, NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW};
 use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconFromResourceEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos, GetMessageW,
     LookupIconIdFromDirectoryEx, PostMessageW, PostQuitMessage, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow, TrackPopupMenu, TranslateMessage, HICON, LR_DEFAULTCOLOR, MF_SEPARATOR,
@@ -93,7 +93,8 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
     match msg {
         MSG_ICON => {
             match lp.0 as u32 {
-                WM_LBUTTONUP => fire(Event::Show),
+                // Klik w ikonę albo w dymek (NIN_BALLOONUSERCLICK).
+                WM_LBUTTONUP | 0x0405 => fire(Event::Show),
                 WM_RBUTTONUP => menu(hwnd),
                 _ => {}
             }
@@ -114,6 +115,25 @@ unsafe extern "system" fn wndproc(hwnd: HWND, msg: u32, wp: WPARAM, lp: LPARAM) 
             LRESULT(0)
         }
         _ => DefWindowProcW(hwnd, msg, wp, lp),
+    }
+}
+
+/// Dymek przy ikonie (np. „Jest nowa wersja”). Klik w niego otwiera okno PowerDesk.
+pub fn balloon(title: &str, text: &str) {
+    let hwnd = HWND_TRAY.load(Ordering::SeqCst);
+    if hwnd <= 0 {
+        return;
+    }
+    let mut nid = notify_data(HWND(hwnd as *mut _), "PowerDesk");
+    nid.uFlags = NIF_INFO;
+    for (d, s) in nid.szInfoTitle.iter_mut().zip(title.encode_utf16().take(63)) {
+        *d = s;
+    }
+    for (d, s) in nid.szInfo.iter_mut().zip(text.encode_utf16().take(255)) {
+        *d = s;
+    }
+    unsafe {
+        let _ = Shell_NotifyIconW(NIM_MODIFY, &nid);
     }
 }
 

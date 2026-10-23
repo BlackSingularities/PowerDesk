@@ -53,6 +53,14 @@ jobs:
       - name: Build (instalator NSIS)
         run: npx tauri build
 
+      # PowerDesk (natywny, Slint). Klucz aktualizacji (token tylko do odczytu tego repozytorium)
+      # z sekretu POWERDESK_UPDATE_TOKEN trafia do programu – prywatne wydania są bez niego niewidoczne.
+      - name: Build PowerDesk
+        env:
+          POWERDESK_VERSION: ${{ steps.ver.outputs.version }}
+          POWERDESK_UPDATE_TOKEN: ${{ secrets.POWERDESK_UPDATE_TOKEN }}
+        run: cargo build --release -p powerdesk
+
       - name: Pliki wydania
         shell: pwsh
         env:
@@ -63,6 +71,7 @@ jobs:
           New-Item -ItemType Directory out | Out-Null
           Copy-Item "target/release/bundle/nsis/*.exe" "out/OpenFilePower-$v-setup.exe"
           Copy-Item "target/release/openfilepower-win.exe" "out/OpenFilePower-$v-portable.exe"
+          Copy-Item "target/release/powerdesk.exe" "out/PowerDesk-$v.exe"
           # Podpis cyfrowy (bez ostrzeżeń SmartScreen) – tylko gdy w sekretach repozytorium jest certyfikat:
           # WINDOWS_CERTIFICATE (plik .pfx w base64) i WINDOWS_CERTIFICATE_PASSWORD.
           if ($env:WIN_CERT) {
@@ -86,5 +95,5 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $v = "v${{ steps.ver.outputs.version }}"
-          $notes = "Automatyczne wydanie z commita ${{ github.sha }}.`n`n**Instalator:** OpenFilePower-*-setup.exe (bez uprawnień administratora)`n**Wersja przenośna:** OpenFilePower-*-portable.exe (wymaga WebView2, obecnego w Windows 10/11)"
+          $notes = "Automatyczne wydanie z commita ${{ github.sha }}.`n`n**Instalator:** OpenFilePower-*-setup.exe (bez uprawnień administratora)`n**PowerDesk:** PowerDesk-*.exe (aktualizuje się sam)`n**Wersja przenośna:** OpenFilePower-*-portable.exe (wymaga WebView2, obecnego w Windows 10/11)"
           gh release create $v out/* --title "OpenFilePower $v" --notes $notes --target ${{ github.sha }}

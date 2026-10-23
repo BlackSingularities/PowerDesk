@@ -28,6 +28,7 @@ mod syntax;
 mod query;
 mod thumbs;
 mod transfers;
+mod updates;
 mod icons {
     include!(concat!(env!("OUT_DIR"), "/icons.rs"));
 }
@@ -310,6 +311,7 @@ fn main() -> Result<(), slint::PlatformError> {
     slint::Timer::single_shot(std::time::Duration::from_millis(50), move || dragdrop::register(&s2));
     start_tray();
     ensure_integration();
+    updates::start();
     // Synchronizacja rusza w tle chwilę po starcie, żeby nie opóźniać pierwszego okna.
     let s3 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));

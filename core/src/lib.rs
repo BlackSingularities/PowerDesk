@@ -32,6 +32,7 @@ pub mod system;
 pub mod taskwin;
 pub mod terminal;
 pub mod tray;
+pub mod update;
 pub mod trayhost;
 pub mod wifi;
 pub mod winkey;

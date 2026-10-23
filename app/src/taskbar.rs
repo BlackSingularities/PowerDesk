@@ -233,6 +233,7 @@ fn start_menu(bar: usize, x: f32) {
         sep(),
         it("Menedżer zadań", "app", run("taskmgr.exe")),
         it("Ustawienia Windows", "settings", |_| sysbar::open_settings("")),
+        it("Sprawdź aktualizacje", "refresh", |_| crate::updates::check(true)),
         // Okno „Uruchom” wprost z shell32 – działa także bez Eksploratora.
         it("Uruchom…", "terminal", |_| powerdesk_core::shellmode::run_dialog()).kbd("Win+R"),
     ];

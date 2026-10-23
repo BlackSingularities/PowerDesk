@@ -119,6 +119,44 @@ fn plain_monitors() -> Vec<Monitor> {
         .collect()
 }
 
+/// Podpis ekranu: monitory (położenie, rozmiar, DPI) i tapeta. Tani – do sprawdzania co
+/// kilka sekund; zmiana oznacza, że pulpit i pasek trzeba zbudować od nowa.
+pub fn screen_signature() -> String {
+    use windows::core::{w, BOOL};
+    use windows::Win32::Foundation::LPARAM;
+    use windows::Win32::Graphics::Gdi::{EnumDisplayMonitors, GetMonitorInfoW, HDC, HMONITOR, MONITORINFO};
+    use windows::Win32::System::Registry::{RegGetValueW, HKEY_CURRENT_USER, RRF_RT_REG_SZ};
+    use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
+    unsafe extern "system" fn each(m: HMONITOR, _: HDC, _: *mut RECT, lp: LPARAM) -> BOOL {
+        let out = &mut *(lp.0 as *mut String);
+        let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+        if GetMonitorInfoW(m, &mut mi).as_bool() {
+            let (mut dx, mut dy) = (0u32, 0u32);
+            let _ = GetDpiForMonitor(m, MDT_EFFECTIVE_DPI, &mut dx, &mut dy);
+            let r = mi.rcMonitor;
+            out.push_str(&format!("{},{},{},{}@{dx};", r.left, r.top, r.right, r.bottom));
+        }
+        BOOL(1)
+    }
+    let mut sig = String::new();
+    unsafe {
+        let _ = EnumDisplayMonitors(None, None, Some(each), LPARAM(&mut sig as *mut _ as isize));
+        let mut buf = [0u16; 520];
+        let mut len = (buf.len() * 2) as u32;
+        if RegGetValueW(HKEY_CURRENT_USER, w!("Control Panel\\Desktop"), w!("WallPaper"), RRF_RT_REG_SZ, None, Some(buf.as_mut_ptr() as *mut _), Some(&mut len)).is_ok() {
+            sig.push_str(&String::from_utf16_lossy(&buf[..(len as usize / 2).saturating_sub(1)]));
+        }
+    }
+    // Każda zmiana tapety (także pokaz slajdów i tapeta na jednym monitorze) zapisuje ten plik.
+    if let Ok(appdata) = std::env::var("APPDATA") {
+        let f = format!(r"{appdata}\Microsoft\Windows\Themes\TranscodedWallpaper");
+        if let Ok(t) = std::fs::metadata(f).and_then(|m| m.modified()) {
+            sig.push_str(&format!("|{t:?}"));
+        }
+    }
+    sig
+}
+
 /// Okno pulpitu bez przycisku na pasku zadań i bez miejsca w Alt+Tab (styl okna narzędziowego).
 pub fn hide_from_taskbar(hwnd: isize) {
     use windows::Win32::Foundation::HWND;

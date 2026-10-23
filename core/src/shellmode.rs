@@ -165,6 +165,14 @@ pub fn after_exit() -> bool {
         fallback_to_explorer();
         return true;
     }
+    // Podmiana .exe przy aktualizacji: czekamy na skrypt i restartujemy bez liczenia awarii.
+    if crate::update::marker().exists() {
+        crate::update::wait_for_apply();
+        if let Ok(exe) = std::env::current_exe() {
+            let _ = std::process::Command::new(exe).arg(SHELL_FLAG).spawn();
+        }
+        return true;
+    }
     let file = crash_file();
     let now = now_secs();
     let mut times: Vec<u64> = std::fs::read_to_string(&file)

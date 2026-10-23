@@ -45,6 +45,8 @@ thread_local! {
     static D: RefCell<Desk> = RefCell::new(Desk::default());
     /// Pilnowanie: ikony Windows ukryte, okna wpięte (restart Eksploratora je niszczy).
     static WATCH: slint::Timer = slint::Timer::default();
+    /// Podpis ekranu (monitory, DPI, tapeta) z chwili budowy pulpitu.
+    static SCREEN: RefCell<String> = const { RefCell::new(String::new()) };
 }
 
 pub fn is_open() -> bool {
@@ -66,6 +68,7 @@ pub fn open(_s: &Shared) {
     if is_open() {
         return;
     }
+    SCREEN.with(|c| *c.borrow_mut() = data::screen_signature());
     std::thread::spawn(|| {
         let mons = data::monitors();
         let walls: Vec<_> = mons.iter().map(|m| if m.wallpaper.is_empty() { None } else { decode(&m.wallpaper) }).collect();
@@ -165,6 +168,16 @@ fn attach() {
 /// Restart Eksploratora niszczy Progman razem z naszymi oknami – budujemy pulpit od nowa.
 /// Ikony Windows wracają też po zmianie tapety z animacją – chowamy je ponownie.
 fn watch() {
+    // Inny układ monitorów, skala albo tapeta – pulpit i pasek od nowa.
+    if SCREEN.with(|c| *c.borrow() != data::screen_signature()) {
+        close();
+        crate::taskbar::close();
+        crate::with_state(|s| {
+            open(s);
+            crate::taskbar::open(s);
+        });
+        return;
+    }
     let dead = D.with(|d| d.borrow().hwnds.iter().any(|&h| !powerdesk_core::shellswap::alive(h)));
     if dead {
         close();
