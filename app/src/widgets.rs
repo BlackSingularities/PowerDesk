@@ -103,8 +103,22 @@ fn refresh_drives() {
     });
 }
 
+/// Rodzaje widżetów, które gdzieś stoją (pulpit albo kafelki Startu) – dane liczymy tylko dla nich.
+pub fn in_use() -> std::collections::HashSet<String> {
+    let mut out = std::collections::HashSet::new();
+    crate::with_state(|s| {
+        let b = s.borrow();
+        out.extend(b.prefs.desktop_widgets.iter().map(|w| w.kind.clone()));
+        for g in &b.prefs.start_groups {
+            out.extend(g.tiles.iter().filter(|t| !t.widget.is_empty()).map(|t| t.widget.clone()));
+        }
+    });
+    out
+}
+
 fn tick() {
     let now = Local::now();
+    let used = in_use();
     let n = TICKS.with(|t| {
         t.set(t.get().wrapping_add(1));
         t.get()
@@ -123,7 +137,7 @@ fn tick() {
             d.days = month_grid(date);
         }
         // Procesor i pamięć co 2 s – odczyt jest dokładny z różnicy między wywołaniami.
-        if n % 2 == 1 {
+        if n % 2 == 1 && used.contains("system") {
             let info = powerdesk_core::sysmon::info();
             let cpu = (info.cpu_usage / 100.0).clamp(0.0, 1.0);
             d.cpu = cpu;
@@ -137,11 +151,16 @@ fn tick() {
             }
         }
     });
-    if n % 30 == 1 {
+    // Dyski co 30 s; nowy widżet dysków – od razu.
+    let no_drives = DATA.with(|x| x.borrow().drives.is_empty());
+    if used.contains("drives") && (n % 30 == 1 || (no_drives && n % 5 == 0)) {
         refresh_drives();
     }
-    crate::widgetfeeds::tick(n);
-    push_all();
+    crate::widgetfeeds::tick(n, &used);
+    // Bez widżetów nie ma czego przerysowywać (przypomnienia sprawdza widgetfeeds::tick).
+    if !used.is_empty() {
+        push_all();
+    }
 }
 
 /// Dane do globalnego `WidgetData` jednego okna (także zaraz po jego utworzeniu).

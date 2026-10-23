@@ -317,22 +317,25 @@ fn fire_due(s: &Shared) {
 
 /// Co sekundę (`n` – licznik): przypomnienia; co 2 s – multimedia; co 15 s – zdjęcie;
 /// co 30 min – pogoda; zmiana miejscowości albo folderu – od razu.
-pub fn tick(n: u32) {
+/// Pobieranie tylko dla widżetów, które gdzieś stoją (`used`); przypomnienia – zawsze.
+pub fn tick(n: u32, used: &std::collections::HashSet<String>) {
     crate::with_state(fire_due);
-    if n % 2 == 0 {
+    if n % 2 == 0 && used.contains("media") {
         refresh_media();
     }
-    let (city_changed, folder_changed) = F.with(|f| {
+    let (fresh_w, city_changed, folder_changed, no_photos) = F.with(|f| {
         let f = f.borrow();
-        (f.weather_city != city(), f.photo_folder != photo_folder())
+        (f.weather.is_none(), f.weather_city != city(), f.photo_folder != photo_folder(), f.photo_folder.is_empty())
     });
-    if n == 1 || city_changed || n % 1800 == 0 {
+    if used.contains("weather") && (fresh_w || city_changed || n % 1800 == 0) {
         refresh_weather();
     }
-    if n == 1 || folder_changed || n % 600 == 0 {
-        refresh_photos_list();
-    } else if n % 15 == 0 {
-        next_photo();
+    if used.contains("photos") {
+        if no_photos || folder_changed || n % 600 == 0 {
+            refresh_photos_list();
+        } else if n % 15 == 0 {
+            next_photo();
+        }
     }
 }
 
