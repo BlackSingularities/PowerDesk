@@ -9,7 +9,7 @@ use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
 
-const FEED: &str = "https://redzikowski.com/api/github/repos/BlackSingularities/OpenFilePowerWin/releases/latest";
+const FEED: &str = "https://redzikowski.com/api/github/repos/BlackSingularities/PowerDesk/releases/latest";
 const UA: &str = "PowerDesk";
 
 /// Wersja tego programu (CI podaje numer wydania przy kompilacji).
