@@ -1,6 +1,5 @@
-//! Aktualizacje PowerDesk z prywatnego repozytorium GitHub. Dostęp kluczem (token GitHub
-//! tylko do odczytu zawartości tego repozytorium): z pliku `%LOCALAPPDATA%\PowerDesk\update-key.txt`,
-//! ze zmiennej `POWERDESK_UPDATE_TOKEN` albo wbudowany przy kompilacji (sekret w CI).
+//! Aktualizacje PowerDesk z portfolio redzikowski.com – serwer podaje wydania w formacie
+//! GitHub API, a pliki pobiera z repozytorium sam, więc program nie potrzebuje żadnego klucza.
 //!
 //! Wydanie zawiera `PowerDesk-<wersja>.exe` i `SHA256SUMS.txt`. Nowy plik pobieramy do TEMP,
 //! sprawdzamy sumę, a skrypt po zamknięciu PowerDesk podmienia .exe i uruchamia go ponownie.
@@ -10,7 +9,7 @@ use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
 
-const REPO: &str = "BlackSingularities/OpenFilePowerWin";
+const FEED: &str = "https://redzikowski.com/api/github/repos/BlackSingularities/OpenFilePowerWin/releases/latest";
 const UA: &str = "PowerDesk";
 
 /// Wersja tego programu (CI podaje numer wydania przy kompilacji).
@@ -23,36 +22,14 @@ fn dir() -> PathBuf {
     base.join("PowerDesk")
 }
 
-/// Plik z kluczem – ma pierwszeństwo przed wbudowanym (wymiana klucza bez nowej wersji).
-pub fn key_file() -> PathBuf {
-    dir().join("update-key.txt")
-}
-
-fn token() -> Option<String> {
-    let from_file = std::fs::read_to_string(key_file()).ok().map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
-    from_file
-        .or_else(|| std::env::var("POWERDESK_UPDATE_TOKEN").ok().filter(|s| !s.is_empty()))
-        .or_else(|| option_env!("POWERDESK_UPDATE_TOKEN").map(str::to_string).filter(|s| !s.is_empty()))
-}
-
-/// Czy jest klucz – bez niego prywatnych wydań nie widać.
-pub fn has_key() -> bool {
-    token().is_some()
-}
-
 fn get(url: &str, accept: &str) -> Result<ureq::Response, String> {
-    let key = token().ok_or("Brak klucza aktualizacji")?;
-    // ureq nie przenosi nagłówka Authorization na przekierowanie (plik leży na innym serwerze).
     ureq::get(url)
         .set("User-Agent", UA)
         .set("Accept", accept)
-        .set("Authorization", &format!("Bearer {key}"))
-        .set("X-GitHub-Api-Version", "2022-11-28")
         .timeout(std::time::Duration::from_secs(30))
         .call()
         .map_err(|e| match e {
-            ureq::Error::Status(401, _) => "Klucz aktualizacji jest nieprawidłowy albo wygasł".to_string(),
-            ureq::Error::Status(404, _) => "Brak wydań albo klucz nie ma dostępu do repozytorium".to_string(),
+            ureq::Error::Status(404, _) => "Brak wydań do pobrania".to_string(),
             e => e.to_string(),
         })
 }
@@ -62,9 +39,9 @@ fn get(url: &str, accept: &str) -> Result<ureq::Response, String> {
 pub struct Release {
     pub version: String,
     pub notes: String,
-    asset: u64,
+    asset: String,
     name: String,
-    sums: Option<u64>,
+    sums: Option<String>,
 }
 
 fn parse(v: &str) -> Vec<u64> {
@@ -78,7 +55,7 @@ pub fn newer(a: &str, b: &str) -> bool {
 
 /// Najnowsze wydanie, jeśli nowsze od tej wersji i ma plik PowerDesk.
 pub fn check() -> Result<Option<Release>, String> {
-    let r: serde_json::Value = get(&format!("https://api.github.com/repos/{REPO}/releases/latest"), "application/vnd.github+json")?
+    let r: serde_json::Value = get(FEED, "application/vnd.github+json")?
         .into_json()
         .map_err(|e| e.to_string())?;
     let version = r["tag_name"].as_str().unwrap_or_default().trim_start_matches('v').to_string();
@@ -91,20 +68,16 @@ pub fn check() -> Result<Option<Release>, String> {
     Ok(Some(Release {
         version,
         notes: r["body"].as_str().unwrap_or_default().to_string(),
-        asset: exe["id"].as_u64().unwrap_or(0),
+        asset: exe["browser_download_url"].as_str().unwrap_or_default().to_string(),
         name: exe["name"].as_str().unwrap_or("PowerDesk.exe").to_string(),
-        sums: find(&|n| n == "sha256sums.txt").and_then(|a| a["id"].as_u64()),
+        sums: find(&|n| n == "sha256sums.txt").and_then(|a| a["browser_download_url"].as_str().map(str::to_string)),
     }))
-}
-
-fn asset_url(id: u64) -> String {
-    format!("https://api.github.com/repos/{REPO}/releases/assets/{id}")
 }
 
 /// Pobiera nowy plik i sprawdza sumę SHA-256. `progress(pobrane, całość)`.
 pub fn download(rel: &Release, progress: impl Fn(u64, u64)) -> Result<PathBuf, String> {
-    let expected = match rel.sums {
-        Some(id) => get(&asset_url(id), "application/octet-stream")?
+    let expected = match &rel.sums {
+        Some(url) => get(url, "application/octet-stream")?
             .into_string()
             .map_err(|e| e.to_string())?
             .lines()
@@ -115,7 +88,7 @@ pub fn download(rel: &Release, progress: impl Fn(u64, u64)) -> Result<PathBuf, S
     };
     // Bez sumy nie podmieniamy programu – to jest powłoka systemu.
     let expected = expected.ok_or("Wydanie nie ma sumy kontrolnej pliku PowerDesk")?;
-    let resp = get(&asset_url(rel.asset), "application/octet-stream")?;
+    let resp = get(&rel.asset, "application/octet-stream")?;
     let total: u64 = resp.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(0);
     let folder = dir().join("update");
     std::fs::create_dir_all(&folder).map_err(|e| e.to_string())?;

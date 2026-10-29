@@ -44,12 +44,10 @@ jobs:
       - name: Testy silnika synchronizacji
         run: cargo test --release -p powerdesk-core --test sync_core
 
-      # PowerDesk (natywny, Slint). Klucz aktualizacji (token tylko do odczytu tego repozytorium)
-      # z sekretu POWERDESK_UPDATE_TOKEN trafia do programu – prywatne wydania są bez niego niewidoczne.
+      # PowerDesk (natywny, Slint). Aktualizacje idą przez redzikowski.com, bez klucza w programie.
       - name: Build PowerDesk
         env:
           POWERDESK_VERSION: ${{ steps.ver.outputs.version }}
-          POWERDESK_UPDATE_TOKEN: ${{ secrets.POWERDESK_UPDATE_TOKEN }}
         run: cargo build --release -p powerdesk
 
       - name: Pliki wydania

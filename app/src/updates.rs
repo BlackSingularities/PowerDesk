@@ -19,9 +19,6 @@ thread_local! {
 }
 
 pub fn start() {
-    if !update::has_key() {
-        return;
-    }
     slint::Timer::single_shot(Duration::from_secs(60), || check(false));
     TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(6 * 3600), || check(false)));
 }
