@@ -173,7 +173,9 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
-    ensure_tip();
+    // Przy starcie programu pętla zdarzeń jeszcze nie ruszyła i okno systemowe dymka nie istnieje –
+    // nie dałoby się go schować i zostałby pusty prostokąt nad wszystkimi oknami.
+    slint::Timer::single_shot(Duration::from_millis(200), ensure_tip);
     // Zasobnik z ikonami innych programów (własny Shell_TrayWnd, przed paskiem Eksploratora).
     // `start` działa raz na proces – po przebudowie pasków (zmiana monitorów) tylko odświeżenie.
     powerdesk_core::trayhost::on_balloon(|title, text| {
@@ -1563,8 +1565,15 @@ fn ensure_tip() {
     let Ok(w) = TipWindow::new() else { return };
     same_theme!(0, w);
     let fg = taskwin::foreground();
+    w.window().set_size(PhysicalSize::new(1, 1));
     let _ = w.show();
     let hwnd = crate::window_hwnd(w.window());
+    if hwnd == 0 {
+        // Okno systemowe jeszcze nie powstało – schowane, kolejna próba za chwilę.
+        let _ = w.hide();
+        slint::Timer::single_shot(Duration::from_millis(200), ensure_tip);
+        return;
+    }
     taskwin::make_passive(hwnd);
     popup_look(hwnd);
     taskwin::hide_native(hwnd);

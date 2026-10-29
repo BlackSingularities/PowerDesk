@@ -396,6 +396,8 @@ fn main() -> Result<(), slint::PlatformError> {
     let hidden = std::env::args().any(|a| a == powerdesk_core::autostart::FLAG || a == powerdesk_core::shellmode::SHELL_FLAG) && !st.borrow().prefs.autostart_window;
     if !hidden {
         ui.show()?;
+        // Pulpit i pasek powstały wcześniej – okno folderów na wierzch, gdy już ma uchwyt.
+        slint::Timer::single_shot(std::time::Duration::from_millis(300), || with_state(|s| powerdesk_core::instance::bring_to_front(hwnd(s))));
     }
     // Pętla trwa także przy schowanym oknie – kończy ją dopiero quit().
     slint::run_event_loop_until_quit()
