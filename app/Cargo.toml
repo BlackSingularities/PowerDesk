@@ -1,6 +1,6 @@
 [package]
 name = "powerdesk"
-version = "1.0.2"
+version = "1.0.10"
 description = "PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows"
 authors = ["adam001d"]
 edition = "2021"
