@@ -21,6 +21,7 @@ struct More {
     down: f64,
     up: f64,
     hist: VecDeque<f32>,
+    up_hist: VecDeque<f32>,
     /// Kursy: kod, bieżący, poprzedni; data tabeli.
     fx: Vec<(String, f64, f64)>,
     fx_date: String,
@@ -69,15 +70,19 @@ fn refresh_fx() {
 
 /// Co sekundę: sieć; kursy – przy pierwszym użyciu i co godzinę.
 pub fn tick(n: u32, used: &std::collections::HashSet<String>) {
-    if used.contains("network") {
+    if used.contains("network") || used.contains("wifi") {
         let (d, u) = powerdesk_core::netspeed::sample();
         M.with(|m| {
             let mut m = m.borrow_mut();
             m.down = d;
             m.up = u;
             m.hist.push_back(d as f32);
+            m.up_hist.push_back(u as f32);
             while m.hist.len() > 40 {
                 m.hist.pop_front();
+            }
+            while m.up_hist.len() > 40 {
+                m.up_hist.pop_front();
             }
         });
     }
@@ -116,6 +121,17 @@ pub fn apply(g: &WidgetData) {
         let mut hist: Vec<f32> = vec![0.0; 40 - m.hist.len().min(40)];
         hist.extend(m.hist.iter().map(|v| v / top));
         g.set_net_hist(ModelRc::new(VecModel::from(hist)));
+        // Wykres: pobieranie i wysyłanie w jednej skali.
+        let top = m.up_hist.iter().copied().fold(top, f32::max);
+        let down: Vec<f32> = m.hist.iter().map(|v| v / top).collect();
+        let up: Vec<f32> = m.up_hist.iter().map(|v| v / top).collect();
+        let (line, area) = crate::widgets::spark(&down, 40);
+        g.set_net_line(line.into());
+        g.set_net_area(area.into());
+        g.set_net_up_line(crate::widgets::spark(&up, 40).0.into());
+        let mut up_bars: Vec<f32> = vec![0.0; 40 - up.len().min(40)];
+        up_bars.extend(up);
+        g.set_net_up_hist(ModelRc::new(VecModel::from(up_bars)));
         let fx: Vec<WFx> = m
             .fx
             .iter()

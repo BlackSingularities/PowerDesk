@@ -134,7 +134,7 @@ export component AnalogBody inherits Base {
         sa: root.c.sa;
         seconds: root.cfg.seconds;
         style: root.cfg.variant;
-        color: root.acc;
+        tint: root.acc;
     }
     if root.side: VerticalLayout {
         x: root.p * 2 + root.face;
@@ -336,7 +336,7 @@ export component ForecastBody inherits Base {
                 alignment: center;
                 WeatherIcon {
                     kind: d.kind;
-                    size: min(26px, parent.parent.width - 6px);
+                    size: 26px;
                 }
             }
             Text {
@@ -348,7 +348,7 @@ export component ForecastBody inherits Base {
         }
     }
     // Dni w wierszach z zakresem temperatur.
-    if root.w.ok && !root.compact && root.cfg.variant == 0: Rectangle {
+    if root.w.ok && !root.compact && root.cfg.variant == 0: frows := Rectangle {
         property <length> top: root.pad + 26px;
         property <length> rh: 26px;
         property <int> n: max(1, min(root.w.days.length, floor((root.height - self.top - root.pad + 4px) / self.rh)));
@@ -402,8 +402,8 @@ export component ForecastBody inherits Base {
                 border-radius: 2.5px;
                 background: Theme.line;
                 Rectangle {
-                    x: parent.width * (d.lo - root.w.dmin) / parent.parent.parent.span;
-                    width: max(6px, parent.width * (d.hi - d.lo) / parent.parent.parent.span);
+                    x: parent.width * (d.lo - root.w.dmin) / frows.span;
+                    width: max(6px, parent.width * (d.hi - d.lo) / frows.span);
                     height: parent.height;
                     border-radius: parent.border-radius;
                     background: @linear-gradient(90deg, #5aa9ff 0%, root.acc.mix(#f5b83d, 0.4) 100%);
@@ -453,7 +453,7 @@ export component ForecastBody inherits Base {
                 horizontal-stretch: 1;
                 line: root.w.hline;
                 area: root.w.harea;
-                color: root.acc;
+                tint: root.acc;
             }
         }
         Rectangle {
@@ -512,7 +512,7 @@ export component MeterBody inherits Base {
             width: parent.d;
             height: parent.d;
             value: root.value;
-            color: root.acc;
+            tint: root.acc;
             thickness: max(4px, parent.d * 0.08);
             Text {
                 text: root.value-text;
@@ -599,13 +599,13 @@ export component MeterBody inherits Base {
                 height: parent.height;
                 line: root.pline;
                 area: root.parea;
-                color: root.acc;
+                tint: root.acc;
             }
             if root.cfg.variant == 1: Bars {
                 width: parent.width;
                 height: parent.height;
                 values: root.hist;
-                color: root.acc;
+                tint: root.acc;
             }
         }
         if !root.compact && root.line2 != "": Text {
@@ -651,13 +651,13 @@ export component BatteryBody inherits Base {
     if WidgetData.bat-has && root.cfg.variant == 0: bring := Rectangle {
         property <bool> side: root.width >= root.height * 1.4;
         property <length> d: self.side ? root.height - 2 * root.pad : min(root.width - 2 * root.pad, root.height - 2 * root.pad - (root.height >= 140px ? 20px : 0));
-        Ring {
+        bat-ring := Ring {
             x: parent.side ? root.pad : (root.width - parent.d) / 2;
             y: root.pad;
             width: parent.d;
             height: parent.d;
             value: WidgetData.bat;
-            color: root.tone;
+            tint: root.tone;
             thickness: max(4px, parent.d * 0.09);
             VerticalLayout {
                 alignment: center;
@@ -665,14 +665,14 @@ export component BatteryBody inherits Base {
                     alignment: center;
                     Icon {
                         commands: Icons.bolt;
-                        size: max(10px, parent.parent.parent.height * 0.16);
+                        size: max(10px, bat-ring.height * 0.16);
                         color: Theme.ok;
                     }
                 }
                 Text {
                     horizontal-alignment: center;
                     text: root.pct;
-                    font-size: max(11px, parent.parent.height * 0.2);
+                    font-size: max(11px, bat-ring.height * 0.2);
                     font-weight: 300;
                     color: Theme.text;
                 }
@@ -831,7 +831,7 @@ export component WifiBody inherits Base {
             min-height: 20px;
             line: WidgetData.net-line;
             area: WidgetData.net-area;
-            color: root.acc;
+            tint: root.acc;
         }
         if root.height >= 150px && WidgetData.wifi-count > 0: Text {
             text: "Widoczne sieci Wi‑Fi: " + WidgetData.wifi-count;
@@ -861,13 +861,13 @@ export component VolumeBody inherits Base {
                 tip: WidgetData.vol-muted ? "Włącz dźwięk" : "Wycisz";
                 size: root.compact ? 30px : 36px;
                 primary: WidgetData.vol-muted;
-                color: root.acc;
+                tint: root.acc;
                 clicked => {
                     WidgetData.vol-mute();
                 }
             }
             // Suwak: kliknięcie albo przeciągnięcie ustawia poziom.
-            Rectangle {
+            vslider := Rectangle {
                 horizontal-stretch: 1;
                 property <float> v: sl-ta.pressed ? max(0, min(1, sl-ta.mouse-x / self.width)) : WidgetData.vol;
                 Rectangle {
@@ -877,7 +877,7 @@ export component VolumeBody inherits Base {
                     background: Theme.line-strong;
                     Rectangle {
                         x: 0;
-                        width: parent.width * parent.parent.v;
+                        width: parent.width * vslider.v;
                         height: parent.height;
                         border-radius: parent.border-radius;
                         background: WidgetData.vol-muted ? Theme.faint : root.acc;
@@ -1215,9 +1215,9 @@ export component ActionsBody inherits Base {
 
 // ---------- Stoper ----------
 export component StopwatchBody inherits Base {
-    property <bool> row: self.compact;
+    property <bool> side: self.compact;
     // Mały: czas i przyciski obok siebie.
-    if root.row: HorizontalLayout {
+    if root.side: HorizontalLayout {
         padding: root.pad;
         spacing: 8px;
         VerticalLayout {
@@ -1242,7 +1242,7 @@ export component StopwatchBody inherits Base {
                 icon: WidgetData.sw-run ? Icons.pause : Icons.play;
                 tip: WidgetData.sw-run ? "Zatrzymaj" : "Start";
                 primary: true;
-                color: root.acc;
+                tint: root.acc;
                 clicked => {
                     WidgetData.sw(0);
                 }
@@ -1256,7 +1256,7 @@ export component StopwatchBody inherits Base {
             }
         }
     }
-    if !root.row: VerticalLayout {
+    if !root.side: VerticalLayout {
         padding: root.pad;
         spacing: 8px;
         WTitle {
@@ -1268,25 +1268,25 @@ export component StopwatchBody inherits Base {
         Rectangle {
             vertical-stretch: 1;
             property <length> d: min(self.width, self.height);
-            if root.cfg.variant == 0: Ring {
+            if root.cfg.variant == 0: sw-ring := Ring {
                 width: parent.d;
                 height: parent.d;
                 value: WidgetData.sw-frac;
-                color: root.acc;
+                tint: root.acc;
                 thickness: max(3px, parent.d * 0.05);
                 VerticalLayout {
                     alignment: center;
                     Text {
                         horizontal-alignment: center;
                         text: WidgetData.sw-text;
-                        font-size: parent.parent.width * 0.2;
+                        font-size: sw-ring.width * 0.2;
                         font-weight: 300;
                         color: Theme.text;
                     }
                     Text {
                         horizontal-alignment: center;
                         text: WidgetData.sw-cs;
-                        font-size: parent.parent.width * 0.1;
+                        font-size: sw-ring.width * 0.1;
                         color: Theme.dim;
                     }
                 }
@@ -1317,7 +1317,7 @@ export component StopwatchBody inherits Base {
                 tip: WidgetData.sw-run ? "Zatrzymaj" : "Start";
                 primary: true;
                 size: 36px;
-                color: root.acc;
+                tint: root.acc;
                 clicked => {
                     WidgetData.sw(0);
                 }
@@ -1375,7 +1375,7 @@ export component TimerBody inherits Base {
                 icon: WidgetData.tm-run ? Icons.pause : Icons.play;
                 tip: WidgetData.tm-run ? "Wstrzymaj" : "Start";
                 primary: true;
-                color: root.tone;
+                tint: root.tone;
                 clicked => {
                     WidgetData.tm(0);
                 }
@@ -1405,7 +1405,7 @@ export component TimerBody inherits Base {
                 width: parent.d;
                 height: parent.d;
                 value: WidgetData.tm-frac;
-                color: root.tone;
+                tint: root.tone;
                 thickness: max(3px, parent.d * 0.06);
                 Text {
                     text: WidgetData.tm-text;
@@ -1429,7 +1429,7 @@ export component TimerBody inherits Base {
                 tip: WidgetData.tm-run ? "Wstrzymaj" : "Start";
                 primary: true;
                 size: 36px;
-                color: root.tone;
+                tint: root.tone;
                 clicked => {
                     WidgetData.tm(0);
                 }
@@ -1509,7 +1509,7 @@ export component CalcBody inherits Base {
             text: key.k;
             tip: key.tip;
             strong: key.k == "=";
-            color: root.acc;
+            tint: root.acc;
             font-size: min(16px, root.kh * 0.45);
             clicked => {
                 WidgetData.calc-key(key.k);
@@ -1695,12 +1695,12 @@ export component ProgressBody inherits Base {
             Meter {
                 height: root.compact ? 4px : 6px;
                 value: p.frac;
-                color: root.acc;
+                tint: root.acc;
                 plain: true;
             }
         }
     }
-    if root.cfg.variant == 1: Rectangle {
+    if root.cfg.variant == 1: prings := Rectangle {
         property <int> cols: root.width >= root.height * 1.2 || root.compact ? 4 : 2;
         property <int> rows: self.cols == 4 ? 1 : 2;
         property <length> cw: (root.width - 2 * root.pad) / self.cols;
@@ -1713,10 +1713,10 @@ export component ProgressBody inherits Base {
             height: parent.ch;
             Ring {
                 y: 0;
-                width: parent.parent.d;
-                height: parent.parent.d;
+                width: prings.d;
+                height: prings.d;
                 value: p.frac;
-                color: root.acc;
+                tint: root.acc;
                 thickness: max(3px, self.width * 0.09);
                 Text {
                     text: p.text;
@@ -1725,7 +1725,7 @@ export component ProgressBody inherits Base {
                 }
             }
             Text {
-                y: parent.parent.d + 2px;
+                y: prings.d + 2px;
                 width: parent.width;
                 horizontal-alignment: center;
                 text: p.name;

@@ -169,7 +169,7 @@ export component WidgetBody inherits Rectangle {
         width: root.width - 10px;
         height: root.height - 10px;
         value: WidgetData.bat-has ? WidgetData.bat : 1;
-        color: WidgetData.bat-charging ? Theme.ok : root.acc;
+        tint: WidgetData.bat-charging ? Theme.ok : root.acc;
         thickness: 3px;
         Text {
             text: WidgetData.bat-has ? "" + round(WidgetData.bat * 100) : "~";
@@ -376,7 +376,7 @@ export component WidgetBody inherits Rectangle {
         }
         Meter {
             value: WidgetData.cpu;
-            color: root.acc;
+            tint: root.acc;
         }
         HorizontalLayout {
             Text {
@@ -394,7 +394,7 @@ export component WidgetBody inherits Rectangle {
         }
         Meter {
             value: WidgetData.ram;
-            color: root.acc;
+            tint: root.acc;
         }
         if WidgetData.gpu-has && root.height >= 220px: HorizontalLayout {
             Text {
@@ -412,7 +412,7 @@ export component WidgetBody inherits Rectangle {
         }
         if WidgetData.gpu-has && root.height >= 220px: Meter {
             value: WidgetData.gpu;
-            color: root.acc;
+            tint: root.acc;
         }
         // Historia procesora, gdy jest miejsce.
         if root.height >= 170px: Spark {
@@ -420,10 +420,10 @@ export component WidgetBody inherits Rectangle {
             min-height: 26px;
             line: WidgetData.cpu-line;
             area: WidgetData.cpu-area;
-            color: root.acc;
+            tint: root.acc;
         }
     }
-    if !root.mini && root.kind == "system" && root.cfg.variant == 1: Rectangle {
+    if !root.mini && root.kind == "system" && root.cfg.variant == 1: srings := Rectangle {
         property <int> n: WidgetData.gpu-has && root.width >= root.height * 1.6 ? 3 : 2;
         property <length> top: root.compact ? 6px : root.pad + 22px;
         property <length> cw: (root.width - 2 * root.pad) / self.n;
@@ -445,10 +445,10 @@ export component WidgetBody inherits Rectangle {
             visible: k < parent.n;
             Ring {
                 y: 0;
-                width: parent.parent.d;
-                height: parent.parent.d;
+                width: srings.d;
+                height: srings.d;
                 value: g.v;
-                color: g.v > 0.9 ? #e5484d : root.acc;
+                tint: g.v > 0.9 ? #e5484d : root.acc;
                 thickness: max(3px, self.width * 0.08);
                 Text {
                     text: g.t;
@@ -457,7 +457,7 @@ export component WidgetBody inherits Rectangle {
                 }
             }
             if root.height >= 130px: Text {
-                y: parent.parent.d + 2px;
+                y: srings.d + 2px;
                 width: parent.width;
                 horizontal-alignment: center;
                 text: g.name;
@@ -556,11 +556,11 @@ export component WidgetBody inherits Rectangle {
             }
             Meter {
                 value: d.used;
-                color: root.acc;
+                tint: root.acc;
             }
         }
     }
-    if !root.mini && root.kind == "drives" && root.cfg.variant == 1: Rectangle {
+    if !root.mini && root.kind == "drives" && root.cfg.variant == 1: drings := Rectangle {
         property <length> top: root.compact ? 6px : root.pad + 22px;
         property <int> n: max(1, min(WidgetData.drives.length, floor((root.width - 2 * root.pad) / 64px)));
         property <length> cw: (root.width - 2 * root.pad) / self.n;
@@ -581,10 +581,10 @@ export component WidgetBody inherits Rectangle {
             visible: i < parent.n;
             Ring {
                 y: 0;
-                width: parent.parent.d;
-                height: parent.parent.d;
+                width: drings.d;
+                height: drings.d;
                 value: dr.used;
-                color: dr.used > 0.9 ? #e5484d : root.acc;
+                tint: dr.used > 0.9 ? #e5484d : root.acc;
                 thickness: max(3px, self.width * 0.08);
                 Text {
                     text: round(dr.used * 100) + "%";
@@ -593,7 +593,7 @@ export component WidgetBody inherits Rectangle {
                 }
             }
             if root.height >= 130px: Text {
-                y: parent.parent.d + 2px;
+                y: drings.d + 2px;
                 width: parent.width;
                 horizontal-alignment: center;
                 text: dr.name;
@@ -718,7 +718,7 @@ export component WidgetBody inherits Rectangle {
                     icon: k == 1 ? (WidgetData.m-playing ? Icons.pause : Icons.play) : k == 0 ? Icons.back : Icons.fwd;
                     tip: k == 1 ? (WidgetData.m-playing ? "Wstrzymaj" : "Odtwórz") : k == 0 ? "Poprzedni utwór" : "Następny utwór";
                     primary: k == 1;
-                    color: root.acc;
+                    tint: root.acc;
                     clicked => {
                         WidgetData.media(k);
                     }
@@ -871,13 +871,13 @@ export component WidgetBody inherits Rectangle {
                 height: parent.height;
                 line: WidgetData.net-line;
                 area: WidgetData.net-area;
-                color: root.acc;
+                tint: root.acc;
             }
             Spark {
                 width: parent.width;
                 height: parent.height;
                 line: WidgetData.net-up-line;
-                color: Theme.faint;
+                tint: Theme.faint;
             }
         }
         if root.cfg.variant == 1: Rectangle {

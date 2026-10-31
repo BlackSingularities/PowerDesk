@@ -1,6 +1,6 @@
 import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
-import { Icon } from "components.slint";
+import { Icon, TipArea } from "components.slint";
 
 /// Dzień w widżecie kalendarza (siatka 7×6 od poniedziałku).
 export struct WDay {
@@ -429,7 +429,7 @@ export component WeatherIcon inherits Rectangle {
 /// Pasek zajętości: tło, wypełnienie w kolorze akcentu (czerwone powyżej 90%).
 export component Meter inherits Rectangle {
     in property <float> value;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     /// Bez czerwieni przy zapełnieniu (np. bateria, postęp roku).
     in property <bool> plain;
     height: 6px;
@@ -440,7 +440,7 @@ export component Meter inherits Rectangle {
         width: parent.width * max(0, min(1, root.value));
         height: parent.height;
         border-radius: parent.border-radius;
-        background: root.value > 0.9 && !root.plain ? #e5484d : root.color;
+        background: root.value > 0.9 && !root.plain ? #e5484d : root.tint;
         animate width { duration: 400ms; easing: ease-out; }
     }
 }
@@ -481,7 +481,7 @@ export component WTitle inherits HorizontalLayout {
 /// Rysowany w pikselach (`fit: preserve`), żeby grubość była równa na każdym rozmiarze.
 export component Ring inherits Rectangle {
     in property <float> value;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     in property <color> track: Theme.line-strong;
     in property <length> thickness: 6px;
     property <length> side: min(self.width, self.height);
@@ -506,7 +506,7 @@ export component Ring inherits Rectangle {
         height: root.side;
         fit: preserve;
         fill: transparent;
-        stroke: root.color;
+        stroke: root.tint;
         stroke-width: root.thickness;
         stroke-line-cap: round;
         commands: "M " + root.c + " " + (root.c - root.r) + " A " + root.r + " " + root.r + " 0 " + (root.v > 0.5 ? 1 : 0) + " 1 " + (root.c + root.r * sin(root.v * 360deg)) + " " + (root.c - root.r * cos(root.v * 360deg));
@@ -518,7 +518,7 @@ export component Ring inherits Rectangle {
 export component Spark inherits Rectangle {
     in property <string> line;
     in property <string> area;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     if root.area != "": Path {
         width: root.width;
         height: root.height;
@@ -526,7 +526,7 @@ export component Spark inherits Rectangle {
         viewbox-height: 100;
         fit: fill;
         commands: root.area;
-        fill: @linear-gradient(180deg, root.color.with-alpha(0.38) 0%, root.color.with-alpha(0.03) 100%);
+        fill: @linear-gradient(180deg, root.tint.with-alpha(0.38) 0%, root.tint.with-alpha(0.03) 100%);
         stroke: transparent;
         stroke-width: 0;
     }
@@ -538,7 +538,7 @@ export component Spark inherits Rectangle {
         fit: fill;
         commands: root.line;
         fill: transparent;
-        stroke: root.color;
+        stroke: root.tint;
         stroke-width: 1.6px;
         stroke-line-join: round;
         stroke-line-cap: round;
@@ -548,7 +548,7 @@ export component Spark inherits Rectangle {
 /// Wykres słupkowy z historii (wartości 0–1, najnowsza po prawej).
 export component Bars inherits Rectangle {
     in property <[float]> values;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     property <float> n: max(1, self.values.length);
     for v[i] in root.values: Rectangle {
         x: i * root.width / root.n;
@@ -556,7 +556,7 @@ export component Bars inherits Rectangle {
         height: max(1px, v * root.height);
         y: root.height - self.height;
         border-radius: 1px;
-        background: root.color.with-alpha(0.3 + v * 0.6);
+        background: root.tint.with-alpha(0.3 + v * 0.6);
     }
 }
 
@@ -597,7 +597,7 @@ export component AnalogFace inherits Rectangle {
     in property <float> sa;
     in property <bool> seconds: true;
     in property <int> style;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     property <length> side: min(self.width, self.height);
     property <length> ox: (self.width - self.side) / 2;
     property <length> oy: (self.height - self.side) / 2;
@@ -667,7 +667,7 @@ export component AnalogFace inherits Rectangle {
         height: root.side;
         fit: preserve;
         fill: transparent;
-        stroke: root.color;
+        stroke: root.tint;
         stroke-width: max(1px, root.side * 0.011);
         stroke-line-cap: round;
         commands: "M " + (root.c - root.c * 0.16 * sin(root.sa * 1deg)) + " " + (root.c + root.c * 0.16 * cos(root.sa * 1deg)) + " L " + (root.c + root.c * 0.84 * sin(root.sa * 1deg)) + " " + (root.c - root.c * 0.84 * cos(root.sa * 1deg));
@@ -678,7 +678,7 @@ export component AnalogFace inherits Rectangle {
         width: max(5px, root.side * 0.05);
         height: self.width;
         border-radius: self.width / 2;
-        background: root.seconds ? root.color : Theme.text;
+        background: root.seconds ? root.tint : Theme.text;
     }
 }
 
@@ -687,13 +687,13 @@ export component RoundButton inherits Rectangle {
     in property <string> icon;
     in property <string> tip;
     in property <bool> primary;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     in property <length> size: 30px;
     callback clicked;
     width: self.size;
     height: self.size;
     border-radius: self.size / 2;
-    background: self.primary ? (rb-ta.pressed ? root.color.darker(0.2) : root.color) : rb-ta.pressed ? Theme.press : rb-ta.has-hover ? Theme.hover : Theme.card;
+    background: self.primary ? (rb-ta.pressed ? root.tint.darker(0.2) : root.tint) : rb-ta.pressed ? Theme.press : rb-ta.has-hover ? Theme.hover : Theme.card;
     Icon {
         commands: root.icon;
         size: root.size * 0.5;
@@ -712,11 +712,11 @@ export component KeyButton inherits Rectangle {
     in property <string> text;
     in property <string> tip;
     in property <bool> strong;
-    in property <color> color: Theme.accent;
+    in property <color> tint: Theme.accent;
     in property <length> font-size: 14px;
     callback clicked;
     border-radius: Theme.r-s;
-    background: self.strong ? (kb-ta.pressed ? root.color.darker(0.2) : root.color) : kb-ta.pressed ? Theme.press : kb-ta.has-hover ? Theme.hover : Theme.card;
+    background: self.strong ? (kb-ta.pressed ? root.tint.darker(0.2) : root.tint) : kb-ta.pressed ? Theme.press : kb-ta.has-hover ? Theme.hover : Theme.card;
     Text {
         text: root.text;
         font-size: root.font-size;
