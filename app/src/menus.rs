@@ -580,7 +580,39 @@ pub fn new_menu(s: &Shared, x: f32, y: f32) {
 }
 
 /// Podfoldery okruszka.
+/// Strzałka przy ikonie paska adresu – szybkie miejsca jak w Eksploratorze.
+pub const PLACES: &str = "ofp:places";
+
+fn places_menu(s: &Shared, x: f32, y: f32) {
+    let mut v = vec![it("Komputer", "pc", |s| crate::navigate(s, crate::model::HOME, true))];
+    for (name, dir, icon) in [
+        ("Pulpit", dirs::desktop_dir(), "desktop"),
+        ("Folder osobisty", dirs::home_dir(), "home"),
+        ("Dokumenty", dirs::document_dir(), "doc"),
+        ("Pobrane", dirs::download_dir(), "download"),
+        ("Obrazy", dirs::picture_dir(), "image"),
+        ("Muzyka", dirs::audio_dir(), "music"),
+        ("Wideo", dirs::video_dir(), "video"),
+    ] {
+        if let Some(p) = dir.filter(|d| d.is_dir()) {
+            let p = p.to_string_lossy().to_string();
+            v.push(it(name, icon, move |s| crate::navigate(s, &p, true)));
+        }
+    }
+    let drives: Vec<_> = s.borrow().drives.iter().filter(|d| d.online).map(|d| (if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) }, d.path.clone(), d.kind == "network")).collect();
+    if !drives.is_empty() {
+        v.push(sep());
+    }
+    for (name, p, net) in drives {
+        v.push(it(name, if net { "network" } else { "drive" }, move |s| crate::navigate(s, &p, true)));
+    }
+    show(s, v, x, y);
+}
+
 pub fn crumb_menu(s: &Shared, path: &str, x: f32, y: f32) {
+    if path == PLACES {
+        return places_menu(s, x, y);
+    }
     let mut dirs: Vec<_> = fsx::list_dir(path).unwrap_or_default().into_iter().filter(|e| e.dir && !(e.hidden || e.system)).collect();
     dirs.sort_by(|a, b| crate::model::natural(&a.name, &b.name));
     dirs.truncate(60);

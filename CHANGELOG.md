@@ -4,6 +4,12 @@
 
 - Okna „Otwórz”/„Zapisz jako”: litera na liście przenosi do najbliższego pliku na tę literę (kolejne litery – dłuższy początek nazwy), jak w Windows.
 
+## 1.0.17
+
+- Start: zmiana rozmiaru w górę i w dół działa – treść wypełnia całe okno (wcześniej zostawała w 660×640, a reszta prześwitywała); przezroczystość okienek znów z ustawień.
+- Start: kafelki i widżety we wszystkich motywach (Windows 11 i klasyczny – szersze okno).
+- Pasek adresu: strzałka szybkich miejsc przy ikonie (Komputer, Pulpit, Dokumenty, dyski…), jak w Eksploratorze.
+
 ## 1.0.16
 
 - Zasobnik: strzałka ukrytych ikon stoi stale – przeciągnięta ikona trafia pod nią po upuszczeniu na strzałce (z zapasem), zasobnik nie przeskakuje w trakcie.

@@ -88,8 +88,9 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     w.set_style(style as i32);
     let (lw, lh) = match (search, style) {
         (true, _) => SEARCH_SIZE,
-        (_, 1) => (660.0, 700.0),
-        (_, 2) => (420.0, 620.0),
+        // Z kolumną kafelków i widżetów (340 px) obok listy aplikacji.
+        (_, 1) => (760.0, 700.0),
+        (_, 2) => (720.0, 620.0),
         _ => size(),
     };
     let (pw, ph) = ((lw * scale) as i32, (lh * scale) as i32);

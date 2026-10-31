@@ -199,8 +199,24 @@ export component Toolbar inherits Rectangle {
                         height: 16px;
                         source: root.folder-icon;
                     }
+                    // Strzałka szybkich miejsc (Komputer, Pulpit, Dokumenty, dyski…) – jak w Eksploratorze.
                     Rectangle {
-                        width: 4px;
+                        y: 5px;
+                        width: 18px;
+                        height: 26px;
+                        border-radius: Theme.r-xs;
+                        background: pl-ta.has-hover ? Theme.press : transparent;
+                        Icon {
+                            commands: Icons.chevron;
+                            size: 13px;
+                            color: pl-ta.has-hover ? Theme.text : Theme.faint;
+                        }
+                        pl-ta := TipArea {
+                            tip: "Szybkie miejsca";
+                            clicked => {
+                                root.crumb-menu("ofp:places", self.absolute-position.x, self.absolute-position.y + 30px);
+                            }
+                        }
                     }
                     for c[i] in root.crumbs: HorizontalLayout {
                         Rectangle {

@@ -72,11 +72,11 @@ export component StartWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     title: "PowerDesk – Start";
-    // Lista aplikacji musi być czytelna także wtedy, gdy rozmycie pod okienkiem nie działa
-    // (wtedy prześwitywały ostre napisy z okien pod Startem) – krycie co najmniej 92%.
-    background: (Theme.light ? #ececee : #161616).with-alpha(max(Theme.popup-alpha, 0.92));
-    width: 660px;
-    height: 640px;
+    background: Theme.popup-high;
+    // Rozmiar tylko proponowany – okno zmienia go start.rs (przeciąganie krawędzi, motywy);
+    // stały `width`/`height` trzymał treść w 660×640 i reszta okna prześwitywała.
+    preferred-width: 660px;
+    preferred-height: 640px;
 
     in property <[StartRow]> rows;
     in property <[StartTile]> tiles;
@@ -92,9 +92,9 @@ export component StartWindow inherits Window {
     /// Samo wyszukiwanie (Win+S): bez lewej kolumny i kafelków, lista na całą szerokość.
     in property <bool> search-only;
     /// Motyw Startu: 0 – Windows 10 (kafelki), 1 – Windows 11 (na środku, siatka aplikacji),
-    /// 2 – klasyczny (wąska lista jak w Windows 7). Bez kafelków w 1 i 2.
+    /// 2 – klasyczny (wąska lista jak w Windows 7). Kafelki i widżety we wszystkich motywach.
     in property <int> style;
-    property <bool> tiles-on: !root.search-only && root.style == 0;
+    property <bool> tiles-on: !root.search-only;
     in-out property <string> query;
     /// Przeciągany kafelek (-1 – żaden) i jego podgląd w obszarze kafelków.
     in-out property <int> drag-index: -1;
