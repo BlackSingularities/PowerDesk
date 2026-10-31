@@ -36,6 +36,7 @@ mod zones;
 mod widgetfeeds;
 mod widgetmore;
 mod palette;
+mod picker;
 mod player;
 mod shelf;
 mod syntax;
@@ -254,6 +255,11 @@ fn main() -> Result<(), slint::PlatformError> {
     powerdesk_core::log::install_panic_hook();
     // Strażnik: czeka na koniec PowerDesk i po awarii przywraca pulpit i pasek Windows.
     let argv: Vec<String> = std::env::args().collect();
+    // Okno „Otwórz”/„Zapisz jako” dla innego programu (biblioteka powerdesk-dialog) – nic więcej.
+    if argv.iter().any(|a| a == picker::FLAG) {
+        picker::run();
+        return Ok(());
+    }
     // Logowanie z PowerDesk jako powłoką i przytrzymany Shift (albo --safe) – ta sesja z Eksploratorem.
     let shell_start = argv.iter().any(|a| a == powerdesk_core::shellmode::SHELL_FLAG);
     if argv.iter().any(|a| a == powerdesk_core::shellmode::SAFE_FLAG) || (shell_start && powerdesk_core::shellmode::shift_held()) {

@@ -1,8 +1,8 @@
 //! PowerDesk zastępuje Eksplorator: Win+E, otwieranie folderów i dysków, „Otwórz w PowerDesk”
-//! w menu oraz start z Windows. Wpisy (tylko HKCU) odnawiamy przy każdym starcie – zawsze
+//! w menu, okna „Otwórz” i „Zapisz jako” w innych programach oraz start z Windows. Wpisy (tylko HKCU) odnawiamy przy każdym starcie – zawsze
 //! wskazują bieżący plik .exe. Cofnięcie: `--remove-integration` (deinstalator).
 
-use crate::{autostart, filemgr, shellmode, winkey};
+use crate::{autostart, filedlg, filemgr, shellmode, winkey};
 
 /// Argument, który zdejmuje integrację i kończy program.
 pub const REMOVE_FLAG: &str = "--remove-integration";
@@ -13,7 +13,19 @@ pub fn status() -> Vec<(&'static str, &'static str, bool)> {
         ("Foldery i dyski", "Dwuklik na Pulpicie, skróty i „Pokaż w folderze” w innych programach", filemgr::default_enabled()),
         ("Win+E", "Skrót klawiszowy otwiera nowe okno PowerDesk", winkey::enabled()),
         ("Menu Eksploratora", "„Otwórz w PowerDesk” dla folderów, dysków i tła folderu", filemgr::menu_enabled()),
+        ("Okna „Otwórz” i „Zapisz jako”", file_dialogs_detail(), filedlg::enabled()),
     ]
+}
+
+/// Opis stanu okien plików w innych programach.
+fn file_dialogs_detail() -> &'static str {
+    if !filedlg::bundled() {
+        "Ta kopia PowerDesk nie zawiera biblioteki okien plików (budowa bez niej) – programy mają okna Windows"
+    } else if filedlg::enabled_32bit() {
+        "W programach 64- i 32-bitowych; programy uruchomione jako administrator i przy każdym problemie – okno Windows"
+    } else {
+        "W programach 64-bitowych; 32-bitowe, uruchomione jako administrator i przy każdym problemie – okno Windows"
+    }
 }
 
 /// Ustawia brakujące wpisy (te, które nie wskazują tego pliku .exe). Zwraca pierwszy błąd.
@@ -43,6 +55,8 @@ pub fn ensure(autostart: bool) -> Result<(), String> {
     if !filemgr::menu_enabled() {
         keep(filemgr::set_menu(true));
     }
+    // Okna plików: wypakowanie nowej wersji biblioteki i wpisy – co start, tanie, gdy nic się nie zmieniło.
+    keep(filedlg::ensure());
     if autostart::enabled() != autostart {
         keep(autostart::set(autostart));
     }
@@ -56,6 +70,8 @@ pub fn ensure(autostart: bool) -> Result<(), String> {
 /// Przywraca Eksplorator: usuwa wszystkie nasze wpisy.
 pub fn remove() -> Result<(), String> {
     remove_legacy();
+    // Najpierw okna plików – ich wpisy muszą zniknąć, zanim deinstalator usunie pliki programu.
+    filedlg::remove()?;
     filemgr::set_default(false)?;
     winkey::set(false)?;
     filemgr::set_menu(false)?;

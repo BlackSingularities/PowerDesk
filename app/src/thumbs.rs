@@ -94,7 +94,9 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
                     let path = key.0.clone();
                     c.arrived.remove(&path);
                     slint::Timer::single_shot(std::time::Duration::from_millis(1500 * n as u64), move || {
-                        crate::with_state(|s| crate::thumbs_arrived(s, &HashSet::from([path])));
+                        let set = HashSet::from([path]);
+                        crate::picker::thumbs_arrived(&set);
+                        crate::with_state(|s| crate::thumbs_arrived(s, &set));
                     });
                 }
             }
@@ -110,6 +112,7 @@ fn arrived(key: (String, u32, bool), buf: Option<SharedPixelBuffer<Rgba8Pixel>>)
                 std::mem::take(&mut c.arrived)
             });
             // Tylko wiersze z nowymi obrazami – bez przebudowy całej listy i panelu.
+            crate::picker::thumbs_arrived(&paths);
             crate::with_state(|s| crate::thumbs_arrived(s, &paths));
         });
     }
