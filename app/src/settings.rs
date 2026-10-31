@@ -166,6 +166,7 @@ fn render(s: &Shared) {
     g.set_taskbar_blur(p.taskbar_blur);
     g.set_tray_all(p.tray_all);
     g.set_taskbar_height(p.taskbar_height.round() as i32);
+    g.set_taskbar_icon(p.taskbar_icon.round() as i32);
     g.set_start_image(p.start_image.clone().into());
     g.set_start_frames(p.start_frames as i32);
     g.set_desktop_icon_size(p.desktop_icon_size as i32);
@@ -193,6 +194,7 @@ fn render(s: &Shared) {
     g.set_window_opacity(p.window_opacity);
     g.set_close_to_tray(p.close_to_tray);
     g.set_autostart_window(p.autostart_window);
+    g.set_autostart(p.autostart);
     g.set_wall_mode(match p.wallpaper_mode.as_str() {
         "slideshow" => 1,
         "bing" => 2,
@@ -374,6 +376,10 @@ pub fn toggle(s: &Shared, key: &str) {
         "single-click" => change(s, |p| p.single_click = !p.single_click),
         "close-to-tray" => change(s, |p| p.close_to_tray = !p.close_to_tray),
         "autostart-window" => change(s, |p| p.autostart_window = !p.autostart_window),
+        "autostart" => {
+            change(s, |p| p.autostart = !p.autostart);
+            crate::ensure_integration();
+        }
         "overlay" => {
             crate::overlay::toggle();
             return;
@@ -577,6 +583,11 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_set_taskbar_height(move |h| {
         change(&s, |p| p.taskbar_height = (h as f32).clamp(32.0, 72.0));
+        crate::taskbar::restyle();
+    });
+    let s = st.clone();
+    g.on_set_taskbar_icon(move |px| {
+        change(&s, |p| p.taskbar_icon = (px as f32).clamp(16.0, 48.0));
         crate::taskbar::restyle();
     });
     let s = st.clone();

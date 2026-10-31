@@ -47,6 +47,8 @@ export global SettingsState {
     callback set-window-opacity(float);
     in-out property <bool> close-to-tray;
     in-out property <bool> autostart-window;
+    /// Start razem z Windows.
+    in-out property <bool> autostart: true;
     /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
     in-out property <[SysItem]> system;
     callback repair-integration;
@@ -103,6 +105,9 @@ export global SettingsState {
     in-out property <bool> tray-all;
     in-out property <int> taskbar-height: 48;
     callback set-taskbar-height(int);
+    /// Wielkość ikon programów na pasku (px).
+    in-out property <int> taskbar-icon: 28;
+    callback set-taskbar-icon(int);
     /// Własny przycisk Start: plik obrazu i liczba klatek (0 – wykryj).
     in-out property <string> start-image;
     in-out property <int> start-frames;
@@ -1068,6 +1073,23 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
+                        text: "Wielkość ikon programów";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 6px;
+                        for px in [20, 24, 28, 32, 40, 48]: SetButton {
+                            text: px + " px";
+                            tip: "Ikony programów " + px + " px" + (px >= 40 ? " – wymaga wyższego paska (56–72 px)" : "");
+                            on: SettingsState.taskbar-icon == px;
+                            clicked => {
+                                SettingsState.set-taskbar-icon(px);
+                            }
+                        }
+                    }
+                    Label {
                         text: "Wysokość paska";
                         font-size: 13px;
                         font-weight: 600;
@@ -1238,6 +1260,15 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     ToggleRow {
+                        icon: Icons.power;
+                        text: "Uruchamiaj razem z Windows";
+                        hint: "Po zalogowaniu PowerDesk od razu zastępuje pulpit, pasek zadań i menu Start (tylko zainstalowana kopia)";
+                        on: SettingsState.autostart;
+                        toggled => {
+                            SettingsState.toggle("autostart");
+                        }
+                    }
+                    if SettingsState.autostart: ToggleRow {
                         icon: Icons.power;
                         text: "Okno folderów przy starcie z Windows";
                         hint: "Wyłączone – po zalogowaniu tylko pulpit, pasek i ikona w zasobniku";

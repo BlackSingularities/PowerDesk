@@ -13,7 +13,6 @@ pub fn status() -> Vec<(&'static str, &'static str, bool)> {
         ("Foldery i dyski", "Dwuklik na Pulpicie, skróty i „Pokaż w folderze” w innych programach", filemgr::default_enabled()),
         ("Win+E", "Skrót klawiszowy otwiera nowe okno PowerDesk", winkey::enabled()),
         ("Menu Eksploratora", "„Otwórz w PowerDesk” dla folderów, dysków i tła folderu", filemgr::menu_enabled()),
-        ("Start z Windows", "Po zalogowaniu PowerDesk działa w tle, w zasobniku", autostart::enabled()),
     ]
 }
 
@@ -21,7 +20,8 @@ pub fn status() -> Vec<(&'static str, &'static str, bool)> {
 /// Zakłada wpisy tylko zainstalowana kopia. Plik z Pobranych albo z folderu budowania niczego
 /// w Windows nie zmienia – foldery dalej otwiera Eksplorator (gdyby plik zniknął albo był
 /// podmieniany, Windows zostałby z martwymi skojarzeniami). Zwraca Ok bez zmian, gdy to nie instalacja.
-pub fn ensure() -> Result<(), String> {
+/// `autostart` – start z Windows (pytanie przy instalacji, przełącznik w Ustawieniach → System).
+pub fn ensure(autostart: bool) -> Result<(), String> {
     if !crate::install::running_installed() {
         return Ok(());
     }
@@ -43,8 +43,8 @@ pub fn ensure() -> Result<(), String> {
     if !filemgr::menu_enabled() {
         keep(filemgr::set_menu(true));
     }
-    if !autostart::enabled() {
-        keep(autostart::set(true));
+    if autostart::enabled() != autostart {
+        keep(autostart::set(autostart));
     }
     // Starsze wersje zastępowały Eksplorator po zalogowaniu – teraz działa on w tle pod PowerDesk.
     if shellmode::registered() {

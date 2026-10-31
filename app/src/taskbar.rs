@@ -22,6 +22,16 @@ pub fn height() -> f32 {
     BAR_H.with(|h| h.get())
 }
 
+/// Ikona programu na przycisku i szerokość przycisku z samą ikoną – jak w taskbar.slint.
+fn icon_size() -> f32 {
+    let ih = (height() - 8.0).clamp(24.0, 64.0);
+    ICON.with(|i| i.get()).min(ih - 6.0)
+}
+
+fn pin_w() -> f32 {
+    (icon_size() + 18.0).max(44.0)
+}
+
 struct Bar {
     w: TaskbarWindow,
     /// Lewy górny róg monitora – po nim przypisujemy okna.
@@ -77,8 +87,9 @@ thread_local! {
     static TIP_SEQ: Cell<u64> = const { Cell::new(0) };
     /// Ostatnio zamknięte okienko: rodzaj i chwila zamknięcia.
     static CLOSED: Cell<Option<(u8, std::time::Instant)>> = const { Cell::new(None) };
-    /// Wysokość paska (piksele logiczne) z ustawień.
+    /// Wysokość paska i ikon programów (piksele logiczne) z ustawień.
     static BAR_H: Cell<f32> = const { Cell::new(48.0) };
+    static ICON: Cell<f32> = const { Cell::new(28.0) };
 }
 
 enum Popup {
@@ -355,10 +366,12 @@ pub fn restyle() {
     let mut p = None;
     crate::with_state(|s| {
         let b = s.borrow();
-        p = Some((b.prefs.taskbar_height, b.prefs.taskbar_labels, b.prefs.taskbar_center, b.prefs.taskbar_date, b.prefs.start_image.clone(), b.prefs.start_frames));
+        p = Some((b.prefs.taskbar_height, b.prefs.taskbar_labels, b.prefs.taskbar_center, b.prefs.taskbar_date, b.prefs.start_image.clone(), b.prefs.start_frames, b.prefs.taskbar_icon));
     });
-    let Some((h, labels, center, date, img, frames)) = p else { return };
+    let Some((h, labels, center, date, img, frames, icon)) = p else { return };
     let resized = (BAR_H.with(|c| c.replace(h)) - h).abs() > 0.5;
+    // Inny rozmiar ikon – obrazy programów pobierane od nowa w nowej wielkości.
+    let reicon = (ICON.with(|c| c.replace(icon)) - icon).abs() > 0.5;
     let start = start_image(&img, frames);
     BARS.with(|b| {
         for bar in b.borrow_mut().iter_mut() {
@@ -366,6 +379,10 @@ pub fn restyle() {
             bar.w.set_centered(center);
             bar.w.set_show_date(date);
             bar.w.set_bar_h(h);
+            bar.w.set_app_icon(icon);
+            if reicon {
+                bar.wins.clear();
+            }
             match &start {
                 Some((i, n, aspect)) => {
                     bar.w.set_start_img(i.clone());
@@ -470,7 +487,7 @@ fn reorder(bar: usize, from: usize, x: f32, each: f32) {
     let mut left = 0.0;
     let mut to = groups.len().saturating_sub(1);
     for (i, g) in groups.iter().enumerate() {
-        let w = if g.wins.is_empty() { 44.0 } else { each };
+        let w = if g.wins.is_empty() { pin_w() } else { each };
         if x < left + w + 2.0 {
             to = i;
             break;
@@ -1476,7 +1493,7 @@ fn refresh() {
             let wins = keep_order(&bar.wins, mine);
             // Model tylko przy zmianie – inaczej co sekundę migałyby podpowiedzi.
             if wins != bar.wins || fg != bar.fg || pins != bar.pins {
-                let px = (20.0 * bar.w.window().scale_factor()) as u32;
+                let px = (icon_size() * bar.w.window().scale_factor()) as u32;
                 bar.groups = group(&pins, &wins);
                 bar.pins = pins.clone();
                 bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, fg, px))));
@@ -1771,7 +1788,7 @@ pub fn thumbs_arrived(paths: &HashSet<String>) {
     BARS.with(|b| {
         for bar in b.borrow().iter() {
             if bar.groups.iter().any(|g| paths.contains(&g.exe)) {
-                let px = (20.0 * bar.w.window().scale_factor()) as u32;
+                let px = (icon_size() * bar.w.window().scale_factor()) as u32;
                 bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, bar.fg, px))));
             }
         }

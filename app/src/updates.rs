@@ -67,7 +67,9 @@ pub fn install(s: &Shared) {
     }
     transfers::toast(s, format!("Pobieranie PowerDesk {}…", rel.version), Kind::Info, None);
     std::thread::spawn(move || {
-        let res = update::download(&rel, |_, _| {}).and_then(|p| update::apply(&p));
+        // Zainstalowany – przez instalator w to samo miejsce (UAC przy Program Files);
+        // wersja bez instalacji – podmiana pliku jak dotąd.
+        let res = update::download(&rel, |_, _| {}).and_then(|p| update::apply_installer(&p));
         let _ = slint::invoke_from_event_loop(move || {
             BUSY.with(|b| b.set(false));
             crate::with_state(|s| match res {

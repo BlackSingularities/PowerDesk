@@ -174,8 +174,10 @@ fn start_tray() {
 
 /// Odnawia wpisy zastępujące Eksplorator (w tle – to kilka wywołań reg.exe).
 pub fn ensure_integration() {
-    std::thread::spawn(|| {
-        let res = powerdesk_core::integration::ensure();
+    let mut auto = true;
+    with_state(|s| auto = s.borrow().prefs.autostart);
+    std::thread::spawn(move || {
+        let res = powerdesk_core::integration::ensure(auto);
         let _ = slint::invoke_from_event_loop(move || {
             with_state(|s| {
                 if let Err(e) = res {

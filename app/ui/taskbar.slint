@@ -1034,6 +1034,11 @@ export component TaskbarWindow inherits Window {
     property <length> ih: clamp(root.bar-h - 8px, 24px, 64px);
     /// Wysokość paska z ustawień (taskbar.rs) – nie z wysokości okna, bo to dawałoby pętlę układu.
     in property <length> bar-h: 48px;
+    /// Ikony programów na przyciskach (z ustawień) – nie większe niż pozwala wysokość paska.
+    in property <length> app-icon: 28px;
+    property <length> ai: min(root.app-icon, root.ih - 6px);
+    /// Szerokość przycisku z samą ikoną (przypięty bez okien, tryb samych ikon).
+    property <length> pin-w: max(44px, root.ai + 18px);
     /// Przeciągana ikona zasobnika: x kursora (-1 – nic nie przeciągamy).
     property <length> tray-drag-x: -1px;
     in property <string> time;
@@ -1216,14 +1221,14 @@ export component TaskbarWindow inherits Window {
         lane := Rectangle {
             horizontal-stretch: 1;
             property <int> busy: root.buttons.length - root.idle;
-            property <length> each: self.busy == 0 ? 0 : root.labels ? min(200px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy) : min(44px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy);
+            property <length> each: self.busy == 0 ? 0 : root.labels ? min(200px, (self.width - 4px * root.buttons.length - root.pin-w * root.idle) / self.busy) : min(root.pin-w, (self.width - 4px * root.buttons.length - root.pin-w * root.idle) / self.busy);
             /// Wszystkie przyciski razem – do wyśrodkowania.
-            property <length> used: root.idle * (44px + 4px) + self.busy * (self.each + 4px);
+            property <length> used: root.idle * (root.pin-w + 4px) + self.busy * (self.each + 4px);
             property <length> left: root.centered ? max(0px, (self.width - self.used) / 2) : 0px;
             for b[i] in root.buttons: Rectangle {
-                x: parent.left + b.idle-before * (44px + 4px) + (i - b.idle-before) * (parent.each + 4px);
+                x: parent.left + b.idle-before * (root.pin-w + 4px) + (i - b.idle-before) * (parent.each + 4px);
                 y: (parent.height - self.height) / 2;
-                width: b.count == 0 ? 44px : parent.each;
+                width: b.count == 0 ? root.pin-w : parent.each;
                 height: root.ih;
                 border-radius: Theme.r;
                 background: b.active ? Theme.sel : tb-ta.has-hover ? Theme.hover : transparent;
@@ -1237,22 +1242,23 @@ export component TaskbarWindow inherits Window {
                     spacing: 8px;
                     alignment: parent.width < 80px || b.count == 0 ? LayoutAlignment.center : LayoutAlignment.start;
                     Rectangle {
-                        width: 20px;
+                        width: root.ai;
                         if b.has-img: Image {
-                            y: (parent.height - 20px) / 2;
-                            width: 20px;
-                            height: 20px;
+                            y: (parent.height - root.ai) / 2;
+                            width: root.ai;
+                            height: root.ai;
                             source: b.img;
+                            image-rendering: smooth;
                         }
                         if !b.has-img: Icon {
                             commands: Icons.file;
-                            size: 18px;
+                            size: root.ai * 0.9;
                             color: Theme.dim;
                         }
                         // Kilka okien programu – licznik w rogu ikony.
                         if b.count > 1: Rectangle {
                             x: parent.width - 6px;
-                            y: (parent.height - 20px) / 2 - 5px;
+                            y: (parent.height - root.ai) / 2 - 5px;
                             width: max(14px, cnt.preferred-width + 6px);
                             height: 14px;
                             border-radius: 7px;

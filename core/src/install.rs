@@ -18,6 +18,12 @@ pub const INSTALL_FLAG: &str = "--install";
 pub const ALL_USERS_FLAG: &str = "--all-users";
 pub const UNINSTALL_FLAG: &str = "--uninstall";
 pub const QUIET_FLAG: &str = "--quiet";
+/// Aktualizacja z działającego PowerDesk: bez pytań, bez zamykania działającej kopii (ta się
+/// zamknie sama i uruchomi nową) i bez uruchamiania programu z uprawnieniami administratora.
+pub const UPDATE_FLAG: &str = "--update";
+/// Kopia z uprawnieniami instaluje, ale programu nie uruchamia – robi to proces użytkownika,
+/// który ją wywołał (PowerDesk jako powłoka nie może działać z uprawnieniami administratora).
+pub const NO_LAUNCH_FLAG: &str = "--no-launch";
 
 const KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\PowerDesk";
 const NO_WINDOW: u32 = 0x0800_0000;
@@ -72,6 +78,12 @@ fn same_file(a: &Path, b: &Path) -> bool {
     canon(a) == canon(b)
 }
 
+/// Wersja zapisana we wpisie „Aplikacje i funkcje” zainstalowanej kopii.
+pub fn installed_version() -> Option<String> {
+    let (_, all) = installed()?;
+    query(all, "DisplayVersion")
+}
+
 /// Czy ten proces to zainstalowana kopia.
 pub fn running_installed() -> bool {
     let Ok(me) = std::env::current_exe() else { return false };
@@ -80,6 +92,38 @@ pub fn running_installed() -> bool {
 
 pub fn is_admin() -> bool {
     unsafe { windows::Win32::UI::Shell::IsUserAnAdmin().as_bool() }
+}
+
+/// Uruchamia plik `exe` z argumentami – jako administrator (UAC), gdy `elevated` – i czeka na
+/// jego koniec. Zwraca kod wyjścia.
+pub fn run_wait(exe: &Path, args: &str, elevated: bool) -> Result<u32, String> {
+    use windows::core::{w, PCWSTR};
+    use windows::Win32::Foundation::CloseHandle;
+    use windows::Win32::System::Threading::{GetExitCodeProcess, WaitForSingleObject, INFINITE};
+    use windows::Win32::UI::Shell::{ShellExecuteExW, SEE_MASK_NOCLOSEPROCESS, SHELLEXECUTEINFOW};
+    use windows::Win32::UI::WindowsAndMessaging::SW_SHOWNORMAL;
+    let file = HSTRING::from(exe.as_os_str());
+    let params = HSTRING::from(args);
+    let mut info = SHELLEXECUTEINFOW {
+        cbSize: std::mem::size_of::<SHELLEXECUTEINFOW>() as u32,
+        fMask: SEE_MASK_NOCLOSEPROCESS,
+        lpVerb: if elevated { w!("runas") } else { PCWSTR::null() },
+        lpFile: PCWSTR(file.as_ptr()),
+        lpParameters: PCWSTR(params.as_ptr()),
+        nShow: SW_SHOWNORMAL.0,
+        ..Default::default()
+    };
+    unsafe {
+        ShellExecuteExW(&mut info).map_err(|_| if elevated { "Brak zgody na uprawnienia administratora".to_string() } else { "Nie można uruchomić instalatora".to_string() })?;
+        if info.hProcess.is_invalid() {
+            return Ok(0);
+        }
+        WaitForSingleObject(info.hProcess, INFINITE);
+        let mut code = 1u32;
+        let _ = GetExitCodeProcess(info.hProcess, &mut code);
+        let _ = CloseHandle(info.hProcess);
+        Ok(code)
+    }
 }
 
 /// Uruchamia ten plik ponownie jako administrator z podanymi argumentami (Windows pyta przez UAC).

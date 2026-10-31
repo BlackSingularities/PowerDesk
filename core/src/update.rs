@@ -1,8 +1,10 @@
 //! Aktualizacje PowerDesk z portfolio redzikowski.com – serwer podaje wydania w formacie
 //! GitHub API, a pliki pobiera z repozytorium sam, więc program nie potrzebuje żadnego klucza.
 //!
-//! Wydanie zawiera `PowerDesk-<wersja>.exe` i `SHA256SUMS.txt`. Nowy plik pobieramy do TEMP,
-//! sprawdzamy sumę, a skrypt po zamknięciu PowerDesk podmienia .exe i uruchamia go ponownie.
+//! Wydanie zawiera jeden plik – instalator `PowerDesk-Setup-<wersja>.exe` (ten sam program),
+//! a jego sumę SHA-256 w opisie wydania (starsze wydania: `SHA256SUMS.txt`). Instalator pobieramy
+//! do TEMP, sprawdzamy sumę i uruchamiamy z `--install --update` w miejscu instalacji (Program
+//! Files – z UAC). Potem skrypt po zamknięciu PowerDesk uruchamia zainstalowaną kopię.
 
 use std::io::{Read, Write};
 use std::path::PathBuf;
@@ -42,6 +44,19 @@ pub struct Release {
     asset: String,
     name: String,
     sums: Option<String>,
+}
+
+/// Suma SHA-256 pliku `name` z opisu wydania: linia z nazwą pliku albo pierwsza 64-znakowa
+/// liczba szesnastkowa.
+fn sum_in_notes(notes: &str, name: &str) -> Option<String> {
+    let hex = |w: &str| w.len() == 64 && w.chars().all(|c| c.is_ascii_hexdigit());
+    let words = |l: &str| l.split(|c: char| !c.is_ascii_alphanumeric()).map(str::to_string).collect::<Vec<_>>();
+    notes
+        .lines()
+        .find(|l| l.contains(name))
+        .and_then(|l| words(l).into_iter().find(|w| hex(w)))
+        .or_else(|| notes.lines().flat_map(words).find(|w| hex(w)))
+        .map(|h| h.to_lowercase())
 }
 
 fn parse(v: &str) -> Vec<u64> {
@@ -84,7 +99,7 @@ pub fn download(rel: &Release, progress: impl Fn(u64, u64)) -> Result<PathBuf, S
             .find(|l| l.trim_end().ends_with(&rel.name))
             .and_then(|l| l.split_whitespace().next())
             .map(|h| h.to_lowercase()),
-        None => None,
+        None => sum_in_notes(&rel.notes, &rel.name),
     };
     // Bez sumy nie podmieniamy programu – to jest powłoka systemu.
     let expected = expected.ok_or("Wydanie nie ma sumy kontrolnej pliku PowerDesk")?;
@@ -141,6 +156,34 @@ pub fn apply(new_exe: &std::path::Path) -> Result<(), String> {
         mark = mark.to_string_lossy(),
     );
     let bat = dir().join("update").join("apply.cmd");
+    std::fs::write(&bat, script).map_err(|e| e.to_string())?;
+    std::process::Command::new("cmd").arg("/c").arg(&bat).creation_flags(0x0800_0000).spawn().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+/// Zainstalowany PowerDesk: pobrany instalator instaluje nową wersję w tym samym miejscu
+/// (dla wszystkich użytkowników – z UAC) i czeka, aż skończy. Potem skrypt po zamknięciu tego
+/// procesu uruchamia zainstalowaną kopię (strażnik powłoki w tym czasie czeka na znacznik).
+/// Po wywołaniu program powinien się zakończyć.
+pub fn apply_installer(setup: &std::path::Path) -> Result<(), String> {
+    use std::os::windows::process::CommandExt;
+    let Some((exe, all)) = crate::install::installed() else { return apply(setup) };
+    let args = format!("{} {} {}", crate::install::INSTALL_FLAG, crate::install::UPDATE_FLAG, if all { crate::install::ALL_USERS_FLAG } else { "" });
+    let elevated = all && !crate::install::is_admin();
+    match crate::install::run_wait(setup, args.trim(), elevated)? {
+        0 => {}
+        code => return Err(format!("Instalator zakończył się błędem ({code})")),
+    }
+    let pid = std::process::id();
+    let mark = marker();
+    std::fs::write(&mark, pid.to_string()).map_err(|e| e.to_string())?;
+    let script = format!(
+        "@echo off\r\n:wait\r\ntasklist /fi \"PID eq {pid}\" | find \"{pid}\" >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\ndel /f /q \"{mark}\"\r\nstart \"\" \"{exe}\" {flag}\r\n",
+        mark = mark.to_string_lossy(),
+        exe = exe.to_string_lossy(),
+        flag = crate::autostart::FLAG,
+    );
+    let bat = dir().join("update").join("restart.cmd");
     std::fs::write(&bat, script).map_err(|e| e.to_string())?;
     std::process::Command::new("cmd").arg("/c").arg(&bat).creation_flags(0x0800_0000).spawn().map_err(|e| e.to_string())?;
     Ok(())
