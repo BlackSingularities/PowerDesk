@@ -809,12 +809,16 @@ fn show_ours(d: &Dialog, owner: HWND) -> Option<HRESULT> {
                 return None;
             }
             d.result.replace(Some(p.clone()));
+            log(format!("wybrano w oknie PowerDesk: {}", p.paths.join(" | ")));
             // Program może odrzucić wybór (IFileDialogEvents::OnFileOk zwraca S_FALSE) – wtedy
             // zwykłe okno z tymi samymi ustawieniami, żeby użytkownik zobaczył jego komunikat.
             let sinks: Vec<IFileDialogEvents> = d.setup.borrow().sinks.iter().map(|(_, s)| s.clone()).collect();
             for s in sinks {
                 let hr = unsafe { (s.vtable().OnFileOk)(s.as_raw(), d.base()) };
-                if hr != S_OK {
+                // Odrzucenie to tylko S_FALSE (albo inny kod sukcesu ≠ S_OK). Błędy, zwłaszcza
+                // E_NOTIMPL od programów, które tego zdarzenia nie obsługują (Edge, Chrome), znaczą
+                // „nie mam zastrzeżeń” – tak traktuje je też okno Windows.
+                if hr.is_ok() && hr != S_OK {
                     log(format!("program odrzucił wybór ({hr:?}) – okno Windows"));
                     d.result.replace(None);
                     return None;

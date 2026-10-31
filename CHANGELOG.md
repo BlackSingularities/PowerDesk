@@ -21,6 +21,7 @@
 - Kilka monitorów: przełącznik „Przyciski wszystkich okien na każdym pasku”; przy jednym pasku widać okna ze wszystkich monitorów.
 - Panel szczegółów: długie nazwy i ścieżki zawijają się w panelu (nie rozpychają go, przyciski akcji mają pełną szerokość); bez technicznych identyfikatorów i zdublowanych dat.
 - Otwieranie folderu z innego programu: nietknięta karta startowa zostaje użyta zamiast nowej, widok pokazuje właściwy folder.
+- Okna „Zapisz jako”/„Otwórz”: po wyborze w oknie PowerDesk nie otwiera się już dodatkowo okno Windows (Edge, Chrome i inne programy, które nie obsługują zdarzenia potwierdzenia).
 - Nakładka FPS nie jest traktowana jak okno programu (pasek, widok zadań).
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
