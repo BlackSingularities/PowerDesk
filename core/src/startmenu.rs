@@ -123,9 +123,10 @@ static COMBO: AtomicBool = AtomicBool::new(false);
 /// które dotyczą jego ukrytego paska (`ALWAYS`); resztę (Win+I/A/N/R/Tab…) obsługuje on sam.
 /// W trybie powłoki – wszystkie. PrtScn (bez Win) – kod 0x2C z Shift = false, Win+PrtScn – Shift = true.
 static ON_SHELL_KEY: OnceLock<Box<dyn Fn(u8, bool) + Send + Sync>> = OnceLock::new();
-const SHELL_KEYS: [u8; 22] = [b'E', b'R', b'D', 0x09, b'S', b'A', b'N', b'I', b'X', b'P', b'K', b'M', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0x2C];
-/// Win+D (pulpit Windows wyszedłby nad nasz), Win+S i Win+X (Start i jego menu), Win+1…9 (przyciski paska).
-const ALWAYS: [u8; 12] = [b'D', b'S', b'X', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
+const SHELL_KEYS: [u8; 25] = [b'E', b'R', b'D', b'T', b'B', 0xBC, 0x09, b'S', b'A', b'N', b'I', b'X', b'P', b'K', b'M', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9', 0x2C];
+/// Win+D (pulpit Windows wyszedłby nad nasz), Win+S i Win+X (Start i jego menu), Win+1…9 (przyciski paska),
+/// Win+T, Win+B i Win+, (ukryty pasek Eksploratora dostałby fokus albo podgląd pulpitu).
+const ALWAYS: [u8; 15] = [b'D', b'T', b'B', 0xBC, b'S', b'X', b'1', b'2', b'3', b'4', b'5', b'6', b'7', b'8', b'9'];
 const PRINT_SCREEN: u32 = 0x2C;
 /// Klawisz z Win połknięty przez nas (Win+V) – system widział samo Win, trzeba je zamaskować.
 static SWALLOWED: AtomicBool = AtomicBool::new(false);
@@ -220,13 +221,13 @@ fn shift_held() -> bool {
     unsafe { GetAsyncKeyState(VK_SHIFT.0 as i32) < 0 }
 }
 
-fn alt_held() -> bool {
+pub fn alt_held() -> bool {
     use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_MENU};
     unsafe { GetAsyncKeyState(VK_MENU.0 as i32) < 0 }
 }
 
 /// Czy któryś klawisz Win jest teraz fizycznie wciśnięty.
-fn win_held() -> bool {
+pub fn win_held() -> bool {
     use windows::Win32::UI::Input::KeyboardAndMouse::GetAsyncKeyState;
     unsafe { GetAsyncKeyState(VK_LWIN.0 as i32) < 0 || GetAsyncKeyState(VK_RWIN.0 as i32) < 0 }
 }

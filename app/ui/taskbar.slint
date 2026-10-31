@@ -1189,6 +1189,13 @@ export component TaskbarWindow inherits Window {
     in property <string> time;
     in property <string> date;
     /// Język klawiatury aktywnego okna (POL, ENG; puste – jeden układ, bez wskaźnika) i jego pełna nazwa.
+    /// Skróty klawiszowe (Win+Alt+D, Win+B, Win+T): miejsce zegara i środka przycisku `i` na pasku.
+    public function clock-x() -> length {
+        return clock.absolute-position.x;
+    }
+    public function button-x(i: int) -> length {
+        return lane.absolute-position.x + lane.left + root.buttons[i].idle-before * (root.pin-w + 4px) + (i - root.buttons[i].idle-before) * (lane.each + 4px) + (root.buttons[i].count == 0 ? root.pin-w : lane.each) / 2;
+    }
     in property <string> kbd-short;
     in property <string> kbd-name;
     callback kbd-next();

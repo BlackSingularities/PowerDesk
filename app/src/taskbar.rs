@@ -255,7 +255,25 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         match k {
             b'E' => ui(|| crate::with_state(|s| crate::open_args(s, Vec::new()))),
             b'R' => powerdesk_core::shellmode::run_dialog(),
+            // Win+Alt+D – kalendarz przy zegarze.
+            b'D' if powerdesk_core::startmenu::alt_held() => ui(|| {
+                let bar = bar_under_cursor();
+                if let Some(x) = BARS.with(|b| b.borrow().get(bar).map(|b| b.w.invoke_clock_x())) {
+                    open_calendar(bar, x);
+                }
+            }),
             b'D' | b'M' => taskwin::show_desktop(),
+            // Win+T – kolejne przyciski paska z podglądem; puszczenie Win przełącza na wybrany.
+            b'T' => ui(|| cycle_buttons(if powerdesk_core::startmenu::alt_held() { -1 } else { 1 })),
+            // Win+B – zasobnik (ukryte ikony).
+            b'B' => ui(|| {
+                let bar = bar_under_cursor();
+                if let Some(x) = BARS.with(|b| b.borrow().get(bar).map(|b| b.w.invoke_clock_x())) {
+                    open_tray_overflow(bar, x - 36.0);
+                }
+            }),
+            // Win+, – podgląd pulpitu, póki trzymany jest Win.
+            0xBC => ui(peek_while_win),
             0x09 => ui(crate::taskview::toggle),
             // Win+Shift+S i PrtScn – wycinek; Win+PrtScn – cały ekran do pliku i schowka.
             b'S' if shift => screenshot(false),
@@ -302,6 +320,70 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(1), refresh));
     AUTOHIDE.with(|a| a.set(powerdesk_core::shellswap::autohide()));
     AUTOHIDE_TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_millis(100), autohide_tick));
+}
+
+thread_local! {
+    /// Win+T: wybrany przycisk (pasek, numer) do przełączenia po puszczeniu Win.
+    static CYCLE: Cell<Option<(usize, usize)>> = const { Cell::new(None) };
+    static WIN_WATCH: slint::Timer = slint::Timer::default();
+}
+
+/// Czeka na puszczenie Win, potem `done()` (raz).
+fn on_win_release(done: fn()) {
+    WIN_WATCH.with(|t| {
+        t.start(slint::TimerMode::Repeated, Duration::from_millis(40), move || {
+            if !powerdesk_core::startmenu::win_held() {
+                WIN_WATCH.with(|t| t.stop());
+                done();
+            }
+        })
+    });
+}
+
+/// Win+T (Win+Alt+T wstecz): podgląd okien następnego przycisku paska.
+fn cycle_buttons(step: i32) {
+    let bar = CYCLE.with(|c| c.get()).map_or_else(bar_under_cursor, |(b, _)| b);
+    let Some(count) = BARS.with(|b| b.borrow().get(bar).map(|b| b.groups.len())) else { return };
+    if count == 0 {
+        return;
+    }
+    let next = match CYCLE.with(|c| c.get()) {
+        Some((_, i)) => (i as i32 + step).rem_euclid(count as i32) as usize,
+        None if step < 0 => count - 1,
+        None => 0,
+    };
+    CYCLE.with(|c| c.set(Some((bar, next))));
+    if let Some(x) = BARS.with(|b| b.borrow().get(bar).map(|b| b.w.invoke_button_x(next as i32))) {
+        NO_THUMBS.with(|c| c.set(false));
+        HOVER.with(|h| h.set(Some((bar, next))));
+        show_thumbs(bar, next, x);
+    }
+    on_win_release(|| {
+        let Some((bar, i)) = CYCLE.with(|c| c.take()) else { return };
+        HOVER.with(|h| h.set(None));
+        close_thumbs();
+        if let Some(g) = group_at(bar, i) {
+            click(&g);
+            slint::Timer::single_shot(Duration::from_millis(150), refresh);
+        }
+    });
+}
+
+/// Win+, – pulpit widać, póki trzymany jest Win (jak „Podgląd pulpitu” w Windows).
+fn peek_while_win() {
+    let n = bar_under_cursor();
+    let desk = crate::desktop::windows().get(n).or(crate::desktop::windows().first()).map(|d| crate::window_hwnd(d.window())).unwrap_or(0);
+    let bar = BARS.with(|b| b.borrow().get(n).map(|b| crate::window_hwnd(b.w.window()))).unwrap_or(0);
+    taskwin::peek(true, desk, bar);
+    PEEK_AT.with(|p| p.set((desk, bar)));
+    on_win_release(|| {
+        let (desk, bar) = PEEK_AT.with(|p| p.get());
+        taskwin::peek(false, desk, bar);
+    });
+}
+
+thread_local! {
+    static PEEK_AT: Cell<(isize, isize)> = const { Cell::new((0, 0)) };
 }
 
 /// Widoczny brzeg zsuniętego paska (piksele ekranu) – kursor przy krawędzi go wysuwa.
