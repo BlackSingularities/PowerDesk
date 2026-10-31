@@ -13,6 +13,9 @@ export struct DeskIcon {
     /// Miejsce w siatce (kolumna, wiersz) – ręczne albo wyliczone w desktop.rs.
     col: int,
     row: int,
+    /// Lewy górny róg w oknie: z siatki albo dowolny (pulpit bez wyrównania do siatki).
+    x: length,
+    y: length,
     sel: bool,
     /// Pole zmiany nazwy zamiast podpisu.
     renaming: bool,
@@ -62,8 +65,10 @@ export component DesktopWindow inherits Window {
     callback menu-chosen(int);
     callback refresh();
 
-    out property <length> cell-w: 84px;
-    out property <length> cell-h: 96px;
+    /// Pole ikony i jej rozmiar – z ustawień (małe, średnie, duże ikony pulpitu).
+    in property <length> cell-w: 84px;
+    in property <length> cell-h: 96px;
+    in property <length> icon-size: 48px;
     out property <length> margin: 8px;
 
     // Przeciąganie ikon.
@@ -134,8 +139,8 @@ export component DesktopWindow inherits Window {
 
     for it[i] in root.icons: Rectangle {
         property <bool> moving: root.dragging && it.sel;
-        property <length> ix: root.margin + it.col * root.cell-w;
-        property <length> iy: root.margin + it.row * root.cell-h;
+        property <length> ix: it.x;
+        property <length> iy: it.y;
         // Ikona w ramce zaznaczania – podświetlona na bieżąco.
         property <bool> in-band: root.banding && self.ix < root.br && self.ix + root.cell-w > root.bl && self.iy < root.bb && self.iy + root.cell-h > root.bt;
         x: self.ix + (self.moving ? root.drag-dx : 0);
@@ -202,30 +207,57 @@ export component DesktopWindow inherits Window {
             spacing: 4px;
             alignment: start;
             Rectangle {
-                height: 48px;
+                height: root.icon-size;
                 if it.has-img: Image {
-                    width: 48px;
-                    height: 48px;
+                    width: root.icon-size;
+                    height: root.icon-size;
                     source: it.img;
                     image-fit: contain;
                 }
                 if !it.has-img: Icon {
-                    commands: it.dir ? Icons.folder : Icons.file;
-                    size: 40px;
+                    commands: it.path == "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}" ? Icons.pc : it.dir ? Icons.folder : Icons.file;
+                    size: root.icon-size * 0.84;
                     color: #ffffff;
                 }
             }
-            if !it.renaming: Text {
-                text: it.name;
-                color: #ffffff;
-                font-size: 12px;
-                horizontal-alignment: center;
-                wrap: word-wrap;
-                overflow: elide;
-                height: it.sel ? self.preferred-height : min(self.preferred-height, 32px);
-                stroke: #000000b0;
-                stroke-width: 1.5px;
-                stroke-style: outside;
+            // Podpis z miękkim cieniem jak na pulpicie Windows 10/11 – obrys liter wyglądał
+            // na jasnych tapetach jak w Windows XP (postrzępione krawędzie).
+            if !it.renaming: Rectangle {
+                height: it.sel ? lbl.preferred-height : min(lbl.preferred-height, 32px);
+                Text {
+                    x: 0px;
+                    y: 1px;
+                    width: parent.width;
+                    height: parent.height;
+                    text: it.name;
+                    color: #00000090;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                    overflow: elide;
+                }
+                Text {
+                    x: 1px;
+                    y: 1px;
+                    width: parent.width;
+                    height: parent.height;
+                    text: it.name;
+                    color: #00000060;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                    overflow: elide;
+                }
+                lbl := Text {
+                    width: parent.width;
+                    height: parent.height;
+                    text: it.name;
+                    color: #ffffff;
+                    font-size: 12px;
+                    horizontal-alignment: center;
+                    wrap: word-wrap;
+                    overflow: elide;
+                }
             }
             // Zmiana nazwy w miejscu podpisu (F2 albo z menu).
             if it.renaming: Rectangle {

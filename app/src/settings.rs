@@ -91,7 +91,17 @@ pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
     t.set_effect(effect as i32);
     t.set_popup_alpha(p.popup_opacity.clamp(30.0, 100.0) / 100.0);
     t.set_window_alpha(if p.window_opacity > 0.0 { p.window_opacity.clamp(20.0, 100.0) / 100.0 } else { 0.0 });
-    powerdesk_core::system::set_backdrop(window_hwnd(ui), effect);
+    // Acrylic jak w okienkach – rozmycie przez SetWindowCompositionAttribute (tło systemowe
+    // Windows 11 na oknie bez ramki znikało); Mica zostaje systemowa.
+    let hwnd = window_hwnd(ui);
+    if effect == 2 {
+        powerdesk_core::system::set_backdrop(hwnd, 0);
+        powerdesk_core::system::see_through(hwnd);
+        powerdesk_core::system::blur_behind(hwnd, true);
+    } else {
+        powerdesk_core::system::blur_behind(hwnd, false);
+        powerdesk_core::system::set_backdrop(hwnd, effect);
+    }
 }
 
 /// Wygląd głównego okna – globalne Slint są osobne dla każdego okna, więc pasek i pulpit
@@ -149,6 +159,19 @@ fn render(s: &Shared) {
     g.set_popup_blur(p.popup_blur);
     g.set_taskbar_opacity(p.taskbar_opacity.clamp(0.0, 100.0));
     g.set_taskbar_clear_desktop(p.taskbar_clear_desktop);
+    g.set_taskbar_labels(p.taskbar_labels);
+    g.set_taskbar_center(p.taskbar_center);
+    g.set_taskbar_seconds(p.taskbar_seconds);
+    g.set_taskbar_date(p.taskbar_date);
+    g.set_taskbar_blur(p.taskbar_blur);
+    g.set_tray_all(p.tray_all);
+    g.set_taskbar_height(p.taskbar_height.round() as i32);
+    g.set_start_image(p.start_image.clone().into());
+    g.set_start_frames(p.start_frames as i32);
+    g.set_desktop_icon_size(p.desktop_icon_size as i32);
+    g.set_desktop_free(p.desktop_free);
+    g.set_desktop_computer(p.desktop_computer);
+    g.set_shell_mode(powerdesk_core::shellmode::active());
     g.set_system_accent(sys);
     g.set_start(match p.start.as_str() {
         "computer" => 1,
@@ -221,6 +244,36 @@ pub fn popup_theme(t: &Theme) {
             t.set_popup_alpha(m.get_popup_alpha());
         }
     });
+}
+
+/// Zakończenie PowerDesk – tylko z Ustawień → System. 0 – uruchom ponownie, 1 – zakończ,
+/// 2 – przełącz na Eksplorator (tryb powłoki: wpis zdjęty, strażnik uruchomi explorer.exe).
+fn app_quit(s: &Shared, what: i32) {
+    use std::os::windows::process::CommandExt;
+    let shell = powerdesk_core::shellmode::active();
+    match what {
+        // Jako powłoka strażnik i tak uruchamia PowerDesk od nowa; inaczej osobny proces czeka,
+        // aż ten się zakończy (pasek i pulpit Windows wracają na chwilę), i uruchamia nową kopię.
+        0 if !shell => {
+            if let Ok(me) = std::env::current_exe() {
+                let pid = std::process::id();
+                let script = format!(
+                    "/c (for /l %i in (1,1,30) do (tasklist /fi \"PID eq {pid}\" | find \"{pid}\" >nul && timeout /t 1 /nobreak >nul)) & start \"\" \"{}\" {}",
+                    me.display(),
+                    powerdesk_core::autostart::FLAG
+                );
+                let _ = std::process::Command::new("cmd").raw_arg(script).creation_flags(0x0800_0000).spawn();
+            }
+        }
+        2 if shell => {
+            if let Err(e) = powerdesk_core::shellmode::unregister() {
+                crate::transfers::toast(s, format!("Nie udało się zdjąć wpisu powłoki: {e}"), crate::transfers::Kind::Error, None);
+                return;
+            }
+        }
+        _ => {}
+    }
+    crate::quit(s);
 }
 
 /// Rozmycie tła pod okienkami (ustawienie).
@@ -297,6 +350,27 @@ pub fn toggle(s: &Shared, key: &str) {
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),
         // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
         "taskbar-clear-desktop" => change(s, |p| p.taskbar_clear_desktop = !p.taskbar_clear_desktop),
+        "taskbar-labels" | "taskbar-center" | "taskbar-seconds" | "taskbar-date" | "taskbar-blur" | "tray-all" => {
+            change(s, |p| match key {
+                "taskbar-labels" => p.taskbar_labels = !p.taskbar_labels,
+                "taskbar-center" => p.taskbar_center = !p.taskbar_center,
+                "taskbar-seconds" => p.taskbar_seconds = !p.taskbar_seconds,
+                "taskbar-date" => p.taskbar_date = !p.taskbar_date,
+                "taskbar-blur" => p.taskbar_blur = !p.taskbar_blur,
+                _ => p.tray_all = !p.tray_all,
+            });
+            crate::taskbar::restyle();
+        }
+        "desktop-free" | "desktop-computer" => {
+            change(s, |p| {
+                if key == "desktop-free" {
+                    p.desktop_free = !p.desktop_free;
+                } else {
+                    p.desktop_computer = !p.desktop_computer;
+                }
+            });
+            crate::desktop::relayout();
+        }
         "single-click" => change(s, |p| p.single_click = !p.single_click),
         "close-to-tray" => change(s, |p| p.close_to_tray = !p.close_to_tray),
         "autostart-window" => change(s, |p| p.autostart_window = !p.autostart_window),
@@ -500,6 +574,38 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_toggle_side(move |n| toggle_side(&s, &n));
     let s = st.clone();
     g.on_set_window_opacity(move |v| set_window_opacity(&s, v));
+    let s = st.clone();
+    g.on_set_taskbar_height(move |h| {
+        change(&s, |p| p.taskbar_height = (h as f32).clamp(32.0, 72.0));
+        crate::taskbar::restyle();
+    });
+    let s = st.clone();
+    g.on_pick_start_image(move || {
+        if let Some(path) = powerdesk_core::shell::pick_image(crate::hwnd(&s), "Obraz przycisku Start") {
+            change(&s, |p| {
+                p.start_image = path;
+                p.start_frames = 0;
+            });
+            crate::taskbar::restyle();
+        }
+    });
+    let s = st.clone();
+    g.on_clear_start_image(move || {
+        change(&s, |p| p.start_image.clear());
+        crate::taskbar::restyle();
+    });
+    let s = st.clone();
+    g.on_set_start_frames(move |n| {
+        change(&s, |p| p.start_frames = n.clamp(0, 4) as u8);
+        crate::taskbar::restyle();
+    });
+    let s = st.clone();
+    g.on_set_desktop_icon_size(move |n| {
+        change(&s, |p| p.desktop_icon_size = n.clamp(0, 2) as u8);
+        crate::desktop::relayout();
+    });
+    let s = st.clone();
+    g.on_app_quit(move |what| app_quit(&s, what));
     g.on_open_prefs_folder(|| {
         if let Some(d) = dirs::data_dir() {
             let _ = open::that_detached(d.join("PowerDesk"));

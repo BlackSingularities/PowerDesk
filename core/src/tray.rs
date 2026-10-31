@@ -11,7 +11,7 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::UI::Shell::{Shell_NotifyIconW, NIF_ICON, NIF_INFO, NIF_MESSAGE, NIF_TIP, NIM_ADD, NIM_DELETE, NIM_MODIFY, NOTIFYICONDATAW};
 use windows::Win32::UI::WindowsAndMessaging::{
     AppendMenuW, CreateIconFromResourceEx, CreatePopupMenu, CreateWindowExW, DefWindowProcW, DestroyMenu, DestroyWindow, DispatchMessageW, GetCursorPos, GetMessageW,
-    LookupIconIdFromDirectoryEx, PostMessageW, PostQuitMessage, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow, TrackPopupMenu, TranslateMessage, HICON, LR_DEFAULTCOLOR, MF_SEPARATOR,
+    LookupIconIdFromDirectoryEx, PostMessageW, PostQuitMessage, RegisterClassW, RegisterWindowMessageW, SetForegroundWindow, TrackPopupMenu, TranslateMessage, HICON, LR_DEFAULTCOLOR,
     MF_STRING, MSG, TPM_BOTTOMALIGN, TPM_RETURNCMD, TPM_RIGHTBUTTON, WINDOW_EX_STYLE, WM_APP, WM_CLOSE, WM_DESTROY, WM_LBUTTONUP, WM_RBUTTONUP, WNDCLASSW, WS_OVERLAPPED,
 };
 
@@ -73,8 +73,7 @@ unsafe fn menu(hwnd: HWND) {
     let Ok(m) = CreatePopupMenu() else { return };
     let _ = AppendMenuW(m, MF_STRING, ID_SHOW, w!("Otwórz PowerDesk"));
     let _ = AppendMenuW(m, MF_STRING, ID_TAB, w!("Nowa karta"));
-    let _ = AppendMenuW(m, MF_SEPARATOR, 0, PCWSTR::null());
-    let _ = AppendMenuW(m, MF_STRING, ID_QUIT, w!("Zakończ"));
+    // Zakończenie PowerDesk jest tylko w Ustawieniach → System (decyzja użytkownika).
     let mut pt = POINT::default();
     let _ = GetCursorPos(&mut pt);
     // Bez tego menu nie znika po kliknięciu obok.

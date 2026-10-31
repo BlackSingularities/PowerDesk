@@ -17,8 +17,10 @@ use slint::{ComponentHandle, Model, ModelRc, PhysicalPosition, PhysicalSize, Vec
 use crate::menus::{self, it, sep, Item};
 use crate::{NoticesWindow, OutDev, AppVol, TrayApp, CalDay, CalendarWindow, NetRow, NetworkWindow, Shared, TaskButton, TaskbarWindow, Theme, ThumbCard, ThumbWindow, TipWindow, TrayOverflowWindow, VolumeWindow};
 
-/// Wysokość paska w pikselach logicznych.
-pub const HEIGHT: f32 = 48.0;
+/// Wysokość paska w pikselach logicznych – z ustawień (32–72, domyślnie 48).
+pub fn height() -> f32 {
+    BAR_H.with(|h| h.get())
+}
 
 struct Bar {
     w: TaskbarWindow,
@@ -30,6 +32,8 @@ struct Bar {
     pos: (i32, i32),
     /// Ułożone na dole monitora i ukryte z paska Windows.
     placed: bool,
+    /// Rozmycie pod paskiem włączone (zmieniamy tylko przy zmianie stanu).
+    blurred: Option<bool>,
     /// Okna w kolejności pojawiania się na pasku.
     wins: Vec<Win>,
     /// Przyciski: najpierw przypięte programy, potem reszta okien w kolejności `wins`.
@@ -73,6 +77,8 @@ thread_local! {
     static TIP_SEQ: Cell<u64> = const { Cell::new(0) };
     /// Ostatnio zamknięte okienko: rodzaj i chwila zamknięcia.
     static CLOSED: Cell<Option<(u8, std::time::Instant)>> = const { Cell::new(None) };
+    /// Wysokość paska (piksele logiczne) z ustawień.
+    static BAR_H: Cell<f32> = const { Cell::new(48.0) };
 }
 
 enum Popup {
@@ -116,7 +122,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             t.set_accent_override(l.accent);
             t.set_popup_alpha(l.popup_alpha);
         }
-        w.on_start(move || open_start(n));
+        w.on_start(move || open_start(n, false));
         w.on_start_context(move |x| start_menu(n, x));
         w.on_bar_context(move |x| bar_menu(n, x));
         w.on_show_desktop(taskwin::show_desktop);
@@ -167,12 +173,13 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             }
         });
         w.on_tray_app_click(|key, b| tray_click(&key, b));
-        w.on_tray_app_drop(|id, dx| tray_drop_on_bar(&id, dx));
+        w.on_tray_app_drop(|id, dx, to_arrow| tray_drop_on_bar(&id, dx, to_arrow));
         w.on_tray_overflow(move |x| open_tray_overflow(n, x));
         let _ = w.show();
-        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
+        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, blurred: None, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
+    restyle();
     // Przy starcie programu pętla zdarzeń jeszcze nie ruszyła i okno systemowe dymka nie istnieje –
     // nie dałoby się go schować i zostałby pusty prostokąt nad wszystkimi oknami.
     slint::Timer::single_shot(Duration::from_millis(200), ensure_tip);
@@ -204,8 +211,8 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             // Win+Shift+S i PrtScn – wycinek; Win+PrtScn – cały ekran do pliku i schowka.
             b'S' if shift => screenshot(false),
             0x2C => screenshot(shift),
-            // Win+S – szukanie: Start z polem szukania.
-            b'S' => ui(|| open_start(bar_under_cursor())),
+            // Win+S – samo wyszukiwanie; otwarty Start się zamyka (i odwrotnie).
+            b'S' => ui(|| open_start(bar_under_cursor(), true)),
             // Win+A – szybkie ustawienia (sieć), Win+N – powiadomienia, Win+X – menu Startu.
             b'A' => ui(|| {
                 let bar = bar_under_cursor();
@@ -213,7 +220,11 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
                 open_network(bar, x - 300.0);
             }),
             b'N' => ui(crate::taskbar::open_notices_here),
-            b'X' => ui(|| start_menu(bar_under_cursor(), 0.0)),
+            b'X' => ui(|| {
+                crate::start::close();
+                start_state();
+                start_menu(bar_under_cursor(), 0.0)
+            }),
             b'I' => uri("ms-settings:"),
             b'P' => {
                 let _ = std::process::Command::new("DisplaySwitch.exe").spawn();
@@ -233,7 +244,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     });
     // Samo Win otwiera Start PowerDesk na monitorze z kursorem.
     powerdesk_core::startmenu::hook_win_key(|| {
-        let _ = slint::invoke_from_event_loop(|| open_start(bar_under_cursor()));
+        let _ = slint::invoke_from_event_loop(|| open_start(bar_under_cursor(), false));
     });
     crate::start::preload();
     refresh();
@@ -271,9 +282,12 @@ fn bar_menu(bar: usize, x: f32) {
         }),
         it("Pokaż pulpit", "desktop", |_| taskwin::show_desktop()).kbd("Win+D"),
         sep(),
+        it("Same ikony (bez nazw okien)", "grid", |_| edit_bar(|p| p.taskbar_labels = !p.taskbar_labels)).checked(!bar_pref(|p| p.taskbar_labels)),
+        it("Przyciski na środku", "grid", |_| edit_bar(|p| p.taskbar_center = !p.taskbar_center)).checked(bar_pref(|p| p.taskbar_center)),
+        it("Wszystkie ikony zasobnika na pasku", "grid", |_| edit_tray(|p| p.tray_all = !p.tray_all)).checked(bar_pref(|p| p.tray_all)),
+        sep(),
     ];
     items.extend(crate::start::power_items());
-    items.extend(quit_items());
     show_menu(bar, items, x);
 }
 
@@ -284,7 +298,7 @@ fn start_menu(bar: usize, x: f32) {
             let _ = std::process::Command::new(cmd).spawn();
         }
     };
-    let mut items = vec![
+    let items = vec![
         it("Otwórz PowerDesk", "folder", |s| crate::show_window(s)),
         it("Ustawienia paska zadań", "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_TASKBAR);
@@ -296,33 +310,88 @@ fn start_menu(bar: usize, x: f32) {
         it("Sprawdź aktualizacje", "refresh", |_| crate::updates::check(true)),
         // Okno „Uruchom” wprost z shell32 – działa także bez Eksploratora.
         it("Uruchom…", "terminal", |_| powerdesk_core::shellmode::run_dialog()).kbd("Win+R"),
+        it("Wyszukaj", "search", move |_| open_start(bar, true)).kbd("Win+S"),
     ];
-    items.extend(quit_items());
     show_menu(bar, items, x);
 }
 
-/// Koniec PowerDesk. Jako powłoka: restart (strażnik uruchamia go od nowa) albo przejście
-/// na Eksplorator (wpis zdjęty – strażnik uruchamia `explorer.exe`); inaczej zwykłe wyjście.
-fn quit_items() -> Vec<Item> {
-    if !powerdesk_core::shellmode::active() {
-        return vec![sep(), it("Zakończ PowerDesk (przywróć pasek Windows)", "close", |s| crate::quit(s)).danger()];
-    }
-    vec![
-        sep(),
-        it("Uruchom ponownie PowerDesk", "refresh", |s| crate::quit(s)),
-        it("Przełącz na Eksplorator Windows", "close", |s| {
-            if let Err(e) = powerdesk_core::shellmode::unregister() {
-                crate::transfers::toast(s, format!("Nie udało się zdjąć wpisu powłoki: {e}"), crate::transfers::Kind::Error, None);
-                return;
-            }
-            crate::quit(s)
-        })
-        .danger(),
-    ]
+/// Wartość z ustawień (do znaczników w menu paska).
+fn bar_pref<T>(f: impl FnOnce(&crate::model::Prefs) -> T) -> T
+where
+    T: Default,
+{
+    let mut out = T::default();
+    crate::with_state(|s| out = f(&s.borrow().prefs));
+    out
 }
 
-/// Menu Start nad lewym końcem paska `bar`.
-fn open_start(bar: usize) {
+/// Zmiana ustawień paska z jego menu – zapis i nowy wygląd na wszystkich paskach.
+fn edit_bar(f: impl FnOnce(&mut crate::model::Prefs)) {
+    crate::with_state(|s| {
+        let mut b = s.borrow_mut();
+        f(&mut b.prefs);
+        b.prefs.save();
+    });
+    restyle();
+}
+
+/// Obraz przycisku Start z pliku: obraz, liczba klatek (jedna pod drugą) i proporcje klatki.
+/// 0 klatek w ustawieniach – z proporcji: kwadratowe klatki w pionowym pasku (np. 3 dla 54×162).
+fn start_image(path: &str, frames: u8) -> Option<(slint::Image, i32, f32)> {
+    if path.is_empty() {
+        return None;
+    }
+    let img = image::open(path).ok()?.to_rgba8();
+    let (w, h) = (img.width().max(1), img.height().max(1));
+    let n = if frames > 0 { frames as u32 } else { ((h as f32 / w as f32).round() as u32).clamp(1, 4) };
+    let fh = (h / n).max(1);
+    let buf = slint::SharedPixelBuffer::<slint::Rgba8Pixel>::clone_from_slice(img.as_raw(), w, h);
+    Some((slint::Image::from_rgba8(buf), n as i32, w as f32 / fh as f32))
+}
+
+/// Wygląd pasków z ustawień: wysokość, same ikony, środek, data, przycisk Start.
+/// Zmiana wysokości układa paski od nowa (położenie i obszar roboczy).
+pub fn restyle() {
+    let mut p = None;
+    crate::with_state(|s| {
+        let b = s.borrow();
+        p = Some((b.prefs.taskbar_height, b.prefs.taskbar_labels, b.prefs.taskbar_center, b.prefs.taskbar_date, b.prefs.start_image.clone(), b.prefs.start_frames));
+    });
+    let Some((h, labels, center, date, img, frames)) = p else { return };
+    let resized = (BAR_H.with(|c| c.replace(h)) - h).abs() > 0.5;
+    let start = start_image(&img, frames);
+    BARS.with(|b| {
+        for bar in b.borrow_mut().iter_mut() {
+            bar.w.set_labels(labels);
+            bar.w.set_centered(center);
+            bar.w.set_show_date(date);
+            bar.w.set_bar_h(h);
+            match &start {
+                Some((i, n, aspect)) => {
+                    bar.w.set_start_img(i.clone());
+                    bar.w.set_start_frames(*n);
+                    bar.w.set_start_aspect(*aspect);
+                    bar.w.set_has_start_img(true);
+                }
+                None => bar.w.set_has_start_img(false),
+            }
+            if resized {
+                bar.placed = false;
+            }
+        }
+    });
+    tray_apps();
+    refresh();
+}
+
+/// Przycisk Start podświetlony, gdy Start albo wyszukiwanie jest otwarte.
+pub fn start_state() {
+    let open = crate::start::is_open();
+    BARS.with(|b| b.borrow().iter().for_each(|bar| bar.w.set_start_open(open)));
+}
+
+/// Menu Start nad lewym końcem paska `bar`; `search` – samo wyszukiwanie (Win+S).
+fn open_start(bar: usize, search: bool) {
     close_thumbs();
     close_menu();
     close_popup();
@@ -335,7 +404,8 @@ fn open_start(bar: usize) {
     }) else {
         return;
     };
-    crate::start::toggle(x, y, scale, light, accent, alpha);
+    crate::start::toggle(x, y, scale, light, accent, alpha, search);
+    start_state();
 }
 
 /// Dla okienek spoza paska (historia schowka): motyw, krycie, miejsce nad paskiem monitora
@@ -588,12 +658,11 @@ pub fn popup_look(hwnd: isize) {
     let line = BARS.with(|b| b.borrow().first().map(|b| b.w.global::<Theme>().get_line()));
     let c = line.unwrap_or(slint::Color::from_rgb_u8(60, 60, 60));
     powerdesk_core::system::style_popup(hwnd, Some((c.red(), c.green(), c.blue())));
-    if crate::settings::popup_blur() {
-        powerdesk_core::system::set_backdrop(hwnd, 2);
-    } else {
-        powerdesk_core::system::set_backdrop(hwnd, 0);
-        powerdesk_core::system::see_through(hwnd);
-    }
+    // Akryl przez SetWindowCompositionAttribute – działa na każdym okienku (bez ramki, bez fokusu),
+    // tło systemowe Windows 11 na takich oknach się nie pokazywało.
+    powerdesk_core::system::set_backdrop(hwnd, 0);
+    powerdesk_core::system::see_through(hwnd);
+    powerdesk_core::system::blur_behind(hwnd, crate::settings::popup_blur());
 }
 
 /// Motyw okienka jak motyw paska (jasny/ciemny, akcent).
@@ -1294,9 +1363,10 @@ fn place(bar: &mut Bar) {
         return;
     }
     let scale = bar.w.window().scale_factor();
-    let h = (HEIGHT * scale).round() as i32;
+    let h = (height() * scale).round() as i32;
     bar.pos = (bar.origin.0, bar.origin.1 + bar.mon.1 - h);
     if !bar.placed {
+        bar.blurred = None;
         data::hide_from_taskbar(hwnd);
         bar.w.window().set_position(slint::PhysicalPosition::new(bar.pos.0, bar.pos.1));
         bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
@@ -1377,6 +1447,9 @@ fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
         .collect()
 }
 
+/// Najmniejsze krycie tła paska (3%) – przy zerze puste miejsca nie łapałyby kliknięć.
+const MIN_ALPHA: f32 = 0.03;
+
 fn refresh() {
     // Pasek Windows potrafi wrócić (Start, restart Eksploratora) – chowamy go co obieg.
     powerdesk_core::shellswap::hide_taskbar();
@@ -1385,15 +1458,17 @@ fn refresh() {
     let all: Vec<Win> = taskwin::list().into_iter().filter(|w| !own.contains(&w.hwnd)).collect();
     let fg = taskwin::foreground();
     let now = Local::now();
-    let (time, date) = (now.format("%H:%M").to_string(), now.format("%d.%m.%Y").to_string());
     let mut pins = Vec::new();
-    let (mut opacity, mut clear) = (100.0, false);
+    let (mut opacity, mut clear, mut seconds, mut blur) = (100.0, false, false, true);
     crate::with_state(|s| {
         let b = s.borrow();
         pins = b.prefs.taskbar_pins.clone();
         opacity = b.prefs.taskbar_opacity;
         clear = b.prefs.taskbar_clear_desktop;
+        seconds = b.prefs.taskbar_seconds;
+        blur = b.prefs.taskbar_blur;
     });
+    let (time, date) = (now.format(if seconds { "%H:%M:%S" } else { "%H:%M" }).to_string(), now.format("%d.%m.%Y").to_string());
     BARS.with(|b| {
         for bar in b.borrow_mut().iter_mut() {
             place(bar);
@@ -1409,9 +1484,17 @@ fn refresh() {
                 bar.wins = wins;
                 bar.fg = fg;
             }
-            // Na pulpicie (żadne okno tego monitora nie jest otwarte) – całkiem przezroczysty.
+            // Na pulpicie (żadne okno tego monitora nie jest otwarte) – przezroczysty. Najmniej 3%:
+            // przy zerowym kryciu Windows przepuszcza kliknięcia przez puste miejsca paska.
             let desktop = clear && bar.wins.iter().all(|w| w.minimized);
-            bar.w.set_bg_alpha(if desktop { 0.0 } else { (opacity / 100.0f32).clamp(0.0, 1.0) });
+            let alpha = if desktop { MIN_ALPHA } else { (opacity / 100.0f32).clamp(MIN_ALPHA, 1.0) };
+            bar.w.set_bg_alpha(alpha);
+            // Rozmycie pod półprzezroczystym paskiem; przezroczysty na pulpicie – bez rozmycia.
+            let want = blur && !desktop && alpha < 0.999;
+            if bar.blurred != Some(want) {
+                powerdesk_core::system::blur_behind(crate::window_hwnd(bar.w.window()), want);
+                bar.blurred = Some(want);
+            }
             bar.w.set_time(time.clone().into());
             bar.w.set_date(date.clone().into());
         }
@@ -1495,17 +1578,18 @@ fn cursor_on_bar() -> bool {
     let (cx, cy) = taskwin::cursor();
     BARS.with(|b| {
         b.borrow().iter().any(|bar| {
-            let h = (HEIGHT * bar.w.window().scale_factor()) as i32;
+            let h = (height() * bar.w.window().scale_factor()) as i32;
             cx >= bar.origin.0 && cx < bar.origin.0 + bar.mon.0 && cy >= bar.pos.1 && cy < bar.pos.1 + h
         })
     })
 }
 
-/// Ikona z paska puszczona: nad paskiem – do okienka ukrytych, na pasku – nowe miejsce.
-fn tray_drop_on_bar(id: &str, dx: f32) {
+/// Ikona z paska puszczona: na strzałce albo nad paskiem – do okienka ukrytych, na pasku –
+/// nowe miejsce.
+fn tray_drop_on_bar(id: &str, dx: f32, to_arrow: bool) {
     let id = id.to_string();
     let icons: Vec<String> = powerdesk_core::trayhost::icons().iter().map(|i| i.id()).collect();
-    let off = !cursor_on_bar();
+    let off = to_arrow || !cursor_on_bar();
     edit_tray(move |p| {
         // „Wszystkie na pasku”: zaczynamy od pełnej listy w obecnej kolejności.
         if p.tray_all {
@@ -1520,8 +1604,8 @@ fn tray_drop_on_bar(id: &str, dx: f32) {
         if off {
             return;
         }
-        // Ikona 28 px + odstęp 2 px.
-        let to = (from as i32 + (dx / 30.0).round() as i32).clamp(0, p.tray_bar.len() as i32) as usize;
+        // Ikona 24 px, bez odstępu (taskbar.slint).
+        let to = (from as i32 + (dx / 24.0).round() as i32).clamp(0, p.tray_bar.len() as i32) as usize;
         p.tray_bar.insert(to, item);
     });
 }
@@ -1601,7 +1685,9 @@ fn tip(win: &slint::Window, text: &str, x: f32, _y: f32) {
     let (pos, scale) = (win.position(), win.scale_factor());
     let (ax, top) = (pos.x + (x * scale) as i32, pos.y);
     let text = text.to_string();
-    slint::Timer::single_shot(Duration::from_millis(600), move || {
+    // Okno dymka mogło nie powstać przy starcie (pętla zdarzeń jeszcze nie ruszyła).
+    ensure_tip();
+    slint::Timer::single_shot(Duration::from_millis(500), move || {
         if TIP_SEQ.with(|s| s.get()) != seq {
             return;
         }
@@ -1616,6 +1702,15 @@ fn tip(win: &slint::Window, text: &str, x: f32, _y: f32) {
             let ty = top - th - (6.0 * s) as i32;
             w.window().set_size(PhysicalSize::new(tw as u32, th as u32));
             taskwin::show_passive(crate::window_hwnd(w.window()), tx, ty, tw, th);
+            // Okno schowane natywnie nie dostawało nowej klatki – rysujemy jawnie po pokazaniu.
+            w.window().request_redraw();
+        });
+        slint::Timer::single_shot(Duration::from_millis(40), || {
+            TIP.with(|t| {
+                if let Some(w) = t.borrow().as_ref() {
+                    w.window().request_redraw();
+                }
+            })
         });
     });
 }

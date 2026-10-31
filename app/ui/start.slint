@@ -84,6 +84,8 @@ export component StartWindow inherits Window {
     in property <string> user;
     /// Duże ikony w siatce zamiast listy (bez liter grup).
     in property <bool> grid;
+    /// Samo wyszukiwanie (Win+S): bez lewej kolumny i kafelków, lista na całą szerokość.
+    in property <bool> search-only;
     in-out property <string> query;
     /// Przeciągany kafelek (-1 – żaden) i jego podgląd w obszarze kafelków.
     in-out property <int> drag-index: -1;
@@ -136,7 +138,8 @@ export component StartWindow inherits Window {
     HorizontalLayout {
         // Lewa kolumna – jak w Windows 10: konto na górze, reszta przy dole.
         VerticalLayout {
-            width: 48px;
+            width: root.search-only ? 0px : 48px;
+            visible: !root.search-only;
             padding-top: 6px;
             padding-bottom: 6px;
             RailButton {
@@ -148,6 +151,13 @@ export component StartWindow inherits Window {
             }
             Rectangle {
                 vertical-stretch: 1;
+            }
+            RailButton {
+                icon: Icons.pc;
+                tip: "Ten komputer";
+                clicked(x, y) => {
+                    root.rail(5, x, y);
+                }
             }
             RailButton {
                 icon: Icons.doc;
@@ -181,8 +191,8 @@ export component StartWindow inherits Window {
 
         // Lista aplikacji z polem szukania.
         VerticalLayout {
-            width: 290px;
-            padding: 8px;
+            width: root.search-only ? root.width : 290px;
+            padding: root.search-only ? 12px : 8px;
             spacing: 6px;
             Rectangle {
                 height: 34px;
@@ -198,7 +208,7 @@ export component StartWindow inherits Window {
                 }
                 if root.query == "": Text {
                     x: 32px;
-                    text: "Wpisz, aby wyszukać";
+                    text: root.search-only ? "Szukaj aplikacji, plików i ustawień" : "Wpisz, aby wyszukać";
                     font-size: 12.5px;
                     color: Theme.faint;
                 }
@@ -346,7 +356,8 @@ export component StartWindow inherits Window {
         // Kafelki: grupy z nazwami, siatka 6 pól po 52 px, przeciąganie z podglądem.
         Rectangle {
             horizontal-stretch: 0;
-            width: 6 * 52px + 28px;
+            width: root.search-only ? 0px : 6 * 52px + 28px;
+            visible: !root.search-only;
             if root.tiles.length == 0 && !root.in-folder: Text {
                 x: 14px;
                 y: 44px;
@@ -542,6 +553,7 @@ export component StartWindow inherits Window {
 
     // Uchwyty zmiany rozmiaru: górna krawędź, prawa krawędź i prawy górny róg.
     for e in [0, 1, 2]: TouchArea {
+        enabled: !root.search-only;
         x: e == 0 ? 0 : root.width - 6px;
         y: 0;
         width: e == 0 ? root.width - 12px : 6px;

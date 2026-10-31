@@ -171,7 +171,7 @@ fn open_level(items: Vec<Item>, sx: i32, sy: i32, level: usize, beside: Option<i
     let height: f32 = items.iter().map(|i| if i.sep { 11.0 } else { 32.0 }).sum::<f32>() + 14.0;
     let ((mx, my), (mw, mh), scale) = crate::taskbar::monitor_at(sx, sy);
     let (pw, ph) = ((width * scale) as i32, (height * scale) as i32);
-    let bottom = my + mh - (crate::taskbar::HEIGHT * scale) as i32;
+    let bottom = my + mh - (crate::taskbar::height() * scale) as i32;
     let x = if sx + pw > mx + mw - 4 {
         match beside {
             Some(left) => (left - pw + (4.0 * scale) as i32).max(mx + 4),

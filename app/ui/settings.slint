@@ -94,6 +94,30 @@ export global SettingsState {
     in-out property <float> taskbar-opacity: 100;
     in-out property <bool> taskbar-clear-desktop;
     callback set-taskbar-opacity(float);
+    /// Pasek: nazwy okien, środek, sekundy, data, rozmycie, wszystkie ikony zasobnika, wysokość.
+    in-out property <bool> taskbar-labels: true;
+    in-out property <bool> taskbar-center;
+    in-out property <bool> taskbar-seconds;
+    in-out property <bool> taskbar-date: true;
+    in-out property <bool> taskbar-blur: true;
+    in-out property <bool> tray-all;
+    in-out property <int> taskbar-height: 48;
+    callback set-taskbar-height(int);
+    /// Własny przycisk Start: plik obrazu i liczba klatek (0 – wykryj).
+    in-out property <string> start-image;
+    in-out property <int> start-frames;
+    callback pick-start-image();
+    callback clear-start-image();
+    callback set-start-frames(int);
+    /// Pulpit: rozmiar ikon (0–2), ułożenie dowolne, „Ten komputer”.
+    in-out property <int> desktop-icon-size: 1;
+    in-out property <bool> desktop-free;
+    in-out property <bool> desktop-computer: true;
+    callback set-desktop-icon-size(int);
+    /// PowerDesk jest powłoką systemu (zamiast explorer.exe).
+    in-out property <bool> shell-mode;
+    /// Zakończenie: 0 – uruchom ponownie, 1 – zakończ, 2 – przełącz na Eksplorator (tryb powłoki).
+    callback app-quit(int);
     callback set-theme(int);
     callback set-effect(int);
     callback set-popup-opacity(float);
@@ -219,6 +243,31 @@ component Choice inherits Rectangle {
         }
     }
     ch-ta := TouchArea {
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+component SetButton inherits Rectangle {
+    in property <string> text;
+    in property <string> tip;
+    in property <bool> on;
+    in property <bool> danger;
+    callback clicked;
+    width: sb.preferred-width + 24px;
+    height: 30px;
+    border-radius: Theme.r-s;
+    background: root.on ? Theme.sel : sb-ta.has-hover ? Theme.press : Theme.card;
+    sb := Label {
+        horizontal-alignment: center;
+        text: root.text;
+        font-size: 12.5px;
+        font-weight: root.on ? 600 : 400;
+        color: root.danger ? Theme.rec : Theme.text;
+    }
+    sb-ta := TipArea {
+        tip: root.tip;
         clicked => {
             root.clicked();
         }
@@ -847,6 +896,41 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
+                        text: "Ikony";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        for name[k] in ["Małe", "Średnie", "Duże"]: Choice {
+                            icon: Icons.grid;
+                            text: name;
+                            hint: k == 0 ? "32 px, gęsta siatka" : k == 1 ? "48 px – jak w Windows" : "64 px, wyraźne";
+                            on: SettingsState.desktop-icon-size == k;
+                            clicked => {
+                                SettingsState.set-desktop-icon-size(k);
+                            }
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.grid;
+                        text: "Wyrównuj ikony do siatki";
+                        hint: "Wyłączone – ikona zostaje dokładnie tam, gdzie ją puścisz; miejsca są zapamiętywane";
+                        on: !SettingsState.desktop-free;
+                        toggled => {
+                            SettingsState.toggle("desktop-free");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.pc;
+                        text: "Ikona „Ten komputer”";
+                        hint: "Na pulpicie – otwiera widok Komputer z dyskami i folderami";
+                        on: SettingsState.desktop-computer;
+                        toggled => {
+                            SettingsState.toggle("desktop-computer");
+                        }
+                    }
+                    Label {
                         text: "Tapeta";
                         font-size: 13px;
                         font-weight: 600;
@@ -925,7 +1009,7 @@ export component SettingsView inherits Rectangle {
                         color: Theme.faint;
                     }
                     Label {
-                        text: "Na każdym monitorze tapeta z ustawień Windows, na głównym ikony z Pulpitu użytkownika i publicznego – w siatce, z przesuwaniem, zaznaczaniem i menu PowerDesk. Ikony Windows są ukryte. Po zamknięciu PowerDesk, jego awarii albo odinstalowaniu pulpit Windows wraca.";
+                        text: "Na każdym monitorze tapeta z ustawień Windows, na głównym ikony z Pulpitu użytkownika i publicznego – w siatce albo dowolnie, z przesuwaniem, zaznaczaniem i menu PowerDesk. Miejsca ikon zostają po aktualizacji i ponownym uruchomieniu. Ikony Windows są ukryte. Po zamknięciu PowerDesk, jego awarii albo odinstalowaniu pulpit Windows wraca.";
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
@@ -939,10 +1023,137 @@ export component SettingsView inherits Rectangle {
                         lead: "PowerDesk zastępuje pasek zadań Windows na każdym monitorze";
                     }
                     Label {
-                        text: "Start, okna z danego monitora pogrupowane po programach (z podglądami), przypięte programy, sieć i Wi-Fi, głośność z mikserem, bateria, zegar z kalendarzem i „Pokaż pulpit” na końcu. Prawy przycisk na Start – menu z ustawieniami i „Zakończ PowerDesk”. Pasek Windows jest ukryty; wraca po zamknięciu PowerDesk, jego awarii albo odinstalowaniu. Alt+Tab, Win+Tab i Win+D zostają systemowe.";
+                        text: "Start, okna z danego monitora pogrupowane po programach (z podglądami), przypięte programy, sieć i Wi-Fi, głośność z mikserem, bateria, zegar z kalendarzem i „Pokaż pulpit” na końcu. Prawy przycisk na Start – menu z narzędziami systemu. Pasek Windows jest ukryty; wraca po zamknięciu PowerDesk, jego awarii albo odinstalowaniu. Alt+Tab, Win+Tab i Win+D zostają systemowe.";
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
+                    }
+                    Label {
+                        text: "Przyciski";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        Choice {
+                            icon: Icons.sidebar;
+                            text: "Ikony z nazwami";
+                            hint: "Tytuł okna obok ikony";
+                            on: SettingsState.taskbar-labels;
+                            clicked => {
+                                if (!SettingsState.taskbar-labels) {
+                                    SettingsState.toggle("taskbar-labels");
+                                }
+                            }
+                        }
+                        Choice {
+                            icon: Icons.grid;
+                            text: "Same ikony";
+                            hint: "Wąskie przyciski, jak w Windows 11";
+                            on: !SettingsState.taskbar-labels;
+                            clicked => {
+                                if (SettingsState.taskbar-labels) {
+                                    SettingsState.toggle("taskbar-labels");
+                                }
+                            }
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.grid;
+                        text: "Przyciski na środku paska";
+                        hint: "Start zostaje po lewej, programy w środku";
+                        on: SettingsState.taskbar-center;
+                        toggled => {
+                            SettingsState.toggle("taskbar-center");
+                        }
+                    }
+                    Label {
+                        text: "Wysokość paska";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 6px;
+                        for hh in [36, 40, 44, 48, 56, 64, 72]: SetButton {
+                            text: hh + " px";
+                            tip: "Pasek o wysokości " + hh + " pikseli" + (hh == 48 ? " (domyślna)" : "");
+                            on: SettingsState.taskbar-height == hh;
+                            clicked => {
+                                SettingsState.set-taskbar-height(hh);
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Przycisk Start";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: SettingsState.start-image == "" ? "Ikona PowerDesk. Możesz wybrać własny obraz (PNG, BMP) – pasek z klatkami jedna pod drugą: zwykły, pod kursorem, wciśnięty i opcjonalnie otwarty Start, jak przyciski Start z innych programów." : SettingsState.start-image;
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: Theme.dim;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 6px;
+                        SetButton {
+                            text: "Wybierz obraz…";
+                            tip: "Plik z klatkami przycisku Start (PNG z przezroczystością najlepiej)";
+                            clicked => {
+                                SettingsState.pick-start-image();
+                            }
+                        }
+                        if SettingsState.start-image != "": SetButton {
+                            text: "Przywróć ikonę PowerDesk";
+                            tip: "Usuń własny obraz przycisku Start";
+                            clicked => {
+                                SettingsState.clear-start-image();
+                            }
+                        }
+                    }
+                    if SettingsState.start-image != "": HorizontalLayout {
+                        alignment: start;
+                        spacing: 6px;
+                        for f[k] in ["Wykryj", "1 klatka", "2 klatki", "3 klatki", "4 klatki"]: SetButton {
+                            text: f;
+                            tip: k == 0 ? "Liczba klatek z proporcji obrazu (kwadratowe klatki jedna pod drugą)" : k == 1 ? "Jeden obraz – pod kursorem lekko przygasa" : k == 2 ? "Zwykły i pod kursorem" : k == 3 ? "Zwykły, pod kursorem, wciśnięty (najczęstszy format)" : "Zwykły, pod kursorem, wciśnięty, otwarty Start";
+                            on: SettingsState.start-frames == k;
+                            clicked => {
+                                SettingsState.set-start-frames(k);
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Zegar i zasobnik";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    ToggleRow {
+                        icon: Icons.history;
+                        text: "Sekundy w zegarze";
+                        on: SettingsState.taskbar-seconds;
+                        toggled => {
+                            SettingsState.toggle("taskbar-seconds");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.history;
+                        text: "Data pod godziną";
+                        on: SettingsState.taskbar-date;
+                        toggled => {
+                            SettingsState.toggle("taskbar-date");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.grid;
+                        text: "Wszystkie ikony zasobnika na pasku";
+                        hint: "Wyłączone – wybrane ikony na pasku, reszta pod strzałką; ikonę przeciągniesz na strzałkę albo z okienka na pasek";
+                        on: SettingsState.tray-all;
+                        toggled => {
+                            SettingsState.toggle("tray-all");
+                        }
                     }
                     Label {
                         text: "Krycie paska";
@@ -969,17 +1180,26 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "0% – całkiem przezroczysty, widać tapetę; ikony i zegar zostają";
+                        text: "0% – przezroczysty (3% tła, żeby pasek dalej łapał kliknięcia), widać tapetę; ikony i zegar zostają";
                         font-size: 11.5px;
                         color: Theme.faint;
                     }
                     ToggleRow {
                         icon: Icons.desktop;
                         text: "Przezroczysty, gdy widać pulpit";
-                        hint: "Osobno na każdym monitorze: bez otwartych okien pasek jest całkiem przezroczysty";
+                        hint: "Osobno na każdym monitorze: bez otwartych okien pasek jest przezroczysty";
                         on: SettingsState.taskbar-clear-desktop;
                         toggled => {
                             SettingsState.toggle("taskbar-clear-desktop");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.eye;
+                        text: "Rozmycie pod paskiem";
+                        hint: "Półprzezroczysty pasek rozmywa tapetę i okna pod sobą (jak w Windows 11)";
+                        on: SettingsState.taskbar-blur;
+                        toggled => {
+                            SettingsState.toggle("taskbar-blur");
                         }
                     }
                     ToggleRow {
@@ -1125,7 +1345,39 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Okno zamyka się do zasobnika – PowerDesk działa dalej w tle. Zakończyć program można z menu ikony obok zegara. Przywrócenie Eksploratora: powerdesk.exe --remove-integration (robi to też deinstalator).";
+                        text: "Działanie PowerDesk";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 8px;
+                        SetButton {
+                            text: "Uruchom ponownie PowerDesk";
+                            tip: "Zamyka i od razu uruchamia PowerDesk – pulpit i pasek wracają po chwili";
+                            clicked => {
+                                SettingsState.app-quit(0);
+                            }
+                        }
+                        SetButton {
+                            text: "Zakończ PowerDesk";
+                            danger: true;
+                            tip: SettingsState.shell-mode ? "PowerDesk jest powłoką – po zakończeniu strażnik uruchomi go ponownie" : "Kończy PowerDesk – wracają pulpit, pasek i Eksplorator Windows";
+                            clicked => {
+                                SettingsState.app-quit(1);
+                            }
+                        }
+                        if SettingsState.shell-mode: SetButton {
+                            text: "Przełącz na Eksplorator Windows";
+                            danger: true;
+                            tip: "Zdejmuje PowerDesk z powłoki systemu – po zakończeniu wraca explorer.exe";
+                            clicked => {
+                                SettingsState.app-quit(2);
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Okno zamyka się do zasobnika – PowerDesk działa dalej w tle. Zakończyć go można tylko tutaj. Przywrócenie Eksploratora: powerdesk.exe --remove-integration (robi to też deinstalator).";
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.faint;

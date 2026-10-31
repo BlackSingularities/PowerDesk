@@ -205,6 +205,17 @@ pub fn place_topmost(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
     }
 }
 
+/// Położenie i rozmiar okna jednym ruchem (piksele ekranu), bez zmiany kolejności i fokusu.
+pub fn set_rect(hwnd: isize, x: i32, y: i32, width: i32, height: i32) {
+    use windows::Win32::UI::WindowsAndMessaging::SWP_NOZORDER;
+    if hwnd == 0 {
+        return;
+    }
+    unsafe {
+        let _ = SetWindowPos(h(hwnd), None, x, y, width, height, SWP_NOACTIVATE | SWP_NOZORDER);
+    }
+}
+
 /// Podgląd okna (miniatura DWM) rysowany przez system w oknie `dest`; zwraca uchwyt podglądu
 /// i rozmiar okna źródłowego w pikselach.
 pub fn thumb_register(dest: isize, src: isize) -> Option<(isize, (i32, i32))> {

@@ -49,19 +49,20 @@ export struct TaskButton {
     idle-before: int,
 }
 
-/// Ikona zasobnika: 32×40, podświetlenie pod kursorem, podpowiedź.
+/// Ikona zasobnika: 28 px szerokości, wysokość z paska; podświetlenie pod kursorem, podpowiedź.
+/// `lit` – podświetlenie z zewnątrz (strzałka, nad którą wisi przeciągana ikona).
 component TrayIcon inherits Rectangle {
     in property <string> icon;
     in property <string> tip;
     in property <bool> dim;
+    in property <bool> lit;
     callback clicked();
     callback middle();
     /// +1 – kółko w górę, -1 – w dół.
     callback wheel(int);
-    width: 32px;
-    height: 40px;
+    width: 28px;
     border-radius: Theme.r;
-    background: ti-ta.has-hover ? Theme.hover : transparent;
+    background: root.lit ? Theme.sel : ti-ta.has-hover ? Theme.hover : transparent;
     Icon {
         commands: root.icon;
         size: 18px;
@@ -106,13 +107,14 @@ component TrayAppIcon inherits Rectangle {
     in property <string> tip;
     /// 0 – lewy, 1 – dwuklik, 2 – prawy (współrzędne kursora wylicza taskbar.rs).
     callback pressed(int);
-    /// Puszczona po przeciągnięciu – przesunięcie w poziomie od miejsca chwycenia.
-    callback dropped(length);
+    /// Puszczona po przeciągnięciu – przesunięcie w poziomie od miejsca chwycenia i x kursora w oknie.
+    callback dropped(length, length);
+    /// W trakcie przeciągania: x kursora w oknie (-1 – koniec przeciągania).
+    callback drag-at(length);
     property <bool> dragging;
     /// Klik po przeciągnięciu się nie liczy.
     property <bool> was-drag;
-    width: 28px;
-    height: 40px;
+    width: 24px;
     border-radius: Theme.r;
     background: ta-ta.has-hover || root.dragging ? Theme.hover : transparent;
     opacity: root.dragging ? 0.45 : 1;
@@ -139,6 +141,9 @@ component TrayAppIcon inherits Rectangle {
             if (self.pressed && !root.dragging && (abs(self.mouse-x - self.pressed-x) > 6px || abs(self.mouse-y - self.pressed-y) > 6px)) {
                 root.dragging = true;
             }
+            if (root.dragging) {
+                root.drag-at(self.absolute-position.x + self.mouse-x);
+            }
         }
         pointer-event(e) => {
             if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
@@ -147,7 +152,8 @@ component TrayAppIcon inherits Rectangle {
             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.dragging) {
                 root.dragging = false;
                 root.was-drag = true;
-                root.dropped(self.mouse-x - self.pressed-x);
+                root.drag-at(-1px);
+                root.dropped(self.mouse-x - self.pressed-x, self.absolute-position.x + self.mouse-x);
             }
             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                 root.pressed(2);
@@ -231,7 +237,7 @@ export component TrayOverflowWindow inherits Window {
                 pressed(b) => {
                     root.app-click(a.key, b);
                 }
-                dropped(dx) => {
+                dropped(dx, at) => {
                     root.app-drop(a.id);
                 }
             }
@@ -1011,6 +1017,25 @@ export component TaskbarWindow inherits Window {
     in property <[TaskButton]> buttons;
     /// Przypięte programy bez okien – wąskie przyciski z samą ikoną.
     in property <int> idle;
+    /// Nazwy okien obok ikon (false – same ikony) i przyciski na środku paska.
+    in property <bool> labels: true;
+    in property <bool> centered;
+    /// Data pod godziną.
+    in property <bool> show-date: true;
+    /// Własny przycisk Start: obraz z klatkami jedna pod drugą (zwykły, pod kursorem, wciśnięty,
+    /// otwarty Start), ich liczba i proporcje jednej klatki (szerokość / wysokość).
+    in property <image> start-img;
+    in property <bool> has-start-img;
+    in property <int> start-frames: 1;
+    in property <float> start-aspect: 1;
+    /// Start (albo wyszukiwanie) jest otwarty – przycisk podświetlony.
+    in property <bool> start-open;
+    /// Wysokość przycisków – z wysokości paska (pasek 48 px – przyciski 40 px).
+    property <length> ih: clamp(root.bar-h - 8px, 24px, 64px);
+    /// Wysokość paska z ustawień (taskbar.rs) – nie z wysokości okna, bo to dawałoby pętlę układu.
+    in property <length> bar-h: 48px;
+    /// Przeciągana ikona zasobnika: x kursora (-1 – nic nie przeciągamy).
+    property <length> tray-drag-x: -1px;
     in property <string> time;
     in property <string> date;
     // Zasobnik: głośność (0–1), sieć (0 – brak, 1 – Wi-Fi, 2 – kabel), bateria.
@@ -1054,8 +1079,9 @@ export component TaskbarWindow inherits Window {
     callback tray-overflow(length);
     /// Klik na ikonie programu: klucz ikony i przycisk (0 – lewy, 1 – dwuklik, 2 – prawy).
     callback tray-app-click(string, int);
-    /// Ikona przeciągnięta po pasku: identyfikator i przesunięcie w poziomie.
-    callback tray-app-drop(string, length);
+    /// Ikona przeciągnięta po pasku: identyfikator, przesunięcie w poziomie i czy puszczona
+    /// na strzałce (wtedy trafia do ukrytych – jak w Windows).
+    callback tray-app-drop(string, length, bool);
     /// Okienko głośności i kalendarz – x w oknie paska.
     callback volume-open(length);
     /// Kółko nad ikoną głośności – krok w górę (+1) albo w dół (-1).
@@ -1103,17 +1129,34 @@ export component TaskbarWindow inherits Window {
         padding-right: 0px;
         spacing: 4px;
 
-        // Start – na razie menu Start Windows.
+        // Start: ikona PowerDesk albo własny obraz z ustawień (klatki: zwykły, pod kursorem,
+        // wciśnięty, otwarty Start – jak „kulki” Start z innych programów).
         Rectangle {
-            width: 44px;
-            height: 40px;
+            property <length> img-h: root.bar-h - 2px;
+            width: root.has-start-img ? max(24px, self.img-h * root.start-aspect) : 44px;
+            height: root.has-start-img ? self.img-h : root.ih;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.r;
-            background: st-ta.has-hover ? Theme.hover : transparent;
-            Icon {
+            background: root.has-start-img ? transparent : root.start-open || st-ta.pressed ? Theme.sel : st-ta.has-hover ? Theme.hover : transparent;
+            if !root.has-start-img: Icon {
                 commands: Icons.grid;
                 size: 20px;
                 color: Theme.accent;
+            }
+            if root.has-start-img: Image {
+                property <int> fh: floor(root.start-img.height / max(1, root.start-frames));
+                property <int> frame: root.start-frames >= 4 && root.start-open ? 3 : root.start-frames >= 3 && (st-ta.pressed || root.start-open) ? 2 : root.start-frames >= 2 && st-ta.has-hover ? 1 : 0;
+                width: parent.width;
+                height: parent.height;
+                source: root.start-img;
+                source-clip-x: 0;
+                source-clip-y: self.frame * self.fh;
+                source-clip-width: root.start-img.width;
+                source-clip-height: self.fh;
+                image-fit: contain;
+                image-rendering: smooth;
+                // Obraz z jedną klatką – rozjaśnienie pod kursorem zamiast klatki „pod kursorem”.
+                opacity: root.start-frames < 2 && st-ta.has-hover ? 0.85 : 1;
             }
             st-ta := TipArea {
                 tip: "Start";
@@ -1131,7 +1174,7 @@ export component TaskbarWindow inherits Window {
         // Pulpity wirtualne: numer bieżącego, klik – lista, kółko – sąsiedni.
         if root.vd-show: Rectangle {
             width: vd.preferred-width + 16px;
-            height: 40px;
+            height: root.ih;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.r;
             background: vd-ta.has-hover ? Theme.hover : transparent;
@@ -1173,12 +1216,15 @@ export component TaskbarWindow inherits Window {
         lane := Rectangle {
             horizontal-stretch: 1;
             property <int> busy: root.buttons.length - root.idle;
-            property <length> each: self.busy == 0 ? 0 : min(200px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy);
+            property <length> each: self.busy == 0 ? 0 : root.labels ? min(200px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy) : min(44px, (self.width - 4px * root.buttons.length - 44px * root.idle) / self.busy);
+            /// Wszystkie przyciski razem – do wyśrodkowania.
+            property <length> used: root.idle * (44px + 4px) + self.busy * (self.each + 4px);
+            property <length> left: root.centered ? max(0px, (self.width - self.used) / 2) : 0px;
             for b[i] in root.buttons: Rectangle {
-                x: b.idle-before * (44px + 4px) + (i - b.idle-before) * (parent.each + 4px);
+                x: parent.left + b.idle-before * (44px + 4px) + (i - b.idle-before) * (parent.each + 4px);
                 y: (parent.height - self.height) / 2;
                 width: b.count == 0 ? 44px : parent.each;
-                height: 40px;
+                height: root.ih;
                 border-radius: Theme.r;
                 background: b.active ? Theme.sel : tb-ta.has-hover ? Theme.hover : transparent;
                 // Przeciąganie przypiętego: przycisk przygasa, miejsce wybiera puszczenie.
@@ -1221,7 +1267,7 @@ export component TaskbarWindow inherits Window {
                             }
                         }
                     }
-                    if parent.width >= 80px && b.count > 0: Text {
+                    if root.labels && parent.width >= 80px && b.count > 0: Text {
                         vertical-alignment: center;
                         horizontal-stretch: 1;
                         text: b.title;
@@ -1252,7 +1298,7 @@ export component TaskbarWindow inherits Window {
                         }
                         if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && parent.dragging) {
                             parent.was-drag = true;
-                            root.reorder(i, self.absolute-position.x - lane.absolute-position.x + self.mouse-x, lane.each);
+                            root.reorder(i, self.absolute-position.x - lane.absolute-position.x - lane.left + self.mouse-x, lane.each);
                         }
                         if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                             root.context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
@@ -1267,13 +1313,19 @@ export component TaskbarWindow inherits Window {
         HorizontalLayout {
             horizontal-stretch: 0;
             alignment: center;
-            spacing: 2px;
-            padding-top: 4px;
-            padding-bottom: 4px;
-            // Ukryte ikony: strzałka w górę jak w Windows – okienko nad nią.
-            if root.tray-hidden > 0 || root.tray-all: TrayIcon {
+            spacing: 0px;
+            padding-top: (root.bar-h - root.ih) / 2;
+            padding-bottom: (root.bar-h - root.ih) / 2;
+            // Ukryte ikony: strzałka w górę jak w Windows – okienko nad nią. W trakcie
+            // przeciągania ikony jest zawsze – puszczona na niej ikona trafia do ukrytych.
+            property <bool> arrow-on: root.tray-hidden > 0 || root.tray-all || root.tray-drag-x >= 0;
+            property <bool> over-arrow: root.tray-drag-x >= arrow.absolute-position.x && root.tray-drag-x < arrow.absolute-position.x + arrow.width;
+            arrow := TrayIcon {
+                visible: parent.arrow-on;
+                width: parent.arrow-on ? 28px : 0px;
                 icon: Icons.chevron-down;
-                tip: root.tray-all ? "Ikony zasobnika" : "Pokaż ukryte ikony (" + root.tray-hidden + ")";
+                lit: parent.over-arrow;
+                tip: root.tray-drag-x >= 0 ? "" : root.tray-all ? "Ikony zasobnika" : "Pokaż ukryte ikony (" + root.tray-hidden + ")";
                 transform-rotation: 180deg;
                 clicked => {
                     root.tray-overflow(self.absolute-position.x);
@@ -1285,8 +1337,11 @@ export component TaskbarWindow inherits Window {
                 pressed(b) => {
                     root.tray-app-click(a.key, b);
                 }
-                dropped(dx) => {
-                    root.tray-app-drop(a.id, dx);
+                drag-at(x) => {
+                    root.tray-drag-x = x;
+                }
+                dropped(dx, at) => {
+                    root.tray-app-drop(a.id, dx, at >= arrow.absolute-position.x && at < arrow.absolute-position.x + arrow.width);
                 }
             }
             TrayIcon {
@@ -1330,8 +1385,8 @@ export component TaskbarWindow inherits Window {
 
         // Centrum powiadomień – z licznikiem nieprzeczytanych.
         nt := Rectangle {
-            width: 32px;
-            height: 40px;
+            width: 30px;
+            height: root.ih;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.r;
             background: nt-ta.has-hover ? Theme.hover : transparent;
@@ -1364,7 +1419,7 @@ export component TaskbarWindow inherits Window {
 
         // Zegar i data – klik otwiera kalendarz.
         clock := Rectangle {
-            height: 40px;
+            height: root.ih;
             y: (parent.height - self.height) / 2;
             width: ck.preferred-width;
             border-radius: Theme.r;
@@ -1379,7 +1434,7 @@ export component TaskbarWindow inherits Window {
                     font-size: 12.5px;
                     color: Theme.text;
                 }
-                Text {
+                if root.show-date: Text {
                     text: root.date;
                     horizontal-alignment: right;
                     font-size: 11px;

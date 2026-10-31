@@ -135,6 +135,45 @@ pub fn set_backdrop(hwnd: isize, kind: u32) {
     }
 }
 
+/// Rozmycie tego, co pod oknem (akryl), niezależnie od ramki i fokusu – `SetWindowCompositionAttribute`
+/// z user32 (nieopisane w dokumentacji, ale używane przez pasek i menu Windows). Tło systemowe
+/// (DWMWA_SYSTEMBACKDROP_TYPE) na oknach bez ramki i bez fokusu nie działa – stąd ta droga.
+/// Okno rysuje półprzezroczyste tło; kolor przyciemnienia daje okno, akcent ma tylko minimalny odcień.
+pub fn blur_behind(hwnd: isize, on: bool) {
+    use windows::core::s;
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::LibraryLoader::{GetProcAddress, GetModuleHandleW};
+    #[repr(C)]
+    struct Accent {
+        state: u32,
+        flags: u32,
+        gradient: u32,
+        animation: u32,
+    }
+    #[repr(C)]
+    struct Data {
+        attrib: u32,
+        data: *mut core::ffi::c_void,
+        size: usize,
+    }
+    type SetWca = unsafe extern "system" fn(HWND, *mut Data) -> i32;
+    if hwnd == 0 {
+        return;
+    }
+    unsafe {
+        let Ok(user) = GetModuleHandleW(windows::core::w!("user32.dll")) else { return };
+        let Some(f) = GetProcAddress(user, s!("SetWindowCompositionAttribute")) else { return };
+        let f: SetWca = std::mem::transmute(f);
+        // ACCENT_ENABLE_ACRYLICBLURBEHIND = 4, ACCENT_DISABLED = 0; gradient 0xAABBGGRR – prawie
+        // przezroczysty, bo przyciemnienie rysuje samo okno (krycie okienek z ustawień).
+        // Flaga 2 – rozmycie na całym oknie (także pod zaokrąglonymi rogami DWM).
+        let mut a = Accent { state: if on { 4 } else { 0 }, flags: 2, gradient: 0x0100_0000, animation: 0 };
+        // WCA_ACCENT_POLICY = 19.
+        let mut d = Data { attrib: 19, data: &mut a as *mut Accent as *mut _, size: std::mem::size_of::<Accent>() };
+        f(HWND(hwnd as *mut _), &mut d);
+    }
+}
+
 /// Okno z przezroczystym tłem: DWM łączy kanał alfa okna z tym, co pod spodem (bez rozmycia).
 pub fn see_through(hwnd: isize) {
     use windows::Win32::Foundation::HWND;

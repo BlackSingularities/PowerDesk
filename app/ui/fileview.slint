@@ -183,6 +183,40 @@ export component FileView inherits Rectangle {
         }
     }
 
+    // Płynne przewijanie kółkiem: cel przesuwa się o ruch kółka, a widok dochodzi do niego
+    // w kilku klatkach (jak w przeglądarce) zamiast skakać o cały ząbek.
+    property <bool> smooth-on;
+    property <length> smooth-to;
+    /// Ostatnio ustawione przez nas położenie – inna wartość znaczy, że ktoś przewinął inaczej
+    /// (pasek przewijania, klawiatura), i wtedy animacja się kończy.
+    property <length> smooth-at;
+    function smooth-wheel(dy: length) {
+        if (!root.smooth-on || abs(sv.content-y - root.smooth-at) > 1px) {
+            root.smooth-to = sv.content-y;
+        }
+        root.smooth-to = clamp(root.smooth-to + dy * 1.25, min(0, sv.visible-height - sv.content-height), 0);
+        root.smooth-at = sv.content-y;
+        root.smooth-on = true;
+    }
+    Timer {
+        interval: 8ms;
+        running: root.smooth-on;
+        triggered => {
+            if (abs(sv.content-y - root.smooth-at) > 1px) {
+                root.smooth-on = false;
+                return;
+            }
+            let d = root.smooth-to - sv.content-y;
+            if (abs(d) < 1px) {
+                sv.content-y = root.smooth-to;
+                root.smooth-on = false;
+            } else {
+                sv.content-y = sv.content-y + d * 0.22;
+            }
+            root.smooth-at = sv.content-y;
+        }
+    }
+
     Timer {
         interval: 30ms;
         running: root.mq-on && root.mq-edge != 0;
@@ -384,6 +418,10 @@ export component FileView inherits Rectangle {
                         root.zoom(e.delta-y > 0 ? 1 : -1);
                         return accept;
                     }
+                    if (e.delta-y != 0 && e.delta-x == 0) {
+                        root.smooth-wheel(e.delta-y);
+                        return accept;
+                    }
                     reject
                 }
             }
@@ -481,6 +519,18 @@ export component FileView inherits Rectangle {
                     drop: it.dir ? it.path : root.folder;
                     // Przeciąganie zaczyna się po 6 px ruchu z wciśniętym przyciskiem (nie przy ramce i zmianie nazwy).
                     property <bool> dragged;
+                    // Kółko nad plikiem – to samo płynne przewijanie co nad tłem (i Ctrl – wielkość).
+                    scroll-event(e) => {
+                        if (e.modifiers.control) {
+                            root.zoom(e.delta-y > 0 ? 1 : -1);
+                            return accept;
+                        }
+                        if (e.delta-y != 0 && e.delta-x == 0) {
+                            root.smooth-wheel(e.delta-y);
+                            return accept;
+                        }
+                        reject
+                    }
                     moved => {
                         root.mq-move(it.x + self.mouse-x, it.y + self.mouse-y);
                         if (self.pressed && !root.mq-on && !self.dragged && !it.renaming && abs(self.mouse-x - self.pressed-x) + abs(self.mouse-y - self.pressed-y) > 6px) {

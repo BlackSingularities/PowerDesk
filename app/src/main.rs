@@ -908,6 +908,12 @@ fn tab_mut<R>(s: &Shared, f: impl FnOnce(&mut Tab) -> R) -> R {
     f(&mut b.tabs[a])
 }
 
+/// „Ten komputer” z pulpitu i Startu – karta Komputer w oknie na wierzchu.
+pub fn open_computer(s: &Shared) {
+    new_tab_at(s, crate::model::HOME, true);
+    show_window(s);
+}
+
 /// Nowa karta (Ctrl+T, „+”) – „Komputer”, jak nowe okno Eksploratora.
 fn new_tab(s: &Shared) {
     new_tab_at(s, crate::model::HOME, true);

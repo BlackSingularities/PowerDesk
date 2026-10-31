@@ -38,7 +38,15 @@ thread_local! {
     static FOLDER: std::cell::Cell<Option<(usize, usize)>> = const { std::cell::Cell::new(None) };
     /// Ułożone kafelki i nagłówki z ostatniego rysowania – do kliknięć i upuszczania.
     static PLACED: RefCell<(Vec<Placed>, Vec<Head>)> = const { RefCell::new((Vec::new(), Vec::new())) };
+    /// Otwarte jako samo wyszukiwanie (Win+S) – inaczej pełny Start.
+    static SEARCH: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Ostatnie zamknięcie: tryb i chwila. Klik w przycisk Start najpierw zabiera fokus
+    /// (Start się zamyka), a dopiero potem dociera do paska – bez tego Start otwierałby się od nowa.
+    static CLOSED: std::cell::Cell<Option<(bool, std::time::Instant)>> = const { std::cell::Cell::new(None) };
 }
+
+/// Rozmiar okna samego wyszukiwania (Win+S).
+const SEARCH_SIZE: (f32, f32) = (520.0, 600.0);
 
 /// Lista aplikacji w tle (folder „Aplikacje” bywa wolny przy pierwszym czytaniu).
 pub fn preload() {
@@ -57,16 +65,26 @@ pub fn is_open() -> bool {
 }
 
 /// Otwiera nad paskiem: lewy dolny róg w (x, bottom) – piksele ekranu, `light`/`accent` z paska.
-pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color, alpha: f32) {
+/// `search` – samo wyszukiwanie (Win+S). Otwarty Start w tym samym trybie się zamyka, w innym –
+/// przełącza (Start → Win+S zamyka Start i otwiera wyszukiwanie, i odwrotnie).
+pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color, alpha: f32, search: bool) {
     if is_open() {
+        let same = SEARCH.with(|m| m.get()) == search;
         close();
+        if same {
+            return;
+        }
+    } else if CLOSED.with(|c| c.get()).is_some_and(|(m, at)| m == search && at.elapsed() < Duration::from_millis(300)) {
+        // Klik w ten sam przycisk, który właśnie zamknął Start utratą fokusu.
         return;
     }
+    SEARCH.with(|m| m.set(search));
     let Ok(w) = StartWindow::new() else { return };
     let _ = (light, accent, alpha);
     crate::settings::popup_theme(&w.global::<Theme>());
     w.set_user(std::env::var("USERNAME").unwrap_or_default().into());
-    let (lw, lh) = size();
+    w.set_search_only(search);
+    let (lw, lh) = if search { SEARCH_SIZE } else { size() };
     let (pw, ph) = ((lw * scale) as i32, (lh * scale) as i32);
     w.window().set_position(PhysicalPosition::new(x, bottom - ph));
     w.window().set_size(PhysicalSize::new(pw as u32, ph as u32));
@@ -225,8 +243,11 @@ fn resize_move() {
     let width = if edge == 0 { w0 } else { (w0 + x - cx).max(minw) };
     let height = if edge == 1 { h0 } else { (h0 + cy - y).max(minh) };
     let left = win.position().x;
+    // Jednym ruchem (położenie i rozmiar razem) – dół zostaje przyklejony do paska, a okno rośnie
+    // w górę bez przeskoku. Slint dostaje nowy rozmiar z WM_SIZE i rysuje całość od razu.
+    powerdesk_core::taskwin::set_rect(crate::window_hwnd(win), left, bottom - height, width, height);
     win.set_size(PhysicalSize::new(width as u32, height as u32));
-    win.set_position(PhysicalPosition::new(left, bottom - height));
+    win.request_redraw();
 }
 
 fn has_focus() -> bool {
@@ -237,7 +258,9 @@ pub fn close() {
     SHOW_HIDDEN.with(|h| h.set(false));
     FOLDER.with(|f| f.set(None));
     if let Some(s) = START.with(|s| s.borrow_mut().take()) {
+        CLOSED.with(|c| c.set(Some((SEARCH.with(|m| m.get()), std::time::Instant::now()))));
         let _ = s.w.hide();
+        crate::taskbar::start_state();
     }
 }
 
@@ -731,6 +754,13 @@ fn rail(i: i32, x: f32, y: f32) {
         }
         3 => {
             let _ = open::that_detached("ms-settings:");
+            slint::Timer::single_shot(Duration::ZERO, close);
+        }
+        5 => {
+            crate::with_state(|s| {
+                crate::open_computer(s);
+                crate::show_window(s);
+            });
             slint::Timer::single_shot(Duration::ZERO, close);
         }
         _ => show_menu(power_items(), x, y),

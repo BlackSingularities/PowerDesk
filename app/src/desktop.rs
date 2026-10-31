@@ -17,9 +17,18 @@ use slint::{Color, ComponentHandle, ModelRc, PhysicalPosition, PhysicalSize, Rgb
 use crate::menus::{self, it, sep, Item};
 use crate::{fmt, transfers, DeskIcon, DesktopWindow, Shared, Theme, WidgetItem};
 
-const CELL_W: f32 = 84.0;
-const CELL_H: f32 = 96.0;
 const MARGIN: f32 = 8.0;
+/// „Ten komputer” na pulpicie – wirtualna ikona (otwiera widok Komputer PowerDesk).
+pub const COMPUTER: &str = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
+
+/// Pole siatki i rozmiar ikony (piksele logiczne) dla rozmiaru z ustawień: małe, średnie, duże.
+fn dims(size: u8) -> (f32, f32, f32) {
+    match size {
+        0 => (76.0, 80.0, 32.0),
+        2 => (104.0, 120.0, 64.0),
+        _ => (84.0, 96.0, 48.0),
+    }
+}
 
 #[derive(Default)]
 struct Desk {
@@ -34,6 +43,12 @@ struct Desk {
     items: Vec<Entry>,
     /// Miejsce każdej ikony w siatce (kolumna, wiersz) – w kolejności `items`.
     cells: Vec<(i32, i32)>,
+    /// Lewy górny róg każdej ikony w oknie (z siatki albo dowolny) – w kolejności `items`.
+    spots: Vec<(f32, f32)>,
+    /// Pole siatki (szerokość, wysokość) i ikona – z ustawień przy ostatnim rysowaniu.
+    cell: (f32, f32, f32),
+    /// Ikony ustawiane dowolnie (bez wyrównania do siatki).
+    free: bool,
     sel: HashSet<String>,
     /// Ostatnio kliknięta ikona – początek zakresu z Shift.
     anchor: Option<usize>,
@@ -151,7 +166,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffe
         d.windows = out;
         d.rects = rects;
         d.defaults = defaults;
-        d.items = items;
+        d.items = with_specials(items, s.borrow().prefs.desktop_computer);
     });
     render(s);
     render_widgets(s);
@@ -397,11 +412,23 @@ pub fn close() {
 // ---------- Siatka ----------
 
 /// Liczba wierszy i kolumn siatki na monitorze głównym.
-fn grid(w: &DesktopWindow) -> (i32, i32) {
+fn grid(w: &DesktopWindow, (cw, ch, _): (f32, f32, f32)) -> (i32, i32) {
     let size = w.window().size().to_logical(w.window().scale_factor());
-    let rows = (((size.height - 2.0 * MARGIN) / CELL_H).floor() as i32).max(1);
-    let cols = (((size.width - 2.0 * MARGIN) / CELL_W).floor() as i32).max(1);
+    let rows = (((size.height - 2.0 * MARGIN) / ch).floor() as i32).max(1);
+    let cols = (((size.width - 2.0 * MARGIN) / cw).floor() as i32).max(1);
     (rows, cols)
+}
+
+/// Elementy pulpitu z dysku i ikony wirtualne („Ten komputer”) na początku.
+fn with_specials(mut items: Vec<Entry>, computer: bool) -> Vec<Entry> {
+    if computer {
+        items.insert(0, Entry { name: "Ten komputer".into(), path: COMPUTER.into(), dir: true, size: 0, modified: 0, created: 0, ext: String::new(), hidden: false, system: true, readonly: true, link: false, cloud: false });
+    }
+    items
+}
+
+fn virtual_item(path: &str) -> bool {
+    path.starts_with("::")
 }
 
 fn key_of(path: &str) -> String {
@@ -441,20 +468,51 @@ fn label(e: &Entry) -> String {
 }
 
 fn render(s: &Shared) {
-    let saved = s.borrow().prefs.desktop_pos.clone();
+    let (saved, xy, size, free, computer) = {
+        let b = s.borrow();
+        let p = &b.prefs;
+        (p.desktop_pos.clone(), p.desktop_xy.clone(), p.desktop_icon_size, p.desktop_free, p.desktop_computer)
+    };
     D.with(|d| {
         let mut d = d.borrow_mut();
         let Some(w) = d.windows.first().map(|w| w.clone_strong()) else { return };
-        let (rows, cols) = grid(&w);
+        // „Ten komputer” włączany i wyłączany w ustawieniach – bez czytania pulpitu od nowa.
+        let has = d.items.first().is_some_and(|e| e.path == COMPUTER);
+        if has != computer {
+            let items: Vec<Entry> = std::mem::take(&mut d.items).into_iter().filter(|e| !virtual_item(&e.path)).collect();
+            d.items = with_specials(items, computer);
+        }
+        let cell = dims(size);
+        d.cell = cell;
+        d.free = free;
+        w.set_cell_w(cell.0);
+        w.set_cell_h(cell.1);
+        w.set_icon_size(cell.2);
+        let (rows, cols) = grid(&w, cell);
         d.cells = layout(&d.items, &saved, rows, cols);
-        let px = (48.0 * w.window().scale_factor()) as u32;
+        // Ułożenie dowolne: zapamiętane miejsce w pikselach, a bez niego – pole siatki.
+        let area = w.window().size().to_logical(w.window().scale_factor());
+        d.spots = d
+            .items
+            .iter()
+            .zip(d.cells.iter())
+            .map(|(e, &(c, r))| {
+                let grid_at = (MARGIN + c as f32 * cell.0, MARGIN + r as f32 * cell.1);
+                if !free {
+                    return grid_at;
+                }
+                xy.get(&key_of(&e.path)).map_or(grid_at, |&(x, y)| (x.clamp(0.0, (area.width - cell.0).max(0.0)), y.clamp(0.0, (area.height - cell.1).max(0.0))))
+            })
+            .collect();
+        let px = (cell.2 * w.window().scale_factor()) as u32;
         let icons: Vec<DeskIcon> = d
             .items
             .iter()
             .zip(d.cells.iter())
-            .map(|(e, &(col, row))| {
+            .zip(d.spots.iter())
+            .map(|((e, &(col, row)), &(x, y))| {
                 // Zdjęcia i filmy z miniaturą, reszta (skróty, dokumenty) – ikona systemowa.
-                let img = crate::thumbs::get(&e.path, px, !fmt::is_media(e));
+                let img = if virtual_item(&e.path) { None } else { crate::thumbs::get(&e.path, px, !fmt::is_media(e)) };
                 DeskIcon {
                     name: if d.renaming.as_deref() == Some(e.path.as_str()) { e.name.clone() } else { label(e) }.into(),
                     path: e.path.clone().into(),
@@ -463,6 +521,8 @@ fn render(s: &Shared) {
                     dir: e.dir,
                     col,
                     row,
+                    x,
+                    y,
                     sel: d.sel.contains(&e.path),
                     renaming: d.renaming.as_deref() == Some(e.path.as_str()),
                 }
@@ -487,8 +547,9 @@ fn refresh() {
             D.with(|d| {
                 let mut d = d.borrow_mut();
                 let have: HashSet<String> = items.iter().map(|e| e.path.clone()).collect();
-                d.sel.retain(|p| have.contains(p));
-                d.items = items;
+                d.sel.retain(|p| have.contains(p) || virtual_item(p));
+                let computer = d.items.first().is_some_and(|e| e.path == COMPUTER);
+                d.items = with_specials(items, computer);
             });
             crate::with_state(render);
         });
@@ -504,8 +565,9 @@ fn refresh_soon() {
 
 // ---------- Zaznaczanie i przesuwanie ----------
 
+/// Zaznaczone pliki i foldery (bez ikon wirtualnych – tych nie kopiujemy ani nie usuwamy).
 fn selected(d: &Desk) -> Vec<String> {
-    d.items.iter().filter(|e| d.sel.contains(&e.path)).map(|e| e.path.clone()).collect()
+    d.items.iter().filter(|e| d.sel.contains(&e.path) && !virtual_item(&e.path)).map(|e| e.path.clone()).collect()
 }
 
 fn select(s: &Shared, i: i32, ctrl: bool, shift: bool) {
@@ -558,9 +620,9 @@ fn band(s: &Shared, (x, y, w, h): (f32, f32, f32, f32), ctrl: bool) {
         if !ctrl {
             d.sel.clear();
         }
-        for (e, &(c, r)) in d.items.iter().zip(d.cells.iter()) {
-            let (ix, iy) = (MARGIN + c as f32 * CELL_W, MARGIN + r as f32 * CELL_H);
-            if ix < x + w && ix + CELL_W > x && iy < y + h && iy + CELL_H > y {
+        let (cw, ch, _) = d.cell;
+        for (e, &(ix, iy)) in d.items.iter().zip(d.spots.iter()) {
+            if ix < x + w && ix + cw > x && iy < y + h && iy + ch > y {
                 d.sel.insert(e.path.clone());
             }
         }
@@ -571,14 +633,19 @@ fn band(s: &Shared, (x, y, w, h): (f32, f32, f32, f32), ctrl: bool) {
 /// Upuszczenie przeciąganych ikon: przesunięcie o tyle pól, ile wyszło z ruchu myszy.
 /// Zajęte pole – najbliższe wolne dalej w kolejności kolumn. Nowe miejsca trafiają do prefs.
 fn dropped(s: &Shared, dx: f32, dy: f32) {
-    let (dc, dr) = ((dx / CELL_W).round() as i32, (dy / CELL_H).round() as i32);
+    if D.with(|d| d.borrow().free) {
+        dropped_free(s, dx, dy);
+        return;
+    }
+    let cell = D.with(|d| d.borrow().cell);
+    let (dc, dr) = ((dx / cell.0).round() as i32, (dy / cell.1).round() as i32);
     if dc == 0 && dr == 0 {
         return;
     }
     let moved: Vec<(String, (i32, i32))> = D.with(|d| {
         let d = d.borrow();
         let Some(w) = d.windows.first() else { return Vec::new() };
-        let (rows, cols) = grid(w);
+        let (rows, cols) = grid(w, cell);
         let moving: Vec<usize> = (0..d.items.len()).filter(|&k| d.sel.contains(&d.items[k].path)).collect();
         let mut taken: HashSet<(i32, i32)> = (0..d.items.len()).filter(|k| !moving.contains(k)).map(|k| d.cells[k]).collect();
         let mut out = Vec::new();
@@ -605,14 +672,51 @@ fn dropped(s: &Shared, dx: f32, dy: f32) {
     render(s);
 }
 
+/// Upuszczenie bez siatki: ikony dokładnie tam, gdzie je puszczono (w granicach ekranu).
+fn dropped_free(s: &Shared, dx: f32, dy: f32) {
+    if dx.abs() < 2.0 && dy.abs() < 2.0 {
+        return;
+    }
+    let moved: Vec<(String, (f32, f32))> = D.with(|d| {
+        let d = d.borrow();
+        d.items.iter().zip(d.spots.iter()).filter(|(e, _)| d.sel.contains(&e.path)).map(|(e, &(x, y))| (key_of(&e.path), ((x + dx).max(0.0).round(), (y + dy).max(0.0).round()))).collect()
+    });
+    {
+        let mut b = s.borrow_mut();
+        for (k, at) in moved {
+            b.prefs.desktop_xy.insert(k, at);
+        }
+        b.prefs.save();
+    }
+    render(s);
+}
+
 /// „Uporządkuj ikony” – zapomina ręczne miejsca, wszystko kolumnami od lewego górnego rogu.
 fn arrange(s: &Shared) {
     {
         let mut b = s.borrow_mut();
         b.prefs.desktop_pos.clear();
+        b.prefs.desktop_xy.clear();
         b.prefs.save();
     }
     render(s);
+}
+
+/// Ustawienia pulpitu z menu: wyrównanie do siatki, rozmiar ikon, „Ten komputer”.
+fn set_desk(s: &Shared, f: impl FnOnce(&mut crate::model::Prefs)) {
+    {
+        let mut b = s.borrow_mut();
+        f(&mut b.prefs);
+        b.prefs.save();
+    }
+    render(s);
+}
+
+/// Pulpit po zmianie ustawień w oknie Ustawień.
+pub fn relayout() {
+    if is_open() {
+        crate::with_state(render);
+    }
 }
 
 // ---------- Polecenia ----------
@@ -624,7 +728,10 @@ fn open_item(s: &Shared, i: usize) {
 }
 
 fn open_path(s: &Shared, e: &Entry) {
-    if e.dir {
+    if e.path == COMPUTER {
+        crate::open_computer(s);
+        crate::show_window(s);
+    } else if e.dir {
         crate::open_args(s, vec![e.path.clone()]);
     } else {
         let _ = open::that_detached(&e.path);
@@ -645,7 +752,7 @@ fn start_rename(s: &Shared) {
     D.with(|d| {
         let mut d = d.borrow_mut();
         let sel = selected(&d);
-        if sel.len() == 1 {
+        if sel.len() == 1 && d.sel.len() == 1 {
             d.renaming = sel.into_iter().next();
         }
     });
@@ -667,8 +774,11 @@ fn rename_done(s: &Shared, i: usize, name: &str) {
                 let mut b = s.borrow_mut();
                 if let Some(c) = b.prefs.desktop_pos.remove(&key_of(&e.path)) {
                     b.prefs.desktop_pos.insert(key_of(&new), c);
-                    b.prefs.save();
                 }
+                if let Some(c) = b.prefs.desktop_xy.remove(&key_of(&e.path)) {
+                    b.prefs.desktop_xy.insert(key_of(&new), c);
+                }
+                b.prefs.save();
                 drop(b);
                 D.with(|d| {
                     let mut d = d.borrow_mut();
@@ -687,13 +797,17 @@ fn new_item(s: &Shared, folder: bool, at: (f32, f32)) {
     let name = if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" };
     match ops::create(&desktop_dir(), name, folder) {
         Ok(path) => {
-            let cell = (((at.0 - MARGIN) / CELL_W).floor().max(0.0) as i32, ((at.1 - MARGIN) / CELL_H).floor().max(0.0) as i32);
-            let free = D.with(|d| !d.borrow().cells.contains(&cell));
-            if free {
-                let mut b = s.borrow_mut();
+            let (cw, ch, _) = D.with(|d| d.borrow().cell);
+            let cell = (((at.0 - MARGIN) / cw).floor().max(0.0) as i32, ((at.1 - MARGIN) / ch).floor().max(0.0) as i32);
+            let empty = D.with(|d| !d.borrow().cells.contains(&cell));
+            let mut b = s.borrow_mut();
+            if empty {
                 b.prefs.desktop_pos.insert(key_of(&path), cell);
-                b.prefs.save();
             }
+            // Bez siatki – dokładnie w miejscu kliknięcia.
+            b.prefs.desktop_xy.insert(key_of(&path), ((at.0 - cw / 2.0).max(0.0), (at.1 - 24.0).max(0.0)));
+            b.prefs.save();
+            drop(b);
             D.with(|d| {
                 let mut d = d.borrow_mut();
                 d.sel.clear();
@@ -777,8 +891,12 @@ fn menu_chosen(s: &Shared, i: usize) {
 }
 
 /// Menu pustego miejsca na monitorze `win` (0 – główny).
-fn background_menu(_s: &Shared, win: usize, x: f32, y: f32) {
+fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
     let at = (x, y);
+    let (free, size, computer) = {
+        let b = s.borrow();
+        (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer)
+    };
     let can_paste = clip::has_files();
     let mut v = vec![
         it("Nowy folder", "folderPlus", move |s| new_item(s, true, at)),
@@ -790,6 +908,18 @@ fn background_menu(_s: &Shared, win: usize, x: f32, y: f32) {
     }
     v.extend([
         it("Odśwież", "refresh", |_| refresh()).kbd("F5"),
+        menus::sub(
+            "Widok",
+            "grid",
+            vec![
+                it("Duże ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 2)).checked(size == 2),
+                it("Średnie ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 1)).checked(size == 1),
+                it("Małe ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 0)).checked(size == 0),
+                sep(),
+                it("Wyrównaj ikony do siatki", "grid", |s| set_desk(s, |p| p.desktop_free = !p.desktop_free)).checked(!free),
+                it("Pokaż „Ten komputer”", "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),
+            ],
+        ),
         it("Uporządkuj ikony", "grid", arrange),
         menus::sub(
             "Dodaj widżet",
@@ -834,6 +964,25 @@ fn icon_menu(_s: &Shared, x: f32, y: f32) {
         let d = d.borrow();
         d.items.iter().filter(|e| d.sel.contains(&e.path)).cloned().collect()
     });
+    if sel.is_empty() {
+        return;
+    }
+    if sel.len() == 1 && sel[0].path == COMPUTER {
+        let v = vec![
+            it("Otwórz", "open", open_selected).kbd("Enter"),
+            sep(),
+            it("Informacje o systemie", "pc", |_| {
+                let _ = open::that_detached("ms-settings:about");
+            }),
+            it("Zarządzanie komputerem", "settings", |_| {
+                let _ = std::process::Command::new("mmc.exe").arg("compmgmt.msc").spawn();
+            }),
+            it("Ukryj na pulpicie", "eye", |s| set_desk(s, |p| p.desktop_computer = false)),
+        ];
+        show_menu(0, v, x, y);
+        return;
+    }
+    let sel: Vec<Entry> = sel.into_iter().filter(|e| !virtual_item(&e.path)).collect();
     if sel.is_empty() {
         return;
     }
