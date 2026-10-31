@@ -152,7 +152,9 @@ fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
         a.push('\\');
     }
     let p = Path::new(&a);
-    if p.is_dir() {
+    // Folder albo archiwum (ZIP, 7z, RAR) – archiwum otwiera się jak folder, od środka.
+    let archive = p.is_file() && p.extension().is_some_and(|x| ["zip", "7z", "rar"].iter().any(|k| x.eq_ignore_ascii_case(k)));
+    if p.is_dir() || archive {
         return Some((p.to_string_lossy().to_string(), None));
     }
     let dir = p.parent().filter(|d| p.is_file() && d.is_dir())?;

@@ -2,6 +2,7 @@
 
 ## 1.1.1
 
+- Archiwa ZIP otwierane z innych programów (np. „Otwórz” po pobraniu w przeglądarce, dwuklik) przegląda PowerDesk jak folder; ZIP, 7z i RAR podane w wierszu poleceń też otwierają się od środka.
 - Pasek: przeciąganie zmienia kolejność także uruchomionych programów (nie tylko przypiętych).
 - Okno folderów: zmiana rozmiaru za każdą krawędź i róg (okno bez ramki dostało własne uchwyty), dowolny rozmiar od 360×240; okno „Otwórz”/„Zapisz jako” od 420×300.
 - Pulpit: przeciąganie ikon (jednej i kilku zaznaczonych) płynnie za kursorem – przesunięcie liczone od punktu chwycenia w oknie, nie od jadącej ikony (ikony skakały i lądowały nie tam).

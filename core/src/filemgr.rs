@@ -14,7 +14,9 @@ const MENU_VERB: &str = "PowerDesk.open";
 
 /// Klasy powłoki i parametr ścieżki w ich poleceniu (tło folderu podaje ścieżkę przez %V).
 const MENU_TARGETS: [(&str, &str); 3] = [("Directory", "%1"), ("Drive", "%1"), (r"Directory\Background", "%V")];
-const DEFAULT_TARGETS: [&str; 2] = ["Directory", "Drive"];
+/// `CompressedFolder` – archiwa ZIP (otwierane z przeglądarki po pobraniu, dwuklikiem itd.)
+/// przegląda PowerDesk jak folder, zamiast ukrytego w tle Eksploratora.
+const DEFAULT_TARGETS: [&str; 3] = ["Directory", "Drive", "CompressedFolder"];
 
 fn command(arg: &str) -> Result<String, String> {
     Ok(format!("\"{}\" \"{arg}\"", exe()?))
@@ -25,7 +27,7 @@ fn points_here(key: &str) -> bool {
     reg(&["query", key, "/ve"]).is_ok_and(|o| o.to_lowercase().contains(&exe.to_lowercase()))
 }
 
-/// Foldery i dyski otwierają się w PowerDesk.
+/// Foldery, dyski i archiwa ZIP otwierają się w PowerDesk.
 pub fn default_enabled() -> bool {
     DEFAULT_TARGETS.iter().all(|c| {
         let shell = format!(r"{CLASSES}\{c}\shell");

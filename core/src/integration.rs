@@ -10,7 +10,7 @@ pub const REMOVE_FLAG: &str = "--remove-integration";
 /// Stan poszczególnych elementów: nazwa, opis i czy działa.
 pub fn status() -> Vec<(&'static str, &'static str, bool)> {
     vec![
-        ("Foldery i dyski", "Dwuklik na Pulpicie, skróty i „Pokaż w folderze” w innych programach", filemgr::default_enabled()),
+        ("Foldery, dyski i ZIP", "Dwuklik na Pulpicie, skróty, „Pokaż w folderze” i pobrane archiwa ZIP w innych programach", filemgr::default_enabled()),
         ("Win+E", "Skrót klawiszowy otwiera nowe okno PowerDesk", winkey::enabled()),
         ("Menu Eksploratora", "„Otwórz w PowerDesk” dla folderów, dysków i tła folderu", filemgr::menu_enabled()),
         ("Okna „Otwórz” i „Zapisz jako”", file_dialogs_detail(), filedlg::enabled()),
