@@ -55,13 +55,13 @@ impl Action {
     }
     pub fn label(&self) -> String {
         match self {
-            Action::MkdirTarget(r) => format!("+ folder → {r}"),
-            Action::MkdirSource(r) => format!("+ folder ← {r}"),
+            Action::MkdirTarget(r) => crate::trf!("+ folder → {r}"),
+            Action::MkdirSource(r) => crate::trf!("+ folder ← {r}"),
             Action::CopyToTarget(r, _) => format!("→ {r}"),
             Action::CopyToSource(r, _) => format!("← {r}"),
-            Action::DeleteTarget(r) => format!("✕ cel: {r}"),
-            Action::DeleteSource(r) => format!("✕ źródło: {r}"),
-            Action::Conflict { rel, source_wins, .. } => format!("⚠ konflikt: {rel} (wygrywa {})", if *source_wins { "źródło" } else { "cel" }),
+            Action::DeleteTarget(r) => crate::trf!("✕ cel: {r}"),
+            Action::DeleteSource(r) => crate::trf!("✕ źródło: {r}"),
+            Action::Conflict { rel, source_wins, .. } => crate::trf!("⚠ konflikt: {rel} (wygrywa {})", if *source_wins { crate::lang::tr("źródło") } else { "cel" }),
         }
     }
 }
@@ -337,7 +337,7 @@ fn conflict_name(p: &Path, stamp: &str) -> PathBuf {
     let stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     let ext = p.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
     let host = std::env::var("COMPUTERNAME").unwrap_or_else(|_| "PC".into());
-    p.with_file_name(format!("{stem} (konflikt {host} {stamp}){ext}"))
+    p.with_file_name(crate::trf!("{stem} (konflikt {host} {stamp}){ext}"))
 }
 
 /// Stary plik w celu nie znika: trafia do .ofp-versions\<data>\… (gdy włączone wersjonowanie).

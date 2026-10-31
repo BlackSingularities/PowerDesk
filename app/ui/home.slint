@@ -385,7 +385,7 @@ component SectionHead inherits Rectangle {
     border-radius: Theme.r-s;
     background: sh-ta.has-hover ? Theme.hover : transparent;
     sh-ta := TipArea {
-        tip: root.sec.shut ? "Rozwiń sekcję" : "Zwiń sekcję";
+        tip: root.sec.shut ? @tr("Rozwiń sekcję") : @tr("Zwiń sekcję");
         clicked => {
             HomeState.toggle-section(root.sec.key);
         }
@@ -416,7 +416,7 @@ component SectionHead inherits Rectangle {
         HeadButton {
             y: (parent.height - self.height) / 2;
             icon: Icons.arrow-up;
-            tip: "Przesuń sekcję wyżej";
+            tip: @tr("Przesuń sekcję wyżej");
             enabled: !root.sec.first;
             clicked => {
                 HomeState.move-section(root.sec.key, -1);
@@ -425,7 +425,7 @@ component SectionHead inherits Rectangle {
         HeadButton {
             y: (parent.height - self.height) / 2;
             icon: Icons.arrow-down;
-            tip: "Przesuń sekcję niżej";
+            tip: @tr("Przesuń sekcję niżej");
             enabled: !root.sec.last;
             clicked => {
                 HomeState.move-section(root.sec.key, 1);
@@ -488,7 +488,7 @@ export component HomeView inherits Rectangle {
                 spacing: 8px;
                 SectionHead {
                     sec: sec;
-                    note: sec.key == "changes" ? HomeState.changes-note : sec.key == "recent" ? "zmienione w ciągu 14 dni" : "";
+                    note: sec.key == "changes" ? HomeState.changes-note : sec.key == "recent" ? @tr("zmienione w ciągu 14 dni") : "";
                 }
             // Pamięć, system i foldery – obok siebie na szerokim oknie.
             // Szeroko: Komputer, Dyski i Twoje foldery obok siebie, równe kolumny; wąsko – jedna pod drugą.
@@ -498,7 +498,7 @@ export component HomeView inherits Rectangle {
                     row: 0;
                     col: 0;
                     width: root.col-w;
-                    title: "Komputer";
+                    title: @tr("Komputer");
                     note: HomeState.host;
                     // Kafelki w rzędach (pozycje liczone wprost – ukryte elementy w układzie dokładałyby odstępy).
                     Rectangle {
@@ -521,7 +521,7 @@ export component HomeView inherits Rectangle {
                         row: root.wide ? 0 : 1;
                         col: root.wide ? 1 : 0;
                         width: root.col-w;
-                        title: "Dyski";
+                        title: @tr("Dyski");
                         note: HomeState.storage;
                         for d in HomeState.drives: LinkRow {
                             icon: d.icon;
@@ -530,7 +530,7 @@ export component HomeView inherits Rectangle {
                             bar: d.usage;
                             img: d.img;
                             has-img: d.has-img;
-                            tip: d.path + " – kliknij, aby otworzyć";
+                            tip: d.path + @tr(" – kliknij, aby otworzyć");
                             clicked => {
                                 HomeState.go(d.path);
                             }
@@ -545,13 +545,13 @@ export component HomeView inherits Rectangle {
                             spacing: 6px;
                             alignment: start;
                             if HomeState.drives.length > 0: Chip {
-                                text: "Co zajmuje miejsce?";
+                                text: @tr("Co zajmuje miejsce?");
                                 clicked => {
                                     HomeState.go("ofp:space|" + HomeState.drives[0].path);
                                 }
                             }
                             Chip {
-                                text: "Mapuj dysk sieciowy…";
+                                text: @tr("Mapuj dysk sieciowy…");
                                 clicked => {
                                     HomeState.tool("map");
                                 }
@@ -562,11 +562,11 @@ export component HomeView inherits Rectangle {
                         row: root.wide ? 0 : 2;
                         col: root.wide ? 2 : 0;
                         width: root.col-w;
-                        title: "Twoje foldery";
+                        title: @tr("Twoje foldery");
                         for f in HomeState.folders: LinkRow {
                             icon: f.icon;
                             text: f.name;
-                            value: f.ratio < 0 ? "liczę…" : f.size;
+                            value: f.ratio < 0 ? @tr("liczę…") : f.size;
                             bar: max(f.ratio, 0);
                             plain: true;
                             img: f.img;
@@ -585,7 +585,7 @@ export component HomeView inherits Rectangle {
             // Przypięte foldery (te same co w panelu bocznym).
             if !sec.shut && sec.key == "favorites": Card {
                 if HomeState.favorites.length == 0: Label {
-                    text: "Przypnij folder z menu albo przeciągnij go na „Przypięte” w panelu bocznym";
+                    text: @tr("Przypnij folder z menu albo przeciągnij go na „Przypięte” w panelu bocznym");
                     font-size: 12px;
                     color: Theme.faint;
                     wrap: word-wrap;
@@ -609,7 +609,7 @@ export component HomeView inherits Rectangle {
             // Transfery w toku i synchronizacje.
             if !sec.shut && sec.key == "activity": Card {
                 if HomeState.activities.length == 0: Label {
-                    text: "Nic się teraz nie dzieje";
+                    text: @tr("Nic się teraz nie dzieje");
                     font-size: 12px;
                     color: Theme.faint;
                 }
@@ -618,7 +618,7 @@ export component HomeView inherits Rectangle {
                     text: a.title;
                     value: a.detail;
                     bar: a.progress;
-                    tip: a.path != "" ? a.title + " – kliknij, aby otworzyć" : a.title;
+                    tip: a.path != "" ? a.title + @tr(" – kliknij, aby otworzyć") : a.title;
                     clicked => {
                         if (a.path != "") {
                             HomeState.go(a.path);
@@ -630,7 +630,7 @@ export component HomeView inherits Rectangle {
             // Wykres: ile plików zmieniło się w kolejnych dniach.
             if !sec.shut && sec.key == "changes": Card {
                 if HomeState.days.length == 0: Label {
-                    text: "Liczę…";
+                    text: @tr("Liczę…");
                     font-size: 12px;
                     color: Theme.faint;
                 }
@@ -649,7 +649,7 @@ export component HomeView inherits Rectangle {
                                 background: d.today ? Theme.accent : Theme.accent.with-alpha(day-ta.has-hover ? 0.75 : 0.45);
                             }
                             day-ta := TipArea {
-                                tip: d.label + ": " + d.count + (d.count == 1 ? " plik" : Math.mod(d.count, 10) >= 2 && Math.mod(d.count, 10) <= 4 && (Math.mod(d.count, 100) < 12 || Math.mod(d.count, 100) > 14) ? " pliki" : " plików");
+                                tip: d.label + ": " + d.count + (d.count == 1 ? " plik" : Math.mod(d.count, 10) >= 2 && Math.mod(d.count, 10) <= 4 && (Math.mod(d.count, 100) < 12 || Math.mod(d.count, 100) > 14) ? " pliki" : @tr(" plików"));
                             }
                         }
                         Label {
@@ -685,7 +685,7 @@ export component HomeView inherits Rectangle {
                 HorizontalLayout {
                     spacing: 6px;
                     alignment: start;
-                    for k[i] in ["Wszystkie", "Zdjęcia", "Dokumenty", "Wideo"]: Chip {
+                    for k[i] in [@tr("Wszystkie"), @tr("Zdjęcia"), @tr("Dokumenty"), @tr("Wideo")]: Chip {
                         text: k;
                         on: HomeState.kind == i;
                         clicked => {
@@ -706,7 +706,7 @@ export component HomeView inherits Rectangle {
                             color: Theme.dim;
                         }
                         rf-ta := TipArea {
-                            tip: "Odśwież ostatnie pliki";
+                            tip: @tr("Odśwież ostatnie pliki");
                             clicked => {
                                 HomeState.refresh-files();
                             }
@@ -714,7 +714,7 @@ export component HomeView inherits Rectangle {
                     }
                 }
                 if HomeState.files.length == 0: Label {
-                    text: HomeState.files-loading ? "Wczytywanie…" : "Brak plików zmienionych w ostatnich dwóch tygodniach";
+                    text: HomeState.files-loading ? "Wczytywanie…" : @tr("Brak plików zmienionych w ostatnich dwóch tygodniach");
                     font-size: 12px;
                     color: Theme.faint;
                 }

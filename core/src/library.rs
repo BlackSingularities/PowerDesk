@@ -65,12 +65,12 @@ pub fn list() -> Vec<Library> {
 /// Biblioteki systemowe mają angielskie nazwy plików – pokazujemy polskie.
 fn localized(name: &str) -> String {
     match name {
-        "Documents" => "Dokumenty",
-        "Pictures" => "Obrazy",
-        "Music" => "Muzyka",
-        "Videos" => "Wideo",
-        "CameraRoll" | "Camera Roll" => "Z aparatu",
-        "SavedPictures" | "Saved Pictures" => "Zapisane obrazy",
+        "Documents" => crate::lang::tr("Dokumenty"),
+        "Pictures" => crate::lang::tr("Obrazy"),
+        "Music" => crate::lang::tr("Muzyka"),
+        "Videos" => crate::lang::tr("Wideo"),
+        "CameraRoll" | "Camera Roll" => crate::lang::tr("Z aparatu"),
+        "SavedPictures" | "Saved Pictures" => crate::lang::tr("Zapisane obrazy"),
         n => n,
     }
     .to_string()
@@ -84,7 +84,7 @@ pub fn create(name: &str, folder: Option<&str>) -> Result<String, String> {
             lib.AddFolder(&item(f)?).map_err(|e| e.message().to_string())?;
         }
         let saved: IShellItem = lib.SaveInKnownFolder(&FOLDERID_UsersLibraries, &HSTRING::from(name), LSF_MAKEUNIQUENAME).map_err(|e| e.message().to_string())?;
-        fs_path(&saved).ok_or_else(|| "Nie udało się zapisać biblioteki".into())
+        fs_path(&saved).ok_or_else(|| crate::lang::tr("Nie udało się zapisać biblioteki").into())
     }
 }
 

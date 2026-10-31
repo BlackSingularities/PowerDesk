@@ -67,6 +67,18 @@ use slint::{ComponentHandle, Model, ModelRc, SharedString, VecModel, Weak};
 
 slint::include_modules!();
 
+pub use powerdesk_core::lang::tr;
+
+/// Język interfejsu z ustawień (pusty – jak Windows): teksty z Rusta i @tr w plikach .slint.
+/// Raz na proces, po utworzeniu pierwszego okna i przed budową treści.
+pub fn apply_language(pref: &str) {
+    let code = powerdesk_core::lang::init(pref);
+    let slint_code = if code == powerdesk_core::lang::SOURCE { "" } else { code.as_str() };
+    if let Err(e) = slint::select_bundled_translation(slint_code) {
+        powerdesk_core::log::info(&format!("język {code}: {e}"));
+    }
+}
+
 pub struct State {
     tabs: Vec<Tab>,
     active: usize,
@@ -226,7 +238,7 @@ pub fn ensure_integration() {
             with_state(|s| {
                 if let Err(e) = res {
                     powerdesk_core::log::error(format!("integracja: {e}"));
-                    transfers::toast(s, format!("Nie udało się zastąpić Eksploratora: {e}"), transfers::Kind::Error, None);
+                    transfers::toast(s, powerdesk_core::trf!("Nie udało się zastąpić Eksploratora: {e}"), transfers::Kind::Error, None);
                 }
                 settings::render_system(s);
             })
@@ -375,10 +387,10 @@ fn main() -> Result<(), slint::PlatformError> {
     // Eksplorator zostaje w tle (Ustawienia, aplikacje UWP, powiadomienia) – PowerDesk chowa jego
     // pasek i pulpit. Bez niego (nie daje się uruchomić) PowerDesk jest powłoką. Przed `Shell_TrayWnd`.
     let shell = powerdesk_core::shellmode::ensure_explorer();
-    powerdesk_core::log::info(format!(
+    powerdesk_core::log::info(powerdesk_core::trf!(
         "start {} · {} · {}",
         powerdesk_core::update::current(),
-        if shell { "powłoka" } else { "z Eksploratorem" },
+        if shell { crate::tr("powłoka") } else { crate::tr("z Eksploratorem") },
         std::env::current_exe().map(|p| p.display().to_string()).unwrap_or_default()
     ));
     let ui = MainWindow::new()?;
@@ -387,6 +399,7 @@ fn main() -> Result<(), slint::PlatformError> {
     if migrate::from_openfilepower(&mut prefs) {
         prefs.save();
     }
+    apply_language(&prefs.language);
     std::thread::spawn(|| powerdesk_core::install::refresh_entry(powerdesk_core::update::current()));
     settings::apply_look(&ui, &prefs);
 
@@ -567,7 +580,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
         slint::winit_030::EventResult::Propagate
     });
     ui.set_hints(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(h.0)).collect::<Vec<_>>())));
-    ui.set_hint_tips(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(h.1)).collect::<Vec<_>>())));
+    ui.set_hint_tips(ModelRc::new(VecModel::from(query::HINTS.iter().map(|h| SharedString::from(crate::tr(h.1))).collect::<Vec<_>>())));
     ui.on_drag({
         let w = ui.as_weak();
         move || {
@@ -1828,7 +1841,7 @@ fn save_search(s: &Shared) {
         b.prefs.save();
         name
     };
-    transfers::toast(s, format!("Zapisano „{name}” w panelu bocznym"), transfers::Kind::Ok, None);
+    transfers::toast(s, powerdesk_core::trf!("Zapisano „{name}” w panelu bocznym"), transfers::Kind::Ok, None);
     render_chrome(s);
 }
 
@@ -1849,9 +1862,9 @@ pub fn rename_saved(s: &Shared, id: &str) {
     let id = id.to_string();
     transfers::prompt(
         s,
-        "Zmień nazwę wyszukiwania",
+        crate::tr("Zmień nazwę wyszukiwania"),
         &name,
-        "Zmień",
+        crate::tr("Zmień"),
         Rc::new(move |s: &Shared, n: &str| {
             {
                 let mut b = s.borrow_mut();
@@ -1898,9 +1911,9 @@ fn empty_text(t: &Tab) -> String {
     }
     match &t.search {
         Some(x) if x.running => "Szukam…".into(),
-        Some(_) => "Nic nie znaleziono".into(),
-        None if !t.filter.is_empty() || t.kind_filter != KindFilter::All => "Brak elementów pasujących do filtra".into(),
-        None => "Ten folder jest pusty".into(),
+        Some(_) => crate::tr("Nic nie znaleziono").into(),
+        None if !t.filter.is_empty() || t.kind_filter != KindFilter::All => crate::tr("Brak elementów pasujących do filtra").into(),
+        None => crate::tr("Ten folder jest pusty").into(),
     }
 }
 
@@ -1945,7 +1958,7 @@ fn render_chrome(s: &Shared) {
     ui.set_facets_chosen(t.facets.len() as i32 + (t.kind_filter != KindFilter::All) as i32);
     ui.set_filter_summary(filter_summary(t, &flist).into());
     let filtered = !t.facets.is_empty() || t.kind_filter != KindFilter::All;
-    ui.set_facet_results(if filtered { format!("{} wyników", t.items.len()).into() } else { SharedString::new() });
+    ui.set_facet_results(if filtered { powerdesk_core::trf!("{} wyników", t.items.len()).into() } else { SharedString::new() });
     // Panel faset: do 620 px szerokości, minus wewnętrzne marginesy.
     let width = (ui.window().size().to_logical(ui.window().scale_factor()).width - 48.0).min(620.0) - 24.0;
     ui.set_facet_rows(ModelRc::new(VecModel::from(if shown { facet_rows(&kinds, t.kind_filter, &flist, &t.facets, width) } else { Vec::new() })));
@@ -2020,7 +2033,7 @@ fn render_status(s: &Shared) {
     let t = &b.tabs[b.active];
     let mut text = fmt::items(t.items.len());
     if let Some(x) = &t.search {
-        text = format!("{text} · przeszukano {}", x.scanned);
+        text = powerdesk_core::trf!("{text} · przeszukano {}", x.scanned);
         let chips = query::parse(&x.query).chips;
         if !chips.is_empty() {
             text = format!("{text} · {}", chips.join(" · "));
@@ -2029,7 +2042,7 @@ fn render_status(s: &Shared) {
     let sel: Vec<_> = t.items.iter().filter(|e| t.selected.contains(&e.path)).collect();
     if !sel.is_empty() {
         let bytes: u64 = sel.iter().filter(|e| !e.dir).map(|e| e.size).sum();
-        text = format!("{text} · zaznaczono {}", sel.len());
+        text = powerdesk_core::trf!("{text} · zaznaczono {}", sel.len());
         if bytes > 0 {
             text = format!("{text} ({})", fmt::size(bytes));
         }
@@ -2265,7 +2278,7 @@ fn facet_rows(kinds: &[(KindFilter, usize)], kind: KindFilter, list: &[facets::F
                 chip(format!("kind:{i}"), f.short(), *n, *f == kind, format!("{} ({n})", f.label()))
             })
             .collect();
-        groups.push(("Rodzaj".into(), v));
+        groups.push((crate::tr("Rodzaj").into(), v));
     }
     for f in list {
         let c = chip(f.id.clone(), &f.label, f.count, chosen.contains(&f.id), format!("{}: {} ({})", f.group, f.label, f.count));
@@ -2302,28 +2315,28 @@ fn tip(b: &State, t: &Tab, e: &fsx::Entry) -> String {
         if let Some(n) = b.dir_sizes.get(&e.path.to_lowercase()) {
             lines.push(format!("Rozmiar: {}", fmt::size(*n)));
         }
-        lines.push(format!("Data utworzenia: {}", fmt::date(e.created)));
+        lines.push(powerdesk_core::trf!("Data utworzenia: {}", fmt::date(e.created)));
     } else {
         if let Some(m) = b.media.get(&e.path) {
             if m.w > 0 {
-                lines.push(format!("Wymiary: {} × {}", m.w, m.h));
+                lines.push(powerdesk_core::trf!("Wymiary: {} × {}", m.w, m.h));
             }
             if m.dur > 0 {
-                lines.push(format!("Długość: {}", fmt::duration(m.dur)));
+                lines.push(powerdesk_core::trf!("Długość: {}", fmt::duration(m.dur)));
             }
             if m.taken > 0 && m.taken != e.modified {
-                lines.push(format!("Data wykonania: {}", fmt::date(m.taken)));
+                lines.push(powerdesk_core::trf!("Data wykonania: {}", fmt::date(m.taken)));
             }
         }
         lines.push(format!("Rozmiar: {}", fmt::size(e.size)));
-        lines.push(format!("Data modyfikacji: {}", fmt::date(e.modified)));
+        lines.push(powerdesk_core::trf!("Data modyfikacji: {}", fmt::date(e.modified)));
     }
-    let attrs: Vec<&str> = [(e.readonly, "tylko do odczytu"), (e.hidden, "ukryty")].iter().filter(|x| x.0).map(|x| x.1).collect();
+    let attrs: Vec<&str> = [(e.readonly, crate::tr("tylko do odczytu")), (e.hidden, "ukryty")].iter().filter(|x| x.0).map(|x| x.1).collect();
     if !attrs.is_empty() {
         lines.push(format!("Atrybuty: {}", attrs.join(", ")));
     }
     if e.cloud {
-        lines.push("Dostępny tylko w chmurze".into());
+        lines.push(crate::tr("Dostępny tylko w chmurze").into());
     }
     if t.search.is_some() {
         if let Some(p) = Path::new(&e.path).parent() {
@@ -2541,7 +2554,7 @@ fn select_path(s: &Shared, path: &str) {
 }
 
 pub fn create(s: &Shared, folder: bool) {
-    create_named(s, if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" }, folder);
+    create_named(s, if folder { crate::tr("Nowy folder") } else { crate::tr("Nowy dokument tekstowy.txt") }, folder);
 }
 
 thread_local! {
@@ -2564,7 +2577,7 @@ pub fn shellnew_types() -> Vec<powerdesk_core::shellnew::NewType> {
 pub fn create_typed(s: &Shared, t: &powerdesk_core::shellnew::NewType) {
     let dir = tab_mut(s, |t| t.path.clone());
     if dir.starts_with("ofp:") {
-        transfers::toast(s, "Tu nie można niczego utworzyć – otwórz zwykły folder", transfers::Kind::Info, None);
+        transfers::toast(s, crate::tr("Tu nie można niczego utworzyć – otwórz zwykły folder"), transfers::Kind::Info, None);
         return;
     }
     match powerdesk_core::shellnew::create(&dir, t) {
@@ -2589,7 +2602,7 @@ pub fn create_named(s: &Shared, name: &str, folder: bool) {
 fn make(s: &Shared, name: &str, folder: bool) -> Option<String> {
     let dir = tab_mut(s, |t| t.path.clone());
     if dir.starts_with("ofp:") {
-        transfers::toast(s, "Tu nie można niczego utworzyć – otwórz zwykły folder", transfers::Kind::Info, None);
+        transfers::toast(s, crate::tr("Tu nie można niczego utworzyć – otwórz zwykły folder"), transfers::Kind::Info, None);
         return None;
     }
     if archives::read_only_dest(s, &dir) {
@@ -2604,7 +2617,7 @@ pub fn create_with_selection(s: &Shared) {
     if sel.is_empty() {
         return;
     }
-    let Some(p) = make(s, &format!("Nowy folder ({} elem.)", sel.len()), true) else { return };
+    let Some(p) = make(s, &powerdesk_core::trf!("Nowy folder ({} elem.)", sel.len()), true) else { return };
     transfers::transfer(s, sel, &p, "move");
     load(s, true);
     select_path(s, &p);
@@ -3169,7 +3182,7 @@ fn crumbs(path: &str, drives: &[drives::Drive], title: &str) -> Vec<Crumb> {
                 let letter = root.trim_end_matches('\\').to_string();
                 let label = drives.iter().find(|d| same(&d.path, &root)).map(|d| d.label.clone()).unwrap_or_default();
                 if label.is_empty() {
-                    format!("Dysk ({letter})")
+                    powerdesk_core::trf!("Dysk ({letter})")
                 } else {
                     format!("{label} ({letter})")
                 }
@@ -3191,7 +3204,7 @@ pub fn render_side(s: &Shared) {
     // Zapisane wyszukiwania – nad szybkim dostępem, jak w Sidebar.svelte.
     let saved = b.prefs.saved_searches.iter().enumerate().map(|(i, v)| SideItem {
         tip: format!("{}\nw {}", v.query, v.root).into(),
-        section: if i == 0 { "Zapisane wyszukiwania".into() } else { SharedString::new() },
+        section: if i == 0 { crate::tr("Zapisane wyszukiwania").into() } else { SharedString::new() },
         name: v.name.clone().into(),
         icon: ic("search"),
         path: format!("{SAVED}{}", v.id).into(),
@@ -3242,7 +3255,7 @@ pub fn render_side(s: &Shared) {
             section = it.section.clone();
         }
         // Sekcja wyłączona w Ustawieniach – bez nagłówka i pozycji.
-        if b.prefs.side_hidden.iter().any(|x| x == section.as_str()) {
+        if b.prefs.side_hidden.iter().any(|x| powerdesk_core::lang::tr_owned(x) == section.as_str()) {
             continue;
         }
         if !it.section.is_empty() {
@@ -3335,7 +3348,7 @@ pub fn pin_folders(s: &Shared, paths: &[String]) {
     };
     if added > 0 {
         // Zwinięta sekcja zasłoniłaby nowo przypięte.
-        s.borrow_mut().prefs.side_shut.retain(|x| x != "Przypięte");
+        s.borrow_mut().prefs.side_shut.retain(|x| x != "Przypięte" && x != crate::tr("Przypięte"));
         render_side(s);
     }
 }
@@ -3402,7 +3415,7 @@ fn net_server(path: &str) -> bool {
 fn list_network(server: Option<&str>) -> Result<Vec<fsx::Entry>, String> {
     let names = drives::network(server)?;
     if names.is_empty() && server.is_none() {
-        return Err(r"Nie znaleziono komputerów w sieci. Wpisz w pasku adresu \\NAZWA komputera, żeby zobaczyć jego foldery udostępnione.".into());
+        return Err(crate::tr(r"Nie znaleziono komputerów w sieci. Wpisz w pasku adresu \\NAZWA komputera, żeby zobaczyć jego foldery udostępnione.").into());
     }
     Ok(names
         .into_iter()
@@ -3464,7 +3477,7 @@ fn side_extra(current: &str, favorites: &[String], px: u32) -> (Vec<SideItem>, V
     let mut first = true;
     for f in favorites {
         let name = Path::new(f).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| f.clone());
-        v.push(side_item(&mut first, "Przypięte", name, ic("pin"), f.clone(), current));
+        v.push(side_item(&mut first, crate::tr("Przypięte"), name, ic("pin"), f.clone(), current));
     }
     if !LIBS_ASKED.with(|x| x.replace(true)) {
         std::thread::spawn(|| {
@@ -3480,7 +3493,7 @@ fn side_extra(current: &str, favorites: &[String], px: u32) -> (Vec<SideItem>, V
         for lib in l.borrow().iter().flatten().filter(|l| !l.folders.is_empty()) {
             // Jeden folder – zwykły folder; kilka – karta z całą biblioteką.
             let path = if lib.folders.len() > 1 { format!("{LIB}{}", lib.path) } else { lib.folders[0].clone() };
-            let mut it = side_item(&mut first, "Biblioteki", lib.name.clone(), ic("archive"), path, current);
+            let mut it = side_item(&mut first, crate::tr("Biblioteki"), lib.name.clone(), ic("archive"), path, current);
             it.tip = format!("{}
 {}", lib.name, lib.folders.join("
 ")).into();
@@ -3502,13 +3515,13 @@ fn side_extra(current: &str, favorites: &[String], px: u32) -> (Vec<SideItem>, V
     let on_sync = current == syncview::TAB;
     for (p, st) in profiles.iter().zip(status.iter()) {
         let name = if p.name.is_empty() { p.source.clone() } else { p.name.clone() };
-        let mut it = side_item(&mut first, "Synchronizacja", name, ic("sync"), syncview::TAB.to_string(), "");
+        let mut it = side_item(&mut first, crate::tr("Synchronizacja"), name, ic("sync"), syncview::TAB.to_string(), "");
         it.active = on_sync;
         it.detail = match st.state.as_str() {
             "syncing" => format!("synchronizuję {:.0}%", st.progress * 100.0),
-            "scanning" => "porównuję…".into(),
-            "offline" => "cel odłączony".into(),
-            "error" => "błąd".into(),
+            "scanning" => crate::tr("porównuję…").into(),
+            "offline" => crate::tr("cel odłączony").into(),
+            "error" => crate::tr("błąd").into(),
             _ if !p.enabled => "wstrzymana".into(),
             _ => String::new(),
         }
@@ -3522,19 +3535,19 @@ fn side_extra(current: &str, favorites: &[String], px: u32) -> (Vec<SideItem>, V
 fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec<SideItem> {
     let mut v = Vec::new();
     let known: [(&str, Option<PathBuf>, &str); 6] = [
-        ("Pulpit", dirs::desktop_dir(), "desktop"),
-        ("Pobrane", dirs::download_dir(), "download"),
-        ("Dokumenty", dirs::document_dir(), "doc"),
-        ("Obrazy", dirs::picture_dir(), "image"),
-        ("Wideo", dirs::video_dir(), "video"),
-        ("Muzyka", dirs::audio_dir(), "music"),
+        (crate::tr("Pulpit"), dirs::desktop_dir(), "desktop"),
+        (crate::tr("Pobrane"), dirs::download_dir(), "download"),
+        (crate::tr("Dokumenty"), dirs::document_dir(), "doc"),
+        (crate::tr("Obrazy"), dirs::picture_dir(), "image"),
+        (crate::tr("Wideo"), dirs::video_dir(), "video"),
+        (crate::tr("Muzyka"), dirs::audio_dir(), "music"),
     ];
     let mut first = true;
     for (name, p, icon) in known {
         let Some(p) = p.filter(|p| p.is_dir()) else { continue };
         let p = p.to_string_lossy().to_string();
         v.push(SideItem {
-            section: if std::mem::take(&mut first) { "Szybki dostęp".into() } else { SharedString::new() },
+            section: if std::mem::take(&mut first) { crate::tr("Szybki dostęp").into() } else { SharedString::new() },
             name: name.into(),
             icon: ic(icon),
             active: same(&p, current),
@@ -3554,10 +3567,10 @@ fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec
     let mut order: Vec<&drives::Drive> = drives.iter().filter(|d| d.online).collect();
     order.sort_by_key(|d| d.kind == "network");
     for d in order {
-        let name = if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
+        let name = if d.label.is_empty() { powerdesk_core::trf!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
         let used = d.total.saturating_sub(d.free);
         let first = if d.kind == "network" { &mut first_net } else { &mut first_local };
-        let title = if d.kind == "network" { "Sieć" } else { "Dyski" };
+        let title = if d.kind == "network" { crate::tr("Sieć") } else { crate::tr("Dyski") };
         v.push(SideItem {
             section: if std::mem::take(first) { title.into() } else { SharedString::new() },
             name: name.into(),
@@ -3568,7 +3581,7 @@ fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec
             },
             active: same(&d.path, current),
             path: d.path.clone().into(),
-            detail: if d.total > 0 { format!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)).into() } else { SharedString::new() },
+            detail: if d.total > 0 { powerdesk_core::trf!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)).into() } else { SharedString::new() },
             usage: if d.total > 0 { used as f32 / d.total as f32 } else { 0.0 },
             img: Default::default(),
             has_img: false,
@@ -3582,15 +3595,15 @@ fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec
     // Telefony i aparaty (MTP) – bez litery dysku, otwiera je okno powłoki Windows.
     let mut first_dev = true;
     for (name, path) in PORTABLE.with(|p| p.borrow().clone()) {
-        let mut item = side_item(&mut first_dev, "Urządzenia", name, ic("usb"), format!("{DEVICE}{path}"), current);
-        item.tip = "Telefon albo aparat podłączony przez USB – zdjęcia i pliki".into();
+        let mut item = side_item(&mut first_dev, crate::tr("Urządzenia"), name, ic("usb"), format!("{DEVICE}{path}"), current);
+        item.tip = crate::tr("Telefon albo aparat podłączony przez USB – zdjęcia i pliki").into();
         v.push(item);
     }
     for p in places {
         let name = p.trim_start_matches('\\').replace('\\', " › ");
-        v.push(side_item(&mut first_net, "Sieć", name, ic("network"), p.clone(), current));
+        v.push(side_item(&mut first_net, crate::tr("Sieć"), name, ic("network"), p.clone(), current));
     }
-    let mut add = side_item(&mut first_net, "Sieć", "Dodaj lokalizację…".into(), ic("plus"), ADD_NET.into(), current);
+    let mut add = side_item(&mut first_net, crate::tr("Sieć"), crate::tr("Dodaj lokalizację…").into(), ic("plus"), ADD_NET.into(), current);
     add.tip = "Dodaj udział sieciowy (\\\\serwer\\udział)".into();
     v.push(add);
     v
@@ -3629,22 +3642,22 @@ pub fn watch_portable() {
 pub fn add_network_place(s: &Shared) {
     transfers::prompt(
         s,
-        "Dodaj lokalizację sieciową",
+        crate::tr("Dodaj lokalizację sieciową"),
         r"\\",
-        "Dodaj",
+        crate::tr("Dodaj"),
         Rc::new(|s: &Shared, p: &str| {
             let p = p.trim().trim_matches('"').replace('/', "\\").trim_end_matches('\\').to_string();
             if !p.starts_with(r"\\") || p.len() < 3 {
                 transfers::toast(s, "Podaj ścieżkę w postaci \\\\serwer\\udział", transfers::Kind::Error, None);
                 return;
             }
-            transfers::toast(s, format!("Łączę z {p}…"), transfers::Kind::Info, None);
+            transfers::toast(s, powerdesk_core::trf!("Łączę z {p}…"), transfers::Kind::Info, None);
             std::thread::spawn(move || {
                 let ok = Path::new(&p).is_dir();
                 let _ = slint::invoke_from_event_loop(move || {
                     with_state(|s| {
                         if !ok {
-                            transfers::toast(s, format!("Nie udało się otworzyć {p}"), transfers::Kind::Error, None);
+                            transfers::toast(s, powerdesk_core::trf!("Nie udało się otworzyć {p}"), transfers::Kind::Error, None);
                             return;
                         }
                         {

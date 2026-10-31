@@ -172,6 +172,11 @@ fn render(s: &Shared) {
     let Some(ui) = b.ui.upgrade() else { return };
     let g = ui.global::<SettingsState>();
     g.set_theme(theme);
+    let langs = powerdesk_core::lang::available();
+    let mut names: Vec<slint::SharedString> = vec![crate::tr("Jak w Windows").into()];
+    names.extend(langs.iter().map(|(_, n)| slint::SharedString::from(n.as_str())));
+    g.set_languages(slint::ModelRc::new(slint::VecModel::from(names)));
+    g.set_language(if p.language.is_empty() { 0 } else { langs.iter().position(|(c, _)| *c == p.language).map_or(0, |i| i as i32 + 1) });
     g.set_accent(p.accent.clone().into());
     g.set_effect(effect_of(p) as i32);
     g.set_popup_opacity(p.popup_opacity.clamp(30.0, 100.0));
@@ -212,9 +217,9 @@ fn render(s: &Shared) {
     g.set_viewer_info(p.viewer_info);
     g.set_confirm_trash(p.confirm_trash);
     g.set_single_click(p.single_click);
-    let secs: Vec<SideSection> = SIDE_SECTIONS.iter().map(|n| SideSection { name: (*n).into(), on: !p.side_hidden.iter().any(|h| h == n) }).collect();
+    let secs: Vec<SideSection> = SIDE_SECTIONS.iter().map(|n| SideSection { name: crate::tr(*n).into(), on: !p.side_hidden.iter().any(|h| h == n) }).collect();
     g.set_side_sections(ModelRc::new(VecModel::from(secs)));
-    let home: Vec<SideSection> = crate::home::SECTIONS.iter().map(|(k, t)| SideSection { name: (*t).into(), on: !p.home_hidden.iter().any(|h| h == k) }).collect();
+    let home: Vec<SideSection> = crate::home::SECTIONS.iter().map(|(k, t)| SideSection { name: crate::tr(*t).into(), on: !p.home_hidden.iter().any(|h| h == k) }).collect();
     g.set_home_sections(ModelRc::new(VecModel::from(home)));
     g.set_window_opacity(p.window_opacity);
     g.set_close_to_tray(p.close_to_tray);
@@ -366,7 +371,7 @@ fn app_quit(s: &Shared, what: i32) {
         }
         2 if shell => {
             if let Err(e) = powerdesk_core::shellmode::unregister() {
-                crate::transfers::toast(s, format!("Nie udało się zdjąć wpisu powłoki: {e}"), crate::transfers::Kind::Error, None);
+                crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się zdjąć wpisu powłoki: {e}"), crate::transfers::Kind::Error, None);
                 return;
             }
         }
@@ -412,7 +417,7 @@ pub fn set_start(s: &Shared, i: i32) {
 
 pub fn pick_start_folder(s: &Shared) {
     let start = s.borrow().prefs.start_folder.clone();
-    let picked = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Folder po uruchomieniu", (!start.is_empty()).then_some(start.as_str()));
+    let picked = powerdesk_core::shell::pick_folder(crate::hwnd(s), crate::tr("Folder po uruchomieniu"), (!start.is_empty()).then_some(start.as_str()));
     if let Some(p) = picked {
         change(s, |x| {
             x.start_folder = p;
@@ -494,7 +499,7 @@ pub fn toggle(s: &Shared, key: &str) {
         "shake" => {
             let on = !powerdesk_core::winkey::shake_enabled();
             if let Err(e) = powerdesk_core::winkey::set_shake(on) {
-                crate::transfers::toast(s, format!("Nie udało się zmienić ustawienia: {e}"), crate::transfers::Kind::Error, None);
+                crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się zmienić ustawienia: {e}"), crate::transfers::Kind::Error, None);
             }
             with_ui(s, |g| g.set_shake(powerdesk_core::winkey::shake_enabled()));
             return;
@@ -542,9 +547,9 @@ pub fn render_system(_s: &Shared) {
                     g.set_installed(inst.is_some());
                     g.set_shake(shake);
                     if let Some((exe, all)) = &inst {
-                        let who = if *all { "dla wszystkich użytkowników" } else { "dla bieżącego użytkownika" };
-                        let note = if here { "" } else { " · działa inna kopia (bez instalacji)" };
-                        g.set_install_place(format!("Zainstalowany {who}: {}{note}", exe.display()).into());
+                        let who = if *all { crate::tr("dla wszystkich użytkowników") } else { crate::tr("dla bieżącego użytkownika") };
+                        let note = if here { "" } else { crate::tr(" · działa inna kopia (bez instalacji)") };
+                        g.set_install_place(powerdesk_core::trf!("Zainstalowany {who}: {}{note}", exe.display()).into());
                     }
                 });
             })
@@ -556,6 +561,8 @@ pub fn render_system(_s: &Shared) {
 pub const SIDE_SECTIONS: [&str; 7] = ["Zapisane wyszukiwania", "Szybki dostęp", "Przypięte", "Biblioteki", "Dyski", "Sieć", "Synchronizacja"];
 
 pub fn toggle_side(s: &Shared, name: &str) {
+    // Lista w Ustawieniach pokazuje nazwy przetłumaczone, zapisujemy polskie (klucz).
+    let name = SIDE_SECTIONS.iter().find(|n| crate::tr(**n) == name).copied().unwrap_or(name);
     change(s, |p| match p.side_hidden.iter().position(|h| h == name) {
         Some(i) => {
             p.side_hidden.remove(i);
@@ -567,7 +574,7 @@ pub fn toggle_side(s: &Shared, name: &str) {
 
 /// Sekcja ekranu „Komputer” włączona albo wyłączona (po nagłówku z listy w Ustawieniach).
 pub fn toggle_home(s: &Shared, title: &str) {
-    let Some(key) = crate::home::SECTIONS.iter().find(|(_, t)| *t == title).map(|(k, _)| k.to_string()) else { return };
+    let Some(key) = crate::home::SECTIONS.iter().find(|(_, t)| crate::tr(*t) == title).map(|(k, _)| k.to_string()) else { return };
     change(s, |p| match p.home_hidden.iter().position(|h| *h == key) {
         Some(i) => {
             p.home_hidden.remove(i);
@@ -591,10 +598,10 @@ pub fn render_overlay(s: &Shared) {
     };
     let st = powerdesk_core::fpsmon::state();
     let (text, need) = match st {
-        State::Running => ("Działa.".to_string(), false),
-        State::Off => ("Włącza się razem z nakładką.".to_string(), false),
-        State::NoAccess => ("Brak uprawnień: pomiar FPS wymaga administratora albo członkostwa w grupie „Użytkownicy dzienników wydajności”. Reszta nakładki działa.".to_string(), true),
-        State::Error(e) => (format!("Nie działa: {e}"), false),
+        State::Running => (crate::tr("Działa.").to_string(), false),
+        State::Off => (crate::tr("Włącza się razem z nakładką.").to_string(), false),
+        State::NoAccess => (crate::tr("Brak uprawnień: pomiar FPS wymaga administratora albo członkostwa w grupie „Użytkownicy dzienników wydajności”. Reszta nakładki działa.").to_string(), true),
+        State::Error(e) => (powerdesk_core::trf!("Nie działa: {e}"), false),
     };
     with_ui(s, |g| {
         g.set_overlay_on(on);
@@ -625,6 +632,13 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     let g = ui.global::<SettingsState>();
     let s = st.clone();
     g.on_set_theme(move |i| set_theme(&s, i));
+    let s = st.clone();
+    g.on_set_language(move |i| {
+        let code = if i <= 0 { String::new() } else { powerdesk_core::lang::available().get(i as usize - 1).map(|(c, _)| c.clone()).unwrap_or_default() };
+        change(&s, |p| p.language = code);
+        // Teksty z Rusta wybiera się raz przy starcie – nowy język po ponownym uruchomieniu.
+        crate::transfers::toast(&s, crate::tr("Język zmieni się po ponownym uruchomieniu PowerDesk"), crate::transfers::Kind::Info, None);
+    });
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
     g.on_update_check_now(|| crate::updates::check(true));
@@ -635,12 +649,12 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         match powerdesk_core::gamemode::set_fps_limit(fps) {
             Ok(()) => {
                 change(&s, |p| p.fps_limit = fps);
-                let msg = if fps == 0 { "Limit klatek wyłączony".to_string() } else { format!("Limit klatek: {fps} – działa w grach uruchomionych od teraz") };
+                let msg = if fps == 0 { crate::tr("Limit klatek wyłączony").to_string() } else { powerdesk_core::trf!("Limit klatek: {fps} – działa w grach uruchomionych od teraz") };
                 crate::transfers::toast(&s, msg, crate::transfers::Kind::Ok, None);
             }
             Err(e) => {
-                powerdesk_core::log::error(format!("limit klatek: {e}"));
-                crate::transfers::toast(&s, format!("Nie udało się ustawić limitu klatek: {e}"), crate::transfers::Kind::Error, None);
+                powerdesk_core::log::error(powerdesk_core::trf!("limit klatek: {e}"));
+                crate::transfers::toast(&s, powerdesk_core::trf!("Nie udało się ustawić limitu klatek: {e}"), crate::transfers::Kind::Error, None);
             }
         }
     });
@@ -660,7 +674,7 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     let s = st.clone();
     g.on_pick_wall_folder(move || {
         let cur = s.borrow().prefs.wallpaper_folder.clone();
-        if let Some(p) = powerdesk_core::shell::pick_folder(crate::hwnd(&s), "Folder ze zdjęciami na tapetę", (!cur.is_empty()).then_some(cur.as_str())) {
+        if let Some(p) = powerdesk_core::shell::pick_folder(crate::hwnd(&s), crate::tr("Folder ze zdjęciami na tapetę"), (!cur.is_empty()).then_some(cur.as_str())) {
             change(&s, |x| x.wallpaper_folder = p);
             crate::wallpapers::refresh();
         }
@@ -675,14 +689,14 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         let text = powerdesk_core::log::report(powerdesk_core::update::current());
         let _ = powerdesk_core::clip::set_text(&text);
         let _ = open::that_detached(powerdesk_core::log::dir());
-        crate::transfers::toast(&s, "Raport skopiowany do schowka – wklej go w zgłoszeniu; obok otwarty folder z dziennikiem", crate::transfers::Kind::Ok, None);
+        crate::transfers::toast(&s, crate::tr("Raport skopiowany do schowka – wklej go w zgłoszeniu; obok otwarty folder z dziennikiem"), crate::transfers::Kind::Ok, None);
     });
     let s = st.clone();
     g.on_set_overlay_corner(move |k| change(&s, |p| p.overlay_corner = k.clamp(0, 3) as u8));
     let s = st.clone();
     g.on_grant_fps(move || {
         match powerdesk_core::fpsmon::grant_access() {
-            Ok(()) => crate::transfers::toast(&s, "Gotowe po ponownym zalogowaniu – wtedy nakładka pokaże FPS", crate::transfers::Kind::Ok, None),
+            Ok(()) => crate::transfers::toast(&s, crate::tr("Gotowe po ponownym zalogowaniu – wtedy nakładka pokaże FPS"), crate::transfers::Kind::Ok, None),
             Err(e) => crate::transfers::toast(&s, e, crate::transfers::Kind::Error, None),
         }
     });
@@ -739,7 +753,7 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     });
     let s = st.clone();
     g.on_pick_start_image(move || {
-        if let Some(path) = powerdesk_core::shell::pick_image(crate::hwnd(&s), "Obraz przycisku Start") {
+        if let Some(path) = powerdesk_core::shell::pick_image(crate::hwnd(&s), crate::tr("Obraz przycisku Start")) {
             change(&s, |p| {
                 p.start_image = path;
                 p.start_frames = 0;

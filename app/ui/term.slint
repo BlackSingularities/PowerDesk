@@ -21,7 +21,7 @@ export struct TermLine {
 export global TermState {
     in-out property <bool> open;
     in-out property <float> height: 260;
-    in-out property <string> cwd: "Terminal";
+    in-out property <string> cwd: @tr("Terminal");
     in-out property <bool> follow: true;
     in-out property <[TermLine]> lines;
     in-out property <int> cursor-row;
@@ -132,12 +132,12 @@ export component TermPanel inherits Rectangle {
                 border-radius: 11px;
                 background: TermState.follow ? Theme.accent : f-ta.has-hover ? Theme.hover : Theme.card;
                 fl := Label {
-                    text: "Za folderem";
+                    text: @tr("Za folderem");
                     font-size: 11px;
                     color: TermState.follow ? Theme.on-accent : Theme.text;
                 }
                 f-ta := TipArea {
-                    tip: "Przechodź do folderu otwartego w aplikacji";
+                    tip: @tr("Przechodź do folderu otwartego w aplikacji");
                     clicked => {
                         TermState.toggle-follow();
                     }
@@ -146,7 +146,7 @@ export component TermPanel inherits Rectangle {
             SmallBtn {
                 y: 4px;
                 icon: Icons.refresh;
-                tip: "Uruchom ponownie";
+                tip: @tr("Uruchom ponownie");
                 clicked => {
                     TermState.restart();
                 }
@@ -154,7 +154,7 @@ export component TermPanel inherits Rectangle {
             SmallBtn {
                 y: 4px;
                 icon: Icons.close;
-                tip: "Ukryj (Ctrl+`)";
+                tip: @tr("Ukryj (Ctrl+`)");
                 clicked => {
                     TermState.toggle();
                 }

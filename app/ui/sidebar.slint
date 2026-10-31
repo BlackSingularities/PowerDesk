@@ -114,7 +114,7 @@ export component Sidebar inherits Rectangle {
                 alignment: center;
                 FootButton {
                     icon: Icons.settings;
-                    tip: "Ustawienia PowerDesk (Ctrl+,)";
+                    tip: @tr("Ustawienia PowerDesk (Ctrl+,)");
                     clicked => {
                         root.open-settings();
                     }
@@ -124,7 +124,7 @@ export component Sidebar inherits Rectangle {
                 alignment: center;
                 FootButton {
                     icon: Icons.sidebar;
-                    tip: "Rozwiń panel boczny (Ctrl+B)";
+                    tip: @tr("Rozwiń panel boczny (Ctrl+B)");
                     clicked => {
                         root.toggle-mini();
                     }
@@ -139,7 +139,7 @@ export component Sidebar inherits Rectangle {
             FootButton {
                 y: (parent.height - self.height) / 2;
                 icon: Icons.settings;
-                tip: "Ustawienia PowerDesk (Ctrl+,)";
+                tip: @tr("Ustawienia PowerDesk (Ctrl+,)");
                 clicked => {
                     root.open-settings();
                 }
@@ -147,7 +147,7 @@ export component Sidebar inherits Rectangle {
             FootButton {
                 y: (parent.height - self.height) / 2;
                 icon: Icons.sidebar;
-                tip: "Zwiń panel boczny (Ctrl+B)";
+                tip: @tr("Zwiń panel boczny (Ctrl+B)");
                 clicked => {
                     root.toggle-mini();
                 }
@@ -180,12 +180,12 @@ export component Sidebar inherits Rectangle {
                         color: Drag.target == "ofp:pin" ? Theme.text : Theme.dim;
                     }
                     if !root.mini: Label {
-                        text: "Upuść folder, aby przypiąć";
+                        text: @tr("Upuść folder, aby przypiąć");
                         color: Drag.target == "ofp:pin" ? Theme.text : Theme.dim;
                     }
                 }
                 TipArea {
-                    tip: "Przypnij w panelu bocznym";
+                    tip: @tr("Przypnij w panelu bocznym");
                     drop: "ofp:pin";
                 }
             }
@@ -224,7 +224,7 @@ export component Sidebar inherits Rectangle {
                         }
                     }
                     sec-ta := TipArea {
-                        tip: it.shut ? "Rozwiń sekcję" : "Zwiń sekcję";
+                        tip: it.shut ? @tr("Rozwiń sekcję") : @tr("Zwiń sekcję");
                         drop: it.section == "Przypięte" ? "ofp:pin" : "";
                         clicked => {
                             root.toggle-section(it.section);

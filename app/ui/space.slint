@@ -262,7 +262,7 @@ export component SpaceView inherits Rectangle {
                     padding: 2px;
                     Seg {
                         icon: Icons.grid;
-                        text: "Zajętość";
+                        text: @tr("Zajętość");
                         on: SpaceState.mode == 0;
                         clicked => {
                             SpaceState.set-mode(0);
@@ -270,7 +270,7 @@ export component SpaceView inherits Rectangle {
                     }
                     Seg {
                         icon: Icons.trash;
-                        text: "Porządki";
+                        text: @tr("Porządki");
                         on: SpaceState.mode == 1;
                         clicked => {
                             SpaceState.set-mode(1);
@@ -291,7 +291,7 @@ export component SpaceView inherits Rectangle {
             }
             if SpaceState.busy: Btn {
                 y: 2px;
-                text: "Przerwij";
+                text: @tr("Przerwij");
                 clicked => {
                     SpaceState.cancel();
                 }
@@ -299,7 +299,7 @@ export component SpaceView inherits Rectangle {
             if !SpaceState.busy: Btn {
                 y: 2px;
                 icon: Icons.refresh;
-                text: "Skanuj ponownie";
+                text: @tr("Skanuj ponownie");
                 clicked => {
                     SpaceState.rescan();
                 }
@@ -359,7 +359,7 @@ export component SpaceView inherits Rectangle {
                 width: 300px;
                 spacing: 4px;
                 Label {
-                    text: "Największe";
+                    text: @tr("Największe");
                     font-size: 13px;
                     font-weight: 600;
                 }
@@ -416,7 +416,7 @@ export component SpaceView inherits Rectangle {
         }
         if SpaceState.mode == 0 && !SpaceState.ready && SpaceState.busy: Waiting {
             vertical-stretch: 1;
-            text: "Liczę rozmiary…\n" + SpaceState.current;
+            text: @tr("Liczę rozmiary…\n") + SpaceState.current;
         }
 
         // ---------- Porządki ----------
@@ -432,7 +432,7 @@ export component SpaceView inherits Rectangle {
                         on: SpaceState.with-temp;
                     }
                     Label {
-                        text: "Uwzględnij folder TEMP systemu";
+                        text: @tr("Uwzględnij folder TEMP systemu");
                         font-size: 12.5px;
                     }
                 }
@@ -446,7 +446,7 @@ export component SpaceView inherits Rectangle {
             Label {
                 horizontal-stretch: 1;
                 horizontal-alignment: right;
-                text: "Wszystko trafia do Kosza – można przywrócić. Foldery programów, systemowe, ukryte i repozytoria są pomijane.";
+                text: @tr("Wszystko trafia do Kosza – można przywrócić. Foldery programów, systemowe, ukryte i repozytoria są pomijane.");
                 font-size: 12px;
                 color: Theme.faint;
             }
@@ -458,7 +458,7 @@ export component SpaceView inherits Rectangle {
         if SpaceState.mode == 1 && !SpaceState.busy && SpaceState.scanned && SpaceState.junk.length == 0: Waiting {
             vertical-stretch: 1;
             icon: Icons.check;
-            text: "Czysto – nie znaleziono nic do usunięcia.";
+            text: @tr("Czysto – nie znaleziono nic do usunięcia.");
         }
         if SpaceState.mode == 1 && !SpaceState.busy && SpaceState.junk.length > 0: ListView {
             vertical-stretch: 1;
@@ -557,7 +557,7 @@ export component SpaceView inherits Rectangle {
                 y: 3px;
                 main: true;
                 icon: Icons.trash;
-                text: "Przenieś do Kosza";
+                text: @tr("Przenieś do Kosza");
                 enabled: SpaceState.picked-count > 0;
                 clicked => {
                     SpaceState.clean();

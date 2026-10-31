@@ -107,14 +107,14 @@ pub fn toast_action(s: &Shared, id: i32) {
 
 pub fn undo(s: &Shared) {
     match ops::undo_last() {
-        Ok(m) => toast(s, m, Kind::Ok, Some(("Ponów", std::rc::Rc::new(redo)))),
+        Ok(m) => toast(s, m, Kind::Ok, Some((crate::tr("Ponów"), std::rc::Rc::new(redo)))),
         Err(e) => toast(s, e, Kind::Info, None),
     }
 }
 
 pub fn redo(s: &Shared) {
     match ops::redo_last() {
-        Ok(m) => toast(s, m, Kind::Ok, Some(("Cofnij", std::rc::Rc::new(undo)))),
+        Ok(m) => toast(s, m, Kind::Ok, Some((crate::tr("Cofnij"), std::rc::Rc::new(undo)))),
         Err(e) => toast(s, e, Kind::Info, None),
     }
 }
@@ -147,7 +147,7 @@ pub fn transfer(s: &Shared, sources: Vec<String>, dest: &str, kind: &str) {
     }
     let low = dest.to_lowercase();
     if sources.iter().any(|p| same(p, dest) || low.starts_with(&format!("{}\\", p.to_lowercase().trim_end_matches('\\')))) {
-        toast(s, "Nie można przenieść folderu do jego własnego wnętrza", Kind::Error, None);
+        toast(s, crate::tr("Nie można przenieść folderu do jego własnego wnętrza"), Kind::Error, None);
         return;
     }
     let conflicts: Vec<ops::ConflictInfo> = ops::check_conflicts(&sources, dest).into_iter().filter(|c| !same(&c.src, &c.dst)).collect();
@@ -157,9 +157,9 @@ pub fn transfer(s: &Shared, sources: Vec<String>, dest: &str, kind: &str) {
     }
     let Some(ui) = s.borrow().ui.upgrade() else { return };
     let n = conflicts.len();
-    ui.set_conflict_title(if n == 1 { "Element już istnieje".into() } else { format!("{n} elementów już istnieje").into() });
+    ui.set_conflict_title(if n == 1 { crate::tr("Element już istnieje").into() } else { powerdesk_core::trf!("{n} elementów już istnieje").into() });
     let info = |dir: bool, size: u64, t: i64, other: i64, who: &str| {
-        let newer = if t > other + 2000 { " · nowszy" } else { "" };
+        let newer = if t > other + 2000 { crate::tr(" · nowszy") } else { "" };
         format!("{who}: {} · {}{newer}", if dir { "folder".into() } else { fmt::size(size) }, fmt::date(t))
     };
     let rows: Vec<ConflictRow> = conflicts
@@ -172,7 +172,7 @@ pub fn transfer(s: &Shared, sources: Vec<String>, dest: &str, kind: &str) {
         })
         .collect();
     ui.set_conflict_rows(ModelRc::new(VecModel::from(rows)));
-    ui.set_conflict_more(if n > 6 { format!("…i {} więcej", n - 6).into() } else { SharedString::new() });
+    ui.set_conflict_more(if n > 6 { powerdesk_core::trf!("…i {} więcej", n - 6).into() } else { SharedString::new() });
     ui.set_conflict_dirs(conflicts.iter().any(|c| c.dir));
     ui.set_conflict_moving(kind == "move");
     ui.set_conflict_open(true);
@@ -241,12 +241,12 @@ pub fn delete_permanently(s: &Shared, paths: Vec<String>) {
     if paths.is_empty() || crate::archives::read_only(s, &paths) {
         return;
     }
-    let what = if paths.len() == 1 { format!("„{}”", base(&paths[0])) } else { format!("{} elementów", paths.len()) };
+    let what = if paths.len() == 1 { format!("„{}”", base(&paths[0])) } else { powerdesk_core::trf!("{} elementów", paths.len()) };
     confirm(
         s,
-        "Usunąć trwale?",
-        &format!("{what} zostanie usunięte bez przenoszenia do Kosza. Tej operacji nie można cofnąć."),
-        "Usuń trwale",
+        crate::tr("Usunąć trwale?"),
+        &powerdesk_core::trf!("{what} zostanie usunięte bez przenoszenia do Kosza. Tej operacji nie można cofnąć."),
+        crate::tr("Usuń trwale"),
         true,
         std::rc::Rc::new(move |_| {
             ops::start(Core, "delete".into(), paths.clone(), String::new(), Conflict::Skip);
@@ -256,10 +256,10 @@ pub fn delete_permanently(s: &Shared, paths: Vec<String>) {
 
 fn done_text(p: &Progress) -> String {
     match p.kind.as_str() {
-        "copy" => format!("Skopiowano do „{}”", base(&p.dest)),
-        "move" => format!("Przeniesiono do „{}”", base(&p.dest)),
-        "trash" => format!("Przeniesiono do Kosza ({})", p.total_items),
-        _ => format!("Usunięto ({})", p.total_items),
+        "copy" => powerdesk_core::trf!("Skopiowano do „{}”", base(&p.dest)),
+        "move" => powerdesk_core::trf!("Przeniesiono do „{}”", base(&p.dest)),
+        "trash" => powerdesk_core::trf!("Przeniesiono do Kosza ({})", p.total_items),
+        _ => powerdesk_core::trf!("Usunięto ({})", p.total_items),
     }
 }
 
@@ -276,10 +276,10 @@ pub fn on_progress(s: &Shared, p: Progress) {
     }
     if finished {
         match p.state.as_str() {
-            "done" if p.kind == "copy" || p.kind == "move" => toast(s, done_text(&p), Kind::Ok, Some(("Cofnij", std::rc::Rc::new(undo)))),
+            "done" if p.kind == "copy" || p.kind == "move" => toast(s, done_text(&p), Kind::Ok, Some((crate::tr("Cofnij"), std::rc::Rc::new(undo)))),
             "done" => toast(s, done_text(&p), Kind::Ok, None),
-            "error" => toast(s, format!("{}: {} błędów", p.title, p.errors.len()), Kind::Error, None),
-            _ => toast(s, format!("{}: anulowano", p.title), Kind::Info, None),
+            "error" => toast(s, powerdesk_core::trf!("{}: {} błędów", p.title, p.errors.len()), Kind::Error, None),
+            _ => toast(s, powerdesk_core::trf!("{}: anulowano", p.title), Kind::Info, None),
         }
         // Gotowa karta znika po chwili, z błędami – zostaje dłużej, żeby dało się je przeczytać.
         let (s2, id) = (s.clone(), p.id);
@@ -352,15 +352,15 @@ pub fn render(s: &Shared) {
                 title: p.title.clone().into(),
                 current: match p.state.as_str() {
                     "running" => p.current.clone(),
-                    "done" => "Gotowe".into(),
-                    "cancelled" => "Anulowano".into(),
-                    _ => format!("Zakończono z błędami ({})", p.errors.len()),
+                    "done" => crate::tr("Gotowe").into(),
+                    "cancelled" => crate::tr("Anulowano").into(),
+                    _ => powerdesk_core::trf!("Zakończono z błędami ({})", p.errors.len()),
                 }
                 .into(),
                 meta: if p.state != "running" {
                     String::new()
                 } else if p.paused {
-                    "Wstrzymano".into()
+                    crate::tr("Wstrzymano").into()
                 } else if p.total_bytes > 0 {
                     format!("{} z {} · {}/s · {}", fmt::size(p.done_bytes), fmt::size(p.total_bytes), fmt::size(p.speed as u64), eta(p))
                 } else {

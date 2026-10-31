@@ -22,7 +22,7 @@ pub fn today() -> Option<PathBuf> {
             Some(file)
         }
         Err(e) => {
-            crate::log::error(format!("tapeta Bing: {e}"));
+            crate::log::error(crate::trf!("tapeta Bing: {e}"));
             file.is_file().then_some(file)
         }
     }
@@ -35,7 +35,7 @@ fn fetch(file: &PathBuf) -> Result<(), String> {
         .map_err(|e| e.to_string())?
         .into_json()
         .map_err(|e| e.to_string())?;
-    let url = meta["images"][0]["url"].as_str().ok_or("brak zdjęcia w odpowiedzi")?;
+    let url = meta["images"][0]["url"].as_str().ok_or(crate::lang::tr("brak zdjęcia w odpowiedzi"))?;
     // Pełna rozdzielczość (UHD), gdy jest – adres z „1920x1080” zamieniony na „UHD”.
     let full = format!("https://www.bing.com{}", url.replace("1920x1080", "UHD"));
     let resp = ureq::get(&full).timeout(std::time::Duration::from_secs(60)).call().map_err(|e| e.to_string())?;

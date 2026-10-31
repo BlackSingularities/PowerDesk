@@ -223,10 +223,10 @@ pub fn start(app: AppHandle, kind: String, sources: Vec<String>, dest: String, c
     std::thread::spawn(move || {
         let srcs: Vec<PathBuf> = sources.iter().map(PathBuf::from).collect();
         let title = match kind.as_str() {
-            "copy" => format!("Kopiowanie {} elem.", srcs.len()),
-            "move" => format!("Przenoszenie {} elem.", srcs.len()),
-            "trash" => format!("Do kosza: {} elem.", srcs.len()),
-            _ => format!("Usuwanie {} elem.", srcs.len()),
+            "copy" => crate::trf!("Kopiowanie {} elem.", srcs.len()),
+            "move" => crate::trf!("Przenoszenie {} elem.", srcs.len()),
+            "trash" => crate::trf!("Do kosza: {} elem.", srcs.len()),
+            _ => crate::trf!("Usuwanie {} elem.", srcs.len()),
         };
         let mut ctx = Ctx {
             app: app.clone(),
@@ -298,7 +298,7 @@ pub fn start(app: AppHandle, kind: String, sources: Vec<String>, dest: String, c
                         }
                         target = unique_path(&target);
                     } else if dst_dir.starts_with(s) {
-                        ctx.err(format!("{}: nie można skopiować folderu do jego wnętrza", file_name(s)));
+                        ctx.err(crate::trf!("{}: nie można skopiować folderu do jego wnętrza", file_name(s)));
                         continue;
                     }
                     if f {
@@ -411,7 +411,7 @@ fn copy_tree(ctx: &mut Ctx, src: &Path, dst: &Path, remove_src: bool) -> bool {
         return false;
     }
     let Ok(md) = std::fs::metadata(src) else {
-        ctx.err(format!("{}: nie można odczytać", file_name(src)));
+        ctx.err(crate::trf!("{}: nie można odczytać", file_name(src)));
         return false;
     };
     if md.is_dir() {
@@ -460,7 +460,7 @@ fn copy_tree(ctx: &mut Ctx, src: &Path, dst: &Path, remove_src: bool) -> bool {
             if remove_src {
                 clear_readonly(src, &md);
                 if let Err(e) = std::fs::remove_file(src) {
-                    ctx.err(format!("{}: skopiowano, ale nie usunięto źródła ({})", file_name(src), io_err(&e)));
+                    ctx.err(crate::trf!("{}: skopiowano, ale nie usunięto źródła ({})", file_name(src), io_err(&e)));
                 }
             }
             true
@@ -522,21 +522,21 @@ fn reverse(u: Undo, verb: &str) -> Result<(String, Option<Undo>), String> {
                 }
             }
             done.reverse();
-            Ok((format!("{verb} przeniesienie ({})", done.len()), (!done.is_empty()).then_some(Undo::Moved(done))))
+            Ok((crate::trf!("{verb} przeniesienie ({})", done.len()), (!done.is_empty()).then_some(Undo::Moved(done))))
         }
         Undo::Created(paths) => {
             let n = paths.iter().filter(|p| trash::delete(p).is_ok()).count();
-            Ok((format!("{verb} utworzenie ({n}) – elementy są w Koszu"), None))
+            Ok((crate::trf!("{verb} utworzenie ({n}) – elementy są w Koszu"), None))
         }
         Undo::Renamed(now, was) => {
             std::fs::rename(&now, &was).map_err(|e| io_err(&e))?;
             crate::shell::invalidate(&now);
-            Ok((format!("{verb} zmianę nazwy"), Some(Undo::Renamed(was, now))))
+            Ok((crate::trf!("{verb} zmianę nazwy"), Some(Undo::Renamed(was, now))))
         }
         Undo::RenamedMany(pairs) => {
             let done = rename_batch(&pairs).map_err(|e| e.join("\n"))?;
             let n = done.len();
-            Ok((format!("{verb} zmianę nazw ({n})"), Some(Undo::RenamedMany(done))))
+            Ok((crate::trf!("{verb} zmianę nazw ({n})"), Some(Undo::RenamedMany(done))))
         }
     }
 }
@@ -544,8 +544,8 @@ fn reverse(u: Undo, verb: &str) -> Result<(String, Option<Undo>), String> {
 static REDO: Lazy<Mutex<Vec<Undo>>> = Lazy::new(|| Mutex::new(Vec::new()));
 
 pub fn undo_last() -> Result<String, String> {
-    let Some(u) = UNDO.lock().pop() else { return Err("Nie ma nic do cofnięcia".into()) };
-    let (msg, inv) = reverse(u, "Cofnięto")?;
+    let Some(u) = UNDO.lock().pop() else { return Err(crate::lang::tr("Nie ma nic do cofnięcia").into()) };
+    let (msg, inv) = reverse(u, crate::lang::tr("Cofnięto"))?;
     if let Some(inv) = inv {
         REDO.lock().push(inv);
     }
@@ -553,8 +553,8 @@ pub fn undo_last() -> Result<String, String> {
 }
 
 pub fn redo_last() -> Result<String, String> {
-    let Some(u) = REDO.lock().pop() else { return Err("Nie ma nic do ponowienia".into()) };
-    let (msg, inv) = reverse(u, "Ponowiono")?;
+    let Some(u) = REDO.lock().pop() else { return Err(crate::lang::tr("Nie ma nic do ponowienia").into()) };
+    let (msg, inv) = reverse(u, crate::lang::tr("Ponowiono"))?;
     if let Some(inv) = inv {
         // Bez czyszczenia REDO – to nie jest nowa operacja.
         let mut s = UNDO.lock();
@@ -582,7 +582,7 @@ pub fn rename_one(path: &str, name: &str) -> Result<String, String> {
     }
     let case_only = dst.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
     if dst.exists() && !case_only {
-        return Err("Element o tej nazwie już istnieje".into());
+        return Err(crate::lang::tr("Element o tej nazwie już istnieje").into());
     }
     std::fs::rename(&src, &dst).map_err(|e| crate::fsx::io_err(&e))?;
     crate::shell::invalidate(path);
@@ -616,12 +616,12 @@ pub fn rename_batch(pairs: &[(String, String)]) -> Result<Vec<(String, String)>,
     for (src, dst) in pairs {
         let d = dst.to_lowercase();
         if !seen.insert(d.clone()) {
-            errors.push(format!("Powtarza się nazwa: {dst}"));
+            errors.push(crate::trf!("Powtarza się nazwa: {dst}"));
         } else if std::path::Path::new(dst).exists() && !sources.contains(&d) {
-            errors.push(format!("Już istnieje: {dst}"));
+            errors.push(crate::trf!("Już istnieje: {dst}"));
         }
         if !std::path::Path::new(src).exists() {
-            errors.push(format!("Nie ma pliku: {src}"));
+            errors.push(crate::trf!("Nie ma pliku: {src}"));
         }
     }
     if !errors.is_empty() {

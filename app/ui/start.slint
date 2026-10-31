@@ -71,7 +71,7 @@ component RailButton inherits Rectangle {
 export component StartWindow inherits Window {
     no-frame: true;
     always-on-top: true;
-    title: "PowerDesk – Start";
+    title: @tr("PowerDesk – Start");
     background: Theme.popup-high;
     // Rozmiar tylko proponowany – okno zmienia go start.rs (przeciąganie krawędzi, motywy);
     // stały `width`/`height` trzymał treść w 660×640 i reszta okna prześwitywała.
@@ -163,35 +163,35 @@ export component StartWindow inherits Window {
             }
             RailButton {
                 icon: Icons.pc;
-                tip: "Komputer";
+                tip: @tr("Komputer");
                 clicked(x, y) => {
                     root.rail(5, x, y);
                 }
             }
             RailButton {
                 icon: Icons.doc;
-                tip: "Dokumenty";
+                tip: @tr("Dokumenty");
                 clicked(x, y) => {
                     root.rail(1, x, y);
                 }
             }
             RailButton {
                 icon: Icons.image;
-                tip: "Obrazy";
+                tip: @tr("Obrazy");
                 clicked(x, y) => {
                     root.rail(2, x, y);
                 }
             }
             RailButton {
                 icon: Icons.settings;
-                tip: "Ustawienia";
+                tip: @tr("Ustawienia");
                 clicked(x, y) => {
                     root.rail(3, x, y);
                 }
             }
             RailButton {
                 icon: Icons.power;
-                tip: "Zasilanie";
+                tip: @tr("Zasilanie");
                 clicked(x, y) => {
                     root.rail(4, x, y);
                 }
@@ -217,7 +217,7 @@ export component StartWindow inherits Window {
                 }
                 if root.query == "": Text {
                     x: 32px;
-                    text: root.search-only ? "Szukaj aplikacji, plików i ustawień" : "Wpisz, aby wyszukać";
+                    text: root.search-only ? @tr("Szukaj aplikacji, plików i ustawień") : @tr("Wpisz, aby wyszukać");
                     font-size: 12.5px;
                     color: Theme.faint;
                 }
@@ -371,7 +371,7 @@ export component StartWindow inherits Window {
                 x: 14px;
                 y: 44px;
                 width: parent.width - 28px;
-                text: "Prawy przycisk na aplikacji → „Przypnij do Startu”.";
+                text: @tr("Prawy przycisk na aplikacji → „Przypnij do Startu”.");
                 wrap: word-wrap;
                 font-size: 12px;
                 color: Theme.faint;
@@ -394,7 +394,7 @@ export component StartWindow inherits Window {
                         color: Theme.text;
                     }
                     fb-ta := TipArea {
-                        tip: "Wróć do grup";
+                        tip: @tr("Wróć do grup");
                         clicked => {
                             root.folder-back();
                         }
@@ -442,7 +442,7 @@ export component StartWindow inherits Window {
                     color: Theme.text;
                     // Pusta nazwa – podpowiedź jak w Windows (wpis i Enter nadaje nazwę).
                     if self.text == "" && !self.has-focus: Text {
-                        text: "Nazwij grupę";
+                        text: @tr("Nazwij grupę");
                         font-size: 12px;
                         color: Theme.faint;
                         x: 0;

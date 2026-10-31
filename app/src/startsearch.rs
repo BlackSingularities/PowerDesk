@@ -71,7 +71,7 @@ fn file_row(name: &str, path: &str, detail: &str, px: u32) -> (StartRow, Row) {
 pub fn before_apps(query: &str) -> Vec<(StartRow, Row)> {
     match calc::evaluate(query) {
         Some((text, value)) => vec![(
-            StartRow { header: false, name: text.into(), detail: "Enter – kopiuj wynik".into(), icon: crate::icons::icon("hash").into(), ..Default::default() },
+            StartRow { header: false, name: text.into(), detail: crate::tr("Enter – kopiuj wynik").into(), icon: crate::icons::icon("hash").into(), ..Default::default() },
             Row::Calc(value),
         )],
         None => Vec::new(),
@@ -89,20 +89,20 @@ pub fn after_apps(query: &str, px: u32) -> Vec<(StartRow, Row)> {
     let sets: Vec<_> = SETTINGS
         .iter()
         .filter(|(name, _, keys)| {
-            let hay = quickindex::fold(&format!("{name} {keys}"));
+            let hay = quickindex::fold(&format!("{name} {keys} {}", crate::tr(*name)));
             words.iter().all(|w| hay.contains(w))
         })
         .take(5)
         .collect();
     if !sets.is_empty() {
-        out.push(header("Ustawienia"));
+        out.push(header(crate::tr("Ustawienia")));
         for (name, uri, _) in sets {
-            out.push((StartRow { header: false, name: (*name).into(), detail: "Ustawienia Windows".into(), icon: crate::icons::icon("settings").into(), ..Default::default() }, Row::Setting(uri.to_string())));
+            out.push((StartRow { header: false, name: crate::tr(*name).into(), detail: crate::tr("Ustawienia Windows").into(), icon: crate::icons::icon("settings").into(), ..Default::default() }, Row::Setting(uri.to_string())));
         }
     }
     let files = quickindex::search(query, 12);
     if !files.is_empty() {
-        out.push(header("Pliki i foldery"));
+        out.push(header(crate::tr("Pliki i foldery")));
         for f in files {
             let parent = std::path::Path::new(&f.path).parent().map(|p| p.display().to_string()).unwrap_or_default();
             out.push(file_row(&f.name, &f.path, &parent, px));
@@ -117,7 +117,7 @@ pub fn top(apps: &[powerdesk_core::startmenu::App], launches: &std::collections:
     let mut fav: Vec<(usize, u32)> = apps.iter().enumerate().filter_map(|(i, a)| launches.get(&a.shell_path()).map(|&n| (i, n))).collect();
     fav.sort_by(|a, b| b.1.cmp(&a.1));
     if !fav.is_empty() {
-        out.push(header("Polecane"));
+        out.push(header(crate::tr("Polecane")));
         for (i, _) in fav.into_iter().take(5) {
             let a = &apps[i];
             let img = crate::thumbs::get(&a.shell_path(), px, true);
@@ -126,7 +126,7 @@ pub fn top(apps: &[powerdesk_core::startmenu::App], launches: &std::collections:
     }
     let recent = quickindex::recent(6);
     if !recent.is_empty() {
-        out.push(header("Ostatnio używane"));
+        out.push(header(crate::tr("Ostatnio używane")));
         for (name, lnk) in recent {
             out.push(file_row(&name, &lnk, "", px));
         }

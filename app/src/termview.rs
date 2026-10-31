@@ -94,9 +94,9 @@ fn start(s: &Shared) {
     }
     match terminal::start(Core, &cwd, cols, rows) {
         Ok(id) => ST.with(|st| st.borrow_mut().id = Some(id)),
-        Err(e) => crate::transfers::toast(s, format!("Nie udało się uruchomić terminala: {e}"), crate::transfers::Kind::Error, None),
+        Err(e) => crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się uruchomić terminala: {e}"), crate::transfers::Kind::Error, None),
     }
-    with_ui(s, |g| g.set_cwd(if cwd.is_empty() { "Terminal".into() } else { cwd.into() }));
+    with_ui(s, |g| g.set_cwd(if cwd.is_empty() { crate::tr("Terminal").into() } else { cwd.into() }));
     render(s);
 }
 
@@ -125,7 +125,7 @@ pub fn on_exit(s: &Shared, p: serde_json::Value) {
             return false;
         }
         st.id = None;
-        st.parser.process("\r\n\x1b[2m[proces zakończony – Enter uruchomi nowy]\x1b[0m\r\n".as_bytes());
+        st.parser.process(crate::tr("\r\n\x1b[2m[proces zakończony – Enter uruchomi nowy]\x1b[0m\r\n").as_bytes());
         true
     });
     if mine {

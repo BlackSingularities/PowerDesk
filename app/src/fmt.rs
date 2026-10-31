@@ -33,28 +33,28 @@ pub fn date(ms: i64) -> String {
 
 fn kind_label(ext: &str) -> &'static str {
     match ext {
-        "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp" | "tif" | "tiff" | "heic" | "heif" | "avif" | "svg" | "ico" => "Obraz",
-        "cr2" | "cr3" | "nef" | "arw" | "dng" | "orf" | "rw2" | "raf" => "Zdjęcie RAW",
-        "mp4" | "mkv" | "mov" | "avi" | "webm" | "wmv" | "m4v" | "mts" => "Wideo",
-        "mp3" | "flac" | "wav" | "m4a" | "aac" | "ogg" | "opus" | "wma" => "Dźwięk",
-        "pdf" => "Dokument",
-        "doc" | "docx" | "odt" | "rtf" => "Dokument",
-        "xls" | "xlsx" | "ods" | "csv" => "Arkusz",
-        "ppt" | "pptx" | "odp" => "Prezentacja",
-        "zip" | "7z" | "rar" | "tar" | "gz" => "Archiwum",
-        "txt" | "md" | "log" | "json" | "xml" | "yml" | "yaml" | "ini" => "Tekst",
-        "exe" | "msi" => "Aplikacja",
-        "lnk" | "url" => "Skrót",
-        _ => "Plik",
+        "jpg" | "jpeg" | "png" | "gif" | "webp" | "bmp" | "tif" | "tiff" | "heic" | "heif" | "avif" | "svg" | "ico" => crate::tr("Obraz"),
+        "cr2" | "cr3" | "nef" | "arw" | "dng" | "orf" | "rw2" | "raf" => crate::tr("Zdjęcie RAW"),
+        "mp4" | "mkv" | "mov" | "avi" | "webm" | "wmv" | "m4v" | "mts" => crate::tr("Wideo"),
+        "mp3" | "flac" | "wav" | "m4a" | "aac" | "ogg" | "opus" | "wma" => crate::tr("Dźwięk"),
+        "pdf" => crate::tr("Dokument"),
+        "doc" | "docx" | "odt" | "rtf" => crate::tr("Dokument"),
+        "xls" | "xlsx" | "ods" | "csv" => crate::tr("Arkusz"),
+        "ppt" | "pptx" | "odp" => crate::tr("Prezentacja"),
+        "zip" | "7z" | "rar" | "tar" | "gz" => crate::tr("Archiwum"),
+        "txt" | "md" | "log" | "json" | "xml" | "yml" | "yaml" | "ini" => crate::tr("Tekst"),
+        "exe" | "msi" => crate::tr("Aplikacja"),
+        "lnk" | "url" => crate::tr("Skrót"),
+        _ => crate::tr("Plik"),
     }
 }
 
 pub fn type_label(e: &Entry) -> String {
     if e.dir {
-        return "Folder".into();
+        return crate::tr("Folder").into();
     }
     if e.ext.is_empty() {
-        return "Plik".into();
+        return crate::tr("Plik").into();
     }
     format!("{} {}", kind_label(&e.ext.to_lowercase()), e.ext.to_uppercase())
 }
@@ -76,7 +76,7 @@ pub fn items(n: usize) -> String {
     } else if (2..=4).contains(&(n % 10)) && !(12..=14).contains(&(n % 100)) {
         "elementy"
     } else {
-        "elementów"
+        crate::tr("elementów")
     };
     format!("{n} {w}")
 }

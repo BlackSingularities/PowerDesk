@@ -90,7 +90,7 @@ export component ShelfPanel inherits Rectangle {
             }
             Label {
                 horizontal-stretch: 1;
-                text: "Półka";
+                text: @tr("Półka");
                 font-weight: 600;
             }
             Label {
@@ -103,7 +103,7 @@ export component ShelfPanel inherits Rectangle {
                 size: 26px;
                 icon: Icons.close;
                 icon-size: 14px;
-                tooltip: "Schowaj (pliki zostaną na półce)";
+                tooltip: @tr("Schowaj (pliki zostaną na półce)");
                 clicked => {
                     ShelfState.close();
                 }
@@ -124,7 +124,7 @@ export component ShelfPanel inherits Rectangle {
                 color: Theme.dim;
             }
             Text {
-                text: "Przeciągnij tu pliki z różnych folderów albo naciśnij Ctrl+Shift+S przy zaznaczonych, potem przenieś je naraz w jedno miejsce.";
+                text: @tr("Przeciągnij tu pliki z różnych folderów albo naciśnij Ctrl+Shift+S przy zaznaczonych, potem przenieś je naraz w jedno miejsce.");
                 wrap: word-wrap;
                 horizontal-alignment: center;
                 font-family: Theme.font;
@@ -133,7 +133,7 @@ export component ShelfPanel inherits Rectangle {
             }
             Label {
                 horizontal-alignment: center;
-                text: "Niezależna od schowka Windows (Ctrl+C)";
+                text: @tr("Niezależna od schowka Windows (Ctrl+C)");
                 font-size: 11px;
                 color: Theme.faint;
             }
@@ -204,7 +204,7 @@ export component ShelfPanel inherits Rectangle {
                             size: 24px;
                             icon: Icons.close;
                             icon-size: 12px;
-                            tooltip: "Zdejmij z półki";
+                            tooltip: @tr("Zdejmij z półki");
                             clicked => {
                                 ShelfState.remove(i);
                             }
@@ -229,8 +229,8 @@ export component ShelfPanel inherits Rectangle {
             }
             SmallButton {
                 y: (parent.height - self.height) / 2;
-                text: "Kopiuj tutaj";
-                tip: "Skopiuj do otwartego folderu";
+                text: @tr("Kopiuj tutaj");
+                tip: @tr("Skopiuj do otwartego folderu");
                 enabled: ShelfState.can-put;
                 clicked => {
                     ShelfState.put(false);
@@ -238,8 +238,8 @@ export component ShelfPanel inherits Rectangle {
             }
             SmallButton {
                 y: (parent.height - self.height) / 2;
-                text: "Przenieś tutaj";
-                tip: "Przenieś do otwartego folderu – zejdą z półki";
+                text: @tr("Przenieś tutaj");
+                tip: @tr("Przenieś do otwartego folderu – zejdą z półki");
                 primary: true;
                 enabled: ShelfState.can-move;
                 clicked => {
@@ -251,7 +251,7 @@ export component ShelfPanel inherits Rectangle {
                 size: 28px;
                 icon: Icons.trash;
                 icon-size: 14px;
-                tooltip: "Wyczyść półkę (pliki zostają na dysku)";
+                tooltip: @tr("Wyczyść półkę (pliki zostają na dysku)");
                 clicked => {
                     ShelfState.clear();
                 }

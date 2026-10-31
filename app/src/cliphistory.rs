@@ -114,10 +114,10 @@ fn ago(t: u64) -> String {
     let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(t);
     let s = now.saturating_sub(t);
     match s {
-        0..=59 => "przed chwilą".into(),
-        60..=3599 => format!("{} min temu", s / 60),
-        3600..=86399 => format!("{} godz. temu", s / 3600),
-        _ => format!("{} dni temu", s / 86400),
+        0..=59 => crate::tr("przed chwilą").into(),
+        60..=3599 => powerdesk_core::trf!("{} min temu", s / 60),
+        3600..=86399 => powerdesk_core::trf!("{} godz. temu", s / 3600),
+        _ => powerdesk_core::trf!("{} dni temu", s / 86400),
     }
 }
 
@@ -134,7 +134,7 @@ fn preview(k: &Kind) -> String {
         }
         Kind::Files(f) => {
             let names: Vec<String> = f.iter().take(6).map(|p| p.rsplit('\\').next().unwrap_or(p).to_string()).collect();
-            let more = if f.len() > 6 { format!(" i {} więcej", f.len() - 6) } else { String::new() };
+            let more = if f.len() > 6 { powerdesk_core::trf!(" i {} więcej", f.len() - 6) } else { String::new() };
             format!("{}{more}", names.join(", "))
         }
         Kind::Image(_) => String::new(),

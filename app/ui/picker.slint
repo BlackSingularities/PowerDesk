@@ -174,13 +174,13 @@ export component FilePickerWindow inherits Window {
     default-font-family: Theme.font;
     title: root.window-title;
 
-    in property <string> window-title: "Otwórz";
+    in property <string> window-title: @tr("Otwórz");
     in property <bool> save;
     in property <bool> folders-mode;
     in property <bool> multi;
-    in property <string> ok-label: "Otwórz";
-    in property <string> cancel-label: "Anuluj";
-    in property <string> name-label: "Nazwa pliku:";
+    in property <string> ok-label: @tr("Otwórz");
+    in property <string> cancel-label: @tr("Anuluj");
+    in property <string> name-label: @tr("Nazwa pliku:");
     in property <[PickRow]> rows;
     in property <[PickLine]> lines;
     in property <[PickPlace]> places;
@@ -331,7 +331,7 @@ export component FilePickerWindow inherits Window {
                 IconButton {
                     y: 1px;
                     icon: Icons.back;
-                    tooltip: "Wstecz (Alt+←)";
+                    tooltip: @tr("Wstecz (Alt+←)");
                     enabled: root.can-back;
                     clicked => {
                         root.back();
@@ -340,7 +340,7 @@ export component FilePickerWindow inherits Window {
                 IconButton {
                     y: 1px;
                     icon: Icons.fwd;
-                    tooltip: "Dalej (Alt+→)";
+                    tooltip: @tr("Dalej (Alt+→)");
                     enabled: root.can-forward;
                     clicked => {
                         root.forward();
@@ -349,7 +349,7 @@ export component FilePickerWindow inherits Window {
                 IconButton {
                     y: 1px;
                     icon: Icons.arrow-up;
-                    tooltip: "Folder wyżej (Backspace)";
+                    tooltip: @tr("Folder wyżej (Backspace)");
                     enabled: root.can-up;
                     clicked => {
                         root.up();
@@ -359,7 +359,7 @@ export component FilePickerWindow inherits Window {
                     horizontal-stretch: 1;
                     icon: Icons.folder;
                     text <=> root.path-text;
-                    tip: "Ścieżka folderu – wpisz inną i naciśnij Enter";
+                    tip: @tr("Ścieżka folderu – wpisz inną i naciśnij Enter");
                     accepted => {
                         root.go(self.text);
                     }
@@ -367,7 +367,7 @@ export component FilePickerWindow inherits Window {
                 IconButton {
                     y: 1px;
                     icon: Icons.refresh;
-                    tooltip: "Odśwież (F5)";
+                    tooltip: @tr("Odśwież (F5)");
                     clicked => {
                         root.refresh();
                     }
@@ -375,8 +375,8 @@ export component FilePickerWindow inherits Window {
                 Field {
                     width: 200px;
                     icon: Icons.search;
-                    placeholder: "Szukaj w folderze";
-                    tip: "Pokaż tylko pliki i foldery, których nazwa zawiera ten tekst";
+                    placeholder: @tr("Szukaj w folderze");
+                    tip: @tr("Pokaż tylko pliki i foldery, których nazwa zawiera ten tekst");
                     text <=> root.search;
                     edited(t) => {
                         root.search-edited(t);
@@ -385,7 +385,7 @@ export component FilePickerWindow inherits Window {
                 IconButton {
                     y: 1px;
                     icon: root.grid ? Icons.list : Icons.grid;
-                    tooltip: root.grid ? "Widok listy" : "Widok siatki z miniaturami";
+                    tooltip: root.grid ? @tr("Widok listy") : @tr("Widok siatki z miniaturami");
                     clicked => {
                         root.toggle-grid();
                     }
@@ -393,16 +393,16 @@ export component FilePickerWindow inherits Window {
                 IconButton {
                     y: 1px;
                     icon: Icons.folder-plus;
-                    tooltip: "Nowy folder w tym miejscu";
+                    tooltip: @tr("Nowy folder w tym miejscu");
                     clicked => {
-                        root.new-folder-name = "Nowy folder";
+                        root.new-folder-name = @tr("Nowy folder");
                         root.prompt-open = true;
                     }
                 }
                 IconButton {
                     y: 1px;
                     icon: Icons.app;
-                    tooltip: "Zwykłe okno Windows – tylko dla tego wyboru";
+                    tooltip: @tr("Zwykłe okno Windows – tylko dla tego wyboru");
                     clicked => {
                         root.system-dialog();
                     }
@@ -477,8 +477,8 @@ export component FilePickerWindow inherits Window {
                         }
                         ColHead {
                             horizontal-stretch: 1;
-                            text: "Nazwa";
-                            tip: "Sortuj według nazwy";
+                            text: @tr("Nazwa");
+                            tip: @tr("Sortuj według nazwy");
                             active: root.sort-col == 0;
                             desc: root.sort-desc;
                             clicked => {
@@ -487,8 +487,8 @@ export component FilePickerWindow inherits Window {
                         }
                         ColHead {
                             width: 140px;
-                            text: "Data modyfikacji";
-                            tip: "Sortuj według daty zmiany";
+                            text: @tr("Data modyfikacji");
+                            tip: @tr("Sortuj według daty zmiany");
                             active: root.sort-col == 1;
                             desc: root.sort-desc;
                             clicked => {
@@ -497,8 +497,8 @@ export component FilePickerWindow inherits Window {
                         }
                         ColHead {
                             width: 150px;
-                            text: "Typ";
-                            tip: "Sortuj według typu";
+                            text: @tr("Typ");
+                            tip: @tr("Sortuj według typu");
                             active: root.sort-col == 2;
                             desc: root.sort-desc;
                             clicked => {
@@ -508,8 +508,8 @@ export component FilePickerWindow inherits Window {
                         ColHead {
                             width: 80px;
                             right: true;
-                            text: "Rozmiar";
-                            tip: "Sortuj według rozmiaru";
+                            text: @tr("Rozmiar");
+                            tip: @tr("Sortuj według rozmiaru");
                             active: root.sort-col == 3;
                             desc: root.sort-desc;
                             clicked => {
@@ -669,7 +669,7 @@ export component FilePickerWindow inherits Window {
                     horizontal-stretch: 1;
                     y: 1px;
                     text <=> root.file-name;
-                    tip: root.folders-mode ? "Nazwa folderu – puste pole wybiera folder, który jest otwarty" : root.multi ? "Nazwa pliku – kilka plików w cudzysłowach albo zaznacz je z Ctrl" : "Nazwa pliku; możesz też wpisać pełną ścieżkę albo wzorzec, np. *.txt";
+                    tip: root.folders-mode ? @tr("Nazwa folderu – puste pole wybiera folder, który jest otwarty") : root.multi ? @tr("Nazwa pliku – kilka plików w cudzysłowach albo zaznacz je z Ctrl") : @tr("Nazwa pliku; możesz też wpisać pełną ścieżkę albo wzorzec, np. *.txt");
                     accepted => {
                         root.submit();
                     }
@@ -699,7 +699,7 @@ export component FilePickerWindow inherits Window {
                         }
                     }
                     fa := TipArea {
-                        tip: "Rodzaj plików pokazywanych na liście";
+                        tip: @tr("Rodzaj plików pokazywanych na liście");
                         clicked => {
                             root.filter-open = !root.filter-open;
                         }
@@ -709,7 +709,7 @@ export component FilePickerWindow inherits Window {
                     y: 1px;
                     primary: true;
                     text: root.ok-label;
-                    tip: root.save ? "Zapisz pod tą nazwą (Enter)" : root.folders-mode ? "Wybierz ten folder (Enter)" : "Otwórz zaznaczone (Enter)";
+                    tip: root.save ? @tr("Zapisz pod tą nazwą (Enter)") : root.folders-mode ? @tr("Wybierz ten folder (Enter)") : @tr("Otwórz zaznaczone (Enter)");
                     clicked => {
                         root.submit();
                     }
@@ -717,7 +717,7 @@ export component FilePickerWindow inherits Window {
                 PButton {
                     y: 1px;
                     text: root.cancel-label;
-                    tip: "Zamknij bez wyboru (Esc)";
+                    tip: @tr("Zamknij bez wyboru (Esc)");
                     clicked => {
                         root.cancel();
                     }
@@ -762,7 +762,7 @@ export component FilePickerWindow inherits Window {
                         text: f;
                     }
                     fia := TipArea {
-                        tip: "Pokaż pliki tego rodzaju";
+                        tip: @tr("Pokaż pliki tego rodzaju");
                         clicked => {
                             root.filter-open = false;
                             root.filter-index = i;
@@ -792,7 +792,7 @@ export component FilePickerWindow inherits Window {
                 padding: 18px;
                 spacing: 14px;
                 Text {
-                    text: root.prompt-open ? "Nazwa nowego folderu" : root.notice != "" ? root.notice : root.confirm;
+                    text: root.prompt-open ? @tr("Nazwa nowego folderu") : root.notice != "" ? root.notice : root.confirm;
                     wrap: word-wrap;
                     font-family: Theme.font;
                     font-size: 13px;
@@ -800,7 +800,7 @@ export component FilePickerWindow inherits Window {
                 }
                 if root.prompt-open: nf := Field {
                     text <=> root.new-folder-name;
-                    tip: "Folder powstanie w otwartym miejscu";
+                    tip: @tr("Folder powstanie w otwartym miejscu");
                     init => {
                         self.select-range(0, 11);
                     }
@@ -815,39 +815,39 @@ export component FilePickerWindow inherits Window {
                     if root.notice != "": PButton {
                         primary: true;
                         text: "OK";
-                        tip: "Zamknij komunikat";
+                        tip: @tr("Zamknij komunikat");
                         clicked => {
                             root.notice = "";
                         }
                     }
                     if root.confirm != "": PButton {
                         primary: true;
-                        text: "Tak";
-                        tip: "Zastąp istniejący plik";
+                        text: @tr("Tak");
+                        tip: @tr("Zastąp istniejący plik");
                         clicked => {
                             root.confirm = "";
                             root.confirm-yes();
                         }
                     }
                     if root.confirm != "": PButton {
-                        text: "Nie";
-                        tip: "Wróć i wybierz inną nazwę";
+                        text: @tr("Nie");
+                        tip: @tr("Wróć i wybierz inną nazwę");
                         clicked => {
                             root.confirm = "";
                         }
                     }
                     if root.prompt-open: PButton {
                         primary: true;
-                        text: "Utwórz";
-                        tip: "Utwórz folder (Enter)";
+                        text: @tr("Utwórz");
+                        tip: @tr("Utwórz folder (Enter)");
                         clicked => {
                             root.prompt-open = false;
                             root.make-folder(root.new-folder-name);
                         }
                     }
                     if root.prompt-open: PButton {
-                        text: "Anuluj";
-                        tip: "Nie twórz folderu (Esc)";
+                        text: @tr("Anuluj");
+                        tip: @tr("Nie twórz folderu (Esc)");
                         clicked => {
                             root.prompt-open = false;
                         }
@@ -859,7 +859,7 @@ export component FilePickerWindow inherits Window {
 
     // Dymek z podpowiedzią – jak w głównym oknie.
     property <int> tip-shown: -1;
-    property <string> new-folder-name: "Nowy folder";
+    property <string> new-folder-name: @tr("Nowy folder");
     Timer {
         interval: 600ms;
         running: Tip.text != "" && root.tip-shown != Tip.serial;

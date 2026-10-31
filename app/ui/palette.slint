@@ -17,7 +17,7 @@ export global Palette {
     in-out property <string> query;
     in-out property <int> sel;
     /// Podpowiedź w pustym polu – zależy od tego, która paleta jest otwarta.
-    in-out property <string> hint: "Wpisz polecenie…";
+    in-out property <string> hint: @tr("Wpisz polecenie…");
     in-out property <[PaletteRow]> rows;
     callback typed(string);
     callback step(int);
@@ -109,7 +109,7 @@ export component PaletteDialog inherits Rectangle {
             if Palette.rows.length == 0: Label {
                 height: 48px;
                 horizontal-alignment: center;
-                text: "Nic nie pasuje";
+                text: @tr("Nic nie pasuje");
                 color: Theme.faint;
             }
             if Palette.rows.length > 0: ScrollView {

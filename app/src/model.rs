@@ -50,14 +50,14 @@ impl SortKey {
     pub const ALL: [SortKey; 8] = [SortKey::Name, SortKey::Modified, SortKey::Created, SortKey::Size, SortKey::Type, SortKey::Taken, SortKey::Duration, SortKey::Dims];
     pub fn label(self) -> &'static str {
         match self {
-            SortKey::Name => "Nazwa",
-            SortKey::Modified => "Data modyfikacji",
-            SortKey::Created => "Data utworzenia",
-            SortKey::Size => "Rozmiar",
-            SortKey::Type => "Typ",
-            SortKey::Taken => "Data wykonania",
-            SortKey::Duration => "Czas trwania",
-            SortKey::Dims => "Wymiary",
+            SortKey::Name => crate::tr("Nazwa"),
+            SortKey::Modified => crate::tr("Data modyfikacji"),
+            SortKey::Created => crate::tr("Data utworzenia"),
+            SortKey::Size => crate::tr("Rozmiar"),
+            SortKey::Type => crate::tr("Typ"),
+            SortKey::Taken => crate::tr("Data wykonania"),
+            SortKey::Duration => crate::tr("Czas trwania"),
+            SortKey::Dims => crate::tr("Wymiary"),
         }
     }
     /// Klucze, które potrzebują metadanych zdjęć i filmów.
@@ -85,14 +85,14 @@ impl GroupKey {
     pub const ALL: [GroupKey; 8] = [GroupKey::None, GroupKey::Name, GroupKey::Modified, GroupKey::Created, GroupKey::Taken, GroupKey::Type, GroupKey::Kind, GroupKey::Size];
     pub fn label(self) -> &'static str {
         match self {
-            GroupKey::None => "Brak",
-            GroupKey::Name => "Nazwa",
-            GroupKey::Modified => "Data modyfikacji",
-            GroupKey::Created => "Data utworzenia",
-            GroupKey::Taken => "Data wykonania",
-            GroupKey::Type => "Typ",
-            GroupKey::Kind => "Rodzaj",
-            GroupKey::Size => "Rozmiar",
+            GroupKey::None => crate::tr("Brak"),
+            GroupKey::Name => crate::tr("Nazwa"),
+            GroupKey::Modified => crate::tr("Data modyfikacji"),
+            GroupKey::Created => crate::tr("Data utworzenia"),
+            GroupKey::Taken => crate::tr("Data wykonania"),
+            GroupKey::Type => crate::tr("Typ"),
+            GroupKey::Kind => crate::tr("Rodzaj"),
+            GroupKey::Size => crate::tr("Rozmiar"),
         }
     }
 }
@@ -120,7 +120,7 @@ const MONTHS: [&str; 12] = ["Styczeń", "Luty", "Marzec", "Kwiecień", "Maj", "C
 fn date_group(t: i64, now: chrono::DateTime<chrono::Local>) -> (Rank, String) {
     use chrono::{Datelike, TimeZone};
     if t <= 0 {
-        return (Rank::N(99999), "Brak daty".into());
+        return (Rank::N(99999), crate::tr("Brak daty").into());
     }
     let ms = |y: i32, m: u32| {
         let (y, m) = if m == 0 { (y - 1, 12) } else { (y, m) };
@@ -137,29 +137,29 @@ fn date_group(t: i64, now: chrono::DateTime<chrono::Local>) -> (Rank, String) {
     let year_start = ms(now.year(), 1);
     let r = |n: i64, l: &str| (Rank::N(n), l.to_string());
     if t >= today + DAY {
-        return r(0, "W przyszłości");
+        return r(0, crate::tr("W przyszłości"));
     }
     if t >= today {
-        return r(1, "Dziś");
+        return r(1, crate::tr("Dziś"));
     }
     if t >= today - DAY {
-        return r(2, "Wczoraj");
+        return r(2, crate::tr("Wczoraj"));
     }
     if t >= week_start {
-        return r(3, "Wcześniej w tym tygodniu");
+        return r(3, crate::tr("Wcześniej w tym tygodniu"));
     }
     if t >= week_start - 7 * DAY {
-        return r(4, "W zeszłym tygodniu");
+        return r(4, crate::tr("W zeszłym tygodniu"));
     }
     if t >= month_start {
-        return r(5, "Wcześniej w tym miesiącu");
+        return r(5, crate::tr("Wcześniej w tym miesiącu"));
     }
     if t >= last_month {
-        return r(6, "W zeszłym miesiącu");
+        return r(6, crate::tr("W zeszłym miesiącu"));
     }
     let d = chrono::Local.timestamp_millis_opt(t).earliest().unwrap_or(now);
     if t >= year_start {
-        return (Rank::N(10 + (11 - d.month0() as i64)), format!("{} {}", MONTHS[d.month0() as usize], d.year()));
+        return (Rank::N(10 + (11 - d.month0() as i64)), format!("{} {}", crate::tr(MONTHS[d.month0() as usize]), d.year()));
     }
     (Rank::N(100 + (now.year() - d.year()) as i64), d.year().to_string())
 }
@@ -183,11 +183,11 @@ fn group_of(e: &Entry, g: GroupKey, taken: i64, now: chrono::DateTime<chrono::Lo
             Some(c @ 'I'..='P') if c.is_ascii() => r(2, "I – P"),
             Some(c @ 'Q'..='Z') if c.is_ascii() => r(3, "Q – Z"),
             Some('0'..='9') => r(0, "0 – 9"),
-            _ => r(4, "Inne"),
+            _ => r(4, crate::tr("Inne")),
         },
         GroupKey::Modified => date_group(e.modified, now),
         GroupKey::Created => date_group(e.created, now),
-        GroupKey::Taken if e.dir => r(-1, "Foldery"),
+        GroupKey::Taken if e.dir => r(-1, crate::tr("Foldery")),
         GroupKey::Taken => date_group(taken, now),
         GroupKey::Type => {
             let l = crate::fmt::type_label(e);
@@ -206,14 +206,14 @@ fn group_of(e: &Entry, g: GroupKey, taken: i64, now: chrono::DateTime<chrono::Lo
             ];
             let k = kind_of(e);
             match KINDS.iter().position(|(ks, _)| ks.contains(&k)) {
-                Some(i) => r(i as i64, KINDS[i].1),
-                None => r(50, "Inne"),
+                Some(i) => r(i as i64, crate::tr(KINDS[i].1)),
+                None => r(50, crate::tr("Inne")),
             }
         }
-        GroupKey::Size if e.dir => r(-1, "Foldery"),
+        GroupKey::Size if e.dir => r(-1, crate::tr("Foldery")),
         GroupKey::Size => {
             let i = SIZE_GROUPS.iter().position(|(max, _)| if *max == 0 { e.size == 0 } else { e.size < *max }).unwrap_or(6);
-            r(i as i64, SIZE_GROUPS[i].1)
+            r(i as i64, crate::tr(SIZE_GROUPS[i].1))
         }
     }
 }
@@ -249,17 +249,17 @@ impl Col {
     pub const DEFAULT: [Col; 3] = [Col::Modified, Col::Type, Col::Size];
     pub fn label(self) -> &'static str {
         match self {
-            Col::Modified => "Zmodyfikowano",
-            Col::Created => "Utworzono",
-            Col::Type => "Typ",
-            Col::Ext => "Rozszerzenie",
-            Col::Size => "Rozmiar",
-            Col::Dims => "Wymiary",
-            Col::Taken => "Data wykonania",
-            Col::Duration => "Czas trwania",
-            Col::Attrs => "Atrybuty",
-            Col::Author => "Autor",
-            Col::Version => "Wersja",
+            Col::Modified => crate::tr("Zmodyfikowano"),
+            Col::Created => crate::tr("Utworzono"),
+            Col::Type => crate::tr("Typ"),
+            Col::Ext => crate::tr("Rozszerzenie"),
+            Col::Size => crate::tr("Rozmiar"),
+            Col::Dims => crate::tr("Wymiary"),
+            Col::Taken => crate::tr("Data wykonania"),
+            Col::Duration => crate::tr("Czas trwania"),
+            Col::Attrs => crate::tr("Atrybuty"),
+            Col::Author => crate::tr("Autor"),
+            Col::Version => crate::tr("Wersja"),
         }
     }
     pub fn width(self) -> f32 {
@@ -317,19 +317,19 @@ impl KindFilter {
     pub const ALL: [KindFilter; 7] = [KindFilter::All, KindFilter::Media, KindFilter::Image, KindFilter::Video, KindFilter::Doc, KindFilter::Audio, KindFilter::Archive];
     pub fn label(self) -> &'static str {
         match self {
-            KindFilter::All => "Wszystko",
-            KindFilter::Media => "Media (zdjęcia i wideo)",
-            KindFilter::Image => "Zdjęcia",
-            KindFilter::Video => "Wideo",
-            KindFilter::Doc => "Dokumenty",
-            KindFilter::Audio => "Audio",
-            KindFilter::Archive => "Archiwa",
+            KindFilter::All => crate::tr("Wszystko"),
+            KindFilter::Media => crate::tr("Media (zdjęcia i wideo)"),
+            KindFilter::Image => crate::tr("Zdjęcia"),
+            KindFilter::Video => crate::tr("Wideo"),
+            KindFilter::Doc => crate::tr("Dokumenty"),
+            KindFilter::Audio => crate::tr("Audio"),
+            KindFilter::Archive => crate::tr("Archiwa"),
         }
     }
     /// Krótka nazwa do panelu filtrów i paska adresu.
     pub fn short(self) -> &'static str {
         match self {
-            KindFilter::Media => "Media",
+            KindFilter::Media => crate::tr("Media"),
             f => f.label(),
         }
     }
@@ -456,16 +456,16 @@ impl Tab {
             return format!("„{}”", s.query);
         }
         if self.path == HOME {
-            return "Komputer".into();
+            return crate::tr("Komputer").into();
         }
         if self.path == "ofp:settings" {
-            return "Ustawienia".into();
+            return crate::tr("Ustawienia").into();
         }
         if self.path == "ofp:sync" {
-            return "Synchronizacja".into();
+            return crate::tr("Synchronizacja").into();
         }
         if self.path == crate::NET {
-            return "Sieć".into();
+            return crate::tr("Sieć").into();
         }
         if let Some(n) = crate::library_name(&self.path) {
             return n;
@@ -1010,6 +1010,8 @@ pub struct Prefs {
     pub taskbar_buttons_all: bool,
     /// Foldery przypięte do krawędzi pulpitu (wysuwane panele), w kolejności wzdłuż krawędzi.
     pub edge_panels: Vec<EdgePanelPref>,
+    /// Język interfejsu (kod folderu w lang/, „pl” – polski); pusty – jak Windows.
+    pub language: String,
 }
 
 /// Panel folderu przy krawędzi pulpitu: folder, monitor (numer okna pulpitu), krawędź
@@ -1143,7 +1145,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "computer".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), home_hidden: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, start_style: 0, desktop_widgets: Vec::new(), migrated_ofp: false, start_v2: true, taskbar_all_monitors: true, vd_button: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), todos: Vec::new(), countdown_label: String::new(), countdown_at: 0, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false, tray_bar: Vec::new(), tray_all: false, tray_init: false, popup_blur: true, taskbar_labels: true, taskbar_center: false, taskbar_height: 48.0, taskbar_seconds: false, taskbar_date: true, taskbar_blur: true, start_image: String::new(), start_frames: 0, desktop_icon_size: 1, desktop_free: true, desktop_v2: true, desktop_computer: true, desktop_recycle: true, desktop_xy: HashMap::new(), desktop_layouts: HashMap::new(), desktop_screen: String::new(), autostart: true, file_dialogs: true, update_check: true, update_auto: false, remember_tabs: false, taskbar_buttons_all: false, taskbar_icon: 28.0, taskbar_group: 0, edge_panels: Vec::new() }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "computer".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), home_hidden: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, start_style: 0, desktop_widgets: Vec::new(), migrated_ofp: false, start_v2: true, taskbar_all_monitors: true, vd_button: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), todos: Vec::new(), countdown_label: String::new(), countdown_at: 0, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false, tray_bar: Vec::new(), tray_all: false, tray_init: false, popup_blur: true, taskbar_labels: true, taskbar_center: false, taskbar_height: 48.0, taskbar_seconds: false, taskbar_date: true, taskbar_blur: true, start_image: String::new(), start_frames: 0, desktop_icon_size: 1, desktop_free: true, desktop_v2: true, desktop_computer: true, desktop_recycle: true, desktop_xy: HashMap::new(), desktop_layouts: HashMap::new(), desktop_screen: String::new(), autostart: true, file_dialogs: true, update_check: true, update_auto: false, remember_tabs: false, taskbar_buttons_all: false, taskbar_icon: 28.0, taskbar_group: 0, edge_panels: Vec::new(), language: String::new() }
     }
 }
 

@@ -91,7 +91,7 @@ fn check_timer() {
         }
     });
     if let Some(total) = done {
-        crate::notices::add("Minutnik", "Minutnik", &format!("Minął czas: {total}"));
+        crate::notices::add(crate::tr("Minutnik"), crate::tr("Minutnik"), &powerdesk_core::trf!("Minął czas: {total}"));
     }
 }
 
@@ -255,7 +255,7 @@ pub fn apply(g: &WidgetData) {
             .enumerate()
             .map(|(i, l)| {
                 let prev = t.laps.get(i + 1).copied().unwrap_or(Duration::ZERO);
-                format!("Okrążenie {} · {} (+{})", n - i, clock(*l), clock(l.saturating_sub(prev))).into()
+                powerdesk_core::trf!("Okrążenie {} · {} (+{})", n - i, clock(*l), clock(l.saturating_sub(prev))).into()
             })
             .collect();
         g.set_sw_laps(ModelRc::new(VecModel::from(laps)));

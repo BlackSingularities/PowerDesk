@@ -10,21 +10,21 @@ pub const REMOVE_FLAG: &str = "--remove-integration";
 /// Stan poszczególnych elementów: nazwa, opis i czy działa.
 pub fn status() -> Vec<(&'static str, &'static str, bool)> {
     vec![
-        ("Foldery, dyski i ZIP", "Dwuklik na Pulpicie, skróty, „Pokaż w folderze” i pobrane archiwa ZIP w innych programach", filemgr::default_enabled()),
-        ("Win+E", "Skrót klawiszowy otwiera nowe okno PowerDesk", winkey::enabled()),
-        ("Menu Eksploratora", "„Otwórz w PowerDesk” dla folderów, dysków i tła folderu", filemgr::menu_enabled()),
-        ("Okna „Otwórz” i „Zapisz jako”", file_dialogs_detail(), filedlg::enabled()),
+        (crate::lang::tr("Foldery, dyski i ZIP"), crate::lang::tr("Dwuklik na Pulpicie, skróty, „Pokaż w folderze” i pobrane archiwa ZIP w innych programach"), filemgr::default_enabled()),
+        ("Win+E", crate::lang::tr("Skrót klawiszowy otwiera nowe okno PowerDesk"), winkey::enabled()),
+        (crate::lang::tr("Menu Eksploratora"), crate::lang::tr("„Otwórz w PowerDesk” dla folderów, dysków i tła folderu"), filemgr::menu_enabled()),
+        (crate::lang::tr("Okna „Otwórz” i „Zapisz jako”"), file_dialogs_detail(), filedlg::enabled()),
     ]
 }
 
 /// Opis stanu okien plików w innych programach.
 fn file_dialogs_detail() -> &'static str {
     if !filedlg::bundled() {
-        "Ta kopia PowerDesk nie zawiera biblioteki okien plików (budowa bez niej) – programy mają okna Windows"
+        crate::lang::tr("Ta kopia PowerDesk nie zawiera biblioteki okien plików (budowa bez niej) – programy mają okna Windows")
     } else if filedlg::enabled_32bit() {
-        "W programach 64- i 32-bitowych; programy uruchomione jako administrator i przy każdym problemie – okno Windows"
+        crate::lang::tr("W programach 64- i 32-bitowych; programy uruchomione jako administrator i przy każdym problemie – okno Windows")
     } else {
-        "W programach 64-bitowych; 32-bitowe, uruchomione jako administrator i przy każdym problemie – okno Windows"
+        crate::lang::tr("W programach 64-bitowych; 32-bitowe, uruchomione jako administrator i przy każdym problemie – okno Windows")
     }
 }
 
@@ -87,7 +87,7 @@ pub fn remove() -> Result<(), String> {
 /// Pozostałości po OpenFilePower: „Otwórz w OpenFilePower” w menu folderów i dysków, które po jego
 /// odinstalowaniu wskazują nieistniejący plik.
 pub fn remove_legacy() {
-    for class in ["Directory", "Drive", r"Directory\Background"] {
+    for class in [crate::lang::tr("Directory"), crate::lang::tr("Drive"), r"Directory\Background"] {
         let key = format!(r"HKCU\Software\Classes\{class}\shell\OpenFilePower");
         if winkey::reg(&["query", &key]).is_ok() {
             let _ = winkey::reg(&["delete", &key, "/f"]);

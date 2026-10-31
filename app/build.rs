@@ -36,7 +36,13 @@ pub fn icon(name: &str) -> &'static str {
             println!("cargo:warning=ikona .exe pominięta: {e}");
         }
     }
-    slint_build::compile_with_config("ui/main.slint", slint_build::CompilerConfiguration::new().with_style("fluent".into())).expect("slint");
+    // Tłumaczenia: lang/<kod>/LC_MESSAGES/powerdesk.po (bez kontekstu – te same pliki czyta lang.rs w core).
+    println!("cargo:rerun-if-changed=../lang");
+    let cfg = slint_build::CompilerConfiguration::new()
+        .with_style("fluent".into())
+        .with_bundled_translations("../lang")
+        .with_default_translation_context(slint_build::DefaultTranslationContext::None);
+    slint_build::compile_with_config("ui/main.slint", cfg).expect("slint");
 }
 
 fn kebab(s: &str) -> String {

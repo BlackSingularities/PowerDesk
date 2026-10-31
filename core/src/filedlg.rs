@@ -99,15 +99,15 @@ fn put(path: &Path, data: &[u8]) -> Result<(), String> {
         return Ok(());
     }
     if let Some(d) = path.parent() {
-        std::fs::create_dir_all(d).map_err(|e| format!("Nie można utworzyć {}: {e}", d.display()))?;
+        std::fs::create_dir_all(d).map_err(|e| crate::trf!("Nie można utworzyć {}: {e}", d.display()))?;
     }
     let tmp = path.with_extension("dll.new");
-    std::fs::write(&tmp, data).map_err(|e| format!("Nie można zapisać {}: {e}", tmp.display()))?;
+    std::fs::write(&tmp, data).map_err(|e| crate::trf!("Nie można zapisać {}: {e}", tmp.display()))?;
     if std::fs::rename(&tmp, path).is_err() {
         let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
         let old = path.with_extension(format!("dll.old{stamp}"));
-        std::fs::rename(path, &old).map_err(|e| format!("Nie można zastąpić {}: {e}", path.display()))?;
-        std::fs::rename(&tmp, path).map_err(|e| format!("Nie można zastąpić {}: {e}", path.display()))?;
+        std::fs::rename(path, &old).map_err(|e| crate::trf!("Nie można zastąpić {}: {e}", path.display()))?;
+        std::fs::rename(&tmp, path).map_err(|e| crate::trf!("Nie można zastąpić {}: {e}", path.display()))?;
     }
     Ok(())
 }
@@ -128,7 +128,7 @@ fn register(bits: u32) -> Result<(), String> {
     for c in CLSIDS {
         let key = format!(r"{}\InprocServer32", class_key(c, bits));
         reg(&["add", &key, "/ve", "/d", &path, "/f"])?;
-        reg(&["add", &key, "/v", "ThreadingModel", "/d", "Apartment", "/f"])?;
+        reg(&["add", &key, "/v", "ThreadingModel", "/d", crate::lang::tr("Apartment"), "/f"])?;
     }
     Ok(())
 }

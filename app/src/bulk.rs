@@ -99,7 +99,7 @@ fn finder(o: &Opts) -> Result<Option<regex::Regex>, String> {
         return Ok(None);
     }
     let src = if o.regex { o.find.clone() } else { regex::escape(&o.find) };
-    regex::RegexBuilder::new(&src).case_insensitive(!o.match_case).build().map(Some).map_err(|_| "Błędne wyrażenie regularne".to_string())
+    regex::RegexBuilder::new(&src).case_insensitive(!o.match_case).build().map(Some).map_err(|_| crate::tr("Błędne wyrażenie regularne").to_string())
 }
 
 /// Nowe nazwy w kolejności numeracji; drugi element to błąd wyrażenia (podgląd i tak działa – bez zamiany).
@@ -159,11 +159,11 @@ pub fn rows(entries: &[Entry], media: impl Fn(&Entry) -> Option<MediaInfo>, o: &
     }
     for r in &mut out {
         r.problem = if r.new.is_empty() || r.new.starts_with('.') {
-            "Pusta nazwa"
+            crate::tr("Pusta nazwa")
         } else if r.new.contains(['\\', '/', ':', '*', '?', '"', '<', '>', '|']) {
-            "Niedozwolony znak"
+            crate::tr("Niedozwolony znak")
         } else if count[&r.new.to_lowercase()] > 1 {
-            "Powtarza się"
+            crate::tr("Powtarza się")
         } else {
             ""
         };
@@ -195,7 +195,7 @@ pub fn open(s: &Shared) {
     g.set_case_mode(0);
     g.set_ext_mode(0);
     g.set_order(0);
-    g.set_subtitle(format!("{} elementów · podgląd aktualizuje się na bieżąco", entries.len()).into());
+    g.set_subtitle(powerdesk_core::trf!("{} elementów · podgląd aktualizuje się na bieżąco", entries.len()).into());
     let todo: Vec<(String, i64)> = {
         let b = s.borrow();
         entries.iter().filter(|e| crate::fmt::is_media(e) && !b.media.contains_key(&e.path)).map(|e| (e.path.clone(), e.modified)).collect()
@@ -250,8 +250,8 @@ pub fn refresh(s: &Shared) {
     let g = ui.global::<Bulk>();
     let changed = rows.iter().filter(|r| r.new != r.old).count();
     let problems = rows.iter().filter(|r| !r.problem.is_empty()).count();
-    g.set_summary(if problems > 0 { format!("{changed} zmian · {problems} problemów") } else { format!("{changed} zmian") }.into());
-    g.set_ok_label(if changed > 0 { format!("Zmień {changed}") } else { "Zmień".into() }.into());
+    g.set_summary(if problems > 0 { powerdesk_core::trf!("{changed} zmian · {problems} problemów") } else { format!("{changed} zmian") }.into());
+    g.set_ok_label(if changed > 0 { powerdesk_core::trf!("Zmień {changed}") } else { crate::tr("Zmień").into() }.into());
     g.set_can_apply(changed > 0 && problems == 0);
     let model: Vec<BulkRow> = rows
         .into_iter()
@@ -292,7 +292,7 @@ pub fn apply(s: &Shared) {
                 transfers::undo(s);
                 crate::load(s, true);
             });
-            transfers::toast(s, format!("Zmieniono nazwy: {n}"), Kind::Ok, Some(("Cofnij", undo)));
+            transfers::toast(s, powerdesk_core::trf!("Zmieniono nazwy: {n}"), Kind::Ok, Some((crate::tr("Cofnij"), undo)));
         }
         Err(errors) => {
             crate::load(s, true);

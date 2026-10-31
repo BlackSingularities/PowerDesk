@@ -73,7 +73,7 @@ pub fn render_sections(s: &Shared) {
         .enumerate()
         .map(|(i, k)| HomeSection {
             key: (*k).into(),
-            title: SECTIONS.iter().find(|(x, _)| x == k).map(|(_, t)| *t).unwrap_or_default().into(),
+            title: SECTIONS.iter().find(|(x, _)| x == k).map(|(_, t)| crate::tr(*t)).unwrap_or_default().into(),
             shut: shut.iter().any(|x| x == k),
             first: i == 0,
             last: i + 1 == n,
@@ -148,9 +148,9 @@ fn render_activity(s: &Shared) {
         let name = if p.name.is_empty() { p.source.clone() } else { p.name.clone() };
         let (detail, progress) = match st.state.as_str() {
             "syncing" => (format!("synchronizuję {:.0}%", st.progress * 100.0), st.progress),
-            "scanning" => ("porównuję…".into(), -1.0),
-            "offline" => ("cel odłączony".into(), -1.0),
-            "error" => ("błąd".into(), -1.0),
+            "scanning" => (crate::tr("porównuję…").into(), -1.0),
+            "offline" => (crate::tr("cel odłączony").into(), -1.0),
+            "error" => (crate::tr("błąd").into(), -1.0),
             _ if !p.enabled => ("wstrzymana".into(), -1.0),
             _ => (format!("{} → {}", p.source, p.target.path), -1.0),
         };
@@ -158,7 +158,7 @@ fn render_activity(s: &Shared) {
     }
     let shelf = s.borrow().shelf.items.len();
     if shelf > 0 {
-        rows.push(HomeActivity { icon: ic("archive"), title: "Półka".into(), detail: fmt::items(shelf).into(), progress: -1.0, path: Default::default() });
+        rows.push(HomeActivity { icon: ic("archive"), title: crate::tr("Półka").into(), detail: fmt::items(shelf).into(), progress: -1.0, path: Default::default() });
     }
     with_ui(s, |g| g.set_activities(ModelRc::new(VecModel::from(rows))));
 }
@@ -176,7 +176,7 @@ fn render_days(s: &Shared) {
         .map(|(i, &n)| {
             let d = today - chrono::Days::new((daily.len() - 1 - i) as u64);
             HomeDay {
-                label: format!("{} {}", WD[d.weekday().num_days_from_monday() as usize], d.day()).into(),
+                label: format!("{} {}", crate::tr(WD[d.weekday().num_days_from_monday() as usize]), d.day()).into(),
                 count: n as i32,
                 ratio: n as f32 / max as f32,
                 today: i + 1 == daily.len(),
@@ -186,7 +186,7 @@ fn render_days(s: &Shared) {
     let total: usize = daily.iter().sum();
     with_ui(s, |g| {
         g.set_days(ModelRc::new(VecModel::from(rows)));
-        g.set_changes_note(if daily.is_empty() { String::new() } else { format!("{} w Twoich folderach", fmt::items(total)) }.into());
+        g.set_changes_note(if daily.is_empty() { String::new() } else { powerdesk_core::trf!("{} w Twoich folderach", fmt::items(total)) }.into());
     });
 }
 
@@ -212,12 +212,12 @@ fn with_ui(s: &Shared, f: impl FnOnce(&HomeState)) {
 
 fn known() -> Vec<(&'static str, PathBuf, &'static str)> {
     [
-        ("Pulpit", dirs::desktop_dir(), "desktop"),
-        ("Pobrane", dirs::download_dir(), "download"),
-        ("Dokumenty", dirs::document_dir(), "doc"),
-        ("Obrazy", dirs::picture_dir(), "image"),
-        ("Wideo", dirs::video_dir(), "video"),
-        ("Muzyka", dirs::audio_dir(), "music"),
+        (crate::tr("Pulpit"), dirs::desktop_dir(), "desktop"),
+        (crate::tr("Pobrane"), dirs::download_dir(), "download"),
+        (crate::tr("Dokumenty"), dirs::document_dir(), "doc"),
+        (crate::tr("Obrazy"), dirs::picture_dir(), "image"),
+        (crate::tr("Wideo"), dirs::video_dir(), "video"),
+        (crate::tr("Muzyka"), dirs::audio_dir(), "music"),
     ]
     .into_iter()
     .filter_map(|(n, p, i)| p.filter(|p| p.is_dir()).map(|p| (n, p, i)))
@@ -303,7 +303,7 @@ fn render_tools(s: &Shared) {
         .iter()
         .map(|(n, h, i, src, run)| {
             let img = crate::thumbs::get(&tool_icon_path(src), px, true);
-            HomeTool { name: (*n).into(), hint: (*h).into(), icon: ic(i), key: (*run).into(), has_img: img.is_some(), img: img.unwrap_or_default() }
+            HomeTool { name: crate::tr(*n).into(), hint: crate::tr(*h).into(), icon: ic(i), key: (*run).into(), has_img: img.is_some(), img: img.unwrap_or_default() }
         })
         .collect();
     with_ui(s, |g| g.set_tools(ModelRc::new(VecModel::from(rows))));
@@ -346,9 +346,9 @@ pub fn sync(s: &Shared) {
 fn drive_kind(kind: &str) -> &'static str {
     match kind {
         "removable" => "USB · ",
-        "network" => "sieciowy · ",
-        "cdrom" => "napęd optyczny · ",
-        "ram" => "RAM-dysk · ",
+        "network" => crate::tr("sieciowy · "),
+        "cdrom" => crate::tr("napęd optyczny · "),
+        "ram" => crate::tr("RAM-dysk · "),
         _ => "",
     }
 }
@@ -362,9 +362,9 @@ fn render_drives(s: &Shared) {
         .iter()
         .filter(|d| d.online && d.total > 0)
         .map(|d| HomeDrive {
-            name: if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) }.into(),
+            name: if d.label.is_empty() { powerdesk_core::trf!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) }.into(),
             path: d.path.clone().into(),
-            detail: format!("{}{} wolne z {}{}", drive_kind(&d.kind), fmt::size(d.free), fmt::size(d.total), if d.fs.is_empty() { String::new() } else { format!(" · {}", d.fs) }).into(),
+            detail: powerdesk_core::trf!("{}{} wolne z {}{}", drive_kind(&d.kind), fmt::size(d.free), fmt::size(d.total), if d.fs.is_empty() { String::new() } else { format!(" · {}", d.fs) }).into(),
             usage: 1.0 - d.free as f32 / d.total as f32,
             icon: ic(match d.kind.as_str() {
                 "network" => "network",
@@ -379,7 +379,7 @@ fn render_drives(s: &Shared) {
     let (total, free) = s.borrow().drives.iter().filter(|d| d.online && d.kind != "network").fold((0u64, 0u64), |(t, f), d| (t + d.total, f + d.free));
     with_ui(s, |g| {
         g.set_drives(ModelRc::new(VecModel::from(drives)));
-        g.set_storage(if total > 0 { format!("{} wolne z {}", fmt::size(free), fmt::size(total)) } else { String::new() }.into());
+        g.set_storage(if total > 0 { powerdesk_core::trf!("{} wolne z {}", fmt::size(free), fmt::size(total)) } else { String::new() }.into());
         g.set_storage_usage(if total > 0 { 1.0 - free as f32 / total as f32 } else { 0.0 });
     });
 }
@@ -416,10 +416,10 @@ fn rate(bps: f64) -> String {
 fn metrics(i: &sysmon::Info, cpu_hist: Vec<f32>) -> Vec<HomeMetric> {
     let spark = |v: Vec<f32>| ModelRc::new(VecModel::from(v));
     let mut out = Vec::new();
-    let ghz = if i.cpu_mhz > 0 { format!(" · {:.1} GHz", i.cpu_mhz as f64 / 1000.0).replace('.', ",") } else { String::new() };
+    let ghz = if i.cpu_mhz > 0 { powerdesk_core::trf!(" · {:.1} GHz", i.cpu_mhz as f64 / 1000.0).replace('.', ",") } else { String::new() };
     out.push(HomeMetric {
         icon: ic("bolt"),
-        label: "Procesor".into(),
+        label: crate::tr("Procesor").into(),
         value: format!("{:.0}%", i.cpu_usage).into(),
         detail: format!("{} · {} rdz. / {} wątków{ghz}", i.cpu, i.cores, i.threads).into(),
         bar: -1.0,
@@ -428,7 +428,7 @@ fn metrics(i: &sysmon::Info, cpu_hist: Vec<f32>) -> Vec<HomeMetric> {
     let mem = if i.mem_total > 0 { i.mem_used as f32 / i.mem_total as f32 } else { 0.0 };
     out.push(HomeMetric {
         icon: ic("app"),
-        label: "Pamięć RAM".into(),
+        label: crate::tr("Pamięć RAM").into(),
         value: format!("{} / {}", fmt::size(i.mem_used), fmt::size(i.mem_total)).into(),
         detail: format!("{:.0}% zajęte · wolne {}", mem * 100.0, fmt::size(i.mem_total.saturating_sub(i.mem_used))).into(),
         bar: mem,
@@ -445,7 +445,7 @@ fn metrics(i: &sysmon::Info, cpu_hist: Vec<f32>) -> Vec<HomeMetric> {
         if let Some(t) = g.temp {
             detail.push_str(&format!(" · {t}°C"));
         }
-        out.push(HomeMetric { icon: ic("image"), label: "Karta graficzna".into(), value: format!("{:.0}%", g.usage).into(), detail: detail.trim_start_matches(" · ").to_string().into(), bar: -1.0, spark: spark(hist) });
+        out.push(HomeMetric { icon: ic("image"), label: crate::tr("Karta graficzna").into(), value: format!("{:.0}%", g.usage).into(), detail: detail.trim_start_matches(" · ").to_string().into(), bar: -1.0, spark: spark(hist) });
     }
     // Sieć: własny pomiar (widżet ma swój), wykres względem najszybszej chwili z minuty.
     if let Some((d, u)) = powerdesk_core::netspeed::totals() {
@@ -462,9 +462,9 @@ fn metrics(i: &sysmon::Info, cpu_hist: Vec<f32>) -> Vec<HomeMetric> {
         let net = powerdesk_core::sysbar::network();
         out.push(HomeMetric {
             icon: ic("network"),
-            label: "Sieć".into(),
+            label: crate::tr("Sieć").into(),
             value: format!("↓ {}  ↑ {}", rate(down), rate(up)).into(),
-            detail: if net.name.is_empty() { "Brak połączenia".to_string() } else { net.name }.into(),
+            detail: if net.name.is_empty() { crate::tr("Brak połączenia").to_string() } else { net.name }.into(),
             bar: -1.0,
             spark: spark(hist.iter().map(|&v| (v / top * 100.0) as f32).collect()),
         });
@@ -472,9 +472,9 @@ fn metrics(i: &sysmon::Info, cpu_hist: Vec<f32>) -> Vec<HomeMetric> {
     if let Some(b) = powerdesk_core::sysbar::battery() {
         out.push(HomeMetric {
             icon: ic("battery"),
-            label: "Bateria".into(),
+            label: crate::tr("Bateria").into(),
             value: format!("{}%", b.percent).into(),
-            detail: if b.charging { "Zasilacz podłączony" } else { "Na baterii" }.into(),
+            detail: if b.charging { crate::tr("Zasilacz podłączony") } else { crate::tr("Na baterii") }.into(),
             bar: b.percent as f32 / 100.0,
             spark: Default::default(),
         });
@@ -489,14 +489,14 @@ fn tick(s: &Shared) {
     let up = i.uptime;
     let uptime = match (up / 86_400, up / 3600 % 24, up / 60 % 60) {
         (0, 0, m) => format!("{m} min"),
-        (0, h, m) => format!("{h} h {m} min"),
-        (d, h, _) => format!("{d} d {h} h"),
+        (0, h, m) => powerdesk_core::trf!("{h} h {m} min"),
+        (d, h, _) => powerdesk_core::trf!("{d} d {h} h"),
     };
     render_activity(s);
     let rows = metrics(&i, hist.clone());
     with_ui(s, |g| {
         g.set_metrics(ModelRc::new(VecModel::from(rows)));
-        g.set_sys_note(format!("{} · działa od {uptime}", i.os).into());
+        g.set_sys_note(powerdesk_core::trf!("{} · działa od {uptime}", i.os).into());
         g.set_host(i.host.clone().into());
         g.set_os(i.os.clone().into());
         g.set_cpu(format!("{} · {} rdz. / {} wątków", i.cpu, i.cores, i.threads).into());
@@ -573,11 +573,11 @@ fn load_files(s: &Shared) {
 fn ago(ms: i64) -> String {
     let mins = (Local::now().timestamp_millis() - ms).max(0) / 60_000;
     match mins {
-        0 => "przed chwilą".into(),
-        1..=59 => format!("{mins} min temu"),
-        60..=1439 => format!("{} godz. temu", mins / 60),
+        0 => crate::tr("przed chwilą").into(),
+        1..=59 => powerdesk_core::trf!("{mins} min temu"),
+        60..=1439 => powerdesk_core::trf!("{} godz. temu", mins / 60),
         1440..=2879 => "wczoraj".into(),
-        _ => format!("{} dni temu", mins / 1440),
+        _ => powerdesk_core::trf!("{} dni temu", mins / 1440),
     }
 }
 
@@ -657,13 +657,13 @@ fn reveal(s: &Shared, path: &str) {
 pub fn file_menu(s: &Shared, path: String, x: f32, y: f32) {
     let (p1, p2, p3, p4) = (path.clone(), path.clone(), path.clone(), path);
     let items = vec![
-        it("Otwórz", "open", move |_| {
+        it(crate::tr("Otwórz"), "open", move |_| {
             let _ = open::that_detached(&p1);
         }),
-        it("Pokaż w folderze", "folder", move |s| reveal(s, &p2)),
+        it(crate::tr("Pokaż w folderze"), "folder", move |s| reveal(s, &p2)),
         sep(),
-        it("Kopiuj ścieżkę", "copy", move |s| crate::props::copy(s, &p3)),
-        it("Właściwości systemowe", "info", move |s| {
+        it(crate::tr("Kopiuj ścieżkę"), "copy", move |s| crate::props::copy(s, &p3)),
+        it(crate::tr("Właściwości systemowe"), "info", move |s| {
             shell::show_properties(crate::hwnd(s), &p4);
         }),
     ];

@@ -33,7 +33,7 @@ fn get(url: &str, accept: &str) -> Result<ureq::Response, String> {
         .timeout(std::time::Duration::from_secs(30))
         .call()
         .map_err(|e| match e {
-            ureq::Error::Status(404, _) => "Brak wydań do pobrania".to_string(),
+            ureq::Error::Status(404, _) => crate::lang::tr("Brak wydań do pobrania").to_string(),
             e => e.to_string(),
         })
 }
@@ -103,7 +103,7 @@ pub fn download(rel: &Release, progress: impl Fn(u64, u64)) -> Result<PathBuf, S
         None => sum_in_notes(&rel.notes, &rel.name),
     };
     // Bez sumy nie podmieniamy programu – to jest powłoka systemu.
-    let expected = expected.ok_or("Wydanie nie ma sumy kontrolnej pliku PowerDesk")?;
+    let expected = expected.ok_or(crate::lang::tr("Wydanie nie ma sumy kontrolnej pliku PowerDesk"))?;
     let resp = get(&rel.asset, "application/octet-stream")?;
     let total: u64 = resp.header("Content-Length").and_then(|v| v.parse().ok()).unwrap_or(0);
     let folder = dir().join("update");
@@ -127,7 +127,7 @@ pub fn download(rel: &Release, progress: impl Fn(u64, u64)) -> Result<PathBuf, S
     drop(f);
     if format!("{:x}", h.finalize()) != expected {
         let _ = std::fs::remove_file(&path);
-        return Err("Suma kontrolna pobranego pliku się nie zgadza – aktualizacja przerwana".into());
+        return Err(crate::lang::tr("Suma kontrolna pobranego pliku się nie zgadza – aktualizacja przerwana").into());
     }
     Ok(path)
 }
@@ -152,7 +152,7 @@ pub fn apply_installer(setup: &std::path::Path) -> Result<(), String> {
     let elevated = all && !crate::install::is_admin();
     match crate::install::run_wait(setup, args.trim(), elevated)? {
         0 => {}
-        code => return Err(format!("Instalator zakończył się błędem ({code})")),
+        code => return Err(crate::trf!("Instalator zakończył się błędem ({code})")),
     }
     let pid = std::process::id();
     let mark = marker();

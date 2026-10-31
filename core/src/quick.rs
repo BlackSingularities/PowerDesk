@@ -26,7 +26,7 @@ pub fn radio_state() -> (Option<bool>, bool) {
 
 pub fn set_bluetooth(on: bool) -> Result<(), String> {
     let list = radios();
-    let Some(r) = list.iter().find(|r| r.Kind().ok() == Some(RadioKind::Bluetooth)) else { return Err("Brak karty Bluetooth".into()) };
+    let Some(r) = list.iter().find(|r| r.Kind().ok() == Some(RadioKind::Bluetooth)) else { return Err(crate::lang::tr("Brak karty Bluetooth").into()) };
     set(r, on)
 }
 
@@ -150,11 +150,11 @@ pub fn power_mode() -> Option<u8> {
 }
 
 pub fn set_power_mode(mode: u8) -> Result<(), String> {
-    let f = powrprof(windows::core::s!("PowerSetActiveOverlayScheme")).ok_or("Tryb zasilania niedostępny")?;
+    let f = powrprof(windows::core::s!("PowerSetActiveOverlayScheme")).ok_or(crate::lang::tr("Tryb zasilania niedostępny"))?;
     let set: SetOverlay = unsafe { std::mem::transmute(f) };
     let g = windows::core::GUID::from_u128(POWER_MODES[mode.min(2) as usize]);
     match unsafe { set(&g) } {
         0 => Ok(()),
-        e => Err(format!("Nie udało się zmienić trybu zasilania (kod {e})")),
+        e => Err(crate::trf!("Nie udało się zmienić trybu zasilania (kod {e})")),
     }
 }

@@ -103,7 +103,7 @@ fn exposure(props: &[shell::Prop]) -> Option<String> {
         parts.push(format!("ISO {iso}"));
     }
     if let Some(fl) = num("System.Photo.FocalLength") {
-        let fl35 = num("System.Photo.FocalLengthInFilm").map(|x| format!(" ({x} mm pełnej klatki)")).unwrap_or_default();
+        let fl35 = num("System.Photo.FocalLengthInFilm").map(|x| powerdesk_core::trf!(" ({x} mm pełnej klatki)")).unwrap_or_default();
         parts.push(format!("{} mm{fl35}", (fl * 10.0).round() / 10.0));
     }
     (!parts.is_empty()).then(|| parts.join(" · "))
@@ -117,7 +117,7 @@ pub fn gauges(props: &[shell::Prop]) -> Vec<Gauge> {
     let mut v = Vec::new();
     if let Some(f) = num("System.Photo.FNumber") {
         v.push(Gauge {
-            label: "Przysłona".into(),
+            label: crate::tr("Przysłona").into(),
             value: format!("f/{}", (f * 10.0).round() / 10.0).into(),
             // Większa liczba f to mniejszy otwór – skala rośnie w prawo wraz z liczbą.
             pos: pos(f, 1.0, 32.0),
@@ -127,23 +127,23 @@ pub fn gauges(props: &[shell::Prop]) -> Vec<Gauge> {
     }
     if let Some(t) = num("System.Photo.ExposureTime") {
         v.push(Gauge {
-            label: "Czas".into(),
+            label: crate::tr("Czas").into(),
             value: if t >= 1.0 { format!("{} s", (t * 10.0).round() / 10.0) } else { format!("1/{} s", (1.0 / t).round()) }.into(),
             pos: pos(t, 1.0 / 8000.0, 30.0),
             lo: "1/8000 s".into(),
-            hi: "30 s".into(),
+            hi: crate::tr("30 s").into(),
         });
     }
     if let Some(iso) = num("System.Photo.ISOSpeed") {
-        v.push(Gauge { label: "Czułość".into(), value: format!("ISO {iso}").into(), pos: pos(iso, 50.0, 25600.0), lo: "ISO 50".into(), hi: "ISO 25600".into() });
+        v.push(Gauge { label: crate::tr("Czułość").into(), value: format!("ISO {iso}").into(), pos: pos(iso, 50.0, 25600.0), lo: "ISO 50".into(), hi: "ISO 25600".into() });
     }
     if let Some(fl) = num("System.Photo.FocalLength") {
         v.push(Gauge {
-            label: "Ogniskowa".into(),
+            label: crate::tr("Ogniskowa").into(),
             value: format!("{} mm", (fl * 10.0).round() / 10.0).into(),
             pos: pos(fl, 8.0, 600.0),
-            lo: "8 mm".into(),
-            hi: "600 mm".into(),
+            lo: crate::tr("8 mm").into(),
+            hi: crate::tr("600 mm").into(),
         });
     }
     v
@@ -192,18 +192,18 @@ pub fn open_map() {
 fn dims(props: &[shell::Prop]) -> Option<String> {
     let num = |a: &str, b: &str| props.iter().find(|p| p.key == a || p.key == b).and_then(|p| p.num).filter(|n| *n > 0.0);
     let (w, h) = (num("System.Image.HorizontalSize", "System.Video.FrameWidth")?, num("System.Image.VerticalSize", "System.Video.FrameHeight")?);
-    Some(format!("{w} × {h} ({:.1} Mpx)", w * h / 1e6))
+    Some(powerdesk_core::trf!("{w} × {h} ({:.1} Mpx)", w * h / 1e6))
 }
 
 /// Metadane w sekcjach; pierwsze wiersze to wyliczona ekspozycja i wymiary.
 pub fn sections(props: &[shell::Prop]) -> Vec<PropSection> {
     let mut groups: Vec<Vec<PropRow>> = vec![Vec::new(); SECTIONS.len()];
     if let Some(e) = exposure(props) {
-        groups[0].push(row("Ekspozycja", e));
+        groups[0].push(row(crate::tr("Ekspozycja"), e));
     }
     if let Some(d) = dims(props) {
         let video = props.iter().any(|p| p.key.starts_with("System.Video."));
-        groups[if video { 3 } else { 1 }].push(row("Wymiary", d));
+        groups[if video { 3 } else { 1 }].push(row(crate::tr("Wymiary"), d));
     }
     for p in props.iter().filter(|p| !SKIP.contains(&p.key.as_str())) {
         let i = SECTIONS.iter().position(|(_, _, m)| m(&p.key)).unwrap_or(SECTIONS.len() - 1);
@@ -213,12 +213,12 @@ pub fn sections(props: &[shell::Prop]) -> Vec<PropSection> {
         .iter()
         .zip(groups)
         .filter(|(_, rows)| !rows.is_empty())
-        .map(|((title, icon, _), rows)| PropSection { title: (*title).into(), icon: crate::icons::icon(icon).into(), rows: ModelRc::new(VecModel::from(rows)) })
+        .map(|((title, icon, _), rows)| PropSection { title: crate::tr(*title).into(), icon: crate::icons::icon(icon).into(), rows: ModelRc::new(VecModel::from(rows)) })
         .collect()
 }
 
 fn attributes(e: &Entry) -> String {
-    let a: Vec<&str> = [(e.readonly, "tylko do odczytu"), (e.hidden, "ukryty"), (e.system, "systemowy"), (e.link, "dowiązanie"), (e.cloud, "tylko w chmurze")]
+    let a: Vec<&str> = [(e.readonly, crate::tr("tylko do odczytu")), (e.hidden, "ukryty"), (e.system, "systemowy"), (e.link, crate::tr("dowiązanie")), (e.cloud, crate::tr("tylko w chmurze"))]
         .into_iter()
         .filter_map(|(on, l)| on.then_some(l))
         .collect();
@@ -227,15 +227,15 @@ fn attributes(e: &Entry) -> String {
 
 /// Wiersze podstawowe; `totals` – (rozmiar, pliki, foldery), gdy już policzone.
 fn basic(entries: &[Entry], totals: Option<(u64, u64, u64)>) -> Vec<PropRow> {
-    let mut v = vec![row("Rozmiar", totals.map(|t| size_text(t.0)).unwrap_or_else(|| "liczę…".into()))];
+    let mut v = vec![row(crate::tr("Rozmiar"), totals.map(|t| size_text(t.0)).unwrap_or_else(|| crate::tr("liczę…").into()))];
     if let Some((_, files, dirs)) = totals.filter(|t| t.2 > 0 || entries.len() > 1) {
-        v.push(row("Zawiera", format!("{}, {}", plural(files, "plik", "pliki", "plików"), plural(dirs, "folder", "foldery", "folderów"))));
+        v.push(row(crate::tr("Zawiera"), format!("{}, {}", plural(files, "plik", "pliki", crate::tr("plików")), plural(dirs, "folder", "foldery", crate::tr("folderów")))));
     }
     if let [e] = entries {
-        v.push(row("Lokalizacja", Path::new(&e.path).parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| e.path.clone())));
-        v.push(row("Utworzono", date_full(e.created)));
-        v.push(row("Zmodyfikowano", date_full(e.modified)));
-        v.push(row("Atrybuty", attributes(e)));
+        v.push(row(crate::tr("Lokalizacja"), Path::new(&e.path).parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| e.path.clone())));
+        v.push(row(crate::tr("Utworzono"), date_full(e.created)));
+        v.push(row(crate::tr("Zmodyfikowano"), date_full(e.modified)));
+        v.push(row(crate::tr("Atrybuty"), attributes(e)));
     }
     v
 }
@@ -277,7 +277,7 @@ pub fn open_folder(s: &Shared) {
         return;
     }
     // Korzeń archiwum to plik – jego dane bierzemy z dysku; wnętrze archiwum – z listy archiwum.
-    let e = if crate::archives::inside(&dir) { powerdesk_core::archive::stat(&dir).ok_or_else(|| "Nie znaleziono elementu archiwum".to_string()) } else { fsx::stat(&dir) };
+    let e = if crate::archives::inside(&dir) { powerdesk_core::archive::stat(&dir).ok_or_else(|| crate::tr("Nie znaleziono elementu archiwum").to_string()) } else { fsx::stat(&dir) };
     match e {
         Ok(e) => show(s, vec![e]),
         Err(e) => transfers::toast(s, e, Kind::Error, None),
@@ -302,8 +302,8 @@ fn show(s: &Shared, entries: Vec<Entry>) {
                 g.set_img(img.unwrap_or_default());
             }
             None => {
-                g.set_title(plural(entries.len() as u64, "element", "elementy", "elementów").into());
-                g.set_subtitle("Wiele elementów".into());
+                g.set_title(plural(entries.len() as u64, "element", "elementy", crate::tr("elementów")).into());
+                g.set_subtitle(crate::tr("Wiele elementów").into());
                 g.set_has_img(false);
             }
         }
@@ -387,7 +387,7 @@ pub fn compute_hash(s: &Shared) {
 /// Kopiuje wartość wiersza (ścieżkę, skrót…) do schowka.
 pub fn copy(s: &Shared, text: &str) {
     if clip::set_text(text).is_ok() {
-        transfers::toast(s, "Skopiowano", Kind::Ok, None);
+        transfers::toast(s, crate::tr("Skopiowano"), Kind::Ok, None);
     }
 }
 

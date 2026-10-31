@@ -262,7 +262,7 @@ fn parse_reminder(input: &str) -> Option<Reminder> {
         at = Local.from_local_datetime(&NaiveDateTime::new(date, tm)).single()?;
         text = rest[skip..].join(" ");
     }
-    let text = if text.trim().is_empty() { "Przypomnienie".to_string() } else { text };
+    let text = if text.trim().is_empty() { crate::tr("Przypomnienie").to_string() } else { text };
     Some(Reminder { at: at.timestamp(), text })
 }
 
@@ -272,13 +272,13 @@ fn when(at: i64) -> (String, bool) {
     let left = at - now.timestamp();
     let soon = left < 3600;
     let day = if d.date_naive() == now.date_naive() {
-        "dziś".to_string()
+        crate::tr("dziś").to_string()
     } else if d.date_naive() == now.date_naive() + chrono::Duration::days(1) {
         "jutro".to_string()
     } else {
         d.format("%d.%m").to_string()
     };
-    let rel = if left < 3600 { format!(" · za {} min", (left / 60).max(0)) } else { String::new() };
+    let rel = if left < 3600 { powerdesk_core::trf!(" · za {} min", (left / 60).max(0)) } else { String::new() };
     (format!("{day} {}{rel}", d.format("%H:%M")), soon)
 }
 
@@ -296,7 +296,7 @@ fn fire_due(s: &Shared) {
     };
     let _ = s;
     for r in due {
-        crate::notices::add("Przypomnienie", "Przypomnienie", &r.text);
+        crate::notices::add(crate::tr("Przypomnienie"), crate::tr("Przypomnienie"), &r.text);
     }
 }
 
@@ -334,7 +334,7 @@ pub fn apply(g: &WidgetData) {
             let t = now.with_timezone(&tz);
             let off = chrono::Offset::fix(t.offset()).local_minus_utc();
             let diff = (off - local_off) / 60;
-            let mut note = if diff == 0 { "jak tutaj".to_string() } else if diff % 60 == 0 { format!("{:+} h", diff / 60) } else { format!("{:+}:{:02} h", diff / 60, (diff % 60).abs()) };
+            let mut note = if diff == 0 { crate::tr("jak tutaj").to_string() } else if diff % 60 == 0 { format!("{:+} h", diff / 60) } else { powerdesk_core::trf!("{:+}:{:02} h", diff / 60, (diff % 60).abs()) };
             let d = t.date_naive();
             if d > today {
                 note.push_str(" · jutro");
@@ -364,7 +364,7 @@ pub fn apply(g: &WidgetData) {
             }
             None => {
                 g.set_p_has(false);
-                g.set_p_status(if f.photo_folder.is_empty() { "Wczytywanie zdjęć…".into() } else { format!("Brak zdjęć w folderze {}", f.photo_folder).into() });
+                g.set_p_status(if f.photo_folder.is_empty() { crate::tr("Wczytywanie zdjęć…").into() } else { powerdesk_core::trf!("Brak zdjęć w folderze {}", f.photo_folder).into() });
             }
         }
     });
@@ -387,34 +387,34 @@ pub fn apply(g: &WidgetData) {
 /// Pozycje ustawień w menu widżetu danego rodzaju (w Starcie i na pulpicie).
 pub fn config_items(kind: &str) -> Vec<Item> {
     match kind {
-        "clocks" => vec![it("Zmień strefy…", "history", |s| {
+        "clocks" => vec![it(crate::tr("Zmień strefy…"), "history", |s| {
             let cur = zones().join(", ");
             crate::show_window(s);
             transfers::prompt(
                 s,
                 "Strefy czasowe (np. Londyn, Tokio, America/Denver)",
                 &cur,
-                "Zapisz",
+                crate::tr("Zapisz"),
                 Rc::new(|s, text| {
                     let (ok, bad): (Vec<_>, Vec<_>) = text.split(',').filter(|e| !e.trim().is_empty()).map(|e| (e.trim().to_string(), zone_of(e))).partition(|(_, z)| z.is_some());
                     let list: Vec<String> = ok.into_iter().filter_map(|(_, z)| z).collect();
                     edit_prefs(|p| p.world_zones = list);
                     if !bad.is_empty() {
                         let names: Vec<String> = bad.into_iter().map(|(e, _)| e).collect();
-                        transfers::toast(s, format!("Nieznane strefy: {}", names.join(", ")), Kind::Error, None);
+                        transfers::toast(s, powerdesk_core::trf!("Nieznane strefy: {}", names.join(", ")), Kind::Error, None);
                     }
                     crate::widgets::push_all();
                 }),
             );
         })],
         "weather" | "forecast" => vec![
-            it("Zmień wspólną miejscowość…", "cloud", |s| {
+            it(crate::tr("Zmień wspólną miejscowość…"), "cloud", |s| {
                 crate::show_window(s);
                 transfers::prompt(
                     s,
-                    "Miejscowość dla pogody",
+                    crate::tr("Miejscowość dla pogody"),
                     &city(),
-                    "Zapisz",
+                    crate::tr("Zapisz"),
                     Rc::new(|_, text| {
                         let t = text.trim().to_string();
                         edit_prefs(|p| p.weather_city = t);
@@ -423,36 +423,36 @@ pub fn config_items(kind: &str) -> Vec<Item> {
                     }),
                 );
             }),
-            it("Odśwież pogodę", "refresh", |_| crate::widgetlive::refresh_weather_all()),
+            it(crate::tr("Odśwież pogodę"), "refresh", |_| crate::widgetlive::refresh_weather_all()),
         ],
         "photos" => vec![
-            it("Wybierz folder ze zdjęciami…", "folder", |s| {
+            it(crate::tr("Wybierz folder ze zdjęciami…"), "folder", |s| {
                 let cur = photo_folder();
-                if let Some(p) = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Folder ze zdjęciami", Some(cur.as_str())) {
+                if let Some(p) = powerdesk_core::shell::pick_folder(crate::hwnd(s), crate::tr("Folder ze zdjęciami"), Some(cur.as_str())) {
                     edit_prefs(|x| x.photo_folder = p);
                     refresh_photos_list();
                 }
             }),
-            it("Następne zdjęcie", "fwd", |_| next_photo()),
+            it(crate::tr("Następne zdjęcie"), "fwd", |_| next_photo()),
         ],
         "reminders" => vec![
-            it("Dodaj przypomnienie…", "plus", |s| {
+            it(crate::tr("Dodaj przypomnienie…"), "plus", |s| {
                 crate::show_window(s);
                 transfers::prompt(
                     s,
-                    "Przypomnienie: „14:30 tekst”, „24.12 18:00 tekst” albo „za 15 min tekst”",
+                    crate::tr("Przypomnienie: „14:30 tekst”, „24.12 18:00 tekst” albo „za 15 min tekst”"),
                     "",
-                    "Dodaj",
+                    crate::tr("Dodaj"),
                     Rc::new(|s, text| match parse_reminder(text) {
                         Some(r) => {
                             edit_prefs(|p| p.reminders.push(r));
                             crate::widgets::push_all();
                         }
-                        None => transfers::toast(s, "Nie rozpoznano czasu – np. „14:30 spotkanie” albo „za 20 min herbata”", Kind::Error, None),
+                        None => transfers::toast(s, crate::tr("Nie rozpoznano czasu – np. „14:30 spotkanie” albo „za 20 min herbata”"), Kind::Error, None),
                     }),
                 );
             }),
-            it("Usuń wszystkie przypomnienia", "trash", |_| {
+            it(crate::tr("Usuń wszystkie przypomnienia"), "trash", |_| {
                 edit_prefs(|p| p.reminders.clear());
                 crate::widgets::push_all();
             })

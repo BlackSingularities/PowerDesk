@@ -136,7 +136,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     let all = s.borrow().prefs.taskbar_all_monitors;
     let mons: Vec<data::Monitor> = if all || mons.len() < 2 { mons } else { mons.into_iter().filter(|m| m.primary).collect() };
     if mons.is_empty() {
-        crate::transfers::toast(s, "Nie udało się odczytać monitorów", crate::transfers::Kind::Error, None);
+        crate::transfers::toast(s, crate::tr("Nie udało się odczytać monitorów"), crate::transfers::Kind::Error, None);
         return;
     }
     let look = s.borrow().ui.upgrade().map(|u| crate::settings::look(&u));
@@ -235,11 +235,11 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     // Zasobnik z ikonami innych programów (własny Shell_TrayWnd, przed paskiem Eksploratora).
     // `start` działa raz na proces – po przebudowie pasków (zmiana monitorów) tylko odświeżenie.
     powerdesk_core::trayhost::on_balloon(|title, text| {
-        let _ = slint::invoke_from_event_loop(move || crate::notices::add("Program w zasobniku", &title, &text));
+        let _ = slint::invoke_from_event_loop(move || crate::notices::add(crate::tr("Program w zasobniku"), &title, &text));
     });
     // Toasty innych programów pokazuje Windows – do historii trafia ich kopia.
     powerdesk_core::winnotify::start(|app, title, text| {
-        let _ = slint::invoke_from_event_loop(move || crate::notices::add_quiet(if app.is_empty() { "Windows" } else { &app }, &title, &text));
+        let _ = slint::invoke_from_event_loop(move || crate::notices::add_quiet(if app.is_empty() { crate::tr("Windows") } else { &app }, &title, &text));
     });
     powerdesk_core::trayhost::start(|| {
         let _ = slint::invoke_from_event_loop(tray_apps);
@@ -464,20 +464,20 @@ pub fn close() {
 /// pokaż pulpit, zasilanie i zakończenie PowerDesk.
 fn bar_menu(bar: usize, x: f32) {
     let mut items = vec![
-        it("Menedżer zadań", "app", |_| {
+        it(crate::tr("Menedżer zadań"), "app", |_| {
             let _ = std::process::Command::new("taskmgr.exe").spawn();
         })
         .kbd("Ctrl+Shift+Esc"),
-        it("Ustawienia paska zadań", "settings", |s| {
+        it(crate::tr("Ustawienia paska zadań"), "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_TASKBAR);
             crate::show_window(s);
         }),
-        it("Pokaż pulpit", "desktop", |_| taskwin::show_desktop()).kbd("Win+D"),
+        it(crate::tr("Pokaż pulpit"), "desktop", |_| taskwin::show_desktop()).kbd("Win+D"),
         sep(),
-        it("Same ikony (bez nazw okien)", "grid", |_| edit_bar(|p| p.taskbar_labels = !p.taskbar_labels)).checked(!bar_pref(|p| p.taskbar_labels)),
-        it("Przyciski na środku", "grid", |_| edit_bar(|p| p.taskbar_center = !p.taskbar_center)).checked(bar_pref(|p| p.taskbar_center)),
-        it("Automatycznie ukrywaj pasek", "grid", |_| set_autohide(!autohide())).checked(autohide()),
-        it("Wszystkie ikony zasobnika na pasku", "grid", |_| edit_tray(|p| p.tray_all = !p.tray_all)).checked(bar_pref(|p| p.tray_all)),
+        it(crate::tr("Same ikony (bez nazw okien)"), "grid", |_| edit_bar(|p| p.taskbar_labels = !p.taskbar_labels)).checked(!bar_pref(|p| p.taskbar_labels)),
+        it(crate::tr("Przyciski na środku"), "grid", |_| edit_bar(|p| p.taskbar_center = !p.taskbar_center)).checked(bar_pref(|p| p.taskbar_center)),
+        it(crate::tr("Automatycznie ukrywaj pasek"), "grid", |_| set_autohide(!autohide())).checked(autohide()),
+        it(crate::tr("Wszystkie ikony zasobnika na pasku"), "grid", |_| edit_tray(|p| p.tray_all = !p.tray_all)).checked(bar_pref(|p| p.tray_all)),
         sep(),
     ];
     items.extend(crate::start::power_items());
@@ -492,18 +492,18 @@ fn start_menu(bar: usize, x: f32) {
         }
     };
     let items = vec![
-        it("Otwórz PowerDesk", "folder", |s| crate::show_window(s)),
-        it("Ustawienia paska zadań", "settings", |s| {
+        it(crate::tr("Otwórz PowerDesk"), "folder", |s| crate::show_window(s)),
+        it(crate::tr("Ustawienia paska zadań"), "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_TASKBAR);
             crate::show_window(s);
         }),
         sep(),
-        it("Menedżer zadań", "app", run("taskmgr.exe")),
-        it("Ustawienia Windows", "settings", |_| sysbar::open_settings("")),
-        it("Sprawdź aktualizacje", "refresh", |_| crate::updates::check(true)),
+        it(crate::tr("Menedżer zadań"), "app", run("taskmgr.exe")),
+        it(crate::tr("Ustawienia Windows"), "settings", |_| sysbar::open_settings("")),
+        it(crate::tr("Sprawdź aktualizacje"), "refresh", |_| crate::updates::check(true)),
         // Okno „Uruchom” wprost z shell32 – działa także bez Eksploratora.
         it("Uruchom…", "terminal", |_| powerdesk_core::shellmode::run_dialog()).kbd("Win+R"),
-        it("Wyszukaj", "search", move |_| open_start(bar, true)).kbd("Win+S"),
+        it(crate::tr("Wyszukaj"), "search", move |_| open_start(bar, true)).kbd("Win+S"),
     ];
     show_menu(bar, items, x);
 }
@@ -856,7 +856,7 @@ fn jump_items(hwnd: Option<isize>, exe: &str) -> Vec<Item> {
     let mut cat: Option<String> = None;
     for t in powerdesk_core::jumplist::tasks(exe) {
         if cat.as_deref() != Some(t.category.as_str()) {
-            items.push(crate::menus::header(if t.category.is_empty() { "Zadania".to_string() } else { t.category.clone() }));
+            items.push(crate::menus::header(if t.category.is_empty() { crate::tr("Zadania").to_string() } else { t.category.clone() }));
             cat = Some(t.category.clone());
         }
         let (path, args) = (t.path.clone(), t.args.clone());
@@ -867,7 +867,7 @@ fn jump_items(hwnd: Option<isize>, exe: &str) -> Vec<Item> {
     }
     let files = powerdesk_core::jumplist::recent(hwnd, exe, 10);
     if !files.is_empty() {
-        items.push(crate::menus::header("Ostatnie"));
+        items.push(crate::menus::header(crate::tr("Ostatnie")));
     }
     for f in files {
         let name = std::path::Path::new(&f).file_name().map_or_else(|| f.clone(), |n| n.to_string_lossy().to_string());
@@ -888,15 +888,15 @@ fn context(bar: usize, i: usize, x: f32, _y: f32) {
     let mut items = jump_items(g.wins.first().map(|w| w.hwnd), &g.exe);
     let pin_item = |exe: String| {
         if pinned(&exe) {
-            it("Odepnij od paska", "pin", move |_| toggle_pin(&exe))
+            it(crate::tr("Odepnij od paska"), "pin", move |_| toggle_pin(&exe))
         } else {
-            it("Przypnij do paska", "pin", move |_| toggle_pin(&exe))
+            it(crate::tr("Przypnij do paska"), "pin", move |_| toggle_pin(&exe))
         }
     };
     let Some(first) = g.wins.first().cloned() else {
         // Przypięty program bez okien.
         let exe = g.exe.clone();
-        items.push(it(&format!("Uruchom {}", program_name(&g.exe)), "open", move |_| launch(&exe)));
+        items.push(it(&powerdesk_core::trf!("Uruchom {}", program_name(&g.exe)), "open", move |_| launch(&exe)));
         items.push(sep());
         items.push(pin_item(g.exe.clone()));
         show_menu(bar, items, x);
@@ -905,11 +905,11 @@ fn context(bar: usize, i: usize, x: f32, _y: f32) {
     let group = g.wins;
     if group.len() == 1 {
         let target = first.hwnd;
-        items.push(it("Przełącz na to okno", "open", move |_| taskwin::activate(target)));
+        items.push(it(crate::tr("Przełącz na to okno"), "open", move |_| taskwin::activate(target)));
         items.push(if first.minimized {
-            it("Przywróć", "eye", move |_| taskwin::activate(target))
+            it(crate::tr("Przywróć"), "eye", move |_| taskwin::activate(target))
         } else {
-            it("Zminimalizuj", "minus", move |_| taskwin::minimize(target))
+            it(crate::tr("Zminimalizuj"), "minus", move |_| taskwin::minimize(target))
         });
     } else {
         for w in &group {
@@ -918,21 +918,21 @@ fn context(bar: usize, i: usize, x: f32, _y: f32) {
         }
         items.push(sep());
         let all: Vec<isize> = group.iter().map(|w| w.hwnd).collect();
-        items.push(it("Zminimalizuj wszystkie", "minus", move |_| all.iter().for_each(|&h| taskwin::minimize(h))));
+        items.push(it(crate::tr("Zminimalizuj wszystkie"), "minus", move |_| all.iter().for_each(|&h| taskwin::minimize(h))));
     }
     if !first.exe.is_empty() {
         let exe = first.exe.clone();
         // Nowe okno tego samego programu (jak środkowy przycisk na pasku Windows).
-        items.push(it("Nowe okno programu", "plus", move |_| launch(&exe)));
+        items.push(it(crate::tr("Nowe okno programu"), "plus", move |_| launch(&exe)));
         items.push(pin_item(first.exe.clone()));
     }
     items.push(sep());
     if group.len() == 1 {
         let target = first.hwnd;
-        items.push(it("Zamknij okno", "close", move |_| taskwin::close(target)).danger());
+        items.push(it(crate::tr("Zamknij okno"), "close", move |_| taskwin::close(target)).danger());
     } else {
         let all: Vec<isize> = group.iter().map(|w| w.hwnd).collect();
-        let label = format!("Zamknij wszystkie okna ({})", all.len());
+        let label = powerdesk_core::trf!("Zamknij wszystkie okna ({})", all.len());
         items.push(it(&label, "close", move |_| all.iter().for_each(|&h| taskwin::close(h))).danger());
     }
     show_menu(bar, items, x);
@@ -1233,12 +1233,12 @@ fn vd_menu(bar: usize, x: f32) {
         .collect();
     items.extend([
         sep(),
-        it("Nowy pulpit", "plus", |_| {
+        it(crate::tr("Nowy pulpit"), "plus", |_| {
             powerdesk_core::vdesk::add();
             slint::Timer::single_shot(Duration::from_millis(500), vd_status);
         })
         .kbd("Win+Ctrl+D"),
-        it("Zamknij ten pulpit", "close", |_| {
+        it(crate::tr("Zamknij ten pulpit"), "close", |_| {
             powerdesk_core::vdesk::close_current();
             slint::Timer::single_shot(Duration::from_millis(500), vd_status);
         })
@@ -1253,9 +1253,9 @@ fn screenshot(full: bool) {
     std::thread::spawn(move || {
         let res = if full { powerdesk_core::capture::full().map(Some) } else { powerdesk_core::capture::snip() };
         let _ = slint::invoke_from_event_loop(move || match res {
-            Ok(Some(p)) => crate::notices::add("Zrzut ekranu", "Zapisano i skopiowano do schowka", &p.display().to_string()),
+            Ok(Some(p)) => crate::notices::add(crate::tr("Zrzut ekranu"), crate::tr("Zapisano i skopiowano do schowka"), &p.display().to_string()),
             Ok(None) => {}
-            Err(e) => crate::notices::add("Zrzut ekranu", "Nie udało się", &e),
+            Err(e) => crate::notices::add(crate::tr("Zrzut ekranu"), crate::tr("Nie udało się"), &e),
         });
     });
 }
@@ -1357,7 +1357,7 @@ fn with_volume(f: impl FnOnce(&VolumeWindow)) {
 
 fn fill_outputs(w: &VolumeWindow) {
     let outs = sysbar::outputs();
-    let name = outs.iter().find(|o| o.default).map(|o| o.name.clone()).unwrap_or_else(|| "Brak urządzenia odtwarzającego".into());
+    let name = outs.iter().find(|o| o.default).map(|o| o.name.clone()).unwrap_or_else(|| crate::tr("Brak urządzenia odtwarzającego").into());
     w.set_current_name(name.into());
     let rows: Vec<OutDev> = outs.into_iter().map(|o| OutDev { name: o.name.into(), current: o.default }).collect();
     w.set_outputs(ModelRc::new(VecModel::from(rows)));
@@ -1408,7 +1408,7 @@ fn open_network(bar: usize, x: f32) {
         let res = wifi::connect(&ssid, (!pass.is_empty()).then_some(pass.as_str()));
         with_network(|w| {
             match &res {
-                Ok(()) => w.set_note("Łączenie…".into()),
+                Ok(()) => w.set_note(crate::tr("Łączenie…").into()),
                 Err(e) => w.set_note(e.clone().into()),
             }
             if res.is_ok() {
@@ -1517,13 +1517,13 @@ fn usb_menu(bar: usize, x: f32) {
     let drives = powerdesk_core::drives::list();
     let mut items: Vec<Item> = Vec::new();
     for root in roots {
-        let label = drives.iter().find(|d| d.path.eq_ignore_ascii_case(&root)).map(|d| d.label.clone()).filter(|l| !l.is_empty()).unwrap_or_else(|| "Dysk wymienny".into());
-        let name = format!("Wysuń {label} ({})", root.trim_end_matches('\\'));
+        let label = drives.iter().find(|d| d.path.eq_ignore_ascii_case(&root)).map(|d| d.label.clone()).filter(|l| !l.is_empty()).unwrap_or_else(|| crate::tr("Dysk wymienny").into());
+        let name = powerdesk_core::trf!("Wysuń {label} ({})", root.trim_end_matches('\\'));
         items.push(it(name, "eject", move |s| {
             let res = powerdesk_core::drives::eject(0, &root);
             match res {
-                Ok(()) => crate::transfers::toast(s, format!("Można bezpiecznie odłączyć {}", root.trim_end_matches('\\')), crate::transfers::Kind::Ok, None),
-                Err(e) => crate::transfers::toast(s, format!("Nie udało się wysunąć: {e}"), crate::transfers::Kind::Error, None),
+                Ok(()) => crate::transfers::toast(s, powerdesk_core::trf!("Można bezpiecznie odłączyć {}", root.trim_end_matches('\\')), crate::transfers::Kind::Ok, None),
+                Err(e) => crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się wysunąć: {e}"), crate::transfers::Kind::Error, None),
             }
             USB.with(|u| u.set(!powerdesk_core::quick::removable().is_empty()));
             tray_status();
@@ -1635,8 +1635,8 @@ fn fill_calendar(w: &CalendarWindow) {
         })
         .collect();
     let m0 = today.month0() as usize;
-    w.set_long_date(format!("{}, {} {} {}", WEEKDAYS[today.weekday().num_days_from_monday() as usize], today.day(), MONTHS_OF[m0], today.year()).into());
-    w.set_month(format!("{} {}", MONTHS[first.month0() as usize], first.year()).into());
+    w.set_long_date(format!("{}, {} {} {}", crate::tr(WEEKDAYS[today.weekday().num_days_from_monday() as usize]), today.day(), crate::tr(MONTHS_OF[m0]), today.year()).into());
+    w.set_month(format!("{} {}", crate::tr(MONTHS[first.month0() as usize]), first.year()).into());
     w.set_days(ModelRc::new(VecModel::from(days)));
 }
 
@@ -2066,7 +2066,7 @@ fn refresh() {
 fn tray_app(i: &powerdesk_core::trayhost::Icon) -> TrayApp {
     let mut tip = if i.tip.trim().is_empty() { program_name(&i.exe) } else { i.tip.trim().to_string() };
     if tip.trim().is_empty() {
-        tip = "Program w zasobniku".into();
+        tip = crate::tr("Program w zasobniku").into();
     }
     TrayApp { key: i.key().into(), id: i.id().into(), tip: tip.into(), img: tray_image(i) }
 }

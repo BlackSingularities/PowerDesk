@@ -249,7 +249,7 @@ export component FileView inherits Rectangle {
                         alignment: start;
                         spacing: 4px;
                         Label {
-                            text: "Nazwa";
+                            text: @tr("Nazwa");
                             font-size: 12px;
                             color: root.sort-name || name-ta.has-hover ? Theme.text : Theme.faint;
                         }
@@ -261,7 +261,7 @@ export component FileView inherits Rectangle {
                         }
                     }
                     name-ta := TipArea {
-                        tip: "Sortuj według nazwy";
+                        tip: @tr("Sortuj według nazwy");
                         clicked => {
                             root.header-sort(-1);
                         }
@@ -293,7 +293,7 @@ export component FileView inherits Rectangle {
                         }
                     }
                     head-ta := TipArea {
-                        tip: "Kliknij, aby sortować · przeciągnij, aby przenieść · prawy przycisk: kolumny";
+                        tip: @tr("Kliknij, aby sortować · przeciągnij, aby przenieść · prawy przycisk: kolumny");
                         pointer-event(e) => {
                             if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
                                 root.drag-col = c.id;
@@ -330,7 +330,7 @@ export component FileView inherits Rectangle {
                             background: grip-ta.has-hover || grip-ta.pressed ? Theme.line-strong : Theme.line;
                         }
                         grip-ta := TipArea {
-                            tip: "Przeciągnij, aby zmienić szerokość · dwuklik: domyślna";
+                            tip: @tr("Przeciągnij, aby zmienić szerokość · dwuklik: domyślna");
                             mouse-cursor: MouseCursor.col-resize;
                             property <length> w0;
                             pointer-event(e) => {
@@ -367,7 +367,7 @@ export component FileView inherits Rectangle {
                     color: colbtn-ta.has-hover ? Theme.text : Theme.ghost;
                 }
                 colbtn-ta := TipArea {
-                    tip: "Kolumny";
+                    tip: @tr("Kolumny");
                     clicked => {
                         root.col-menu(self.absolute-position.x, self.absolute-position.y + 24px);
                     }
@@ -446,7 +446,7 @@ export component FileView inherits Rectangle {
                             color: chev-ta.has-hover ? Theme.text : Theme.faint;
                         }
                         chev-ta := TipArea {
-                            tip: g.shut ? "Rozwiń grupę" : "Zwiń grupę";
+                            tip: g.shut ? @tr("Rozwiń grupę") : @tr("Zwiń grupę");
                             clicked => {
                                 root.toggle-group(g.index);
                             }
@@ -473,7 +473,7 @@ export component FileView inherits Rectangle {
                             }
                         }
                         glabel-ta := TipArea {
-                            tip: "Zaznacz elementy grupy (Ctrl – dodaj)";
+                            tip: @tr("Zaznacz elementy grupy (Ctrl – dodaj)");
                             pointer-event(e) => {
                                 if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
                                     root.select-group(g.index, e.modifiers.control);

@@ -204,11 +204,11 @@ pub fn grant_access() -> Result<(), String> {
     use windows::Win32::UI::Shell::ShellExecuteW;
     use windows::Win32::UI::WindowsAndMessaging::SW_HIDE;
     let user = format!("{}\\{}", std::env::var("USERDOMAIN").unwrap_or_default(), std::env::var("USERNAME").unwrap_or_default());
-    let cmd = format!("-NoProfile -WindowStyle Hidden -Command \"Add-LocalGroupMember -SID 'S-1-5-32-559' -Member '{}' -ErrorAction SilentlyContinue\"", user.replace('\'', "''"));
+    let cmd = crate::trf!("-NoProfile -WindowStyle Hidden -Command \"Add-LocalGroupMember -SID 'S-1-5-32-559' -Member '{}' -ErrorAction SilentlyContinue\"", user.replace('\'', "''"));
     let r = unsafe { ShellExecuteW(None, w!("runas"), w!("powershell.exe"), &HSTRING::from(cmd), None, SW_HIDE) };
     if r.0 as isize > 32 {
         Ok(())
     } else {
-        Err("Brak zgody na uprawnienia administratora".into())
+        Err(crate::lang::tr("Brak zgody na uprawnienia administratora").into())
     }
 }

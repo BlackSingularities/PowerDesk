@@ -24,7 +24,7 @@ fn grab() -> Result<(u32, u32, Vec<u8>), String> {
         let (x, y) = (GetSystemMetrics(SM_XVIRTUALSCREEN), GetSystemMetrics(SM_YVIRTUALSCREEN));
         let (w, h) = (GetSystemMetrics(SM_CXVIRTUALSCREEN), GetSystemMetrics(SM_CYVIRTUALSCREEN));
         if w <= 0 || h <= 0 {
-            return Err("brak ekranu".into());
+            return Err(crate::lang::tr("brak ekranu").into());
         }
         let screen = GetDC(None);
         let mem = CreateCompatibleDC(Some(screen));
@@ -42,7 +42,7 @@ fn grab() -> Result<(u32, u32, Vec<u8>), String> {
         let _ = DeleteDC(mem);
         ReleaseDC(None, screen);
         if !got {
-            return Err("nie udało się odczytać ekranu".into());
+            return Err(crate::lang::tr("nie udało się odczytać ekranu").into());
         }
         // BGRA → RGBA, pełna nieprzezroczystość.
         for p in px.chunks_mut(4) {
@@ -56,7 +56,7 @@ fn grab() -> Result<(u32, u32, Vec<u8>), String> {
 /// Zrzut całego ekranu: plik PNG w Obrazy\Zrzuty ekranu (nazwa jak w Windows) i obraz w schowku.
 pub fn full() -> Result<PathBuf, String> {
     let (w, h, px) = grab()?;
-    let img = image::RgbaImage::from_raw(w, h, px).ok_or("zły rozmiar obrazu")?;
+    let img = image::RgbaImage::from_raw(w, h, px).ok_or(crate::lang::tr("zły rozmiar obrazu"))?;
     let dir = dirs::picture_dir().unwrap_or_else(std::env::temp_dir).join("Screenshots");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let name = chrono::Local::now().format("Zrzut ekranu %Y-%m-%d %H%M%S.png").to_string();

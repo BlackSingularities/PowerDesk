@@ -75,7 +75,7 @@ export component TransferStack inherits Rectangle {
                         size: 24px;
                         icon: o.paused ? Icons.play : Icons.pause;
                         icon-size: 13px;
-                        tooltip: o.paused ? "Wznów" : "Wstrzymaj";
+                        tooltip: o.paused ? @tr("Wznów") : @tr("Wstrzymaj");
                         clicked => {
                             root.pause(o.id, !o.paused);
                         }
@@ -85,7 +85,7 @@ export component TransferStack inherits Rectangle {
                         size: 24px;
                         icon: Icons.close;
                         icon-size: 14px;
-                        tooltip: "Anuluj";
+                        tooltip: @tr("Anuluj");
                         clicked => {
                             root.cancel(o.id);
                         }
@@ -93,12 +93,12 @@ export component TransferStack inherits Rectangle {
                     if o.state == 2: Rectangle {
                         width: errs-l.preferred-width + 8px;
                         errs-l := Label {
-                            text: o.error-count + " błędów";
+                            text: o.error-count + @tr(" błędów");
                             font-size: 12px;
                             color: #ff8a91;
                         }
                         TipArea {
-                            tip: "Pokaż błędy";
+                            tip: @tr("Pokaż błędy");
                             clicked => {
                                 root.open-errors = root.open-errors == o.id ? -1 : o.id;
                             }
@@ -115,7 +115,7 @@ export component TransferStack inherits Rectangle {
                         size: 24px;
                         icon: Icons.close;
                         icon-size: 13px;
-                        tooltip: "Ukryj";
+                        tooltip: @tr("Ukryj");
                         clicked => {
                             root.dismiss(o.id);
                         }
@@ -208,7 +208,7 @@ export component TransferStack inherits Rectangle {
                     size: 24px;
                     icon: Icons.close;
                     icon-size: 12px;
-                    tooltip: "Zamknij";
+                    tooltip: @tr("Zamknij");
                     clicked => {
                         root.toast-close(t.id);
                     }
@@ -262,7 +262,7 @@ export component ConflictDialog inherits Rectangle {
                 color: Theme.text;
             }
             Label {
-                text: "W folderze docelowym są już elementy o tych samych nazwach.";
+                text: @tr("W folderze docelowym są już elementy o tych samych nazwach.");
                 color: Theme.dim;
             }
             VerticalLayout {
@@ -291,10 +291,10 @@ export component ConflictDialog inherits Rectangle {
                 }
             }
             for c[i] in [
-                { icon: Icons.copy, t: "Zastąp", d: root.has-dirs ? "Foldery zostaną scalone" : "Istniejące pliki zostaną nadpisane" },
-                { icon: Icons.history, t: "Zastąp tylko starsze", d: "Nadpisz, jeśli kopiowany plik jest nowszy" },
-                { icon: Icons.file-plus, t: "Zachowaj oba", d: "Nowe dostaną nazwę „(2)”" },
-                { icon: Icons.fwd, t: "Pomiń", d: "Nie ruszaj istniejących" },
+                { icon: Icons.copy, t: @tr("Zastąp"), d: root.has-dirs ? @tr("Foldery zostaną scalone") : @tr("Istniejące pliki zostaną nadpisane") },
+                { icon: Icons.history, t: @tr("Zastąp tylko starsze"), d: @tr("Nadpisz, jeśli kopiowany plik jest nowszy") },
+                { icon: Icons.file-plus, t: @tr("Zachowaj oba"), d: @tr("Nowe dostaną nazwę „(2)”") },
+                { icon: Icons.fwd, t: @tr("Pomiń"), d: @tr("Nie ruszaj istniejących") },
             ]: Rectangle {
                 height: 48px;
                 border-radius: Theme.r;
@@ -334,7 +334,7 @@ export component ConflictDialog inherits Rectangle {
                     border-radius: Theme.r-s;
                     background: cancel-ta.has-hover ? Theme.hover : transparent;
                     cancel-l := Label {
-                        text: root.moving ? "Anuluj przenoszenie" : "Anuluj kopiowanie";
+                        text: root.moving ? @tr("Anuluj przenoszenie") : @tr("Anuluj kopiowanie");
                         color: Theme.dim;
                     }
                     cancel-ta := TouchArea {
@@ -398,7 +398,7 @@ export component ConfirmDialog inherits Rectangle {
                     border-radius: Theme.r-s;
                     background: no-ta.has-hover ? Theme.hover : transparent;
                     no-l := Label {
-                        text: "Anuluj";
+                        text: @tr("Anuluj");
                         color: Theme.dim;
                     }
                     no-ta := TouchArea {
@@ -507,7 +507,7 @@ export component PromptDialog inherits Rectangle {
                     border-radius: Theme.r-s;
                     background: pn-ta.has-hover ? Theme.hover : transparent;
                     pn-l := Label {
-                        text: "Anuluj";
+                        text: @tr("Anuluj");
                         color: Theme.dim;
                     }
                     pn-ta := TouchArea {

@@ -81,7 +81,7 @@ component Row inherits HorizontalLayout {
         }
         height: v-text.preferred-height + 2px;
         v-ta := TipArea {
-            tip: "Kliknij, aby skopiować";
+            tip: @tr("Kliknij, aby skopiować");
             clicked => {
                 Props.copy(root.value);
             }
@@ -243,7 +243,7 @@ export component PropsDialog inherits Rectangle {
                     IconButton {
                         y: 0;
                         icon: Icons.close;
-                        tooltip: "Zamknij (Esc)";
+                        tooltip: @tr("Zamknij (Esc)");
                         clicked => {
                             Props.close();
                         }
@@ -283,7 +283,7 @@ export component PropsDialog inherits Rectangle {
                                 }
                                 height: h-text.preferred-height + 2px;
                                 h-ta := TipArea {
-                                    tip: "Kliknij, aby skopiować";
+                                    tip: @tr("Kliknij, aby skopiować");
                                     clicked => {
                                         Props.copy(Props.hash);
                                     }
@@ -297,13 +297,13 @@ export component PropsDialog inherits Rectangle {
                                     border-radius: Theme.r-s;
                                     background: hb-ta.has-hover && !Props.hashing ? Theme.press : Theme.card;
                                     hb-l := Label {
-                                        text: Props.hashing ? "Liczę…" : "Oblicz";
+                                        text: Props.hashing ? @tr("Liczę…") : @tr("Oblicz");
                                         font-size: 12px;
                                         color: Props.hashing ? Theme.dim : Theme.text;
                                     }
                                     hb-ta := TipArea {
                                         enabled: !Props.hashing;
-                                        tip: "Suma kontrolna pliku – do porównania z podaną przez autora";
+                                        tip: @tr("Suma kontrolna pliku – do porównania z podaną przez autora");
                                         clicked => {
                                             Props.compute-hash();
                                         }
@@ -315,7 +315,7 @@ export component PropsDialog inherits Rectangle {
                             spacing: 8px;
                             padding-top: 10px;
                             SecHead {
-                                title: "Ekspozycja";
+                                title: @tr("Ekspozycja");
                                 icon: Icons.image;
                             }
                             for g in Props.gauges: GaugeRow {
@@ -326,7 +326,7 @@ export component PropsDialog inherits Rectangle {
                             spacing: 8px;
                             padding-top: 10px;
                             SecHead {
-                                title: "Na mapie";
+                                title: @tr("Na mapie");
                                 icon: Icons.pin;
                             }
                             Rectangle {
@@ -351,7 +351,7 @@ export component PropsDialog inherits Rectangle {
                                     border-color: #ffffff;
                                 }
                                 map-ta := TipArea {
-                                    tip: "Otwórz w mapach (OpenStreetMap)";
+                                    tip: @tr("Otwórz w mapach (OpenStreetMap)");
                                     clicked => {
                                         Props.open-map();
                                     }
@@ -402,11 +402,11 @@ export component PropsDialog inherits Rectangle {
                                 color: Theme.dim;
                             }
                             Label {
-                                text: "Właściwości systemowe";
+                                text: @tr("Właściwości systemowe");
                             }
                         }
                         sys-ta := TipArea {
-                            tip: "Okno Windows: uprawnienia, wersje, udostępnianie";
+                            tip: @tr("Okno Windows: uprawnienia, wersje, udostępnianie");
                             clicked => {
                                 Props.system();
                             }
@@ -418,7 +418,7 @@ export component PropsDialog inherits Rectangle {
                         border-radius: Theme.r-s;
                         background: ok-ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent;
                         ok-l := Label {
-                            text: "Zamknij";
+                            text: @tr("Zamknij");
                             font-weight: 600;
                             color: Theme.on-accent;
                         }

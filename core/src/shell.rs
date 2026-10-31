@@ -566,7 +566,7 @@ unsafe fn context_menu(hwnd: HWND, paths: &[String]) -> Result<(windows::Win32::
         }
     }
     if pidls.is_empty() {
-        return Err("Nie można odczytać elementów".into());
+        return Err(crate::lang::tr("Nie można odczytać elementów").into());
     }
     let mut child: *mut ITEMIDLIST = std::ptr::null_mut();
     let folder: IShellFolder = match SHBindToParent(pidls[0], Some(&mut child as *mut _ as *mut _)) {

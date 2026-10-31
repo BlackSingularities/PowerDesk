@@ -94,18 +94,18 @@ pub fn tick(n: u32, used: &std::collections::HashSet<String>) {
 /// Odliczanie: (opis, liczba, jednostka, reszta) do chwili `at`.
 fn countdown(label: &str, at: i64) -> (String, String, String, String) {
     if at == 0 {
-        return ("Odliczanie".into(), "–".into(), String::new(), "Prawy przycisk → „Ustaw datę…”".into());
+        return (crate::tr("Odliczanie").into(), "–".into(), String::new(), crate::tr("Prawy przycisk → „Ustaw datę…”").into());
     }
     let left = at - Local::now().timestamp();
     let when = Local.timestamp_opt(at, 0).single().map(|d| d.format("%d.%m.%Y %H:%M").to_string()).unwrap_or_default();
     if left <= 0 {
-        return (label.to_string(), "0".into(), "dni".into(), format!("Minęło · {when}"));
+        return (label.to_string(), "0".into(), "dni".into(), powerdesk_core::trf!("Minęło · {when}"));
     }
     let (d, h, m) = (left / 86400, left / 3600 % 24, left / 60 % 60);
     let (big, unit, rest) = if d >= 1 {
-        (d.to_string(), if d == 1 { "dzień" } else { "dni" }.to_string(), format!("i {h} h {m} min · {when}"))
+        (d.to_string(), if d == 1 { crate::tr("dzień") } else { "dni" }.to_string(), powerdesk_core::trf!("i {h} h {m} min · {when}"))
     } else if h >= 1 {
-        (h.to_string(), "h".to_string(), format!("i {m} min · {when}"))
+        (h.to_string(), "h".to_string(), powerdesk_core::trf!("i {m} min · {when}"))
     } else {
         (m.max(1).to_string(), "min".to_string(), when)
     };
@@ -137,7 +137,7 @@ pub fn apply(g: &WidgetData) {
             .iter()
             .map(|(c, v, p)| {
                 let ch = if *p > 0.0 { v - p } else { 0.0 };
-                WFx { code: c.clone().into(), value: format!("{v:.4} zł").replace('.', ",").into(), change: format!("{ch:+.4}").replace('.', ",").into(), up: ch >= 0.0 }
+                WFx { code: c.clone().into(), value: powerdesk_core::trf!("{v:.4} zł").replace('.', ",").into(), change: format!("{ch:+.4}").replace('.', ",").into(), up: ch >= 0.0 }
             })
             .collect();
         g.set_fx(ModelRc::new(VecModel::from(fx)));
@@ -210,13 +210,13 @@ use chrono::Datelike;
 pub fn config_items(kind: &str) -> Vec<Item> {
     match kind {
         "todo" => vec![
-            it("Dodaj zadanie…", "plus", |s| {
+            it(crate::tr("Dodaj zadanie…"), "plus", |s| {
                 crate::show_window(s);
                 transfers::prompt(
                     s,
-                    "Nowe zadanie",
+                    crate::tr("Nowe zadanie"),
                     "",
-                    "Dodaj",
+                    crate::tr("Dodaj"),
                     Rc::new(|_, text| {
                         let t = text.trim().to_string();
                         if !t.is_empty() {
@@ -226,18 +226,18 @@ pub fn config_items(kind: &str) -> Vec<Item> {
                     }),
                 );
             }),
-            it("Usuń zrobione", "trash", |_| {
+            it(crate::tr("Usuń zrobione"), "trash", |_| {
                 edit_prefs(|p| p.todos.retain(|t| !t.done));
                 crate::widgets::push_all();
             }),
         ],
-        "countdown" => vec![it("Ustaw datę…", "history", |s| {
+        "countdown" => vec![it(crate::tr("Ustaw datę…"), "history", |s| {
             crate::show_window(s);
             transfers::prompt(
                 s,
-                "Odliczanie do: „24.12.2026 18:00 Wigilia” albo „1.05 Urlop”",
+                crate::tr("Odliczanie do: „24.12.2026 18:00 Wigilia” albo „1.05 Urlop”"),
                 "",
-                "Ustaw",
+                crate::tr("Ustaw"),
                 Rc::new(|s, text| match parse_date(text) {
                     Some((at, label)) => {
                         edit_prefs(|p| {
@@ -246,11 +246,11 @@ pub fn config_items(kind: &str) -> Vec<Item> {
                         });
                         crate::widgets::push_all();
                     }
-                    None => transfers::toast(s, "Nie rozpoznano daty – np. „24.12.2026 Wigilia”", Kind::Error, None),
+                    None => transfers::toast(s, crate::tr("Nie rozpoznano daty – np. „24.12.2026 Wigilia”"), Kind::Error, None),
                 }),
             );
         })],
-        "currency" => vec![it("Odśwież kursy", "refresh", |_| refresh_fx())],
+        "currency" => vec![it(crate::tr("Odśwież kursy"), "refresh", |_| refresh_fx())],
         _ => Vec::new(),
     }
 }

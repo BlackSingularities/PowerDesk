@@ -250,7 +250,7 @@ export component PreviewPane inherits Rectangle {
                         color: #ffffff;
                     }
                     pp-ta := TipArea {
-                        tip: PreviewState.media == 1 ? "Odtwórz film tutaj" : "Odtwórz dźwięk tutaj";
+                        tip: PreviewState.media == 1 ? @tr("Odtwórz film tutaj") : @tr("Odtwórz dźwięk tutaj");
                         clicked => {
                             PlayerState.start(1, PreviewState.path);
                         }
@@ -262,7 +262,7 @@ export component PreviewPane inherits Rectangle {
                 spacing: 6px;
                 IconButton {
                     icon: Icons.back;
-                    tooltip: "Poprzednia strona (kółko w górę)";
+                    tooltip: @tr("Poprzednia strona (kółko w górę)");
                     enabled: PreviewState.pdf-page > 0;
                     clicked => {
                         PreviewState.pdf-step(-1);
@@ -272,13 +272,13 @@ export component PreviewPane inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                     min-width: 70px;
                     horizontal-alignment: center;
-                    text: "Strona " + (PreviewState.pdf-page + 1) + " z " + PreviewState.pdf-pages;
+                    text: @tr("Strona ") + (PreviewState.pdf-page + 1) + " z " + PreviewState.pdf-pages;
                     font-size: 12px;
                     color: Theme.dim;
                 }
                 IconButton {
                     icon: Icons.fwd;
-                    tooltip: "Następna strona (kółko w dół)";
+                    tooltip: @tr("Następna strona (kółko w dół)");
                     enabled: PreviewState.pdf-page < PreviewState.pdf-pages - 1;
                     clicked => {
                         PreviewState.pdf-step(1);
@@ -287,7 +287,7 @@ export component PreviewPane inherits Rectangle {
             }
             if PreviewState.media > 0 && PlayerState.target == 1 && PlayerState.path == PreviewState.path: PlayerBar { }
             if PreviewState.media > 0 && PlayerState.error && PlayerState.target == 1: Label {
-                text: "Nie udało się odtworzyć tego pliku";
+                text: @tr("Nie udało się odtworzyć tego pliku");
                 font-size: 12px;
                 color: Theme.rec;
             }
@@ -399,7 +399,7 @@ export component PreviewPane inherits Rectangle {
             }
             if PreviewState.mode == 0: Label {
                 horizontal-alignment: center;
-                text: "Zaznacz plik, aby zobaczyć podgląd";
+                text: @tr("Zaznacz plik, aby zobaczyć podgląd");
                 font-size: 12px;
                 color: Theme.faint;
             }
@@ -409,7 +409,7 @@ export component PreviewPane inherits Rectangle {
                 spacing: 6px;
                 Act {
                     icon: Icons.open;
-                    text: "Otwórz";
+                    text: @tr("Otwórz");
                     main: true;
                     clicked => {
                         PreviewState.open-item();
@@ -417,14 +417,14 @@ export component PreviewPane inherits Rectangle {
                 }
                 if !PreviewState.is-dir: Act {
                     icon: Icons.app;
-                    text: "Otwórz w…";
+                    text: @tr("Otwórz w…");
                     clicked => {
                         PreviewState.open-with();
                     }
                 }
                 Act {
                     icon: Icons.info;
-                    text: "Właściwości";
+                    text: @tr("Właściwości");
                     clicked => {
                         PreviewState.properties();
                     }
@@ -435,7 +435,7 @@ export component PreviewPane inherits Rectangle {
                 Act {
                     width: 120px;
                     icon: Icons.info;
-                    text: "Właściwości";
+                    text: @tr("Właściwości");
                     clicked => {
                         PreviewState.properties();
                     }
@@ -500,7 +500,7 @@ export component PreviewPane inherits Rectangle {
                     border-color: #ffffff;
                 }
                 pm-ta := TipArea {
-                    tip: "Otwórz w mapach (OpenStreetMap)";
+                    tip: @tr("Otwórz w mapach (OpenStreetMap)");
                     clicked => {
                         PreviewState.open-map();
                     }
@@ -541,7 +541,7 @@ export component PreviewPane inherits Rectangle {
                     }
                 }
                 path-ta := TipArea {
-                    tip: "Kliknij, aby skopiować ścieżkę";
+                    tip: @tr("Kliknij, aby skopiować ścieżkę");
                     clicked => {
                         PreviewState.copy-path();
                     }

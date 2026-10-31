@@ -38,7 +38,7 @@ pub fn info(msg: impl AsRef<str>) {
 }
 
 pub fn error(msg: impl AsRef<str>) {
-    write("błąd", msg.as_ref());
+    write(crate::lang::tr("błąd"), msg.as_ref());
 }
 
 /// Panika (awaria wątku) trafia do dziennika ze śladem stosu, zanim program się zakończy.
@@ -61,7 +61,7 @@ pub fn tail(n: usize) -> String {
 /// Raport do zgłoszenia problemu: wersja, system, tryb pracy, końcówka dziennika.
 pub fn report(version: &str) -> String {
     let info = crate::sysmon::info();
-    format!(
+    crate::trf!(
         "PowerDesk {version}\n{} · {}\nProcesor: {} ({} wątków), RAM: {} MB\nTryb powłoki: {} · zainstalowany: {}\n\n--- dziennik (ostatnie 200 wierszy) ---\n{}",
         info.os,
         info.host,

@@ -67,11 +67,11 @@ pub fn set_context_menu(on: bool) -> Result<(), String> {
         let key = format!(r"{k}\{VERB}");
         if on {
             let cmd = format!("\"{}\" \"%V\"", exe());
-            let ok = reg(&["add", &key, "/ve", "/d", "Otwórz w OpenFilePower", "/f"])
-                && reg(&["add", &key, "/v", "Icon", "/d", &exe(), "/f"])
+            let ok = reg(&["add", &key, "/ve", "/d", crate::lang::tr("Otwórz w OpenFilePower"), "/f"])
+                && reg(&["add", &key, "/v", crate::lang::tr("Icon"), "/d", &exe(), "/f"])
                 && reg(&["add", &format!(r"{key}\command"), "/ve", "/d", &cmd, "/f"]);
             if !ok {
-                return Err("Nie udało się zapisać ustawień w rejestrze".into());
+                return Err(crate::lang::tr("Nie udało się zapisać ustawień w rejestrze").into());
             }
         } else {
             reg(&["delete", &key, "/f"]);
@@ -86,7 +86,7 @@ pub fn set_default(on: bool) -> Result<(), String> {
         set_context_menu(true)?;
         for k in TARGETS {
             if !reg(&["add", k, "/ve", "/d", VERB, "/f"]) {
-                return Err("Nie udało się zapisać ustawień w rejestrze".into());
+                return Err(crate::lang::tr("Nie udało się zapisać ustawień w rejestrze").into());
             }
         }
     } else {

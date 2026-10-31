@@ -173,7 +173,7 @@ fn ensure(n: u32, now: bool) {
 
 /// Zawartość folderu: najnowsze pierwsze (do 40), bez ukrytych.
 fn scan_folder(path: &str) -> (Vec<Row>, String) {
-    let Ok(rd) = std::fs::read_dir(path) else { return (Vec::new(), format!("Nie można otworzyć folderu {path}")) };
+    let Ok(rd) = std::fs::read_dir(path) else { return (Vec::new(), powerdesk_core::trf!("Nie można otworzyć folderu {path}")) };
     let mut v: Vec<(std::time::SystemTime, Row)> = rd
         .flatten()
         .filter_map(|e| {
@@ -189,7 +189,7 @@ fn scan_folder(path: &str) -> (Vec<Row>, String) {
         })
         .collect();
     v.sort_by(|a, b| b.0.cmp(&a.0));
-    let status = if v.is_empty() { "Folder jest pusty".to_string() } else { String::new() };
+    let status = if v.is_empty() { crate::tr("Folder jest pusty").to_string() } else { String::new() };
     (v.into_iter().take(40).map(|x| x.1).collect(), status)
 }
 
@@ -437,14 +437,14 @@ fn moon_phase(ts: i64) -> f64 {
 
 fn moon_name(p: f64) -> &'static str {
     match p {
-        p if !(0.0339..0.9661).contains(&p) => "Nów",
-        p if p < 0.2161 => "Przybywający sierp",
-        p if p < 0.2839 => "Pierwsza kwadra",
-        p if p < 0.4661 => "Przybywający garb",
-        p if p < 0.5339 => "Pełnia",
-        p if p < 0.7161 => "Ubywający garb",
-        p if p < 0.7839 => "Ostatnia kwadra",
-        _ => "Ubywający sierp",
+        p if !(0.0339..0.9661).contains(&p) => crate::tr("Nów"),
+        p if p < 0.2161 => crate::tr("Przybywający sierp"),
+        p if p < 0.2839 => crate::tr("Pierwsza kwadra"),
+        p if p < 0.4661 => crate::tr("Przybywający garb"),
+        p if p < 0.5339 => crate::tr("Pełnia"),
+        p if p < 0.7161 => crate::tr("Ubywający garb"),
+        p if p < 0.7839 => crate::tr("Ostatnia kwadra"),
+        _ => crate::tr("Ubywający sierp"),
     }
 }
 
@@ -461,7 +461,7 @@ fn progress() -> Vec<WProg> {
     let month = (now.day0() as f64 + day) / mdays;
     let ydays = (first(y + 1, 1) - first(y, 1)).num_days() as f64;
     let year = (now.ordinal0() as f64 + day) / ydays;
-    [("Dzień", day), ("Tydzień", week), ("Miesiąc", month), ("Rok", year)]
+    [(crate::tr("Dzień"), day), (crate::tr("Tydzień"), week), (crate::tr("Miesiąc"), month), (crate::tr("Rok"), year)]
         .into_iter()
         .map(|(n, f)| WProg { name: n.into(), frac: f as f32, text: format!("{:.0}%", (f * 100.0).floor()).into() })
         .collect()
@@ -477,7 +477,7 @@ fn clock_of(zone: &str) -> WClock {
             let t = utc.with_timezone(&tz);
             let off = chrono::Offset::fix(t.offset()).local_minus_utc();
             let diff = (off - local.offset().local_minus_utc()) / 60;
-            let mut note = if diff == 0 { "jak tutaj".to_string() } else if diff % 60 == 0 { format!("{:+} h", diff / 60) } else { format!("{:+}:{:02} h", diff / 60, (diff % 60).abs()) };
+            let mut note = if diff == 0 { crate::tr("jak tutaj").to_string() } else if diff % 60 == 0 { format!("{:+} h", diff / 60) } else { powerdesk_core::trf!("{:+}:{:02} h", diff / 60, (diff % 60).abs()) };
             if t.date_naive() > local.date_naive() {
                 note.push_str(" · jutro");
             } else if t.date_naive() < local.date_naive() {
@@ -499,8 +499,8 @@ fn clock_of(zone: &str) -> WClock {
         ha: ((h % 12) as f32 + m as f32 / 60.0) * 30.0,
         ma: (m as f32 + s as f32 / 60.0) * 6.0,
         sa: s as f32 * 6.0,
-        weekday: crate::widgets::WEEKDAYS[date.weekday().num_days_from_monday() as usize].into(),
-        date: format!("{} {} {}", date.day(), crate::widgets::MONTHS_OF[date.month0() as usize], date.year()).into(),
+        weekday: crate::tr(crate::widgets::WEEKDAYS[date.weekday().num_days_from_monday() as usize]).into(),
+        date: format!("{} {} {}", date.day(), crate::tr(crate::widgets::MONTHS_OF[date.month0() as usize]), date.year()).into(),
         city: city.into(),
         note: note.into(),
     }
@@ -512,17 +512,17 @@ const DAYS: [&str; 7] = ["pn", "wt", "śr", "cz", "pt", "so", "nd"];
 
 fn wx_of(e: Option<&Wx>) -> WWx {
     let empty = |status: String| WWx { ok: false, status: status.into(), city: SharedString::new(), temp: 0.0, feels: 0.0, desc: SharedString::new(), kind: 2, wind: SharedString::new(), humidity: SharedString::new(), sunrise: SharedString::new(), sunset: SharedString::new(), days: ModelRc::default(), hours: ModelRc::default(), hmin: 0.0, hmax: 0.0, hour0: 0, hline: SharedString::new(), harea: SharedString::new(), dmin: 0.0, dmax: 1.0 };
-    let Some(e) = e else { return empty("Pobieranie pogody…".into()) };
+    let Some(e) = e else { return empty(crate::tr("Pobieranie pogody…").into()) };
     match &e.data {
-        None => empty("Pobieranie pogody…".into()),
-        Some(Err(err)) => empty(format!("Pogoda niedostępna: {err}")),
+        None => empty(crate::tr("Pobieranie pogody…").into()),
+        Some(Err(err)) => empty(powerdesk_core::trf!("Pogoda niedostępna: {err}")),
         Some(Ok(w)) => {
             let days: Vec<WDayFc> = w
                 .days
                 .iter()
                 .skip(1)
                 .map(|d| {
-                    let name = NaiveDate::parse_from_str(&d.date, "%Y-%m-%d").map(|x| DAYS[x.weekday().num_days_from_monday() as usize]).unwrap_or("");
+                    let name = NaiveDate::parse_from_str(&d.date, "%Y-%m-%d").map(|x| crate::tr(DAYS[x.weekday().num_days_from_monday() as usize])).unwrap_or("");
                     WDayFc { name: name.into(), kind: weather::kind(d.code) as i32, hi: d.max as f32, lo: d.min as f32 }
                 })
                 .collect();
@@ -655,7 +655,7 @@ pub fn apply(g: &WidgetData) {
         if let Some(b) = l.battery {
             g.set_bat(b.percent as f32 / 100.0);
             g.set_bat_charging(b.charging);
-            g.set_bat_text(if b.charging { if b.percent >= 100 { "Naładowana" } else { "Ładowanie" } } else { "Na baterii" }.into());
+            g.set_bat_text(if b.charging { if b.percent >= 100 { crate::tr("Naładowana") } else { crate::tr("Ładowanie") } } else { crate::tr("Na baterii") }.into());
         }
         g.set_net_kind(l.net_kind);
         g.set_net_name(l.net_name.clone().into());
@@ -686,10 +686,10 @@ pub fn apply(g: &WidgetData) {
     g.set_moon(p as f32);
     g.set_moon_name(moon_name(p).into());
     g.set_moon_light(format!("{:.0}%", (1.0 - (p * std::f64::consts::TAU).cos()) / 2.0 * 100.0).into());
-    let (target, label) = if p < 0.5 { (0.5, "Pełnia") } else { (1.0, "Nów") };
+    let (target, label) = if p < 0.5 { (0.5, crate::tr("Pełnia")) } else { (1.0, crate::tr("Nów")) };
     let days = (target - p) * 29.530588853;
     let when = Local.timestamp_opt(ts + (days * 86400.0) as i64, 0).single().map(|t| t.format("%d.%m").to_string()).unwrap_or_default();
-    g.set_moon_next(format!("{label} {when} (za {:.0} d)", days.ceil()).into());
+    g.set_moon_next(powerdesk_core::trf!("{label} {when} (za {:.0} d)", days.ceil()).into());
     g.set_prog(ModelRc::new(VecModel::from(progress())));
     // Przyciski.
     g.on_open_file(|path, dir| {

@@ -107,15 +107,15 @@ fn tick() {
         let target = fg.as_ref().filter(|(pid, _, _)| *pid != own);
         let st = fpsmon::state();
         w.set_note(match &st {
-            State::NoAccess => "FPS: brak uprawnień – Ustawienia → Nakładka → „Zezwól na pomiar FPS”".into(),
-            State::Error(e) => format!("FPS niedostępne ({e})").into(),
+            State::NoAccess => crate::tr("FPS: brak uprawnień – Ustawienia → Nakładka → „Zezwól na pomiar FPS”").into(),
+            State::Error(e) => powerdesk_core::trf!("FPS niedostępne ({e})").into(),
             _ => "".into(),
         });
         match target.and_then(|(pid, _, _)| fpsmon::stats(*pid, HIST)) {
             Some(s) if s.fps > 0.0 => {
                 w.set_fps(format!("{:.0}", s.fps).into());
                 w.set_fps_level(if s.fps >= 55.0 { 1 } else if s.fps >= 30.0 { 2 } else { 3 });
-                w.set_frame(format!("{:.1} ms · maks. {:.0}", s.avg_ms, s.max_ms).into());
+                w.set_frame(powerdesk_core::trf!("{:.1} ms · maks. {:.0}", s.avg_ms, s.max_ms).into());
                 let top = s.times_ms.iter().copied().fold(1.0f32, f32::max).max(s.avg_ms as f32 * 2.0);
                 let mut hist: Vec<f32> = vec![0.0; HIST.saturating_sub(s.times_ms.len())];
                 hist.extend(s.times_ms.iter().map(|&t| (t / top).min(1.0)));

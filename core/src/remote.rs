@@ -31,7 +31,7 @@ pub fn is_remote(path: &str) -> bool {
 /// (klucz „serwer:port”, ścieżka na serwerze „/a/b”).
 fn split(path: &str) -> Result<(String, String), String> {
     if !is_remote(path) {
-        return Err("To nie jest ścieżka FTP".into());
+        return Err(crate::lang::tr("To nie jest ścieżka FTP").into());
     }
     let rest = &path[PREFIX.len()..];
     let mut parts = rest.splitn(2, '\\');
@@ -107,11 +107,11 @@ pub fn forget(key_or_path: &str) {
 // ---------- Połączenie ----------
 
 fn open(key: &str, c: &Cred) -> Result<FtpStream, String> {
-    let addr = key.to_socket_addrs().map_err(|e| format!("Nie znaleziono serwera: {e}"))?.next().ok_or("Nie znaleziono serwera")?;
-    let mut f = FtpStream::connect_timeout(addr, Duration::from_secs(8)).map_err(|e| format!("Brak połączenia z serwerem: {e}"))?;
+    let addr = key.to_socket_addrs().map_err(|e| crate::trf!("Nie znaleziono serwera: {e}"))?.next().ok_or(crate::lang::tr("Nie znaleziono serwera"))?;
+    let mut f = FtpStream::connect_timeout(addr, Duration::from_secs(8)).map_err(|e| crate::trf!("Brak połączenia z serwerem: {e}"))?;
     f.get_ref().set_read_timeout(Some(Duration::from_secs(30))).ok();
     let user = if c.user.is_empty() { "anonymous" } else { c.user.as_str() };
-    f.login(user, c.pass.as_str()).map_err(|_| "AUTH: Serwer odrzucił login lub hasło".to_string())?;
+    f.login(user, c.pass.as_str()).map_err(|_| crate::lang::tr("AUTH: Serwer odrzucił login lub hasło").to_string())?;
     f.set_mode(Mode::Passive);
     f.transfer_type(FileType::Binary).map_err(|e| e.to_string())?;
     Ok(f)
@@ -119,7 +119,7 @@ fn open(key: &str, c: &Cred) -> Result<FtpStream, String> {
 
 fn connect(key: &str) -> Result<FtpStream, String> {
     let c = CREDS.lock().get(key).cloned().or_else(|| cred_load(key));
-    let Some(c) = c else { return Err("AUTH: Podaj login i hasło do serwera".into()) };
+    let Some(c) = c else { return Err(crate::lang::tr("AUTH: Podaj login i hasło do serwera").into()) };
     CREDS.lock().insert(key.to_string(), c.clone());
     open(key, &c)
 }
@@ -128,7 +128,7 @@ fn connect(key: &str) -> Result<FtpStream, String> {
 pub fn login(host: &str, port: u16, user: &str, pass: &str, remember: bool, path: &str) -> Result<String, String> {
     let host = host.trim().trim_start_matches("ftp://").trim_end_matches('/').to_lowercase();
     if host.is_empty() {
-        return Err("Podaj adres serwera".into());
+        return Err(crate::lang::tr("Podaj adres serwera").into());
     }
     let key = format!("{host}:{port}");
     let c = Cred { user: user.trim().to_string(), pass: pass.to_string() };
@@ -167,7 +167,7 @@ fn mk_entry(key: &str, dir_remote: &str, f: &suppaftp::list::File) -> Entry {
 }
 
 fn list_remote(f: &mut FtpStream, key: &str, remote: &str) -> Result<Vec<Entry>, String> {
-    let lines = f.list(Some(remote)).map_err(|e| format!("Nie udało się odczytać katalogu: {e}"))?;
+    let lines = f.list(Some(remote)).map_err(|e| crate::trf!("Nie udało się odczytać katalogu: {e}"))?;
     Ok(lines
         .iter()
         .filter_map(|l| parse_line(l))

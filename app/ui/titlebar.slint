@@ -63,7 +63,7 @@ export component TitleBar inherits Rectangle {
                 background: Drag.active && Drag.target == t.path ? Theme.sel-strong : t.active ? Theme.higher : tab-ta.has-hover ? Theme.hover : transparent;
                 animate background { duration: 120ms; }
                 tab-ta := TipArea {
-                    tip: t.pinned ? t.title + " – karta przypięta" : t.tip;
+                    tip: t.pinned ? t.title + @tr(" – karta przypięta") : t.tip;
                     drop: t.path;
                     clicked => {
                         root.activate(i);
@@ -110,7 +110,7 @@ export component TitleBar inherits Rectangle {
                             color: x-ta.has-hover ? Theme.text : Theme.dim;
                         }
                         x-ta := TipArea {
-                            tip: "Zamknij kartę (Ctrl+W)";
+                            tip: @tr("Zamknij kartę (Ctrl+W)");
                             clicked => {
                                 root.close-tab(i);
                             }
@@ -121,7 +121,7 @@ export component TitleBar inherits Rectangle {
             IconButton {
                 y: (parent.height - self.height) / 2;
                 icon: Icons.plus;
-                tooltip: "Nowa karta (Ctrl+T)";
+                tooltip: @tr("Nowa karta (Ctrl+T)");
                 clicked => {
                     root.new-tab();
                 }
@@ -139,10 +139,10 @@ export component TitleBar inherits Rectangle {
             if root.has-selection: HorizontalLayout {
                 spacing: 2px;
                 for c in [
-                    { id: "cut", icon: Icons.cut, tip: "Wytnij (Ctrl+X)" },
-                    { id: "copy", icon: Icons.copy, tip: "Kopiuj (Ctrl+C)" },
-                    { id: "rename", icon: Icons.edit, tip: "Zmień nazwę (F2)" },
-                    { id: "trash", icon: Icons.trash, tip: "Do Kosza (Del)" },
+                    { id: "cut", icon: Icons.cut, tip: @tr("Wytnij (Ctrl+X)") },
+                    { id: "copy", icon: Icons.copy, tip: @tr("Kopiuj (Ctrl+C)") },
+                    { id: "rename", icon: Icons.edit, tip: @tr("Zmień nazwę (F2)") },
+                    { id: "trash", icon: Icons.trash, tip: @tr("Do Kosza (Del)") },
                 ]: IconButton {
                     y: (parent.height - self.height) / 2;
                     icon: c.icon;
@@ -157,7 +157,7 @@ export component TitleBar inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 icon: Icons.paste;
                 icon-size: 17px;
-                tooltip: "Wklej (Ctrl+V)";
+                tooltip: @tr("Wklej (Ctrl+V)");
                 clicked => {
                     root.command("paste");
                 }
@@ -167,7 +167,7 @@ export component TitleBar inherits Rectangle {
                 y: (parent.height - self.height) / 2;
                 icon: Icons.info;
                 icon-size: 17px;
-                tooltip: root.has-selection ? "Właściwości zaznaczenia (Alt+Enter)" : "Właściwości tego folderu (Alt+Enter)";
+                tooltip: root.has-selection ? @tr("Właściwości zaznaczenia (Alt+Enter)") : @tr("Właściwości tego folderu (Alt+Enter)");
                 clicked => {
                     root.command("props");
                 }
@@ -197,13 +197,13 @@ export component TitleBar inherits Rectangle {
                         color: Theme.on-accent;
                     }
                     Label {
-                        text: "Nowy";
+                        text: @tr("Nowy");
                         color: Theme.on-accent;
                         font-weight: 600;
                     }
                 }
                 new-ta := TipArea {
-                    tip: "Nowy folder, plik lub dokument";
+                    tip: @tr("Nowy folder, plik lub dokument");
                     clicked => {
                         root.new-menu(self.absolute-position.x, self.absolute-position.y + 32px);
                     }
@@ -228,7 +228,7 @@ export component TitleBar inherits Rectangle {
                     color: wb.has-hover ? (i == 2 ? #ffffff : Theme.text) : Theme.dim;
                 }
                 wb := TipArea {
-                    tip: i == 0 ? "Minimalizuj" : i == 1 ? (root.maximized ? "Przywróć" : "Maksymalizuj") : "Zamknij";
+                    tip: i == 0 ? @tr("Minimalizuj") : i == 1 ? (root.maximized ? @tr("Przywróć") : @tr("Maksymalizuj")) : @tr("Zamknij");
                     clicked => {
                         if (i == 0) {
                             root.minimize();

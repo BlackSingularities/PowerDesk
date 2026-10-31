@@ -232,7 +232,7 @@ impl Picker {
         let kind = fmt::type_label(e);
         let size = if e.dir { String::new() } else { fmt::size(e.size) };
         let date = fmt::date(e.modified);
-        let tip = if e.dir { format!("{}\nZmieniony: {date}", e.name) } else { format!("{}\n{kind} · {size}\nZmieniony: {date}", e.name) };
+        let tip = if e.dir { format!("{}\nZmieniony: {date}", e.name) } else { powerdesk_core::trf!("{}\n{kind} · {size}\nZmieniony: {date}", e.name) };
         Some(PickRow {
             name: e.name.clone().into(),
             path: e.path.clone().into(),
@@ -377,11 +377,11 @@ fn render() {
         let empty = if p.loading {
             "Wczytywanie…".to_string()
         } else if let Some(e) = &p.error {
-            format!("Nie można otworzyć tego folderu: {e}")
+            powerdesk_core::trf!("Nie można otworzyć tego folderu: {e}")
         } else if !p.search.is_empty() {
-            "Nic nie pasuje do wyszukiwania".to_string()
+            crate::tr("Nic nie pasuje do wyszukiwania").to_string()
         } else {
-            "Ten folder jest pusty".to_string()
+            crate::tr("Ten folder jest pusty").to_string()
         };
         ui.set_empty_text(empty.into());
         let places: Vec<PickPlace> = p
@@ -624,10 +624,10 @@ fn decide(p: &Picker, name: &str) -> Act {
         }
         let paths: Vec<PathBuf> = names.iter().map(|n| resolve(n)).collect();
         if let Some(miss) = paths.iter().find(|q| !q.is_dir()) {
-            return Act::Notice(format!("Nie znaleziono folderu „{}”.", display(miss)));
+            return Act::Notice(powerdesk_core::trf!("Nie znaleziono folderu „{}”.", display(miss)));
         }
         if paths.len() > 1 && !p.req.multi {
-            return Act::Notice("Wybierz jeden folder.".into());
+            return Act::Notice(crate::tr("Wybierz jeden folder.").into());
         }
         return Act::Done(paths.iter().map(|q| display(q)).collect());
     }
@@ -642,12 +642,12 @@ fn decide(p: &Picker, name: &str) -> Act {
         let names = split_names(name);
         if names.len() > 1 {
             if !p.req.multi {
-                return Act::Notice("Ten program przyjmuje jeden plik naraz.".into());
+                return Act::Notice(crate::tr("Ten program przyjmuje jeden plik naraz.").into());
             }
             let paths: Vec<PathBuf> = names.iter().map(|n| resolve(n)).collect();
             if let Some(miss) = paths.iter().find(|q| !q.is_file()) {
                 if p.req.must_exist || miss.is_dir() {
-                    return Act::Notice(format!("Nie znaleziono pliku „{}”.", display(miss)));
+                    return Act::Notice(powerdesk_core::trf!("Nie znaleziono pliku „{}”.", display(miss)));
                 }
             }
             return Act::Done(paths.iter().map(|q| display(q)).collect());
@@ -664,10 +664,10 @@ fn decide(p: &Picker, name: &str) -> Act {
             return Act::Done(vec![display(&t)]);
         }
         if p.req.must_exist {
-            return Act::Notice(format!("Nie znaleziono pliku „{n}”.\nSprawdź nazwę i spróbuj ponownie."));
+            return Act::Notice(powerdesk_core::trf!("Nie znaleziono pliku „{n}”.\nSprawdź nazwę i spróbuj ponownie."));
         }
         if p.req.path_must_exist && !t.parent().is_some_and(|d| d.is_dir()) {
-            return Act::Notice(format!("Nie znaleziono folderu dla „{n}”."));
+            return Act::Notice(powerdesk_core::trf!("Nie znaleziono folderu dla „{n}”."));
         }
         return Act::Done(vec![display(&t)]);
     }
@@ -689,15 +689,15 @@ fn decide(p: &Picker, name: &str) -> Act {
     let t = with_ext(p, t);
     let parent = t.parent().map(Path::to_path_buf).unwrap_or_default();
     if !parent.is_dir() {
-        return Act::Notice(format!("Folder „{}” nie istnieje.", display(&parent)));
+        return Act::Notice(powerdesk_core::trf!("Folder „{}” nie istnieje.", display(&parent)));
     }
     let file = t.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default();
     if let Ok(md) = std::fs::metadata(&t) {
         if p.req.no_readonly && md.permissions().readonly() {
-            return Act::Notice(format!("Plik „{file}” jest tylko do odczytu. Wybierz inną nazwę."));
+            return Act::Notice(powerdesk_core::trf!("Plik „{file}” jest tylko do odczytu. Wybierz inną nazwę."));
         }
         if p.req.overwrite {
-            return Act::Confirm(format!("Plik „{file}” już istnieje.\nCzy chcesz go zastąpić?"), display(&t));
+            return Act::Confirm(powerdesk_core::trf!("Plik „{file}” już istnieje.\nCzy chcesz go zastąpić?"), display(&t));
         }
     }
     Act::Done(vec![display(&t)])
@@ -774,15 +774,15 @@ fn cancel() {
 // ---------- Miejsca ----------
 
 fn quick_places(req: &Req, pinned: &[String]) -> Vec<Place> {
-    let mut v = vec![Place { name: "Szybki dostęp".into(), path: String::new(), icon: "", tip: String::new(), header: true }];
+    let mut v = vec![Place { name: crate::tr("Szybki dostęp").into(), path: String::new(), icon: "", tip: String::new(), header: true }];
     let known = [
-        ("Pulpit", dirs::desktop_dir(), "desktop"),
-        ("Dokumenty", dirs::document_dir(), "doc"),
-        ("Pobrane", dirs::download_dir(), "download"),
-        ("Obrazy", dirs::picture_dir(), "image"),
-        ("Muzyka", dirs::audio_dir(), "music"),
-        ("Wideo", dirs::video_dir(), "video"),
-        ("Folder osobisty", dirs::home_dir(), "home"),
+        (crate::tr("Pulpit"), dirs::desktop_dir(), "desktop"),
+        (crate::tr("Dokumenty"), dirs::document_dir(), "doc"),
+        (crate::tr("Pobrane"), dirs::download_dir(), "download"),
+        (crate::tr("Obrazy"), dirs::picture_dir(), "image"),
+        (crate::tr("Muzyka"), dirs::audio_dir(), "music"),
+        (crate::tr("Wideo"), dirs::video_dir(), "video"),
+        (crate::tr("Folder osobisty"), dirs::home_dir(), "home"),
     ];
     for (name, dir, icon) in known {
         if let Some(d) = dir.filter(|d| d.is_dir()) {
@@ -793,7 +793,7 @@ fn quick_places(req: &Req, pinned: &[String]) -> Vec<Place> {
     // Przypięte w PowerDesk (panel boczny → Przypięte) – te same co w oknie folderów.
     let pinned: Vec<&String> = pinned.iter().filter(|p| Path::new(p.as_str()).is_dir()).collect();
     if !pinned.is_empty() {
-        v.push(Place { name: "Przypięte".into(), path: String::new(), icon: "", tip: String::new(), header: true });
+        v.push(Place { name: crate::tr("Przypięte").into(), path: String::new(), icon: "", tip: String::new(), header: true });
         for p in pinned {
             let name = Path::new(p.as_str()).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
             v.push(Place { name, path: p.clone(), icon: icons::icon("pin"), tip: p.clone(), header: false });
@@ -801,10 +801,10 @@ fn quick_places(req: &Req, pinned: &[String]) -> Vec<Place> {
     }
     let own: Vec<&String> = req.places.iter().filter(|p| Path::new(p).is_dir()).collect();
     if !own.is_empty() {
-        v.push(Place { name: "Ten program".into(), path: String::new(), icon: "", tip: String::new(), header: true });
+        v.push(Place { name: crate::tr("Ten program").into(), path: String::new(), icon: "", tip: String::new(), header: true });
         for p in own {
             let name = Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
-            v.push(Place { name, path: p.clone(), icon: icons::icon("star"), tip: format!("{p}\nMiejsce dodane przez program"), header: false });
+            v.push(Place { name, path: p.clone(), icon: icons::icon("star"), tip: powerdesk_core::trf!("{p}\nMiejsce dodane przez program"), header: false });
         }
     }
     v
@@ -815,16 +815,16 @@ fn load_drives() {
     std::thread::spawn(|| {
         let list = powerdesk_core::drives::list();
         let _ = slint::invoke_from_event_loop(move || {
-            let mut v = vec![Place { name: "Ten komputer".into(), path: String::new(), icon: "", tip: String::new(), header: true }];
+            let mut v = vec![Place { name: crate::tr("Ten komputer").into(), path: String::new(), icon: "", tip: String::new(), header: true }];
             for d in list {
                 let (fallback, icon) = match d.kind.as_str() {
-                    "removable" => ("Dysk wymienny", "usb"),
-                    "network" => ("Dysk sieciowy", "network"),
-                    "cdrom" => ("Napęd optyczny", "disc"),
-                    _ => ("Dysk lokalny", "drive"),
+                    "removable" => (crate::tr("Dysk wymienny"), "usb"),
+                    "network" => (crate::tr("Dysk sieciowy"), "network"),
+                    "cdrom" => (crate::tr("Napęd optyczny"), "disc"),
+                    _ => (crate::tr("Dysk lokalny"), "drive"),
                 };
                 let label = if d.label.is_empty() { fallback.to_string() } else { d.label.clone() };
-                let free = if d.total > 0 { format!("\nWolne {} z {}", fmt::size(d.free), fmt::size(d.total)) } else { String::new() };
+                let free = if d.total > 0 { powerdesk_core::trf!("\nWolne {} z {}", fmt::size(d.free), fmt::size(d.total)) } else { String::new() };
                 v.push(Place { name: format!("{label} ({})", d.letter), tip: format!("{}{free}", d.path), path: d.path.clone(), icon: icons::icon(icon), header: false });
             }
             with(|p| p.drives = v);
@@ -848,6 +848,7 @@ pub fn run() {
         return;
     };
     let prefs = Prefs::load();
+    crate::apply_language(&prefs.language);
     let memory = Memory::load();
     let (light, accent) = crate::settings::light_accent(&prefs);
     let t = ui.global::<Theme>();
@@ -857,16 +858,16 @@ pub fn run() {
     // Etykiety z programu bywają z „&” (skrót klawiszowy w oknie Windows).
     let label = |s: &Option<String>, def: &str| s.as_deref().map(|t| t.replace('&', "")).filter(|t| !t.trim().is_empty()).unwrap_or_else(|| def.to_string());
     let (title, ok) = if req.folders {
-        ("Wybierz folder", "Wybierz folder")
+        (crate::tr("Wybierz folder"), crate::tr("Wybierz folder"))
     } else if req.save {
-        ("Zapisz jako", "Zapisz")
+        (crate::tr("Zapisz jako"), crate::tr("Zapisz"))
     } else {
-        ("Otwórz", "Otwórz")
+        (crate::tr("Otwórz"), crate::tr("Otwórz"))
     };
     ui.set_window_title(label(&req.title, title).into());
     ui.set_ok_label(label(&req.ok, ok).into());
-    ui.set_cancel_label(label(&req.cancel, "Anuluj").into());
-    ui.set_name_label(label(&req.name_label, if req.folders { "Folder:" } else { "Nazwa pliku:" }).into());
+    ui.set_cancel_label(label(&req.cancel, crate::tr("Anuluj")).into());
+    ui.set_name_label(label(&req.name_label, if req.folders { "Folder:" } else { crate::tr("Nazwa pliku:") }).into());
     ui.set_save(req.save);
     ui.set_folders_mode(req.folders);
     ui.set_multi(req.multi);
@@ -1003,7 +1004,7 @@ fn wire(w: &FilePickerWindow) {
                 ui.set_file_name(path.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default().into());
             }
         } else if let Some(ui) = ui() {
-            ui.set_notice(format!("Nie znaleziono „{t}”.").into());
+            ui.set_notice(powerdesk_core::trf!("Nie znaleziono „{t}”.").into());
             render();
         }
     });
@@ -1075,7 +1076,7 @@ fn wire(w: &FilePickerWindow) {
             }
             Err(e) => {
                 if let Some(ui) = ui() {
-                    ui.set_notice(format!("Nie można utworzyć folderu „{name}”: {e}").into());
+                    ui.set_notice(powerdesk_core::trf!("Nie można utworzyć folderu „{name}”: {e}").into());
                 }
             }
         }

@@ -123,11 +123,11 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
                 let (p1, p2) = (p.clone(), p);
                 show_menu(
                     vec![
-                        it("Otwórz", "open", move |_| {
+                        it(crate::tr("Otwórz"), "open", move |_| {
                             let _ = open::that_detached(&p1);
                             slint::Timer::single_shot(Duration::ZERO, close);
                         }),
-                        it("Pokaż w folderze", "folder", move |s| {
+                        it(crate::tr("Pokaż w folderze"), "folder", move |s| {
                             crate::open_args(s, vec![p2.clone()]);
                             crate::show_window(s);
                             slint::Timer::single_shot(Duration::ZERO, close);
@@ -163,7 +163,7 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
         let add: Vec<Item> = crate::widgets::GROUPS
             .iter()
             .map(|&(group, icon, kinds)| {
-                it(format!("Dodaj widżet: {group}…"), icon, move |_| {
+                it(powerdesk_core::trf!("Dodaj widżet: {group}…"), icon, move |_| {
                     let list: Vec<Item> = kinds
                         .iter()
                         .filter_map(|k| crate::widgets::kind(k))
@@ -392,9 +392,9 @@ fn style() -> u8 {
 /// Przełącznik widoku listy: nazwy z małymi ikonami albo same duże ikony.
 fn view_switch() -> Item {
     if grid() {
-        it("Widok: lista z nazwami", "list", |_| set_grid(false))
+        it(crate::tr("Widok: lista z nazwami"), "list", |_| set_grid(false))
     } else {
-        it("Widok: duże ikony", "grid", |_| set_grid(true))
+        it(crate::tr("Widok: duże ikony"), "grid", |_| set_grid(true))
     }
 }
 
@@ -414,12 +414,12 @@ fn hidden_switch() -> Option<Item> {
         return None;
     }
     Some(if SHOW_HIDDEN.with(|h| h.get()) {
-        it("Schowaj ukryte", "eye", |_| {
+        it(crate::tr("Schowaj ukryte"), "eye", |_| {
             SHOW_HIDDEN.with(|h| h.set(false));
             render();
         })
     } else {
-        it(format!("Pokaż ukryte ({n})"), "eye", |_| {
+        it(powerdesk_core::trf!("Pokaż ukryte ({n})"), "eye", |_| {
             SHOW_HIDDEN.with(|h| h.set(true));
             render();
         })
@@ -495,7 +495,7 @@ fn size_menu(at: At, now: u8) -> Item {
         })
         .checked(now == size)
     };
-    sub("Zmień rozmiar", "grid", vec![opt("Mały", 1), opt("Średni", 0), opt("Szeroki", 2), opt("Duży", 3)])
+    sub(crate::tr("Zmień rozmiar"), "grid", vec![opt(crate::tr("Mały"), 1), opt(crate::tr("Średni"), 0), opt(crate::tr("Szeroki"), 2), opt(crate::tr("Duży"), 3)])
 }
 
 fn tile_menu(i: usize, x: f32, y: f32) {
@@ -504,7 +504,7 @@ fn tile_menu(i: usize, x: f32, y: f32) {
     if !pin.widget.is_empty() {
         let mut items = Vec::new();
         if pin.widget == "note" {
-            items.push(it("Edytuj notatkę", "edit", move |_| {
+            items.push(it(crate::tr("Edytuj notatkę"), "edit", move |_| {
                 START.with(|s| {
                     if let Some(s) = s.borrow().as_ref() {
                         s.w.set_editing(i as i32);
@@ -522,7 +522,7 @@ fn tile_menu(i: usize, x: f32, y: f32) {
         items.extend(crate::widgetfeeds::config_items(&pin.widget));
         items.push(size_menu(at, pin.size));
         items.push(sep());
-        items.push(it("Usuń widżet", "trash", move |_| edit_groups(|gs| tiles::remove(gs, at))).danger());
+        items.push(it(crate::tr("Usuń widżet"), "trash", move |_| edit_groups(|gs| tiles::remove(gs, at))).danger());
         show_menu(items, x, y);
         return;
     }
@@ -532,13 +532,13 @@ fn tile_menu(i: usize, x: f32, y: f32) {
         return;
     }
     let items = vec![
-        it("Otwórz folder", "folder", move |_| {
+        it(crate::tr("Otwórz folder"), "folder", move |_| {
             FOLDER.with(|f| f.set(Some((at.group, at.tile))));
             render();
         }),
         size_menu(at, pin.size),
         sep(),
-        it("Rozgrupuj folder", "close", move |_| {
+        it(crate::tr("Rozgrupuj folder"), "close", move |_| {
             edit_groups(|gs| {
                 if let Some(gr) = gs.get_mut(at.group) {
                     if at.tile < gr.tiles.len() {
@@ -633,7 +633,7 @@ fn render() {
                 let img = crate::thumbs::get(&app.shell_path(), px, true);
                 // Przy szukaniu nagłówek „Aplikacje”, gdy coś pasuje.
                 if !parts.is_empty() && rows.len() == apps_from {
-                    rows.push(StartRow { header: true, name: "Aplikacje".into(), ..Default::default() });
+                    rows.push(StartRow { header: true, name: crate::tr("Aplikacje").into(), ..Default::default() });
                     shown.push(Row::Header);
                 }
                 rows.push(StartRow { header: false, name: app.name.clone().into(), has_img: img.is_some(), img: img.unwrap_or_default(), hidden: is_hidden, ..Default::default() });
@@ -659,7 +659,7 @@ fn render() {
                 let minis: Vec<slint::Image> = pin.items.iter().take(4).filter_map(|c| crate::thumbs::get(&c.path, (18.0 * scale) as u32, true)).collect();
                 let name = if !pin.widget.is_empty() {
                     crate::widgets::name(&pin.widget).to_string()
-                } else if pin.is_folder() { if pin.name.is_empty() { format!("Folder ({})", pin.items.len()) } else { pin.name.clone() } } else { name_of(&pin.path) };
+                } else if pin.is_folder() { if pin.name.is_empty() { powerdesk_core::trf!("Folder ({})", pin.items.len()) } else { pin.name.clone() } } else { name_of(&pin.path) };
                 Some(StartTile {
                     name: name.into(),
                     has_img: img.is_some(),
@@ -729,16 +729,16 @@ fn app_menu(path: &str, id: &str, tile: Option<(At, u8)>, x: f32, y: f32) {
     let pinned = tiles::contains(&groups(), path);
     let is_hidden = hidden().iter().any(|p| p == path);
     let mut items = vec![
-        it("Otwórz", "open", move |_| {
+        it(crate::tr("Otwórz"), "open", move |_| {
             startmenu::launch(&p1);
             slint::Timer::single_shot(Duration::ZERO, close);
         }),
-        it("Uruchom jako administrator", "shield", move |_| {
+        it(crate::tr("Uruchom jako administrator"), "shield", move |_| {
             startmenu::launch_admin(&p2);
             slint::Timer::single_shot(Duration::ZERO, close);
         }),
         sep(),
-        it(if pinned { "Odepnij od Startu" } else { "Przypnij do Startu" }, "pin", move |_| toggle_pin(&p3)),
+        it(if pinned { crate::tr("Odepnij od Startu") } else { crate::tr("Przypnij do Startu") }, "pin", move |_| toggle_pin(&p3)),
     ];
     if let Some((at, size)) = tile {
         items.push(size_menu(at, size));
@@ -746,10 +746,10 @@ fn app_menu(path: &str, id: &str, tile: Option<(At, u8)>, x: f32, y: f32) {
     // Pasek przypina pliki programów – tylko gdy aplikacja jest zwykłym .exe ze ścieżką.
     if id.contains(":\\") && id.to_lowercase().ends_with(".exe") {
         let exe = id.to_string();
-        items.push(it("Przypnij do paska zadań", "pin", move |_| crate::taskbar::pin_program(&exe)));
+        items.push(it(crate::tr("Przypnij do paska zadań"), "pin", move |_| crate::taskbar::pin_program(&exe)));
     }
     items.push(sep());
-    items.push(it(if is_hidden { "Przywróć w menu Start" } else { "Ukryj w menu Start" }, "eye", move |_| toggle_hidden(&p4)));
+    items.push(it(if is_hidden { crate::tr("Przywróć w menu Start") } else { crate::tr("Ukryj w menu Start") }, "eye", move |_| toggle_hidden(&p4)));
     items.extend(hidden_switch());
     items.push(view_switch());
     show_menu(items, x, y);
@@ -765,16 +765,16 @@ pub fn power_items() -> Vec<Item> {
         }
     };
     let mut v = vec![
-        it("Zablokuj", "shield", go(Power::Lock)).kbd("Win+L"),
-        it("Przełącz użytkownika", "refresh", go(Power::SwitchUser)),
-        it("Wyloguj", "close", go(Power::SignOut)),
+        it(crate::tr("Zablokuj"), "shield", go(Power::Lock)).kbd("Win+L"),
+        it(crate::tr("Przełącz użytkownika"), "refresh", go(Power::SwitchUser)),
+        it(crate::tr("Wyloguj"), "close", go(Power::SignOut)),
         sep(),
-        it("Uśpij", "history", go(Power::Sleep)),
+        it(crate::tr("Uśpij"), "history", go(Power::Sleep)),
     ];
     if startmenu::can_hibernate() {
-        v.push(it("Hibernuj", "history", go(Power::Hibernate)));
+        v.push(it(crate::tr("Hibernuj"), "history", go(Power::Hibernate)));
     }
-    v.extend([it("Zamknij system", "power", go(Power::Shutdown)).danger(), it("Uruchom ponownie", "refresh", go(Power::Restart))]);
+    v.extend([it(crate::tr("Zamknij system"), "power", go(Power::Shutdown)).danger(), it(crate::tr("Uruchom ponownie"), "refresh", go(Power::Restart))]);
     v
 }
 
@@ -789,14 +789,14 @@ fn rail(i: i32, x: f32, y: f32) {
     match i {
         0 => show_menu(
             Some(view_switch()).into_iter().chain(hidden_switch()).chain(Some(sep())).chain([
-                it("Zmień ustawienia konta", "settings", |_| {
+                it(crate::tr("Zmień ustawienia konta"), "settings", |_| {
                     let _ = open::that_detached("ms-settings:yourinfo");
                     slint::Timer::single_shot(Duration::ZERO, close);
                 }),
                 sep(),
-                it("Zablokuj", "shield", |_| startmenu::power(Power::Lock)),
-                it("Przełącz użytkownika", "refresh", |_| startmenu::power(Power::SwitchUser)),
-                it("Wyloguj", "close", |_| startmenu::power(Power::SignOut)),
+                it(crate::tr("Zablokuj"), "shield", |_| startmenu::power(Power::Lock)),
+                it(crate::tr("Przełącz użytkownika"), "refresh", |_| startmenu::power(Power::SwitchUser)),
+                it(crate::tr("Wyloguj"), "close", |_| startmenu::power(Power::SignOut)),
             ])
             .skip_while(|i| i.is_sep())
             .collect(),

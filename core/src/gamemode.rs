@@ -68,21 +68,21 @@ pub fn set_fps_limit(fps: u32) -> Result<(), String> {
     use windows::core::{s, w};
     use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
     unsafe {
-        let lib = LoadLibraryW(w!("nvapi64.dll")).map_err(|_| "Brak sterownika NVIDIA (nvapi64.dll)".to_string())?;
+        let lib = LoadLibraryW(w!("nvapi64.dll")).map_err(|_| crate::lang::tr("Brak sterownika NVIDIA (nvapi64.dll)").to_string())?;
         let q: QueryInterface = std::mem::transmute(GetProcAddress(lib, s!("nvapi_QueryInterface")).ok_or("NVAPI bez nvapi_QueryInterface")?);
         let f = |id: u32| {
             let p = q(id);
             (!p.is_null()).then_some(p)
         };
-        let init: Init = std::mem::transmute(f(ID_INIT).ok_or("NVAPI: brak Initialize")?);
-        let create: Create = std::mem::transmute(f(ID_CREATE).ok_or("NVAPI: brak CreateSession")?);
-        let load: Session = std::mem::transmute(f(ID_LOAD).ok_or("NVAPI: brak LoadSettings")?);
-        let base: Base = std::mem::transmute(f(ID_BASE).ok_or("NVAPI: brak GetBaseProfile")?);
-        let set: Set = std::mem::transmute(f(ID_SET).ok_or("NVAPI: brak SetSetting")?);
-        let delete: Delete = std::mem::transmute(f(ID_DELETE).ok_or("NVAPI: brak DeleteProfileSetting")?);
-        let save: Session = std::mem::transmute(f(ID_SAVE).ok_or("NVAPI: brak SaveSettings")?);
-        let destroy: Session = std::mem::transmute(f(ID_DESTROY).ok_or("NVAPI: brak DestroySession")?);
-        let check = |r: i32, what: &str| if r == 0 { Ok(()) } else { Err(format!("NVAPI {what}: błąd {r}")) };
+        let init: Init = std::mem::transmute(f(ID_INIT).ok_or(crate::lang::tr("NVAPI: brak Initialize"))?);
+        let create: Create = std::mem::transmute(f(ID_CREATE).ok_or(crate::lang::tr("NVAPI: brak CreateSession"))?);
+        let load: Session = std::mem::transmute(f(ID_LOAD).ok_or(crate::lang::tr("NVAPI: brak LoadSettings"))?);
+        let base: Base = std::mem::transmute(f(ID_BASE).ok_or(crate::lang::tr("NVAPI: brak GetBaseProfile"))?);
+        let set: Set = std::mem::transmute(f(ID_SET).ok_or(crate::lang::tr("NVAPI: brak SetSetting"))?);
+        let delete: Delete = std::mem::transmute(f(ID_DELETE).ok_or(crate::lang::tr("NVAPI: brak DeleteProfileSetting"))?);
+        let save: Session = std::mem::transmute(f(ID_SAVE).ok_or(crate::lang::tr("NVAPI: brak SaveSettings"))?);
+        let destroy: Session = std::mem::transmute(f(ID_DESTROY).ok_or(crate::lang::tr("NVAPI: brak DestroySession"))?);
+        let check = |r: i32, what: &str| if r == 0 { Ok(()) } else { Err(crate::trf!("NVAPI {what}: błąd {r}")) };
         check(init(), "Initialize")?;
         let mut session = std::ptr::null_mut();
         check(create(&mut session), "CreateSession")?;
@@ -94,7 +94,7 @@ pub fn set_fps_limit(fps: u32) -> Result<(), String> {
                 // Brak ustawienia w profilu = brak limitu; „nie znaleziono” też jest w porządku.
                 let r = delete(session, profile, FRL_FPS);
                 if r != 0 && r != -160 {
-                    return Err(format!("NVAPI DeleteProfileSetting: błąd {r}"));
+                    return Err(crate::trf!("NVAPI DeleteProfileSetting: błąd {r}"));
                 }
             } else {
                 let mut buf = vec![0u8; SETTING_SIZE];
@@ -105,7 +105,7 @@ pub fn set_fps_limit(fps: u32) -> Result<(), String> {
                 buf[8220..8224].copy_from_slice(&fps.to_le_bytes());
                 check(set(session, profile, buf.as_mut_ptr()), "SetSetting")?;
             }
-            check(save(session), "SaveSettings (może wymagać administratora)")
+            check(save(session), crate::lang::tr("SaveSettings (może wymagać administratora)"))
         })();
         destroy(session);
         result

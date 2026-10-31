@@ -5,7 +5,7 @@ import { Theme } from "theme.slint";
 export component OverlayWindow inherits Window {
     no-frame: true;
     always-on-top: true;
-    title: "PowerDesk – nakładka";
+    title: @tr("PowerDesk – nakładka");
     background: transparent;
     /// Pełna (wykres i wszystkie wiersze) albo mała (FPS i najważniejsze).
     in property <bool> full: true;
@@ -139,7 +139,7 @@ export struct ZoneRect {
 export component ZonesWindow inherits Window {
     no-frame: true;
     always-on-top: true;
-    title: "PowerDesk – strefy";
+    title: @tr("PowerDesk – strefy");
     background: transparent;
     in property <[ZoneRect]> zones;
     for z in root.zones: Rectangle {

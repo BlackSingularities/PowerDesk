@@ -243,12 +243,12 @@ pub fn describe_target(path: &str) -> Target {
 
 pub fn save_profile(mut p: Profile) -> Result<Profile, String> {
     if p.source.trim().is_empty() || p.target.path.trim().is_empty() {
-        return Err("Wybierz folder źródłowy i docelowy".into());
+        return Err(crate::lang::tr("Wybierz folder źródłowy i docelowy").into());
     }
     let s = sync_core::norm(&p.source);
     let t = sync_core::norm(&p.target.path);
     if s == t || t.starts_with(&(s.clone() + "\\")) || s.starts_with(&(t.clone() + "\\")) {
-        return Err("Folder docelowy nie może być tym samym folderem ani leżeć wewnątrz źródła".into());
+        return Err(crate::lang::tr("Folder docelowy nie może być tym samym folderem ani leżeć wewnątrz źródła").into());
     }
     if p.id.is_empty() {
         p.id = format!("s{}", now_ms());
@@ -486,20 +486,20 @@ fn run(p: &Profile, target: &str, confirmed: bool, cancel: &AtomicBool) {
     update(&p.id, |s| {
         s.state = "scanning".into();
         s.progress = 0.0;
-        s.current = "Porównywanie folderów…".into();
+        s.current = crate::lang::tr("Porównywanie folderów…").into();
     });
     let excl = sync_core::Excludes::new(&p.exclude);
     let src = match sync_core::scan(Path::new(&p.source), &excl, p.include_hidden, cancel) {
         Ok(s) => s,
         Err(e) => {
-            finish_err(p, format!("Źródło niedostępne: {e}"));
+            finish_err(p, crate::trf!("Źródło niedostępne: {e}"));
             return;
         }
     };
     let dst = match sync_core::scan(Path::new(target), &excl, p.include_hidden, cancel) {
         Ok(s) => s,
         Err(e) => {
-            finish_err(p, format!("Cel niedostępny: {e}"));
+            finish_err(p, crate::trf!("Cel niedostępny: {e}"));
             return;
         }
     };
@@ -520,7 +520,7 @@ fn run(p: &Profile, target: &str, confirmed: bool, cancel: &AtomicBool) {
         update(&p.id, |s| {
             s.state = "confirm".into();
             s.needs_confirm = Some(counts.clone());
-            s.current = format!("Wstrzymano: plan usuwa {deletions} elementów – potwierdź");
+            s.current = crate::trf!("Wstrzymano: plan usuwa {deletions} elementów – potwierdź");
         });
         return;
     }
@@ -534,7 +534,7 @@ fn run(p: &Profile, target: &str, confirmed: bool, cancel: &AtomicBool) {
             s.progress = 1.0;
             s.current.clear();
             s.needs_confirm = None;
-            s.last_result = "Aktualne".into();
+            s.last_result = crate::lang::tr("Aktualne").into();
         });
         return;
     }
@@ -647,17 +647,17 @@ fn summarize(c: &Counts, cancelled: bool) -> String {
         parts.push(format!("← {}", c.to_source));
     }
     if c.del_target + c.del_source > 0 {
-        parts.push(format!("usunięto {}", c.del_target + c.del_source));
+        parts.push(crate::trf!("usunięto {}", c.del_target + c.del_source));
     }
     if c.conflicts > 0 {
         parts.push(format!("konflikty {}", c.conflicts));
     }
     if c.errors > 0 {
-        parts.push(format!("błędy {}", c.errors));
+        parts.push(crate::trf!("błędy {}", c.errors));
     }
-    let mut s = if parts.is_empty() { "Aktualne".to_string() } else { parts.join(" · ") };
+    let mut s = if parts.is_empty() { crate::lang::tr("Aktualne").to_string() } else { parts.join(" · ") };
     if cancelled {
-        s = format!("Przerwano ({s})");
+        s = crate::trf!("Przerwano ({s})");
     }
     s
 }
@@ -670,8 +670,8 @@ pub struct Preview {
 }
 
 pub fn preview(id: &str) -> Result<Preview, String> {
-    let p = RT.lock().store.profiles.iter().find(|p| p.id == id).cloned().ok_or("Brak profilu")?;
-    let target = resolve(&p.target).ok_or("Cel jest niedostępny")?;
+    let p = RT.lock().store.profiles.iter().find(|p| p.id == id).cloned().ok_or(crate::lang::tr("Brak profilu"))?;
+    let target = resolve(&p.target).ok_or(crate::lang::tr("Cel jest niedostępny"))?;
     let excl = sync_core::Excludes::new(&p.exclude);
     let no = AtomicBool::new(false);
     let src = sync_core::scan(Path::new(&p.source), &excl, p.include_hidden, &no).map_err(|e| e.to_string())?;

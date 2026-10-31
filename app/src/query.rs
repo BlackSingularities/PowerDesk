@@ -133,7 +133,7 @@ pub fn parse(q: &str) -> Parsed {
     // `zawiera:"dwa słowa"` albo `zawiera:słowo` – reszta zapytania to nazwa i filtry.
     let mut content = None;
     let mut rest = q.to_string();
-    for key in ["zawiera:", "treść:", "content:"] {
+    for key in ["zawiera:", crate::tr("treść:"), "content:"] {
         if let Some(at) = rest.to_lowercase().find(key) {
             let after = &rest[at + key.len()..];
             let (val, end) = match after.strip_prefix('"') {

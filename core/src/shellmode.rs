@@ -66,13 +66,13 @@ pub fn ensure_explorer() -> bool {
 /// Czy wpis Winlogon wskazuje ten plik .exe.
 pub fn registered() -> bool {
     let Ok(exe) = exe() else { return false };
-    reg(&["query", KEY, "/v", "Shell"]).is_ok_and(|o| o.to_lowercase().contains(&exe.to_lowercase()))
+    reg(&["query", KEY, "/v", crate::lang::tr("Shell")]).is_ok_and(|o| o.to_lowercase().contains(&exe.to_lowercase()))
 }
 
 /// Usuwa nasz wpis – Windows wraca do powłoki z HKLM (`explorer.exe`).
 pub fn unregister() -> Result<(), String> {
-    if reg(&["query", KEY, "/v", "Shell"]).is_ok() {
-        reg(&["delete", KEY, "/v", "Shell", "/f"])?;
+    if reg(&["query", KEY, "/v", crate::lang::tr("Shell")]).is_ok() {
+        reg(&["delete", KEY, "/v", crate::lang::tr("Shell"), "/f"])?;
     }
     Ok(())
 }
@@ -385,7 +385,7 @@ pub fn count_crash() -> bool {
         .filter(|&t| now.saturating_sub(t) < CRASH_WINDOW_SECS)
         .collect();
     times.push(now);
-    crate::log::error(format!("PowerDesk zakończył się nieoczekiwanie ({}. raz w ciągu {CRASH_WINDOW_SECS} s)", times.len()));
+    crate::log::error(crate::trf!("PowerDesk zakończył się nieoczekiwanie ({}. raz w ciągu {CRASH_WINDOW_SECS} s)", times.len()));
     if times.len() >= CRASH_LIMIT {
         crate::log::error("za dużo awarii z rzędu – bez ponownego uruchamiania");
         let _ = std::fs::remove_file(&file);

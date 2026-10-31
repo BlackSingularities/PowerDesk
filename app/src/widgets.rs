@@ -66,7 +66,7 @@ pub const GROUPS: [(&str, &str, &[&str]); 6] = [
 ];
 
 pub fn name(kind: &str) -> &'static str {
-    KINDS.iter().find(|k| k.0 == kind).map_or("Widżet", |k| k.1)
+    KINDS.iter().find(|k| k.0 == kind).map_or(crate::tr("Widżet"), |k| crate::tr(k.1))
 }
 
 /// Rodzaj z listy `KINDS` (nazwa, ikona, rozmiary domyślne).
@@ -128,9 +128,9 @@ fn month_grid(today: NaiveDate) -> Vec<WDay> {
 fn uptime(secs: u64) -> String {
     let (d, h, m) = (secs / 86400, secs / 3600 % 24, secs / 60 % 60);
     if d > 0 {
-        format!("{d} d {h} h")
+        powerdesk_core::trf!("{d} d {h} h")
     } else if h > 0 {
-        format!("{h} h {m} min")
+        powerdesk_core::trf!("{h} h {m} min")
     } else {
         format!("{m} min")
     }
@@ -144,9 +144,9 @@ fn refresh_drives() {
             .filter(|d| d.online && d.total > 0 && d.kind != "network")
             .take(6)
             .map(|d| {
-                let name = if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
+                let name = if d.label.is_empty() { powerdesk_core::trf!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
                 let used = d.total.saturating_sub(d.free) as f32 / d.total as f32;
-                (name, used, format!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)))
+                (name, used, powerdesk_core::trf!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)))
             })
             .collect();
         let _ = slint::invoke_from_event_loop(move || {
@@ -206,9 +206,9 @@ fn tick() {
         d.seconds = now.format("%S").to_string();
         d.sec_frac = now.second() as f32 / 60.0;
         let date = now.date_naive();
-        d.weekday = WEEKDAYS[date.weekday().num_days_from_monday() as usize].to_string();
-        d.date = format!("{} {} {}", date.day(), MONTHS_OF[date.month0() as usize], date.year());
-        d.month = format!("{} {}", MONTHS[date.month0() as usize], date.year());
+        d.weekday = crate::tr(WEEKDAYS[date.weekday().num_days_from_monday() as usize]).to_string();
+        d.date = format!("{} {} {}", date.day(), crate::tr(MONTHS_OF[date.month0() as usize]), date.year());
+        d.month = format!("{} {}", crate::tr(MONTHS[date.month0() as usize]), date.year());
         if d.day != date.day() as i32 {
             d.day = date.day() as i32;
             d.days = month_grid(date);
@@ -224,12 +224,12 @@ fn tick() {
             d.cpu_text = format!("{:.0}%", info.cpu_usage);
             d.ram = if info.mem_total > 0 { info.mem_used as f32 / info.mem_total as f32 } else { 0.0 };
             d.ram_text = format!("{} / {}", fmt::size(info.mem_used), fmt::size(info.mem_total));
-            d.ram_free = format!("Wolne {}", fmt::size(info.mem_total.saturating_sub(info.mem_used)));
+            d.ram_free = powerdesk_core::trf!("Wolne {}", fmt::size(info.mem_total.saturating_sub(info.mem_used)));
             d.ram_total = fmt::size(info.mem_total);
             d.uptime = uptime(info.uptime);
             d.cpu_name = info.cpu;
             d.cpu_mhz = if info.cpu_mhz > 0 { format!("{:.2} GHz", info.cpu_mhz as f64 / 1000.0).replace('.', ",") } else { String::new() };
-            d.cpu_cores = format!("{} rdzeni, {} wątków", info.cores, info.threads);
+            d.cpu_cores = powerdesk_core::trf!("{} rdzeni, {} wątków", info.cores, info.threads);
             d.host = info.host;
             d.os = info.os;
             let ram = d.ram;

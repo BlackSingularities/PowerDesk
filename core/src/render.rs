@@ -36,12 +36,12 @@ pub fn font(path: &str, w: u32, color: [u8; 3]) -> Option<Rgba> {
     let data = std::fs::read(path).ok()?;
     let font = FontRef::try_from_slice(&data).ok()?;
     let lines: [(&str, f32); 6] = [
-        ("Aa Bb Cc", 56.0),
-        ("Zażółć gęślą jaźń", 30.0),
+        (crate::lang::tr("Aa Bb Cc"), 56.0),
+        (crate::lang::tr("Zażółć gęślą jaźń"), 30.0),
         ("ABCDEFGHIJKLMNOPRSTUWYZ", 20.0),
         ("abcdefghijklmnoprstuwyz", 20.0),
         ("0123456789 !?&@%(),.", 20.0),
-        ("Pchnąć w tę łódź jeża lub ośm skrzyń fig.", 14.0),
+        (crate::lang::tr("Pchnąć w tę łódź jeża lub ośm skrzyń fig."), 14.0),
     ];
     let pad = 8.0;
     let h: f32 = lines.iter().map(|(_, s)| s * 1.35).sum::<f32>() + pad * 2.0;

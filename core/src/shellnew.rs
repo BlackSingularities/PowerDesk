@@ -106,7 +106,7 @@ pub fn types() -> Vec<NewType> {
             Source::Empty
         } else if let Some(f) = string(&sn, "FileName") {
             Source::Template(f)
-        } else if let Some((ty, data)) = value(&sn, "Data") {
+        } else if let Some((ty, data)) = value(&sn, crate::lang::tr("Data")) {
             Source::Data(if ty == REG_BINARY { data } else { text(&data).into_bytes() })
         } else {
             continue;

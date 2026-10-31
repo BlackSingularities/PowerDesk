@@ -102,16 +102,16 @@ pub fn stat(path: &str) -> Result<Entry, String> {
 
 pub fn io_err(e: &std::io::Error) -> String {
     match e.raw_os_error() {
-        Some(2) | Some(3) => "Nie znaleziono ścieżki".into(),
-        Some(5) => "Brak dostępu".into(),
-        Some(21) => "Urządzenie nie jest gotowe".into(),
-        Some(32) => "Plik jest używany przez inny proces".into(),
-        Some(53) | Some(67) => "Ścieżka sieciowa jest niedostępna".into(),
-        Some(112) => "Za mało miejsca na dysku".into(),
-        Some(123) => "Nieprawidłowa nazwa".into(),
-        Some(145) => "Folder nie jest pusty".into(),
-        Some(183) => "Taki element już istnieje".into(),
-        Some(206) => "Za długa nazwa lub ścieżka".into(),
+        Some(2) | Some(3) => crate::lang::tr("Nie znaleziono ścieżki").into(),
+        Some(5) => crate::lang::tr("Brak dostępu").into(),
+        Some(21) => crate::lang::tr("Urządzenie nie jest gotowe").into(),
+        Some(32) => crate::lang::tr("Plik jest używany przez inny proces").into(),
+        Some(53) | Some(67) => crate::lang::tr("Ścieżka sieciowa jest niedostępna").into(),
+        Some(112) => crate::lang::tr("Za mało miejsca na dysku").into(),
+        Some(123) => crate::lang::tr("Nieprawidłowa nazwa").into(),
+        Some(145) => crate::lang::tr("Folder nie jest pusty").into(),
+        Some(183) => crate::lang::tr("Taki element już istnieje").into(),
+        Some(206) => crate::lang::tr("Za długa nazwa lub ścieżka").into(),
         _ => e.to_string(),
     }
 }
@@ -306,7 +306,7 @@ fn cp1250(c: u8) -> char {
 /// Tekst z dokumentów Office/OpenDocument (docx, xlsx, pptx, odt, ods, odp, epub).
 pub fn office_text(path: &str, limit: usize) -> Result<TextPreview, String> {
     let f = std::fs::File::open(path).map_err(|e| io_err(&e))?;
-    let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| "To nie jest prawidłowy dokument".to_string())?;
+    let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| crate::lang::tr("To nie jest prawidłowy dokument").to_string())?;
     let ext = Path::new(path).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     if ext == "xlsx" || ext == "xlsm" {
         return Ok(xlsx_text(&mut z, limit));
@@ -473,7 +473,7 @@ pub struct ZipItem {
 
 pub fn zip_list(path: &str) -> Result<Vec<ZipItem>, String> {
     let f = std::fs::File::open(path).map_err(|e| io_err(&e))?;
-    let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| "Nieobsługiwane archiwum".to_string())?;
+    let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| crate::lang::tr("Nieobsługiwane archiwum").to_string())?;
     let mut out = Vec::new();
     for i in 0..z.len().min(5000) {
         if let Ok(f) = z.by_index_raw(i) {

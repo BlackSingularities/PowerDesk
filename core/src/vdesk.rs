@@ -43,17 +43,17 @@ fn guid(b: &[u8]) -> String {
 /// Pulpity (nazwy – własne albo „Pulpit N”) i numer bieżącego. Jeden pulpit Windows nie zapisuje
 /// listy w rejestrze – wtedy „Pulpit 1”. Wołający ukrywa przełącznik w trybie powłoki.
 pub fn list() -> Option<(Vec<String>, usize)> {
-    let Some(ids) = binary(KEY, "VirtualDesktopIDs") else { return Some((vec!["Pulpit 1".into()], 0)) };
+    let Some(ids) = binary(KEY, "VirtualDesktopIDs") else { return Some((vec![crate::lang::tr("Pulpit 1").into()], 0)) };
     let ids: Vec<&[u8]> = ids.chunks_exact(16).collect();
     if ids.is_empty() {
-        return Some((vec!["Pulpit 1".into()], 0));
+        return Some((vec![crate::lang::tr("Pulpit 1").into()], 0));
     }
     let cur = binary(KEY, "CurrentVirtualDesktop").filter(|c| c.len() == 16);
     let current = cur.as_ref().and_then(|c| ids.iter().position(|i| *i == c.as_slice())).unwrap_or(0);
     let names = ids
         .iter()
         .enumerate()
-        .map(|(n, id)| string(&format!(r"{KEY}\Desktops\{}", guid(id)), "Name").unwrap_or_else(|| format!("Pulpit {}", n + 1)))
+        .map(|(n, id)| string(&format!(r"{KEY}\Desktops\{}", guid(id)), "Name").unwrap_or_else(|| crate::trf!("Pulpit {}", n + 1)))
         .collect();
     Some((names, current))
 }

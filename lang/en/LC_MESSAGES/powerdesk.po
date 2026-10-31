@@ -1,0 +1,6597 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: PowerDesk\n"
+"Language: en\n"
+"X-Language-Name: English\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#: app/src/setup.rs:205
+msgid "\n\nWindows zapyta o uprawnienia administratora."
+msgstr "\n\nWindows will ask for administrator permission."
+
+#: app/ui/edgepanel.slint:212
+msgid "\nKliknij, aby otworzyć"
+msgstr "\nClick to open"
+
+#: app/ui/edgepanel.slint:212
+msgid "\nKliknij, aby wejść do folderu"
+msgstr "\nClick to enter the folder"
+
+#: app/ui/edgepanel.slint:141
+msgid "\nKliknij, aby wrócić do folderu głównego"
+msgstr "\nClick to go back to the main folder"
+
+#: app/src/picker.rs:827
+msgid "\nWolne {} z {}"
+msgstr "\n{} free of {}"
+
+#: app/src/termview.rs:128
+msgid "\r\nx1b[2m[proces zakończony – Enter uruchomi nowy]x1b[0m\r\n"
+msgstr ""
+
+#: app/ui/settings.slint:1377
+msgid " (domyślna)"
+msgstr " (default)"
+
+#: app/src/props.rs:106
+msgid " ({x} mm pełnej klatki)"
+msgstr " ({x} mm full-frame)"
+
+#: app/ui/overlays.slint:96
+msgid " błędów"
+msgstr " errors"
+
+#: app/src/cliphistory.rs:137
+msgid " i {} więcej"
+msgstr " and {} more"
+
+#: app/ui/settings.slint:1864
+msgid " klatek na sekundę we wszystkich grach"
+msgstr " frames per second in all games"
+
+#: app/ui/settings.slint:1181
+msgid " krawędzi głównego monitora"
+msgstr " edge of the main monitor"
+
+#: app/ui/settings.slint:1128
+msgid " krawędź ekranu"
+msgstr " screen edge"
+
+#: app/ui/home.slint:652
+msgid " plików"
+msgstr " files"
+
+#: app/ui/wkinds.slint:429
+msgid " · 24 h"
+msgstr ""
+
+#: app/src/syncview.rs:184
+msgid " · czeka zmian: {}"
+msgstr " · pending changes: {}"
+
+#: app/ui/widgets.slint:360
+msgid " · działa "
+msgstr " · running "
+
+#: app/src/settings.rs:546
+msgid " · działa inna kopia (bez instalacji)"
+msgstr " · another copy is running (not installed)"
+
+#: app/ui/taskbar.slint:1429
+msgid " · kółko – sąsiedni pulpit"
+msgstr " · wheel – adjacent desktop"
+
+#: app/src/transfers.rs:162
+msgid " · nowszy"
+msgstr " · newer"
+
+#: app/src/syncview.rs:387
+msgid " · pokazano pierwsze 500"
+msgstr " · first 500 shown"
+
+#: app/ui/taskbar.slint:1549
+msgid " · przypięty"
+msgstr " · pinned"
+
+#: app/ui/wkinds.slint:806
+msgid " · sygnał "
+msgstr " · signal "
+
+#: app/ui/wkinds.slint:253
+msgid " · wiatr "
+msgstr " · wind "
+
+#: app/src/widgetfeeds.rs:281
+msgid " · za {} min"
+msgstr " · in {} min"
+
+#: app/ui/wkinds.slint:259
+msgid " · zachód "
+msgstr " · sunset "
+
+#: app/src/home.rs:419
+msgid " · {:.1} GHz"
+msgstr ""
+
+#: app/ui/taskbar.slint:1642
+msgid " · ładowanie"
+msgstr " · charging"
+
+#: app/ui/wconfig.slint:348
+msgid " – Enter zatwierdza"
+msgstr " – Enter confirms"
+
+#: app/ui/titlebar.slint:66
+msgid " – karta przypięta"
+msgstr " – pinned tab"
+
+#: app/ui/home.slint:533
+msgid " – kliknij, aby otworzyć"
+msgstr " – click to open"
+
+#: app/ui/settings.slint:1360
+msgid " – wymaga wyższego paska (56–72 px)"
+msgstr " – requires a taller taskbar (56–72 px)"
+
+#: core/src/sync_core.rs:59
+msgid "+ folder ← {r}"
+msgstr ""
+
+#: core/src/sync_core.rs:58
+msgid "+ folder → {r}"
+msgstr ""
+
+#: app/ui/taskbar.slint:1551
+msgid ", okna: "
+msgstr ", windows: "
+
+#: app/ui/taskbar.slint:1551
+msgid ", przypięty"
+msgstr ", pinned"
+
+#: core/src/fpsmon.rs:207
+msgid "-NoProfile -WindowStyle Hidden -Command \"Add-LocalGroupMember -SID 'S-1-5-32-559' -Member '{}' -ErrorAction SilentlyContinue\""
+msgstr ""
+
+#: app/ui/settings.slint:1433
+msgid "1 klatka"
+msgstr "1 frame"
+
+#: app/ui/wconfig.slint:311
+msgid "12 h"
+msgstr ""
+
+#: app/src/facets.rs:141
+msgid "1–10 min"
+msgstr "1–10 min"
+
+#: app/ui/settings.slint:1433
+msgid "2 klatki"
+msgstr "2 frames"
+
+#: app/ui/settings.slint:1014
+msgid "2 kolumny"
+msgstr "2 columns"
+
+#: app/src/facets.rs:137
+msgid "20 Mpx+"
+msgstr ""
+
+#: app/ui/wconfig.slint:311
+msgid "24 h"
+msgstr ""
+
+#: app/ui/settings.slint:1433
+msgid "3 klatki"
+msgstr "3 frames"
+
+#: app/ui/settings.slint:1014
+msgid "3 kolumny"
+msgstr "3 columns"
+
+#: app/src/facets.rs:151
+msgid "30 dni"
+msgstr "30 days"
+
+#: app/src/props.rs:134
+msgid "30 s"
+msgstr ""
+
+#: app/ui/settings.slint:1042
+msgid "32 px, gęsta siatka"
+msgstr "32 px, dense grid"
+
+#: app/ui/settings.slint:1433
+msgid "4 klatki"
+msgstr "4 frames"
+
+#: app/ui/settings.slint:1042
+msgid "48 px – jak w Windows"
+msgstr "48 px – like Windows"
+
+#: app/src/props.rs:146
+msgid "600 mm"
+msgstr ""
+
+#: app/ui/settings.slint:1042
+msgid "64 px, wyraźne"
+msgstr "64 px, clear"
+
+#: app/src/facets.rs:151
+msgid "7 dni"
+msgstr "7 days"
+
+#: app/src/props.rs:145
+msgid "8 mm"
+msgstr ""
+
+#: core/src/remote.rs:122
+msgid "AUTH: Podaj login i hasło do serwera"
+msgstr ""
+
+#: core/src/remote.rs:114
+msgid "AUTH: Serwer odrzucił login lub hasło"
+msgstr ""
+
+#: core/src/render.rs:39
+msgid "Aa Bb Cc"
+msgstr ""
+
+#: app/ui/settings.slint:672
+msgid "Acrylic"
+msgstr ""
+
+#: app/ui/wconfig.slint:284
+msgid "Akcent"
+msgstr "Accent"
+
+#: app/src/updates.rs:144
+msgid "Aktualizacja nie powiodła się: {e}"
+msgstr "Update failed: {e}"
+
+#: app/ui/settings.slint:1698
+msgid "Aktualizacje"
+msgstr "Updates"
+
+msgid "Aktualizacje systemu"
+msgstr "System updates"
+
+#: app/src/syncview.rs:179
+msgid "Aktualna"
+msgstr "Current"
+
+#: core/src/sync.rs:537
+msgid "Aktualne"
+msgstr "Up to date"
+
+msgid "Aktywność"
+msgstr "Activity"
+
+msgid "Antywirus i zapora"
+msgstr "Antivirus and firewall"
+
+#: app/src/transfers.rs:356
+msgid "Anulowano"
+msgstr "Cancelled"
+
+#: app/ui/bulk.slint:431
+msgid "Anuluj"
+msgstr "Cancel"
+
+#: app/ui/overlays.slint:337
+msgid "Anuluj kopiowanie"
+msgstr "Cancel copying"
+
+#: app/ui/overlays.slint:337
+msgid "Anuluj przenoszenie"
+msgstr "Cancel moving"
+
+msgid "Aparat"
+msgstr "Camera"
+
+#: app/src/fmt.rs:46
+msgid "Aplikacja"
+msgstr "App"
+
+#: app/ui/taskbar.slint:519
+msgid "Aplikacje"
+msgstr "Apps"
+
+msgid "Aplikacje autostartu"
+msgstr "Startup apps"
+
+msgid "Aplikacje domyślne"
+msgstr "Default apps"
+
+msgid "Aplikacje i funkcje"
+msgstr "Apps & features"
+
+#: app/src/model.rs:326
+msgid "Archiwa"
+msgstr "Archives"
+
+#: app/src/archives.rs:40
+msgid "Archiwa są tylko do odczytu"
+msgstr "Archives are read-only"
+
+#: app/src/archives.rs:130
+msgid "Archiwum"
+msgstr "Archive"
+
+#: app/src/menus.rs:615
+msgid "Archiwum ZIP z zaznaczonych ({n})"
+msgstr "ZIP archive from selection ({n})"
+
+#: app/src/fmt.rs:42
+msgid "Arkusz"
+msgstr "Spreadsheet"
+
+#: app/src/menus.rs:587
+msgid "Arkusz Excel"
+msgstr "Excel spreadsheet"
+
+#: app/src/model.rs:260
+msgid "Atrybuty"
+msgstr "Attributes"
+
+#: app/src/model.rs:325
+msgid "Audio"
+msgstr ""
+
+#: app/ui/settings.slint:1317
+msgid "Automatycznie ukrywaj pasek"
+msgstr "Automatically hide the taskbar"
+
+#: app/src/model.rs:261
+msgid "Autor"
+msgstr "Author"
+
+msgid "Awarie, błędy i zmiany w czasie"
+msgstr "Crashes, errors and changes over time"
+
+#: app/ui/wkinds.slint:687
+msgid "Bateria"
+msgstr "Battery"
+
+#: app/ui/settings.slint:1860
+msgid "Bez"
+msgstr "None"
+
+#: app/ui/settings.slint:1864
+msgid "Bez limitu klatek"
+msgstr "No frame limit"
+
+#: app/ui/wconfig.slint:321
+msgid "Bez sekund"
+msgstr "Without seconds"
+
+#: app/ui/wconfig.slint:284
+msgid "Bez tła"
+msgstr "No background"
+
+#: app/ui/bulk.slint:328
+msgid "Bez zmian"
+msgstr "Unchanged"
+
+#: core/src/weather.rs:24
+msgid "Bezchmurnie"
+msgstr "Clear sky"
+
+#: app/ui/taskbar.slint:1635
+msgid "Bezpieczne usuwanie sprzętu"
+msgstr "Safely remove hardware"
+
+#: app/ui/settings.slint:579
+msgid "Biały lub czarny"
+msgstr "White or black"
+
+#: app/src/main.rs:3483
+msgid "Biblioteki"
+msgstr "Libraries"
+
+#: app/ui/settings.slint:1215
+msgid "Bing – nowe codziennie"
+msgstr "Bing – new every day"
+
+#: app/ui/taskbar.slint:667
+msgid "Bluetooth"
+msgstr ""
+
+msgid "Bluetooth i urządzenia"
+msgstr "Bluetooth & devices"
+
+#: app/ui/taskbar.slint:669
+msgid "Bluetooth niedostępny – klik otwiera ustawienia urządzeń"
+msgstr "Bluetooth unavailable – click to open device settings"
+
+#: app/src/model.rs:88
+msgid "Brak"
+msgstr "None"
+
+#: app/src/model.rs:123
+msgid "Brak daty"
+msgstr "No date"
+
+#: core/src/drives.rs:331
+msgid "Brak dostępu"
+msgstr "Access denied"
+
+#: app/src/main.rs:1902
+msgid "Brak elementów pasujących do filtra"
+msgstr "No items match the filter"
+
+#: core/src/quick.rs:29
+msgid "Brak karty Bluetooth"
+msgstr "No Bluetooth adapter"
+
+#: core/src/wifi.rs:165
+msgid "Brak karty Wi-Fi"
+msgstr "No Wi-Fi adapter"
+
+#: app/ui/taskbar.slint:1944
+msgid "Brak nowych powiadomień"
+msgstr "No new notifications"
+
+#: app/ui/widgets.slint:1113
+msgid "Brak ostatnio otwieranych plików"
+msgstr "No recently opened files"
+
+#: app/ui/taskbar.slint:1822
+msgid "Brak otwartych okien"
+msgstr "No open windows"
+
+#: app/ui/home.slint:717
+msgid "Brak plików zmienionych w ostatnich dwóch tygodniach"
+msgstr "No files changed in the last two weeks"
+
+#: app/ui/wkinds.slint:774
+msgid "Brak połączenia"
+msgstr "Not connected"
+
+#: app/ui/taskbar.slint:1615
+msgid "Brak połączenia z internetem"
+msgstr "No internet connection"
+
+#: core/src/remote.rs:111
+msgid "Brak połączenia z serwerem: {e}"
+msgstr "Cannot connect to the server: {e}"
+
+#: core/src/sync.rs:673
+msgid "Brak profilu"
+msgstr "No profile"
+
+#: core/src/gamemode.rs:71
+msgid "Brak sterownika NVIDIA (nvapi64.dll)"
+msgstr "NVIDIA driver not found (nvapi64.dll)"
+
+#: app/src/settings.rs:596
+msgid "Brak uprawnień: pomiar FPS wymaga administratora albo członkostwa w grupie „Użytkownicy dzienników wydajności”. Reszta nakładki działa."
+msgstr "No permission: FPS measurement requires administrator rights or membership in the “Performance Log Users” group. The rest of the overlay works."
+
+#: app/src/taskbar.rs:1360
+msgid "Brak urządzenia odtwarzającego"
+msgstr "No playback device"
+
+#: core/src/update.rs:36
+msgid "Brak wydań do pobrania"
+msgstr "No releases to download"
+
+#: app/ui/widgets.slint:966
+msgid "Brak zadań – prawy przycisk → „Dodaj zadanie…”"
+msgstr "No tasks – right-click → “Add task…”"
+
+#: app/src/widgetfeeds.rs:367
+msgid "Brak zdjęć w folderze {}"
+msgstr "No photos in folder {}"
+
+#: core/src/fpsmon.rs:212
+msgid "Brak zgody na uprawnienia administratora"
+msgstr "Administrator permission was not granted"
+
+#: app/ui/widgets.slint:790
+msgid "Brak – prawy przycisk → „Dodaj przypomnienie…”"
+msgstr "None – right-click → “Add reminder…”"
+
+#: app/ui/wconfig.slint:204
+msgid "Bursztynowy"
+msgstr "Amber"
+
+#: core/src/weather.rs:39
+msgid "Burza"
+msgstr "Thunderstorm"
+
+#: core/src/weather.rs:40
+msgid "Burza z gradem"
+msgstr "Thunderstorm with hail"
+
+#: app/src/syncview.rs:177
+msgid "Błąd: {}"
+msgstr "Error: {}"
+
+#: app/src/bulk.rs:102
+msgid "Błędne wyrażenie regularne"
+msgstr "Invalid regular expression"
+
+#: app/ui/theme.slint:61
+msgid "Cascadia Mono"
+msgstr ""
+
+#: app/ui/sync.slint:297
+msgid "Cel"
+msgstr "Target"
+
+#: app/ui/sync.slint:313
+msgid "Cel jest dokładną kopią źródła, także usunięcia"
+msgstr "The target is an exact copy of the source, including deletions"
+
+#: core/src/sync.rs:674
+msgid "Cel jest niedostępny"
+msgstr "The target is unavailable"
+
+#: core/src/sync.rs:502
+msgid "Cel niedostępny: {e}"
+msgstr "Target unavailable: {e}"
+
+#: app/src/syncview.rs:175
+msgid "Cel odłączony"
+msgstr "Target disconnected"
+
+#: app/ui/settings.slint:545
+msgid "Ciemny"
+msgstr "Dark"
+
+#: app/ui/settings.slint:749
+msgid "Co pokazuje nowa karta i okno (Win+E, menu ikony w zasobniku) · przypięte karty wracają zawsze"
+msgstr "What a new tab and window show (Win+E, tray icon menu) · pinned tabs always come back"
+
+msgid "Co teraz gra"
+msgstr "Now playing"
+
+#: app/ui/home.slint:548
+msgid "Co zajmuje miejsce?"
+msgstr "What takes up space?"
+
+#: app/src/bulk.rs:295
+msgid "Cofnij"
+msgstr "Undo"
+
+#: core/src/ops.rs:548
+msgid "Cofnięto"
+msgstr "Undone"
+
+#: app/ui/bulk.slint:421
+msgid "Ctrl+Z cofa całą operację"
+msgstr "Ctrl+Z undoes the whole operation"
+
+#: app/ui/settings.slint:415
+msgid "Ctrl+kółko"
+msgstr "Ctrl+wheel"
+
+#: app/ui/bulk.slint:263
+msgid "Cyfr"
+msgstr "Digits"
+
+#: app/src/widgetcfg.rs:116
+msgid "Cyfry"
+msgstr "Digits"
+
+#: app/src/widgetcfg.rs:130
+msgid "Cytat"
+msgstr "Quote"
+
+msgid "Cytat dnia"
+msgstr "Quote of the day"
+
+#: app/ui/settings.slint:546
+msgid "Czarne tło"
+msgstr "Black background"
+
+#: app/src/props.rs:130
+msgid "Czas"
+msgstr "Time"
+
+msgid "Czas i daty"
+msgstr "Time and dates"
+
+#: app/ui/wkinds.slint:1366
+msgid "Czas minął"
+msgstr "Time is up"
+
+#: app/ui/wkinds.slint:1397
+msgid "Czas minął!"
+msgstr "Time is up!"
+
+#: app/src/model.rs:59
+msgid "Czas trwania"
+msgstr "Duration"
+
+msgid "Czcionki"
+msgstr "Fonts"
+
+#: app/src/syncview.rs:178
+msgid "Czeka na pierwsze porównanie"
+msgstr "Waiting for the first comparison"
+
+#: app/src/syncview.rs:176
+msgid "Czeka na potwierdzenie"
+msgstr "Waiting for confirmation"
+
+msgid "Czerwiec"
+msgstr "June"
+
+#: app/ui/wconfig.slint:206
+msgid "Czerwony"
+msgstr "Red"
+
+#: app/src/props.rs:138
+msgid "Czułość"
+msgstr "Sensitivity"
+
+msgid "Czym otwierać pliki i linki"
+msgstr "What opens files and links"
+
+#: app/ui/space.slint:461
+msgid "Czysto – nie znaleziono nic do usunięcia."
+msgstr "All clean – nothing to remove."
+
+#: core/src/weather.rs:26
+msgid "Częściowe zachmurzenie"
+msgstr "Partly cloudy"
+
+#: app/ui/picker.slint:343
+msgid "Dalej (Alt+→)"
+msgstr "Forward (Alt+→)"
+
+#: app/src/facets.rs:51
+msgid "Data"
+msgstr "Date"
+
+#: app/ui/bulk.slint:239
+msgid "Data + numer"
+msgstr "Date + number"
+
+#: app/ui/bulk.slint:240
+msgid "Data i godzina"
+msgstr "Date and time"
+
+#: app/ui/picker.slint:490
+msgid "Data modyfikacji"
+msgstr "Date modified"
+
+#: app/src/main.rs:2319
+msgid "Data modyfikacji: {}"
+msgstr "Date modified: {}"
+
+#: app/ui/settings.slint:1457
+msgid "Data pod godziną"
+msgstr "Date under the time"
+
+#: app/src/model.rs:55
+msgid "Data utworzenia"
+msgstr "Date created"
+
+#: app/src/main.rs:2305
+msgid "Data utworzenia: {}"
+msgstr "Date created: {}"
+
+#: app/src/model.rs:58
+msgid "Data wykonania"
+msgstr "Date taken"
+
+#: app/ui/bulk.slint:221
+msgid "Data wykonania (EXIF) lub modyfikacji"
+msgstr "Date taken (EXIF) or modified"
+
+#: app/src/main.rs:2315
+msgid "Data wykonania: {}"
+msgstr "Date taken: {}"
+
+#: app/src/setup.rs:164
+msgid "Deinstalacja nie powiodła się:\n{e}"
+msgstr "Uninstall failed:\n{e}"
+
+#: app/src/desktop.rs:1222
+msgid "Del"
+msgstr ""
+
+#: app/ui/settings.slint:664
+msgid "Delikatnie przepuszcza kolor tapety (Windows 11)"
+msgstr "Lets the wallpaper colour gently show through (Windows 11)"
+
+#: core/src/weather.rs:31
+msgid "Deszcz"
+msgstr "Rain"
+
+#: app/src/widgetcfg.rs:118
+msgid "Dni"
+msgstr "Days"
+
+#: app/src/facets.rs:141
+msgid "Do 1 min"
+msgstr "Up to 1 min"
+
+#: app/src/desktop.rs:1222
+msgid "Do Kosza"
+msgstr "To Recycle Bin"
+
+#: app/ui/titlebar.slint:145
+msgid "Do Kosza (Del)"
+msgstr "To Recycle Bin (Del)"
+
+#: app/ui/settings.slint:1686
+msgid "Do Program Files – Windows zapyta o uprawnienia administratora"
+msgstr "Into Program Files – Windows will ask for administrator permission"
+
+#: core/src/ops.rs:228
+msgid "Do kosza: {} elem."
+msgstr "To Recycle Bin: {} items"
+
+#: app/src/main.rs:3634
+msgid "Dodaj"
+msgstr "Add"
+
+#: app/src/menus.rs:427
+msgid "Dodaj do półki"
+msgstr "Add to shelf"
+
+#: app/ui/sync.slint:570
+msgid "Dodaj folder i dysk, na który ma się kopiować"
+msgstr "Add a folder and the drive to copy it to"
+
+#: app/ui/widgets.slint:1123
+msgid "Dodaj foldery do ulubionych w oknie PowerDesk (gwiazdka w panelu bocznym)"
+msgstr "Add folders to favourites in the PowerDesk window (star in the side panel)"
+
+#: app/src/main.rs:3632
+msgid "Dodaj lokalizację sieciową"
+msgstr "Add a network location"
+
+#: app/src/main.rs:3593
+msgid "Dodaj lokalizację…"
+msgstr "Add location…"
+
+#: app/ui/settings.slint:413
+msgid "Dodaj na półkę"
+msgstr "Add to shelf"
+
+#: app/src/widgetfeeds.rs:439
+msgid "Dodaj przypomnienie…"
+msgstr "Add reminder…"
+
+#: app/ui/settings.slint:1179
+msgid "Dodaj u góry…"
+msgstr "Add at the top…"
+
+#: app/src/desktop.rs:1100
+msgid "Dodaj widżet"
+msgstr "Add widget"
+
+#: app/src/start.rs:166
+msgid "Dodaj widżet: {group}…"
+msgstr "Add widget: {group}…"
+
+#: app/ui/settings.slint:1179
+msgid "Dodaj z lewej…"
+msgstr "Add on the left…"
+
+#: app/ui/settings.slint:1179
+msgid "Dodaj z prawej…"
+msgstr "Add on the right…"
+
+#: app/src/widgetmore.rs:213
+msgid "Dodaj zadanie…"
+msgstr "Add task…"
+
+#: app/src/shelf.rs:54
+msgid "Dodano do półki: {what}"
+msgstr "Added to shelf: {what}"
+
+#: app/ui/wkinds.slint:1468
+msgid "Dodawanie"
+msgstr "Addition"
+
+#: app/src/fmt.rs:40
+msgid "Dokument"
+msgstr "Document"
+
+#: app/src/menus.rs:586
+msgid "Dokument Word"
+msgstr "Word document"
+
+#: app/src/desktop.rs:1071
+msgid "Dokument tekstowy"
+msgstr "Text document"
+
+#: app/ui/home.slint:688
+msgid "Dokumenty"
+msgstr "Documents"
+
+#: app/ui/wconfig.slint:401
+msgid "Domyślny"
+msgstr "Default"
+
+#: app/src/widgetcfg.rs:126
+msgid "Dopasuj"
+msgstr "Fit"
+
+#: app/ui/viewer.slint:254
+msgid "Dopasuj do okna (0)"
+msgstr "Fit to window (0)"
+
+#: app/ui/settings.slint:1901
+msgid "Dopisuje Twoje konto do grupy „Użytkownicy dzienników wydajności” (raz, Windows zapyta o uprawnienia); działa po ponownym zalogowaniu"
+msgstr "Adds your account to the “Performance Log Users” group (once, Windows will ask for permission); works after signing in again"
+
+#: app/src/updates.rs:89
+msgid "Dostępna wersja {v} (masz {}) · sprawdzono o {when}"
+msgstr "Version {v} is available (you have {}) · checked at {when}"
+
+#: app/src/main.rs:2326
+msgid "Dostępny tylko w chmurze"
+msgstr "Available only in the cloud"
+
+msgid "Drukarki i skanery"
+msgstr "Printers & scanners"
+
+#: app/src/menus.rs:359
+msgid "Drukuj"
+msgstr "Print"
+
+#: app/src/menus.rs:875
+msgid "Duplikuj kartę"
+msgstr "Duplicate tab"
+
+#: app/src/widgetcfg.rs:117
+msgid "Duża temperatura"
+msgstr "Large temperature"
+
+#: app/ui/settings.slint:1039
+msgid "Duże"
+msgstr "Large"
+
+#: app/src/facets.rs:149
+msgid "Duże (100 MB+)"
+msgstr "Large (100 MB+)"
+
+msgid "Duże (128 MB – 1 GB)"
+msgstr "Large (128 MB – 1 GB)"
+
+#: app/src/desktop.rs:1089
+msgid "Duże ikony"
+msgstr "Large icons"
+
+#: app/src/start.rs:498
+msgid "Duży"
+msgstr "Large"
+
+#: app/ui/sync.slint:320
+msgid "Dwukierunkowa"
+msgstr "Two-way"
+
+#: core/src/integration.rs:13
+msgid "Dwuklik na Pulpicie, skróty, „Pokaż w folderze” i pobrane archiwa ZIP w innych programach"
+msgstr "Double-click on the Desktop, shortcuts, “Show in folder” and downloaded ZIP archives in other programs"
+
+#: app/src/main.rs:3172
+msgid "Dysk ({letter})"
+msgstr "Drive ({letter})"
+
+#: app/src/home.rs:365
+msgid "Dysk ({})"
+msgstr "Drive ({})"
+
+#: app/src/picker.rs:824
+msgid "Dysk lokalny"
+msgstr "Local disk"
+
+#: app/src/picker.rs:822
+msgid "Dysk sieciowy"
+msgstr "Network drive"
+
+#: app/src/menus.rs:824
+msgid "Dysk sieciowy odłączony"
+msgstr "Network drive disconnected"
+
+#: app/src/picker.rs:821
+msgid "Dysk wymienny"
+msgstr "Removable drive"
+
+#: app/ui/home.slint:524
+msgid "Dyski"
+msgstr "Drives"
+
+msgid "Dyski i system"
+msgstr "Drives and system"
+
+#: app/ui/settings.slint:763
+msgid "Dyski, foldery i ostatnie pliki"
+msgstr "Drives, folders and recent files"
+
+#: app/ui/wkinds.slint:1748
+msgid "Działa"
+msgstr "Running"
+
+#: app/ui/sync.slint:533
+msgid "Działa OpenFilePower i to on synchronizuje te profile. Zamknij go (także z zasobnika), aby PowerDesk przejął synchronizację – do tego czasu zmiany ustawień zapiszą się, ale nic się nie skopiuje."
+msgstr "OpenFilePower is running and it syncs these profiles. Close it (also from the tray) so PowerDesk can take over syncing – until then setting changes are saved, but nothing is copied."
+
+#: app/ui/settings.slint:1806
+msgid "Działa w każdym programie i grze w oknie albo w oknie bez ramki"
+msgstr "Works in every program and in games running windowed or borderless"
+
+#: app/src/settings.rs:594
+msgid "Działa."
+msgstr "Works."
+
+#: app/ui/settings.slint:1745
+msgid "Działanie PowerDesk"
+msgstr "How PowerDesk works"
+
+#: app/ui/wkinds.slint:1465
+msgid "Dzielenie"
+msgstr "Division"
+
+msgid "Dzienniki błędów i ostrzeżeń"
+msgstr "Error and warning logs"
+
+#: app/src/widgetcfg.rs:120
+msgid "Dzień"
+msgstr "Day"
+
+#: app/src/facets.rs:151
+msgid "Dziś"
+msgstr "Today"
+
+#: app/src/facets.rs:47
+msgid "Długość"
+msgstr "Length"
+
+#: app/src/main.rs:2312
+msgid "Długość: {}"
+msgstr "Length: {}"
+
+#: app/src/fmt.rs:39
+msgid "Dźwięk"
+msgstr "Sound"
+
+#: core/src/sysbar.rs:275
+msgid "Dźwięki systemowe"
+msgstr "System sounds"
+
+msgid "Edytor rejestru"
+msgstr "Registry Editor"
+
+#: app/ui/sync.slint:653
+msgid "Edytuj"
+msgstr "Edit"
+
+#: app/src/start.rs:507
+msgid "Edytuj notatkę"
+msgstr "Edit note"
+
+#: app/ui/sync.slint:270
+msgid "Edytuj synchronizację"
+msgstr "Edit sync"
+
+#: app/ui/settings.slint:405
+msgid "Edytuj ścieżkę"
+msgstr "Edit path"
+
+msgid "Ekran"
+msgstr "Display"
+
+#: app/ui/settings.slint:802
+msgid "Ekran „Komputer”"
+msgstr "“Computer” screen"
+
+#: app/ui/props.slint:318
+msgid "Ekspozycja"
+msgstr "Exposure"
+
+#: app/src/transfers.rs:160
+msgid "Element już istnieje"
+msgstr "The item already exists"
+
+#: core/src/ops.rs:585
+msgid "Element o tej nazwie już istnieje"
+msgstr "An item with this name already exists"
+
+#: app/src/desktop.rs:1161
+msgid "Enter"
+msgstr ""
+
+#: app/ui/settings.slint:640
+msgid "Enter zatwierdza"
+msgstr "Enter confirms"
+
+#: app/src/startsearch.rs:74
+msgid "Enter – kopiuj wynik"
+msgstr "Enter – copy result"
+
+#: app/src/palette.rs:142
+msgid "Esc"
+msgstr ""
+
+#: app/ui/wkinds.slint:774
+msgid "Ethernet"
+msgstr ""
+
+#: app/ui/settings.slint:1909
+msgid "FPS liczone ze zdarzeń systemowych Windows (jak PresentMon) – nic nie trafia do gry. DirectX 9–12, Vulkan i OpenGL. W grach w trybie „pełny ekran wyłączny” nakładka może być niewidoczna – wtedy tryb okna bez ramki. Temperatura karty – tylko NVIDIA."
+msgstr "FPS is computed from Windows system events (like PresentMon) – nothing is injected into the game. DirectX 9–12, Vulkan and OpenGL. In games running in “exclusive fullscreen” the overlay may be invisible – use borderless window mode then. GPU temperature – NVIDIA only."
+
+#: app/src/overlay.rs:111
+msgid "FPS niedostępne ({e})"
+msgstr "FPS unavailable ({e})"
+
+#: app/ui/settings.slint:1800
+msgid "FPS, czas klatki, procesor, karta graficzna i pamięć nad dowolnym programem"
+msgstr "FPS, frame time, CPU, GPU and memory over any program"
+
+#: app/src/overlay.rs:110
+msgid "FPS: brak uprawnień – Ustawienia → Nakładka → „Zezwól na pomiar FPS”"
+msgstr "FPS: no permission – Settings → Overlay → “Allow FPS measurement”"
+
+#: app/ui/toolbar.slint:633
+msgid "Filtruj · Enter: szukaj w podfolderach"
+msgstr "Filter · Enter: search subfolders"
+
+#: app/ui/toolbar.slint:395
+msgid "Filtry"
+msgstr "Filters"
+
+#: app/ui/wconfig.slint:207
+msgid "Fioletowy"
+msgstr "Purple"
+
+#: app/src/desktop.rs:1071
+msgid "Folder"
+msgstr ""
+
+#: app/src/start.rs:662
+msgid "Folder ({})"
+msgstr "Folder ({})"
+
+#: app/ui/bulk.slint:241
+msgid "Folder + numer"
+msgstr "Folder + number"
+
+msgid "Folder TEMP"
+msgstr "TEMP folder"
+
+#: core/src/space.rs:209
+msgid "Folder TEMP – nieużywane od {} dni"
+msgstr "TEMP folder – unused for {} days"
+
+#: app/src/syncview.rs:297
+msgid "Folder docelowy (dysk zewnętrzny albo sieciowy)"
+msgstr "Target folder (external or network drive)"
+
+#: core/src/sync.rs:251
+msgid "Folder docelowy nie może być tym samym folderem ani leżeć wewnątrz źródła"
+msgstr "The target folder cannot be the same folder or lie inside the source"
+
+#: app/ui/settings.slint:753
+msgid "Folder domowy"
+msgstr "Home folder"
+
+#: app/src/widgetlive.rs:192
+msgid "Folder jest pusty"
+msgstr "The folder is empty"
+
+#: app/ui/sync.slint:299
+msgid "Folder na dysku zewnętrznym albo w sieci"
+msgstr "A folder on an external drive or on the network"
+
+#: app/ui/sync.slint:291
+msgid "Folder na tym komputerze"
+msgstr "A folder on this computer"
+
+#: core/src/fsx.rs:112
+msgid "Folder nie jest pusty"
+msgstr "The folder is not empty"
+
+#: app/src/menus.rs:628
+msgid "Folder osobisty"
+msgstr "Personal folder"
+
+#: app/src/settings.rs:415
+msgid "Folder po uruchomieniu"
+msgstr "Folder at startup"
+
+#: app/ui/picker.slint:803
+msgid "Folder powstanie w otwartym miejscu"
+msgstr "The folder will be created in the open location"
+
+#: app/src/desktop.rs:1111
+msgid "Folder przy krawędzi"
+msgstr "Edge folder"
+
+#: app/src/edgepanels.rs:168
+msgid "Folder przy krawędzi pulpitu"
+msgstr "Desktop edge folder"
+
+#: app/src/widgetcfg.rs:268
+msgid "Folder widżetu"
+msgstr "Widget folder"
+
+#: app/src/palette.rs:126
+msgid "Folder wyżej"
+msgstr "Up one folder"
+
+#: app/ui/picker.slint:352
+msgid "Folder wyżej (Backspace)"
+msgstr "Up one folder (Backspace)"
+
+#: app/src/menus.rs:573
+msgid "Folder z dzisiejszą datą"
+msgstr "Folder with today's date"
+
+#: app/src/menus.rs:578
+msgid "Folder z zaznaczonych ({n})"
+msgstr "Folder from selection ({n})"
+
+#: app/src/widgetfeeds.rs:431
+msgid "Folder ze zdjęciami"
+msgstr "Photo folder"
+
+#: app/ui/settings.slint:1235
+msgid "Folder ze zdjęciami (z podfolderami)"
+msgstr "Photo folder (with subfolders)"
+
+#: app/src/settings.rs:663
+msgid "Folder ze zdjęciami na tapetę"
+msgstr "Photo folder for the wallpaper"
+
+#: app/src/syncview.rs:283
+msgid "Folder źródłowy"
+msgstr "Source folder"
+
+#: app/src/picker.rs:692
+msgid "Folder „{}” nie istnieje."
+msgstr "The folder “{}” does not exist."
+
+#: app/src/model.rs:190
+msgid "Foldery"
+msgstr "Folders"
+
+#: app/ui/sync.slint:491
+msgid "Foldery kopiowane na dysk zewnętrzny albo sieciowy – także pod inną literą dysku"
+msgstr "Folders copied to an external or network drive – even under a different drive letter"
+
+#: app/src/menus.rs:553
+msgid "Foldery na górze"
+msgstr "Folders on top"
+
+#: app/ui/settings.slint:911
+msgid "Foldery przed plikami"
+msgstr "Folders before files"
+
+#: app/ui/settings.slint:1077
+msgid "Foldery przy krawędziach"
+msgstr "Edge folders"
+
+#: app/ui/settings.slint:861
+msgid "Foldery z samymi mediami otwierają się w galerii"
+msgstr "Folders containing only media open in the gallery"
+
+#: app/ui/overlays.slint:294
+msgid "Foldery zostaną scalone"
+msgstr "The folders will be merged"
+
+#: core/src/integration.rs:13
+msgid "Foldery, dyski i ZIP"
+msgstr "Folders, drives and ZIP"
+
+#: app/ui/wconfig.slint:313
+msgid "Format"
+msgstr ""
+
+#: app/ui/wconfig.slint:305
+msgid "Format czasu"
+msgstr "Time format"
+
+#: app/src/facets.rs:141
+msgid "Full HD"
+msgstr ""
+
+#: app/ui/settings.slint:850
+msgid "Galeria"
+msgstr "Gallery"
+
+#: app/ui/toolbar.slint:566
+msgid "Galeria (Ctrl+3)"
+msgstr "Gallery (Ctrl+3)"
+
+#: app/ui/settings.slint:1340
+msgid "Gdy pasek jest pełny"
+msgstr "When the taskbar is full"
+
+#: app/ui/settings.slint:1840
+msgid "Gdy program zajmuje cały monitor; po wyjściu wraca poprzedni plan zasilania"
+msgstr "When a program fills the whole monitor; the previous power plan returns afterwards"
+
+msgid "Gigantyczne (ponad 4 GB)"
+msgstr "Gigantic (over 4 GB)"
+
+#: app/ui/bulk.slint:222
+msgid "Godzina"
+msgstr "Time"
+
+#: app/src/transfers.rs:355
+msgid "Gotowe"
+msgstr "Done"
+
+#: app/src/settings.rs:685
+msgid "Gotowe po ponownym zalogowaniu – wtedy nakładka pokaże FPS"
+msgstr "Done after signing in again – then the overlay will show FPS"
+
+#: app/ui/widgets.slint:401
+msgid "Grafika"
+msgstr "Graphics"
+
+msgid "Grudzień"
+msgstr "December"
+
+#: app/ui/settings.slint:1334
+msgid "Grupowanie okien"
+msgstr "Window grouping"
+
+#: app/src/menus.rs:522
+msgid "Grupuj według"
+msgstr "Group by"
+
+#: app/ui/settings.slint:1126
+msgid "Górna"
+msgstr "Top"
+
+msgid "Górna krawędź"
+msgstr "Top edge"
+
+#: app/ui/wkinds.slint:853
+msgid "Głośność"
+msgstr "Volume"
+
+#: app/ui/wkinds.slint:895
+msgid "Głośność – kliknij albo przeciągnij"
+msgstr "Volume – click or drag"
+
+#: app/ui/taskbar.slint:1622
+msgid "Głośność: "
+msgstr "Volume: "
+
+#: app/ui/taskbar.slint:1622
+msgid "Głośność: wyciszona"
+msgstr "Volume: muted"
+
+#: app/ui/settings.slint:1014
+msgid "Główna + 2"
+msgstr "Main + 2"
+
+msgid "Harmonogram zadań"
+msgstr "Task Scheduler"
+
+#: core/src/wifi.rs:170
+msgid "Hasło musi mieć od 8 do 63 znaków"
+msgstr "The password must be 8 to 63 characters long"
+
+#: app/ui/taskbar.slint:906
+msgid "Hasło sieci"
+msgstr "Network password"
+
+#: app/src/start.rs:775
+msgid "Hibernuj"
+msgstr "Hibernate"
+
+#: app/src/palette.rs:203
+msgid "Historia"
+msgstr "History"
+
+#: app/ui/sync.slint:760
+msgid "Historia ("
+msgstr "History ("
+
+#: app/ui/taskbar.slint:685
+msgid "Hotspot"
+msgstr ""
+
+#: app/ui/settings.slint:1407
+msgid "Ikona PowerDesk. Możesz wybrać własny obraz (PNG, BMP) – pasek z klatkami jedna pod drugą: zwykły, pod kursorem, wciśnięty i opcjonalnie otwarty Start, jak przyciski Start z innych programów."
+msgstr "PowerDesk icon. You can choose your own image (PNG, BMP) – a strip of frames one under another: normal, hover, pressed and optionally Start open, like Start buttons from other programs."
+
+#: app/ui/settings.slint:1061
+msgid "Ikona z Windows (pusty albo pełny); prawy przycisk – Opróżnij Kosz"
+msgstr "Icon from Windows (empty or full); right-click – Empty Recycle Bin"
+
+#: app/ui/settings.slint:1069
+msgid "Ikona „Komputer”"
+msgstr "“Computer” icon"
+
+#: app/ui/settings.slint:1033
+msgid "Ikony"
+msgstr "Icons"
+
+#: app/ui/settings.slint:1360
+msgid "Ikony programów "
+msgstr "App icons "
+
+#: app/ui/settings.slint:1294
+msgid "Ikony z nazwami"
+msgstr "Icons with names"
+
+#: app/ui/taskbar.slint:1593
+msgid "Ikony zasobnika"
+msgstr "Tray icons"
+
+#: app/ui/viewer.slint:293
+msgid "Informacje i EXIF (I)"
+msgstr "Info and EXIF (I)"
+
+#: app/ui/settings.slint:977
+msgid "Informacje i EXIF w przeglądarce"
+msgstr "Info and EXIF in the viewer"
+
+#: app/src/desktop.rs:1178
+msgid "Informacje o systemie"
+msgstr "System information"
+
+#: app/src/model.rs:186
+msgid "Inne"
+msgstr "Other"
+
+#: app/src/menus.rs:608
+msgid "Inne typy"
+msgstr "Other types"
+
+#: app/src/menus.rs:601
+msgid "Inny plik…"
+msgstr "Other file…"
+
+#: app/ui/settings.slint:1661
+msgid "Instalacja"
+msgstr "Installation"
+
+#: app/src/setup.rs:73
+msgid "Instalacja nie powiodła się:\n{e}"
+msgstr "Installation failed:\n{e}"
+
+#: core/src/update.rs:155
+msgid "Instalator zakończył się błędem ({code})"
+msgstr "The installer failed ({code})"
+
+msgid "Instalowanie i odinstalowywanie"
+msgstr "Installing and uninstalling"
+
+#: core/src/weather.rs:35
+msgid "Intensywny śnieg"
+msgstr "Heavy snow"
+
+#: core/src/drives.rs:335
+msgid "Istnieje już połączenie z tym serwerem na innych danych logowania"
+msgstr "A connection to this server with different credentials already exists"
+
+#: app/ui/overlays.slint:294
+msgid "Istniejące pliki zostaną nadpisane"
+msgstr "Existing files will be overwritten"
+
+#: app/ui/bulk.slint:328
+msgid "Jak W Tytule"
+msgstr "Title Case"
+
+#: app/ui/wconfig.slint:200
+msgid "Jak motyw"
+msgstr "Like the theme"
+
+#: app/ui/bulk.slint:272
+msgid "Jak na liście"
+msgstr "As in the list"
+
+#: app/ui/settings.slint:826
+msgid "Jak otwiera się folder, dla którego nic nie zapamiętano"
+msgstr "How a folder with no saved settings opens"
+
+#: app/ui/settings.slint:1197
+msgid "Jak w Personalizacji"
+msgstr "As in Personalization"
+
+msgid "Jak w Windows"
+msgstr "Like Windows"
+
+#: app/ui/settings.slint:536
+msgid "Jak w systemie"
+msgstr "Like the system"
+
+#: app/ui/settings.slint:898
+msgid "Jak wyglądają i otwierają się foldery"
+msgstr "How folders look and open"
+
+#: app/src/facets.rs:48
+msgid "Jakość"
+msgstr "Quality"
+
+#: app/ui/settings.slint:555
+msgid "Jasne tło"
+msgstr "Light background"
+
+#: app/ui/settings.slint:554
+msgid "Jasny"
+msgstr "Light"
+
+#: app/ui/settings.slint:1435
+msgid "Jeden obraz – pod kursorem lekko przygasa"
+msgstr "Single image – dims slightly on hover"
+
+#: app/ui/settings.slint:754
+msgid "Jedna karta z Twoim folderem użytkownika"
+msgstr "One tab with your user folder"
+
+#: app/ui/settings.slint:937
+msgid "Jedno kliknięcie otwiera"
+msgstr "Single click opens"
+
+#: app/ui/settings.slint:655
+msgid "Jednolity kolor motywu"
+msgstr "Solid theme colour"
+
+#: app/ui/wconfig.slint:336
+msgid "Jednostka"
+msgstr "Unit"
+
+#: app/ui/wconfig.slint:331
+msgid "Jednostka temperatury"
+msgstr "Temperature unit"
+
+#: app/src/updates.rs:96
+msgid "Jest nowa wersja"
+msgstr "A new version is available"
+
+#: app/src/updates.rs:97
+msgid "Jest nowa wersja PowerDesk: {v} (masz {})"
+msgstr "A new version of PowerDesk is available: {v} (you have {})"
+
+#: core/src/ops.rs:621
+msgid "Już istnieje: {dst}"
+msgstr "Already exists: {dst}"
+
+msgid "Język"
+msgstr "Language"
+
+msgid "Język Windows, gdy jest tłumaczenie"
+msgstr "Windows language, when a translation exists"
+
+msgid "Język i region"
+msgstr "Language & region"
+
+msgid "Język zmieni się po ponownym uruchomieniu PowerDesk"
+msgstr "The language will change after restarting PowerDesk"
+
+#: app/src/facets.rs:45
+msgid "Kadr"
+msgstr "Crop"
+
+#: app/ui/taskbar.slint:1741
+msgid "Kalendarz"
+msgstr "Calendar"
+
+msgid "Kalkulator"
+msgstr "Calculator"
+
+#: app/ui/wconfig.slint:284
+msgid "Karta"
+msgstr "Tab"
+
+#: app/ui/widgets.slint:505
+msgid "Karta graficzna"
+msgstr "Graphics card"
+
+#: app/src/palette.rs:65
+msgid "Karty"
+msgstr "Tabs"
+
+msgid "Karty sieciowe"
+msgstr "Network adapters"
+
+#: app/src/palette.rs:173
+msgid "Katalog domowy"
+msgstr "Home directory"
+
+#: app/ui/settings.slint:1343
+msgid "Każde okno ma swój przycisk"
+msgstr "Every window has its own button"
+
+#: app/ui/settings.slint:1391
+msgid "Klasyczne"
+msgstr "Classic"
+
+msgid "Klasyczne ustawienia"
+msgstr "Classic settings"
+
+#: app/src/widgetcfg.rs:115
+msgid "Klasyczny"
+msgstr "Classic"
+
+#: app/ui/widgets.slint:1195
+msgid "Kliknij i pisz…"
+msgstr "Click and type…"
+
+#: app/ui/props.slint:84
+msgid "Kliknij, aby skopiować"
+msgstr "Click to copy"
+
+#: app/ui/preview.slint:544
+msgid "Kliknij, aby skopiować ścieżkę"
+msgstr "Click to copy the path"
+
+#: app/ui/fileview.slint:296
+msgid "Kliknij, aby sortować · przeciągnij, aby przenieść · prawy przycisk: kolumny"
+msgstr "Click to sort · drag to move · right-click: columns"
+
+#: app/ui/toolbar.slint:187
+msgid "Kliknij, aby wpisać ścieżkę (Ctrl+L)"
+msgstr "Click to type a path (Ctrl+L)"
+
+#: app/ui/settings.slint:772
+msgid "Kliknij, aby wybrać folder"
+msgstr "Click to choose a folder"
+
+msgid "Kod"
+msgstr "Code"
+
+#: app/ui/settings.slint:401
+msgid "Kolejno: adres, panel boczny, lista, podgląd"
+msgstr "In order: address, side panel, list, preview"
+
+#: app/ui/bulk.slint:271
+msgid "Kolejność numeracji"
+msgstr "Numbering order"
+
+#: app/ui/settings.slint:563
+msgid "Kolor akcentu"
+msgstr "Accent colour"
+
+#: app/ui/settings.slint:601
+msgid "Kolor akcentu z Windows"
+msgstr "Accent colour from Windows"
+
+msgid "Kolory"
+msgstr "Colours"
+
+#: app/ui/fileview.slint:370
+msgid "Kolumny"
+msgstr "Columns"
+
+#: app/ui/home.slint:501
+msgid "Komputer"
+msgstr "Computer"
+
+msgid "Komputery i foldery udostępnione"
+msgstr "Computers and shared folders"
+
+msgid "Konfiguracja systemu"
+msgstr "System Configuration"
+
+msgid "Konta"
+msgstr "Accounts"
+
+#: app/ui/sync.slint:312
+msgid "Kopia lustrzana"
+msgstr "Mirror"
+
+#: app/ui/sync.slint:328
+msgid "Kopia zapasowa"
+msgstr "Backup"
+
+#: core/src/ops.rs:226
+msgid "Kopiowanie {} elem."
+msgstr "Copying {} items"
+
+#: app/src/desktop.rs:1212
+msgid "Kopiuj"
+msgstr "Copy"
+
+#: app/ui/titlebar.slint:143
+msgid "Kopiuj (Ctrl+C)"
+msgstr "Copy (Ctrl+C)"
+
+#: app/ui/shelf.slint:232
+msgid "Kopiuj tutaj"
+msgstr "Copy here"
+
+#: app/src/home.rs:665
+msgid "Kopiuj ścieżkę"
+msgstr "Copy path"
+
+#: app/ui/settings.slint:1935
+msgid "Kopiuje raport (wersja, system, dziennik) do schowka i otwiera folder z dziennikiem"
+msgstr "Copies a report (version, system, log) to the clipboard and opens the log folder"
+
+#: app/ui/wkinds.slint:1175
+msgid "Kosz"
+msgstr "Recycle Bin"
+
+#: app/ui/settings.slint:1060
+msgid "Kosz na pulpicie"
+msgstr "Recycle Bin on the desktop"
+
+#: app/ui/settings.slint:1762
+msgid "Kończy PowerDesk – wracają pulpit, pasek i Eksplorator Windows"
+msgstr "Exits PowerDesk – the Windows desktop, taskbar and Explorer come back"
+
+#: app/src/edgepanels.rs:324
+msgid "Krawędź"
+msgstr "Edge"
+
+#: app/src/widgetcfg.rs:116
+msgid "Kreski"
+msgstr "Lines"
+
+#: app/ui/settings.slint:705
+msgid "Krycie okienek"
+msgstr "Popup opacity"
+
+#: app/ui/settings.slint:1473
+msgid "Krycie paska"
+msgstr "Taskbar opacity"
+
+#: app/ui/wconfig.slint:236
+msgid "Krycie tła"
+msgstr "Background opacity"
+
+#: app/ui/settings.slint:681
+msgid "Krycie tła okna"
+msgstr "Window background opacity"
+
+#: app/ui/wconfig.slint:264
+msgid "Krycie tła widżetu – przeciągnij"
+msgstr "Widget background opacity – drag"
+
+#: app/ui/settings.slint:1556
+msgid "Krzyżyk chowa okno do zasobnika"
+msgstr "The close button hides the window to the tray"
+
+#: app/src/widgetcfg.rs:122
+msgid "Krąg"
+msgstr "Ring"
+
+#: app/src/widgetcfg.rs:121
+msgid "Kręgi"
+msgstr "Rings"
+
+msgid "Księżyc"
+msgstr "Moon"
+
+#: app/ui/widgets.slint:1024
+msgid "Kursy NBP"
+msgstr "NBP exchange rates"
+
+msgid "Kursy walut"
+msgstr "Exchange rates"
+
+#: app/src/facets.rs:137
+msgid "Kwadratowe"
+msgstr "Square"
+
+msgid "Kwiecień"
+msgstr "April"
+
+#: app/ui/settings.slint:1126
+msgid "Lewa"
+msgstr "Left"
+
+msgid "Lewa krawędź"
+msgstr "Left edge"
+
+#: app/ui/settings.slint:1828
+msgid "Lewy dolny róg"
+msgstr "Bottom left corner"
+
+#: app/ui/settings.slint:1828
+msgid "Lewy górny róg"
+msgstr "Top left corner"
+
+#: app/src/palette.rs:97
+msgid "Licz rozmiary folderów"
+msgstr "Calculate folder sizes"
+
+#: app/ui/settings.slint:1435
+msgid "Liczba klatek z proporcji obrazu (kwadratowe klatki jedna pod drugą)"
+msgstr "Frame count from the image proportions (square frames one under another)"
+
+#: app/src/widgetcfg.rs:123
+msgid "Liczby"
+msgstr "Numbers"
+
+#: app/ui/settings.slint:920
+msgid "Liczone w tle w kolumnie Rozmiar · bez dysków sieciowych"
+msgstr "Calculated in the background in the Size column · not for network drives"
+
+#: app/ui/space.slint:419
+msgid "Liczę rozmiary…\n"
+msgstr "Calculating sizes…\n"
+
+#: app/ui/home.slint:633
+msgid "Liczę…"
+msgstr "Calculating…"
+
+#: app/ui/settings.slint:1847
+msgid "Limit klatek (karty NVIDIA)"
+msgstr "Frame limit (NVIDIA cards)"
+
+#: app/src/settings.rs:638
+msgid "Limit klatek wyłączony"
+msgstr "Frame limit off"
+
+#: app/src/settings.rs:638
+msgid "Limit klatek: {fps} – działa w grach uruchomionych od teraz"
+msgstr "Frame limit: {fps} – applies to games started from now on"
+
+msgid "Lipiec"
+msgstr "July"
+
+#: app/ui/settings.slint:832
+msgid "Lista"
+msgstr "List"
+
+#: app/ui/toolbar.slint:566
+msgid "Lista (Ctrl+1)"
+msgstr "List (Ctrl+1)"
+
+#: app/ui/settings.slint:1394
+msgid "Lista aplikacji i kafelki"
+msgstr "App list and tiles"
+
+msgid "Listopad"
+msgstr "November"
+
+#: app/src/props.rs:235
+msgid "Lokalizacja"
+msgstr "Location"
+
+msgid "Luty"
+msgstr "February"
+
+msgid "Maj"
+msgstr "May"
+
+#: app/ui/titlebar.slint:231
+msgid "Maksymalizuj"
+msgstr "Maximize"
+
+#: app/src/menus.rs:545
+msgid "Malejąco"
+msgstr "Descending"
+
+msgid "Malutkie (do 16 KB)"
+msgstr "Tiny (up to 16 KB)"
+
+msgid "Mapuj dysk sieciowy"
+msgstr "Map network drive"
+
+#: app/ui/home.slint:554
+msgid "Mapuj dysk sieciowy…"
+msgstr "Map network drive…"
+
+msgid "Marzec"
+msgstr "March"
+
+#: core/src/weather.rs:30
+msgid "Marznąca mżawka"
+msgstr "Freezing drizzle"
+
+#: core/src/weather.rs:33
+msgid "Marznący deszcz"
+msgstr "Freezing rain"
+
+#: app/src/palette.rs:132
+msgid "Masowa zmiana nazw"
+msgstr "Bulk rename"
+
+#: app/src/updates.rs:101
+msgid "Masz najnowszą wersję ({}) · sprawdzono o {when}"
+msgstr "You have the latest version ({}) · checked at {when}"
+
+#: app/src/updates.rs:103
+msgid "Masz najnowszą wersję PowerDesk ({})"
+msgstr "You have the latest version of PowerDesk ({})"
+
+#: app/ui/settings.slint:1039
+msgid "Małe"
+msgstr "Small"
+
+msgid "Małe (16 KB – 1 MB)"
+msgstr "Small (16 KB – 1 MB)"
+
+#: app/src/desktop.rs:1091
+msgid "Małe ikony"
+msgstr "Small icons"
+
+#: app/src/start.rs:498
+msgid "Mały"
+msgstr "Small"
+
+#: app/src/model.rs:332
+msgid "Media"
+msgstr ""
+
+#: app/src/model.rs:321
+msgid "Media (zdjęcia i wideo)"
+msgstr "Media (photos and videos)"
+
+msgid "Menedżer urządzeń"
+msgstr "Device Manager"
+
+#: app/ui/wkinds.slint:1172
+msgid "Menedżer zadań"
+msgstr "Task Manager"
+
+#: core/src/integration.rs:15
+msgid "Menu Eksploratora"
+msgstr "Explorer menu"
+
+#: app/ui/settings.slint:1385
+msgid "Menu Start"
+msgstr "Start menu"
+
+#: core/src/weather.rs:28
+msgid "Mgła"
+msgstr "Fog"
+
+#: app/ui/settings.slint:663
+msgid "Mica"
+msgstr ""
+
+#: app/ui/settings.slint:1822
+msgid "Miejsce na ekranie"
+msgstr "Position on screen"
+
+#: app/src/widgetcfg.rs:112
+msgid "Miejscowość"
+msgstr "City"
+
+#: app/src/widgetfeeds.rs:415
+msgid "Miejscowość dla pogody"
+msgstr "City for the weather"
+
+#: app/ui/wkinds.slint:1233
+msgid "Mierzę…"
+msgstr "Measuring…"
+
+#: app/src/widgetcfg.rs:120
+msgid "Miesiąc"
+msgstr "Month"
+
+#: app/ui/taskbar.slint:505
+msgid "Mikrofon"
+msgstr "Microphone"
+
+#: app/ui/taskbar.slint:505
+msgid "Mikrofon (wyciszony)"
+msgstr "Microphone (muted)"
+
+#: app/ui/titlebar.slint:231
+msgid "Minimalizuj"
+msgstr "Minimize"
+
+#: app/src/widgetcfg.rs:115
+msgid "Minimalny"
+msgstr "Minimal"
+
+#: app/ui/wkinds.slint:1397
+msgid "Minutnik"
+msgstr "Timer"
+
+#: app/ui/settings.slint:1705
+msgid "Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba"
+msgstr "A minute after startup and every 6 hours – PowerDesk releases from GitHub"
+
+#: app/src/widgettools.rs:94
+msgid "Minął czas: {total}"
+msgstr "Time is up: {total}"
+
+#: app/src/widgetmore.rs:102
+msgid "Minęło · {when}"
+msgstr "Passed · {when}"
+
+msgid "Mniejsze niż 1 MB"
+msgstr "Smaller than 1 MB"
+
+#: app/ui/wkinds.slint:1466
+msgid "Mnożenie"
+msgstr "Multiplication"
+
+#: app/ui/bulk.slint:272
+msgid "Modyfikacja"
+msgstr "Modified"
+
+#: app/src/edgepanels.rs:331
+msgid "Monitor"
+msgstr ""
+
+#: app/ui/settings.slint:1138
+msgid "Monitor "
+msgstr ""
+
+msgid "Monitor niezawodności"
+msgstr "Reliability Monitor"
+
+msgid "Monitor zasobów"
+msgstr "Resource Monitor"
+
+#: app/src/edgepanels.rs:333
+msgid "Monitor {}"
+msgstr "Monitor {}"
+
+#: app/ui/wconfig.slint:202
+msgid "Morski"
+msgstr "Teal"
+
+#: app/ui/settings.slint:530
+msgid "Motyw i kolor akcentu całej aplikacji"
+msgstr "Theme and accent colour of the whole app"
+
+msgid "Motywy"
+msgstr "Themes"
+
+#: app/src/taskbar.rs:1525
+msgid "Można bezpiecznie odłączyć {}"
+msgstr "{} can be safely removed"
+
+msgid "Multimedia i obrazy"
+msgstr "Media and images"
+
+#: app/src/home.rs:220
+msgid "Muzyka"
+msgstr "Music"
+
+msgid "Mysz"
+msgstr "Mouse"
+
+#: core/src/weather.rs:29
+msgid "Mżawka"
+msgstr "Drizzle"
+
+#: core/src/gamemode.rs:97
+msgid "NVAPI DeleteProfileSetting: błąd {r}"
+msgstr ""
+
+#: core/src/gamemode.rs:85
+msgid "NVAPI {what}: błąd {r}"
+msgstr ""
+
+#: core/src/gamemode.rs:78
+msgid "NVAPI: brak CreateSession"
+msgstr ""
+
+#: core/src/gamemode.rs:82
+msgid "NVAPI: brak DeleteProfileSetting"
+msgstr ""
+
+#: core/src/gamemode.rs:84
+msgid "NVAPI: brak DestroySession"
+msgstr ""
+
+#: core/src/gamemode.rs:80
+msgid "NVAPI: brak GetBaseProfile"
+msgstr ""
+
+#: core/src/gamemode.rs:77
+msgid "NVAPI: brak Initialize"
+msgstr ""
+
+#: core/src/gamemode.rs:79
+msgid "NVAPI: brak LoadSettings"
+msgstr ""
+
+#: core/src/gamemode.rs:83
+msgid "NVAPI: brak SaveSettings"
+msgstr ""
+
+#: core/src/gamemode.rs:81
+msgid "NVAPI: brak SetSetting"
+msgstr ""
+
+#: app/src/home.rs:477
+msgid "Na baterii"
+msgstr "On battery"
+
+#: app/ui/settings.slint:1266
+msgid "Na każdym monitorze tapeta z ustawień Windows, na głównym ikony z Pulpitu użytkownika i publicznego – w siatce albo dowolnie, z przesuwaniem, zaznaczaniem i menu PowerDesk. Miejsca ikon zostają po aktualizacji i ponownym uruchomieniu. Ikony Windows są ukryte. Po zamknięciu PowerDesk, jego awarii albo odinstalowaniu pulpit Windows wraca."
+msgstr "Every monitor shows the wallpaper from Windows settings; the main one shows icons from the user and public Desktop – in a grid or freely, with moving, selecting and the PowerDesk menu. Icon positions persist across updates and restarts. Windows icons are hidden. When PowerDesk closes, crashes or is uninstalled, the Windows desktop comes back."
+
+#: app/ui/props.slint:329
+msgid "Na mapie"
+msgstr "On the map"
+
+#: app/ui/settings.slint:1070
+msgid "Na pulpicie, z ikoną komputera z Windows – otwiera widok Komputer z dyskami i folderami"
+msgstr "On the desktop, with the Windows computer icon – opens the Computer view with drives and folders"
+
+#: app/ui/settings.slint:1394
+msgid "Na środku, siatka aplikacji"
+msgstr "Centred, app grid"
+
+#: app/ui/sync.slint:362
+msgid "Nadpisane i usunięte pliki trafiają do folderu z wersjami w celu"
+msgstr "Overwritten and deleted files go to a versions folder in the target"
+
+#: app/ui/overlays.slint:295
+msgid "Nadpisz, jeśli kopiowany plik jest nowszy"
+msgstr "Overwrite if the copied file is newer"
+
+#: app/ui/widgets.slint:1141
+msgid "Najczęściej używane"
+msgstr "Most used"
+
+#: app/ui/space.slint:362
+msgid "Największe"
+msgstr "Largest"
+
+#: app/ui/settings.slint:1864
+msgid "Najwyżej "
+msgstr "At most "
+
+#: app/ui/settings.slint:393
+msgid "Nakładka"
+msgstr "Overlay"
+
+#: app/ui/settings.slint:1649
+msgid "Napraw"
+msgstr "Repair"
+
+#: app/src/picker.rs:823
+msgid "Napęd optyczny"
+msgstr "Optical drive"
+
+msgid "Narzędzia systemu"
+msgstr "System tools"
+
+#: app/ui/settings.slint:399
+msgid "Następna karta"
+msgstr "Next tab"
+
+#: app/ui/preview.slint:281
+msgid "Następna strona (kółko w dół)"
+msgstr "Next page (wheel down)"
+
+#: app/src/desktop.rs:1127
+msgid "Następna tapeta"
+msgstr "Next wallpaper"
+
+#: app/ui/viewer.slint:412
+msgid "Następne (→)"
+msgstr "Next (→)"
+
+#: app/src/widgetfeeds.rs:436
+msgid "Następne zdjęcie"
+msgstr "Next photo"
+
+#: app/ui/taskbar.slint:1025
+msgid "Następny miesiąc"
+msgstr "Next month"
+
+#: app/ui/widgets.slint:719
+msgid "Następny utwór"
+msgstr "Next track"
+
+#: app/ui/wkinds.slint:1465
+msgid "Nawias otwierający"
+msgstr "Opening parenthesis"
+
+#: app/ui/wkinds.slint:1465
+msgid "Nawias zamykający"
+msgstr "Closing parenthesis"
+
+#: app/src/palette.rs:126
+msgid "Nawigacja"
+msgstr "Navigation"
+
+#: app/ui/bulk.slint:272
+msgid "Nazwa"
+msgstr "Name"
+
+#: app/ui/bulk.slint:223
+msgid "Nazwa folderu"
+msgstr "Folder name"
+
+#: app/ui/picker.slint:672
+msgid "Nazwa folderu – puste pole wybiera folder, który jest otwarty"
+msgstr "Folder name – leave empty to choose the open folder"
+
+#: app/ui/picker.slint:795
+msgid "Nazwa nowego folderu"
+msgstr "New folder name"
+
+#: app/ui/picker.slint:672
+msgid "Nazwa pliku – kilka plików w cudzysłowach albo zaznacz je z Ctrl"
+msgstr "File name – several files in quotes, or select them with Ctrl"
+
+#: app/ui/picker.slint:183
+msgid "Nazwa pliku:"
+msgstr "File name:"
+
+#: app/ui/picker.slint:672
+msgid "Nazwa pliku; możesz też wpisać pełną ścieżkę albo wzorzec, np. *.txt"
+msgstr "File name; you can also type a full path or a pattern, e.g. *.txt"
+
+msgid "Nazwa, wydajność, ochrona"
+msgstr "Name, performance, protection"
+
+#: app/ui/start.slint:445
+msgid "Nazwij grupę"
+msgstr "Name the group"
+
+#: app/src/widgetlive.rs:658
+msgid "Naładowana"
+msgstr "Charged"
+
+#: app/ui/widgets.slint:928
+msgid "Nic jeszcze nie skopiowano"
+msgstr "Nothing copied yet"
+
+#: app/ui/widgets.slint:699
+msgid "Nic nie gra"
+msgstr "Nothing is playing"
+
+#: app/ui/palette.slint:112
+msgid "Nic nie pasuje"
+msgstr "Nothing matches"
+
+#: app/src/picker.rs:382
+msgid "Nic nie pasuje do wyszukiwania"
+msgstr "Nothing matches the search"
+
+#: app/src/main.rs:1901
+msgid "Nic nie znaleziono"
+msgstr "Nothing found"
+
+#: app/ui/home.slint:612
+msgid "Nic się teraz nie dzieje"
+msgstr "Nothing is happening right now"
+
+#: app/ui/widgets.slint:246
+msgid "Nic zaplanowanego"
+msgstr "Nothing scheduled"
+
+#: app/ui/picker.slint:833
+msgid "Nie"
+msgstr "No"
+
+#: app/src/settings.rs:597
+msgid "Nie działa: {e}"
+msgstr "Not working: {e}"
+
+#: app/src/palette.rs:97
+msgid "Nie licz rozmiarów folderów"
+msgstr "Don't calculate folder sizes"
+
+#: app/ui/sync.slint:565
+msgid "Nie ma jeszcze żadnej synchronizacji"
+msgstr "There are no syncs yet"
+
+#: core/src/ops.rs:547
+msgid "Nie ma nic do cofnięcia"
+msgstr "Nothing to undo"
+
+#: core/src/ops.rs:556
+msgid "Nie ma nic do ponowienia"
+msgstr "Nothing to redo"
+
+#: core/src/ops.rs:624
+msgid "Nie ma pliku: {src}"
+msgstr "File not found: {src}"
+
+#: core/src/shell.rs:569
+msgid "Nie można odczytać elementów"
+msgstr "Cannot read the items"
+
+#: app/src/widgetlive.rs:176
+msgid "Nie można otworzyć folderu {path}"
+msgstr "Cannot open folder {path}"
+
+#: app/src/picker.rs:380
+msgid "Nie można otworzyć tego folderu: {e}"
+msgstr "Cannot open this folder: {e}"
+
+#: app/src/transfers.rs:150
+msgid "Nie można przenieść folderu do jego własnego wnętrza"
+msgstr "A folder cannot be moved into itself"
+
+#: core/src/install.rs:209
+msgid "Nie można skopiować programu: {e}"
+msgstr "Cannot copy the program: {e}"
+
+#: core/src/install.rs:117
+msgid "Nie można uruchomić instalatora"
+msgstr "Cannot start the installer"
+
+#: app/src/picker.rs:1078
+msgid "Nie można utworzyć folderu „{name}”: {e}"
+msgstr "Cannot create folder “{name}”: {e}"
+
+#: core/src/filedlg.rs:102
+msgid "Nie można utworzyć {}: {e}"
+msgstr "Cannot create {}: {e}"
+
+#: core/src/filedlg.rs:105
+msgid "Nie można zapisać {}: {e}"
+msgstr "Cannot save {}: {e}"
+
+#: core/src/install.rs:206
+msgid "Nie można zastąpić starej wersji: {e}"
+msgstr "Cannot replace the old version: {e}"
+
+#: core/src/filedlg.rs:109
+msgid "Nie można zastąpić {}: {e}"
+msgstr "Cannot replace {}: {e}"
+
+#: app/src/widgetfeeds.rs:451
+msgid "Nie rozpoznano czasu – np. „14:30 spotkanie” albo „za 20 min herbata”"
+msgstr "Time not recognised – e.g. “14:30 meeting” or “in 20 min tea”"
+
+#: app/src/widgetmore.rs:249
+msgid "Nie rozpoznano daty – np. „24.12.2026 Wigilia”"
+msgstr "Date not recognised – e.g. “24.12.2026 Christmas Eve”"
+
+#: app/ui/overlays.slint:297
+msgid "Nie ruszaj istniejących"
+msgstr "Leave existing ones"
+
+#: app/ui/picker.slint:850
+msgid "Nie twórz folderu (Esc)"
+msgstr "Don't create the folder (Esc)"
+
+#: app/src/taskbar.rs:1258
+msgid "Nie udało się"
+msgstr "Failed"
+
+#: core/src/remote.rs:170
+msgid "Nie udało się odczytać katalogu: {e}"
+msgstr "Cannot read the directory: {e}"
+
+#: app/src/taskbar.rs:139
+msgid "Nie udało się odczytać monitorów"
+msgstr "Cannot read the monitors"
+
+#: app/src/desktop.rs:112
+msgid "Nie udało się odczytać monitorów i tapet"
+msgstr "Cannot read the monitors and wallpapers"
+
+#: app/ui/preview.slint:290
+msgid "Nie udało się odtworzyć tego pliku"
+msgstr "Cannot play this file"
+
+#: app/ui/viewer.slint:442
+msgid "Nie udało się odtworzyć tego pliku – Enter otworzy go w domyślnym odtwarzaczu"
+msgstr "Cannot play this file – Enter opens it in the default player"
+
+#: app/src/menus.rs:825
+msgid "Nie udało się odłączyć: {e}"
+msgstr "Cannot disconnect: {e}"
+
+#: core/src/archive.rs:98
+msgid "Nie udało się otworzyć archiwum 7z: {e}"
+msgstr "Cannot open the 7z archive: {e}"
+
+#: core/src/archive.rs:88
+msgid "Nie udało się otworzyć archiwum RAR: {e}"
+msgstr "Cannot open the RAR archive: {e}"
+
+#: app/src/main.rs:3647
+msgid "Nie udało się otworzyć {p}"
+msgstr "Cannot open {p}"
+
+#: core/src/wifi.rs:198
+msgid "Nie udało się połączyć (błąd {r})"
+msgstr "Cannot connect (error {r})"
+
+#: app/src/updates.rs:108
+msgid "Nie udało się sprawdzić ({when}): {e}"
+msgstr "Check failed ({when}): {e}"
+
+#: app/src/updates.rs:110
+msgid "Nie udało się sprawdzić aktualizacji: {e}"
+msgstr "Cannot check for updates: {e}"
+
+#: app/src/termview.rs:97
+msgid "Nie udało się uruchomić terminala: {e}"
+msgstr "Cannot start the terminal: {e}"
+
+#: app/src/settings.rs:643
+msgid "Nie udało się ustawić limitu klatek: {e}"
+msgstr "Cannot set the frame limit: {e}"
+
+#: core/src/archive.rs:254
+msgid "Nie udało się wypakować z RAR: {e}"
+msgstr "Cannot extract from RAR: {e}"
+
+#: app/src/menus.rs:820
+msgid "Nie udało się wysunąć: {e}"
+msgstr "Cannot eject: {e}"
+
+#: core/src/library.rs:87
+msgid "Nie udało się zapisać biblioteki"
+msgstr "Cannot save the library"
+
+#: core/src/wifi.rs:176
+msgid "Nie udało się zapisać sieci (błąd {r}, powód {reason})"
+msgstr "Cannot save the network (error {r}, reason {reason})"
+
+#: core/src/system.rs:74
+msgid "Nie udało się zapisać ustawień w rejestrze"
+msgstr "Cannot save settings in the registry"
+
+#: app/src/main.rs:229
+msgid "Nie udało się zastąpić Eksploratora: {e}"
+msgstr "Cannot replace Explorer: {e}"
+
+#: app/src/settings.rs:369
+msgid "Nie udało się zdjąć wpisu powłoki: {e}"
+msgstr "Cannot remove the shell entry: {e}"
+
+#: core/src/quick.rs:158
+msgid "Nie udało się zmienić trybu zasilania (kod {e})"
+msgstr "Cannot change the power mode (code {e})"
+
+#: app/src/settings.rs:497
+msgid "Nie udało się zmienić ustawienia: {e}"
+msgstr "Cannot change the setting: {e}"
+
+#: app/src/menus.rs:300
+msgid "Nie udało się {what}: {e}"
+msgstr "Failed to {what}: {e}"
+
+#: app/ui/taskbar.slint:844
+msgid "Nie widać żadnych sieci Wi-Fi."
+msgstr "No Wi-Fi networks in range."
+
+msgid "Nie zawierają żadnych plików, także w podfolderach"
+msgstr "Contain no files, including in subfolders"
+
+#: app/src/props.rs:280
+msgid "Nie znaleziono elementu archiwum"
+msgstr "Archive item not found"
+
+#: app/src/picker.rs:670
+msgid "Nie znaleziono folderu dla „{n}”."
+msgstr "No folder found for “{n}”."
+
+#: app/src/picker.rs:627
+msgid "Nie znaleziono folderu „{}”."
+msgstr "Folder “{}” not found."
+
+msgid "Nie znaleziono komputerów w sieci. Wpisz w pasku adresu \\\\NAZWA komputera, żeby zobaczyć jego foldery udostępnione."
+msgstr "No computers found on the network. Type \\\\NAME of a computer in the address bar to see its shared folders."
+
+#: core/src/weather.rs:99
+msgid "Nie znaleziono miejscowości „{city}”"
+msgstr "City “{city}” not found"
+
+#: core/src/archive.rs:329
+msgid "Nie znaleziono pliku w archiwum"
+msgstr "File not found in the archive"
+
+#: app/src/picker.rs:667
+msgid "Nie znaleziono pliku „{n}”.\nSprawdź nazwę i spróbuj ponownie."
+msgstr "File “{n}” not found.\nCheck the name and try again."
+
+#: app/src/picker.rs:650
+msgid "Nie znaleziono pliku „{}”."
+msgstr "File “{}” not found."
+
+#: core/src/remote.rs:110
+msgid "Nie znaleziono serwera"
+msgstr "Server not found"
+
+#: core/src/remote.rs:110
+msgid "Nie znaleziono serwera: {e}"
+msgstr "Server not found: {e}"
+
+#: core/src/fsx.rs:105
+msgid "Nie znaleziono ścieżki"
+msgstr "Path not found"
+
+#: core/src/drives.rs:332
+msgid "Nie znaleziono ścieżki sieciowej"
+msgstr "Network path not found"
+
+#: app/src/picker.rs:1006
+msgid "Nie znaleziono „{t}”."
+msgstr "“{t}” not found."
+
+#: app/ui/wconfig.slint:201
+msgid "Niebieski"
+msgstr "Blue"
+
+#: app/src/bulk.rs:164
+msgid "Niedozwolony znak"
+msgstr "Invalid character"
+
+#: core/src/archive.rs:223
+msgid "Nieobsługiwane archiwum"
+msgstr "Unsupported archive"
+
+#: core/src/archive.rs:81
+msgid "Nieobsługiwane lub uszkodzone archiwum"
+msgstr "Unsupported or damaged archive"
+
+#: core/src/fsx.rs:111
+msgid "Nieprawidłowa nazwa"
+msgstr "Invalid name"
+
+#: core/src/drives.rs:334
+msgid "Nieprawidłowa nazwa użytkownika lub hasło"
+msgstr "Invalid user name or password"
+
+#: core/src/space.rs:148
+msgid "Nieukończone pobieranie sprzed {days} dni"
+msgstr "Unfinished download from {days} days ago"
+
+#: app/ui/shelf.slint:136
+msgid "Niezależna od schowka Windows (Ctrl+C)"
+msgstr "Independent of the Windows clipboard (Ctrl+C)"
+
+#: app/src/widgetcfg.rs:202
+msgid "Nieznana strefa – pokazuję czas lokalny"
+msgstr "Unknown time zone – showing local time"
+
+#: app/src/widgetfeeds.rs:404
+msgid "Nieznane strefy: {}"
+msgstr "Unknown time zones: {}"
+
+#: app/ui/settings.slint:1340
+msgid "Nigdy"
+msgstr "Never"
+
+msgid "Notatka"
+msgstr "Note"
+
+#: app/src/menus.rs:589
+msgid "Notatka Markdown"
+msgstr "Markdown note"
+
+msgid "Notatki i narzędzia"
+msgstr "Notes and tools"
+
+#: app/src/menus.rs:873
+msgid "Nowa karta"
+msgstr "New tab"
+
+#: app/ui/titlebar.slint:124
+msgid "Nowa karta (Ctrl+T)"
+msgstr "New tab (Ctrl+T)"
+
+#: app/src/menus.rs:588
+msgid "Nowa prezentacja.pptx"
+msgstr "New presentation.pptx"
+
+#: app/ui/sync.slint:270
+msgid "Nowa synchronizacja"
+msgstr "New sync"
+
+#: app/ui/overlays.slint:296
+msgid "Nowe dostaną nazwę „(2)”"
+msgstr "New ones get the name “(2)”"
+
+#: app/ui/settings.slint:384
+msgid "Nowe okno"
+msgstr "New window"
+
+#: app/src/taskbar.rs:926
+msgid "Nowe okno programu"
+msgstr "New program window"
+
+#: app/src/widgetmore.rs:217
+msgid "Nowe zadanie"
+msgstr "New task"
+
+#: app/ui/titlebar.slint:200
+msgid "Nowy"
+msgstr "New"
+
+#: app/src/menus.rs:587
+msgid "Nowy arkusz.xlsx"
+msgstr "New spreadsheet.xlsx"
+
+#: app/src/desktop.rs:957
+msgid "Nowy dokument tekstowy.txt"
+msgstr "New text document.txt"
+
+#: app/src/menus.rs:586
+msgid "Nowy dokument.docx"
+msgstr "New document.docx"
+
+#: app/ui/picker.slint:398
+msgid "Nowy folder"
+msgstr "New folder"
+
+#: app/src/main.rs:2607
+msgid "Nowy folder ({} elem.)"
+msgstr "New folder ({} items)"
+
+#: app/ui/picker.slint:396
+msgid "Nowy folder w tym miejscu"
+msgstr "New folder here"
+
+#: app/ui/titlebar.slint:206
+msgid "Nowy folder, plik lub dokument"
+msgstr "New folder, file or document"
+
+#: app/src/menus.rs:464
+msgid "Nowy plik tekstowy"
+msgstr "New text file"
+
+#: app/src/taskbar.rs:1236
+msgid "Nowy pulpit"
+msgstr "New desktop"
+
+#: app/ui/bulk.slint:242
+msgid "Numer + nazwa"
+msgstr "Number + name"
+
+#: app/ui/bulk.slint:220
+msgid "Numer kolejny"
+msgstr "Sequence number"
+
+#: app/ui/bulk.slint:256
+msgid "Numer od"
+msgstr "Start number"
+
+#: app/ui/settings.slint:1540
+msgid "Numer pulpitu na pasku, lista i nowy pulpit; kółko – sąsiedni pulpit (tylko z Eksploratorem)"
+msgstr "Desktop number on the taskbar, list and new desktop; wheel – adjacent desktop (only with Explorer)"
+
+#: app/src/widgetlive.rs:440
+msgid "Nów"
+msgstr "New moon"
+
+#: app/ui/settings.slint:392
+msgid "O aplikacji"
+msgstr "About"
+
+#: app/ui/bulk.slint:219
+msgid "Obecna nazwa"
+msgstr "Current name"
+
+#: app/ui/props.slint:300
+msgid "Oblicz"
+msgstr "Calculate"
+
+#: app/src/fmt.rs:36
+msgid "Obraz"
+msgstr "Image"
+
+msgid "Obraz dnia"
+msgstr "Picture of the day"
+
+#: app/ui/wkinds.slint:1572
+msgid "Obraz dnia · Bing"
+msgstr "Picture of the day · Bing"
+
+#: app/src/settings.rs:742
+msgid "Obraz przycisku Start"
+msgstr "Start button image"
+
+#: app/ui/clip.slint:144
+msgid "Obraz · "
+msgstr "Image · "
+
+#: app/ui/start.slint:180
+msgid "Obrazy"
+msgstr "Pictures"
+
+#: app/ui/viewer.slint:275
+msgid "Obróć w prawo (R, Shift+R – w lewo)"
+msgstr "Rotate right (R, Shift+R – left)"
+
+#: app/src/syncview.rs:195
+msgid "Ochrona przed masowym usunięciem: synchronizacja usunęłaby {} plików w celu i {} w źródle. Sprawdź podgląd i potwierdź, jeśli to zamierzone."
+msgstr "Mass deletion protection: the sync would delete {} files in the target and {} in the source. Check the preview and confirm if this is intended."
+
+#: app/src/menus.rs:833
+msgid "Oczyszczanie dysku"
+msgstr "Disk Cleanup"
+
+#: app/ui/wkinds.slint:244
+msgid "Odczuwalna "
+msgstr "Feels like "
+
+#: app/ui/widgets.slint:514
+msgid "Odczyt karty graficznej niedostępny"
+msgstr "GPU readings unavailable"
+
+#: app/ui/wkinds.slint:1467
+msgid "Odejmowanie"
+msgstr "Subtraction"
+
+#: app/ui/clip.slint:155
+msgid "Odepnij"
+msgstr "Unpin"
+
+#: app/src/menus.rs:879
+msgid "Odepnij kartę"
+msgstr "Unpin tab"
+
+#: app/src/start.rs:741
+msgid "Odepnij od Startu"
+msgstr "Unpin from Start"
+
+#: app/src/taskbar.rs:891
+msgid "Odepnij od paska"
+msgstr "Unpin from taskbar"
+
+#: app/src/menus.rs:485
+msgid "Odepnij ten folder"
+msgstr "Unpin this folder"
+
+#: app/src/menus.rs:421
+msgid "Odepnij z panelu bocznego"
+msgstr "Unpin from side panel"
+
+#: app/src/setup.rs:139
+msgid "Odinstalować PowerDesk?\n\nPulpit, pasek zadań i Eksplorator Windows wrócą na swoje miejsce."
+msgstr "Uninstall PowerDesk?\n\nThe Windows desktop, taskbar and Explorer will be restored."
+
+#: app/ui/settings.slint:1674
+msgid "Odinstaluj PowerDesk…"
+msgstr "Uninstall PowerDesk…"
+
+#: app/src/widgetmore.rs:97
+msgid "Odliczanie"
+msgstr "Countdown"
+
+#: app/src/widgetmore.rs:238
+msgid "Odliczanie do: „24.12.2026 18:00 Wigilia” albo „1.05 Urlop”"
+msgstr "Count down to: “24.12.2026 18:00 Christmas Eve” or “1.05 Holiday”"
+
+#: app/ui/widgets.slint:719
+msgid "Odtwórz"
+msgstr "Play"
+
+#: app/ui/player.slint:112
+msgid "Odtwórz (spacja)"
+msgstr "Play (space)"
+
+#: app/ui/viewer.slint:429
+msgid "Odtwórz (spacja); Enter – w domyślnym odtwarzaczu"
+msgstr "Play (space); Enter – in the default player"
+
+#: app/ui/preview.slint:253
+msgid "Odtwórz dźwięk tutaj"
+msgstr "Play audio here"
+
+#: app/ui/preview.slint:253
+msgid "Odtwórz film tutaj"
+msgstr "Play video here"
+
+#: app/src/menus.rs:823
+msgid "Odłącz dysk sieciowy"
+msgstr "Disconnect network drive"
+
+#: app/src/desktop.rs:1084
+msgid "Odśwież"
+msgstr "Refresh"
+
+#: app/ui/picker.slint:370
+msgid "Odśwież (F5)"
+msgstr "Refresh (F5)"
+
+#: app/src/widgetmore.rs:253
+msgid "Odśwież kursy"
+msgstr "Refresh rates"
+
+#: app/ui/home.slint:709
+msgid "Odśwież ostatnie pliki"
+msgstr "Refresh recent files"
+
+#: app/src/widgetfeeds.rs:426
+msgid "Odśwież pogodę"
+msgstr "Refresh weather"
+
+#: app/src/props.rs:142
+msgid "Ogniskowa"
+msgstr "Focal length"
+
+msgid "Ogromne (1 – 4 GB)"
+msgstr "Huge (1 – 4 GB)"
+
+#: app/ui/settings.slint:1343
+msgid "Okna programu pod jednym przyciskiem"
+msgstr "A program's windows under one button"
+
+#: core/src/integration.rs:16
+msgid "Okna „Otwórz” i „Zapisz jako”"
+msgstr "“Open” and “Save as” dialogs"
+
+#: app/ui/settings.slint:1592
+msgid "Okna „Otwórz” i „Zapisz jako” PowerDesk"
+msgstr "PowerDesk “Open” and “Save as” dialogs"
+
+#: app/ui/props.slint:409
+msgid "Okno Windows: uprawnienia, wersje, udostępnianie"
+msgstr "Windows dialog: permissions, versions, sharing"
+
+#: app/ui/settings.slint:1583
+msgid "Okno folderów przy starcie z Windows"
+msgstr "Folder window at Windows startup"
+
+#: app/ui/wkinds.slint:1252
+msgid "Okrążenie"
+msgstr "Lap"
+
+#: app/src/widgettools.rs:258
+msgid "Okrążenie {} · {} (+{})"
+msgstr "Lap {} · {} (+{})"
+
+#: app/src/widgetcfg.rs:125
+msgid "Okładka obok"
+msgstr "Cover beside"
+
+#: app/src/widgetcfg.rs:125
+msgid "Okładka w tle"
+msgstr "Cover in background"
+
+msgid "Opcje logowania"
+msgstr "Sign-in options"
+
+msgid "Opcje zasilania"
+msgstr "Power Options"
+
+#: app/src/desktop.rs:1162
+msgid "Opróżnij Kosz"
+msgstr "Empty Recycle Bin"
+
+#: app/ui/settings.slint:1504
+msgid "Osobno na każdym monitorze: bez otwartych okien pasek jest przezroczysty"
+msgstr "Separately on each monitor: with no open windows the taskbar is transparent"
+
+#: app/ui/settings.slint:1343
+msgid "Osobno, dopóki się mieszczą"
+msgstr "Separately while they fit"
+
+#: app/src/widgetlive.rs:446
+msgid "Ostatnia kwadra"
+msgstr "Last quarter"
+
+#: app/src/taskbar.rs:870
+msgid "Ostatnie"
+msgstr "Recent"
+
+#: app/ui/widgets.slint:1112
+msgid "Ostatnie pliki"
+msgstr "Recent files"
+
+#: app/src/startsearch.rs:129
+msgid "Ostatnio używane"
+msgstr "Recently used"
+
+#: app/ui/taskbar.slint:724
+msgid "Oszczędny"
+msgstr "Efficient"
+
+#: app/ui/taskbar.slint:706
+msgid "Oszczędzanie"
+msgstr "Saver"
+
+#: app/ui/taskbar.slint:708
+msgid "Oszczędzanie baterii – Ustawienia Windows"
+msgstr "Battery saver – Windows Settings"
+
+#: app/ui/picker.slint:177
+msgid "Otwórz"
+msgstr "Open"
+
+#: app/ui/wkinds.slint:943
+msgid "Otwórz "
+msgstr "Open "
+
+#: app/ui/wkinds.slint:1175
+msgid "Otwórz Kosz"
+msgstr "Open Recycle Bin"
+
+#: app/src/taskbar.rs:495
+msgid "Otwórz PowerDesk"
+msgstr "Open PowerDesk"
+
+#: app/ui/wkinds.slint:1171
+msgid "Otwórz Ustawienia Windows"
+msgstr "Open Windows Settings"
+
+#: app/ui/sync.slint:693
+msgid "Otwórz cel"
+msgstr "Open target"
+
+#: app/src/spaceview.rs:341
+msgid "Otwórz folder"
+msgstr "Open folder"
+
+#: app/ui/wkinds.slint:1176
+msgid "Otwórz folder Pobrane"
+msgstr "Open Downloads folder"
+
+#: app/src/desktop.rs:1116
+msgid "Otwórz folder Pulpit"
+msgstr "Open Desktop folder"
+
+#: app/src/shelf.rs:224
+msgid "Otwórz folder docelowy"
+msgstr "Open target folder"
+
+#: app/ui/settings.slint:1975
+msgid "Otwórz folder z ustawieniami"
+msgstr "Open settings folder"
+
+#: app/src/shelf.rs:142
+msgid "Otwórz folder, do którego mają trafić pliki"
+msgstr "Open the folder the files should go to"
+
+#: app/src/menus.rs:327
+msgid "Otwórz jako folder"
+msgstr "Open as folder"
+
+#: app/src/menus.rs:363
+msgid "Otwórz lokalizację pliku"
+msgstr "Open file location"
+
+#: app/src/menus.rs:365
+msgid "Otwórz lokalizację w nowej karcie"
+msgstr "Open location in a new tab"
+
+#: app/ui/edgepanel.slint:157
+msgid "Otwórz ten folder w oknie PowerDesk"
+msgstr "Open this folder in a PowerDesk window"
+
+#: app/ui/wkinds.slint:1174
+msgid "Otwórz terminal"
+msgstr "Open terminal"
+
+#: app/src/menus.rs:491
+msgid "Otwórz w Eksploratorze"
+msgstr "Open in Explorer"
+
+#: core/src/system.rs:70
+msgid "Otwórz w OpenFilePower"
+msgstr "Open in OpenFilePower"
+
+#: core/src/filemgr.rs:43
+msgid "Otwórz w PowerDesk"
+msgstr "Open in PowerDesk"
+
+#: app/ui/viewer.slint:302
+msgid "Otwórz w domyślnym programie (Enter)"
+msgstr "Open in the default program (Enter)"
+
+#: app/ui/preview.slint:503
+msgid "Otwórz w mapach (OpenStreetMap)"
+msgstr "Open in maps (OpenStreetMap)"
+
+#: app/src/desktop.rs:1197
+msgid "Otwórz w nowej karcie"
+msgstr "Open in a new tab"
+
+#: app/src/edgepanels.rs:321
+msgid "Otwórz w oknie PowerDesk"
+msgstr "Open in a PowerDesk window"
+
+#: app/src/menus.rs:333
+msgid "Otwórz w programie"
+msgstr "Open in program"
+
+#: app/ui/preview.slint:420
+msgid "Otwórz w…"
+msgstr "Open in…"
+
+#: app/src/menus.rs:345
+msgid "Otwórz za pomocą…"
+msgstr "Open with…"
+
+#: app/ui/picker.slint:712
+msgid "Otwórz zaznaczone (Enter)"
+msgstr "Open selected (Enter)"
+
+#: app/src/spaceview.rs:57
+msgid "Otwórz zwykły folder, aby sprawdzić jego zajętość"
+msgstr "Open a regular folder to check its usage"
+
+#: app/ui/sync.slint:693
+msgid "Otwórz źródło"
+msgstr "Open source"
+
+#: app/ui/widgets.slint:1006
+msgid "Oznacz jako niezrobione"
+msgstr "Mark as not done"
+
+#: app/ui/widgets.slint:1006
+msgid "Oznacz jako zrobione"
+msgstr "Mark as done"
+
+#: app/ui/wkinds.slint:1627
+msgid "Oświetlenie "
+msgstr "Illumination "
+
+msgid "PATH i inne zmienne"
+msgstr "PATH and other variables"
+
+#: app/src/archives.rs:132
+msgid "Pakuję {} elem.…"
+msgstr "Packing {} items…"
+
+#: app/ui/settings.slint:403
+msgid "Paleta poleceń"
+msgstr "Command palette"
+
+#: app/ui/settings.slint:1565
+msgid "Pamiętaj karty po zamknięciu okna"
+msgstr "Remember tabs after closing the window"
+
+#: app/ui/widgets.slint:383
+msgid "Pamięć"
+msgstr "Memory"
+
+#: app/src/home.rs:431
+msgid "Pamięć RAM"
+msgstr "RAM"
+
+msgid "Pamięć miniatur, pozostałości po macOS i Office, stare pliki tymczasowe i nieukończone pobierania"
+msgstr "Thumbnail cache, macOS and Office leftovers, old temporary files and unfinished downloads"
+
+#: core/src/space.rs:136
+msgid "Pamięć podręczna miniatur Windows – odtworzy się sama"
+msgstr "Windows thumbnail cache – it will rebuild itself"
+
+#: app/ui/settings.slint:1139
+msgid "Panel na monitorze "
+msgstr "Panel on monitor "
+
+#: app/ui/settings.slint:407
+msgid "Panel podglądu"
+msgstr "Preview pane"
+
+msgid "Panel sterowania"
+msgstr "Control Panel"
+
+#: app/ui/settings.slint:978
+msgid "Panel z metadanymi po prawej stronie zdjęcia"
+msgstr "Metadata panel to the right of the photo"
+
+#: app/ui/settings.slint:963
+msgid "Panel z prawej i przeglądarka zdjęć"
+msgstr "Right pane and photo viewer"
+
+#: app/src/facets.rs:137
+msgid "Panoramy"
+msgstr "Panoramas"
+
+msgid "Partycje i woluminy"
+msgstr "Partitions and volumes"
+
+#: app/ui/settings.slint:1318
+msgid "Pasek chowa się pod krawędź ekranu i wysuwa, gdy dotkniesz jej kursorem"
+msgstr "The taskbar hides below the screen edge and slides out when you touch it with the cursor"
+
+#: app/ui/settings.slint:1377
+msgid "Pasek o wysokości "
+msgstr "Taskbar height "
+
+#: app/ui/settings.slint:389
+msgid "Pasek zadań"
+msgstr "Taskbar"
+
+#: app/ui/settings.slint:1521
+msgid "Pasek zadań na każdym monitorze"
+msgstr "Taskbar on every monitor"
+
+#: app/src/widgetcfg.rs:121
+msgid "Paski"
+msgstr "Bars"
+
+msgid "Październik"
+msgstr "October"
+
+#: core/src/render.rs:44
+msgid "Pchnąć w tę łódź jeża lub ośm skrzyń fig."
+msgstr ""
+
+#: app/src/desktop.rs:1136
+msgid "Personalizuj"
+msgstr "Personalize"
+
+#: app/ui/settings.slint:1814
+msgid "Pełna nakładka"
+msgstr "Full overlay"
+
+#: app/ui/settings.slint:654
+msgid "Pełne"
+msgstr "Full"
+
+#: app/ui/sync.slint:344
+msgid "Pełne porównanie co"
+msgstr "Full comparison every"
+
+#: app/src/widgetlive.rs:444
+msgid "Pełnia"
+msgstr "Full moon"
+
+#: app/src/widgetcfg.rs:117
+msgid "Pełny"
+msgstr "Full"
+
+#: app/ui/viewer.slint:310
+msgid "Pełny ekran (F11)"
+msgstr "Full screen (F11)"
+
+#: app/ui/settings.slint:419
+msgid "Pełny ekran w przeglądarce zdjęć"
+msgstr "Full screen in the photo viewer"
+
+#: app/src/widgetlive.rs:442
+msgid "Pierwsza kwadra"
+msgstr "First quarter"
+
+#: app/src/facets.rs:137
+msgid "Pionowe"
+msgstr "Vertical"
+
+#: app/src/widgetcfg.rs:115
+msgid "Pionowy"
+msgstr "Vertical"
+
+#: app/ui/main.slint:951
+msgid "Pisz, aby filtrować ten folder · Enter szuka także w podfolderach · dodaj filtr:"
+msgstr "Type to filter this folder · Enter also searches subfolders · add a filter:"
+
+#: app/ui/settings.slint:1839
+msgid "Plan „Najwyższa wydajność” w grach"
+msgstr "“Ultimate performance” plan in games"
+
+msgid "Plany zasilania i uśpienie"
+msgstr "Power plans and sleep"
+
+#: app/src/fmt.rs:48
+msgid "Plik"
+msgstr "File"
+
+#: app/src/menus.rs:590
+msgid "Plik CSV"
+msgstr "CSV file"
+
+#: core/src/space.rs:142
+msgid "Plik blokady Office po zamkniętym dokumencie"
+msgstr "Office lock file left by a closed document"
+
+#: core/src/fsx.rs:108
+msgid "Plik jest używany przez inny proces"
+msgstr "The file is being used by another process"
+
+#: app/src/menus.rs:581
+msgid "Plik tekstowy"
+msgstr "Text file"
+
+#: core/src/space.rs:145
+msgid "Plik tymczasowy sprzed {days} dni"
+msgstr "Temporary file from {days} days ago"
+
+#: app/ui/settings.slint:1417
+msgid "Plik z klatkami przycisku Start (PNG z przezroczystością najlepiej)"
+msgstr "Start button frames file (PNG with transparency works best)"
+
+#: app/src/picker.rs:697
+msgid "Plik „{file}” jest tylko do odczytu. Wybierz inną nazwę."
+msgstr "The file “{file}” is read-only. Choose a different name."
+
+#: app/src/picker.rs:700
+msgid "Plik „{file}” już istnieje.\nCzy chcesz go zastąpić?"
+msgstr "The file “{file}” already exists.\nDo you want to replace it?"
+
+#: app/src/palette.rs:117
+msgid "Pliki"
+msgstr "Files"
+
+msgid "Pliki i aplikacje"
+msgstr "Files and apps"
+
+#: app/src/startsearch.rs:105
+msgid "Pliki i foldery"
+msgstr "Files and folders"
+
+#: app/src/menus.rs:594
+msgid "Pliki programisty"
+msgstr "Developer files"
+
+msgid "Pliki tymczasowe i kosz"
+msgstr "Temporary files and recycle bin"
+
+msgid "Pliki tymczasowe programów nieużywane od tygodnia"
+msgstr "Program temporary files unused for a week"
+
+msgid "Pliki zawierające tekst (indeks Windows – także Word, PDF)"
+msgstr "Files containing text (Windows index – also Word, PDF)"
+
+#: app/ui/clip.slint:144
+msgid "Pliki · "
+msgstr "Files · "
+
+#: app/ui/settings.slint:1575
+msgid "Po zalogowaniu PowerDesk od razu zastępuje pulpit, pasek zadań i menu Start (tylko zainstalowana kopia)"
+msgstr "After sign-in PowerDesk immediately replaces the desktop, taskbar and Start menu (installed copy only)"
+
+#: app/ui/settings.slint:1738
+msgid "Pobiera nową wersję, sprawdza sumę kontrolną i uruchamia PowerDesk ponownie"
+msgstr "Downloads the new version, verifies the checksum and restarts PowerDesk"
+
+#: app/ui/settings.slint:1713
+msgid "Pobieraj i instaluj bez pytania"
+msgstr "Download and install without asking"
+
+#: app/src/updates.rs:122
+msgid "Pobieranie PowerDesk {}…"
+msgstr "Downloading PowerDesk {}…"
+
+#: app/ui/widgets.slint:1031
+msgid "Pobieranie kursów…"
+msgstr "Downloading rates…"
+
+#: app/ui/wkinds.slint:1593
+msgid "Pobieranie obrazu dnia…"
+msgstr "Downloading picture of the day…"
+
+#: app/ui/wkinds.slint:204
+msgid "Pobieranie pogody…"
+msgstr "Downloading weather…"
+
+#: app/ui/wkinds.slint:312
+msgid "Pobieranie prognozy…"
+msgstr "Downloading forecast…"
+
+#: app/src/updates.rs:123
+msgid "Pobieranie wersji {}…"
+msgstr "Downloading version {}…"
+
+#: app/ui/settings.slint:1737
+msgid "Pobierz i zainstaluj"
+msgstr "Download and install"
+
+#: app/ui/wkinds.slint:1176
+msgid "Pobrane"
+msgstr "Downloads"
+
+#: core/src/weather.rs:27
+msgid "Pochmurno"
+msgstr "Cloudy"
+
+#: core/src/remote.rs:131
+msgid "Podaj adres serwera"
+msgstr "Enter the server address"
+
+#: core/src/wifi.rs:185
+msgid "Podaj hasło sieci"
+msgstr "Enter the network password"
+
+#: app/ui/toolbar.slint:255
+msgid "Podfoldery"
+msgstr "Subfolders"
+
+#: app/ui/bulk.slint:356
+msgid "Podgląd"
+msgstr "Preview"
+
+msgid "Podgląd zdarzeń"
+msgstr "Event Viewer"
+
+#: app/ui/sync.slint:637
+msgid "Podgląd: co się zmieni"
+msgstr "Preview: what will change"
+
+#: app/src/syncview.rs:373
+msgid "Podgląd: {name}"
+msgstr "Preview: {name}"
+
+#: app/ui/settings.slint:400
+msgid "Podział na dwa panele"
+msgstr "Split into two panes"
+
+#: app/src/palette.rs:74
+msgid "Podziel na dwa panele"
+msgstr "Split into two panes"
+
+#: app/ui/settings.slint:537
+msgid "Podąża za ustawieniem Windows"
+msgstr "Follows the Windows setting"
+
+msgid "Pogoda"
+msgstr "Weather"
+
+msgid "Pogoda i niebo"
+msgstr "Weather and sky"
+
+#: app/src/widgetlive.rs:518
+msgid "Pogoda niedostępna: {err}"
+msgstr "Weather unavailable: {err}"
+
+#: app/ui/settings.slint:1205
+msgid "Pokaz slajdów"
+msgstr "Slideshow"
+
+#: app/ui/viewer.slint:284
+msgid "Pokaz slajdów (S)"
+msgstr "Slideshow (S)"
+
+#: app/src/desktop.rs:1095
+msgid "Pokaż Kosz"
+msgstr "Show Recycle Bin"
+
+#: app/ui/overlays.slint:101
+msgid "Pokaż błędy"
+msgstr "Show errors"
+
+#: app/src/menus.rs:422
+msgid "Pokaż na ekranie Komputer"
+msgstr "Show on the Computer screen"
+
+#: app/ui/settings.slint:1804
+msgid "Pokaż nakładkę"
+msgstr "Show overlay"
+
+#: app/ui/main.slint:756
+msgid "Pokaż pasek transferów"
+msgstr "Show transfers bar"
+
+#: app/ui/picker.slint:765
+msgid "Pokaż pliki tego rodzaju"
+msgstr "Show files of this kind"
+
+#: app/src/palette.rs:83
+msgid "Pokaż pliki ukryte"
+msgstr "Show hidden files"
+
+#: app/ui/toolbar.slint:536
+msgid "Pokaż podgląd (Alt+P)"
+msgstr "Show preview (Alt+P)"
+
+#: app/ui/taskbar.slint:1754
+msgid "Pokaż pulpit"
+msgstr "Show desktop"
+
+#: app/src/spaceview.rs:338
+msgid "Pokaż szczegóły"
+msgstr "Show details"
+
+#: app/src/palette.rs:94
+msgid "Pokaż terminal"
+msgstr "Show terminal"
+
+#: app/ui/picker.slint:379
+msgid "Pokaż tylko pliki i foldery, których nazwa zawiera ten tekst"
+msgstr "Show only files and folders whose name contains this text"
+
+#: app/src/start.rs:422
+msgid "Pokaż ukryte ({n})"
+msgstr "Show hidden ({n})"
+
+#: app/ui/taskbar.slint:1593
+msgid "Pokaż ukryte ikony ("
+msgstr "Show hidden icons ("
+
+#: app/src/menus.rs:429
+msgid "Pokaż w Eksploratorze"
+msgstr "Show in Explorer"
+
+#: app/src/home.rs:663
+msgid "Pokaż w folderze"
+msgstr "Show in folder"
+
+#: app/src/menus.rs:449
+msgid "Pokaż więcej opcji (menu Windows)"
+msgstr "Show more options (Windows menu)"
+
+#: app/src/desktop.rs:1094
+msgid "Pokaż „Komputer”"
+msgstr "Show “Computer”"
+
+#: app/src/startsearch.rs:120
+msgid "Polecane"
+msgstr "Recommended"
+
+#: app/ui/wconfig.slint:205
+msgid "Pomarańczowy"
+msgstr "Orange"
+
+#: app/ui/settings.slint:1878
+msgid "Pomiar FPS"
+msgstr "FPS measurement"
+
+#: app/ui/overlays.slint:297
+msgid "Pomiń"
+msgstr "Skip"
+
+#: app/ui/viewer.slint:236
+msgid "Pomniejsz (−)"
+msgstr "Zoom out (−)"
+
+#: app/src/facets.rs:141
+msgid "Ponad 10 min"
+msgstr "Over 10 min"
+
+#: core/src/ops.rs:557
+msgid "Ponowiono"
+msgstr "Redone"
+
+#: app/src/transfers.rs:110
+msgid "Ponów"
+msgstr "Redo"
+
+#: app/ui/taskbar.slint:1025
+msgid "Poprzedni miesiąc"
+msgstr "Previous month"
+
+#: app/ui/widgets.slint:719
+msgid "Poprzedni utwór"
+msgstr "Previous track"
+
+#: app/ui/preview.slint:265
+msgid "Poprzednia strona (kółko w górę)"
+msgstr "Previous page (wheel up)"
+
+#: app/ui/viewer.slint:412
+msgid "Poprzednie (←)"
+msgstr "Previous (←)"
+
+#: app/ui/space.slint:273
+msgid "Porządki"
+msgstr "Clean-up"
+
+#: app/src/menus.rs:315
+msgid "Porównaj foldery"
+msgstr "Compare folders"
+
+#: app/ui/sync.slint:434
+msgid "Porównuję foldery…"
+msgstr "Comparing folders…"
+
+#: app/src/comparing.rs:22
+msgid "Porównuję „{}” i „{}”…"
+msgstr "Comparing “{}” and “{}”…"
+
+#: core/src/sync.rs:489
+msgid "Porównywanie folderów…"
+msgstr "Comparing folders…"
+
+#: app/ui/wkinds.slint:1667
+msgid "Postęp czasu"
+msgstr "Time progress"
+
+#: app/ui/settings.slint:995
+msgid "Potrząśnięcie oknem minimalizuje pozostałe"
+msgstr "Shaking a window minimizes the others"
+
+#: app/ui/sync.slint:739
+msgid "Potwierdź"
+msgstr "Confirm"
+
+#: app/ui/settings.slint:1762
+msgid "PowerDesk jest powłoką – po zakończeniu strażnik uruchomi go ponownie"
+msgstr "PowerDesk is the shell – after exiting, the guard will restart it"
+
+#: app/ui/settings.slint:1666
+msgid "PowerDesk nie jest zainstalowany (kopia z budowania). Instalacja: Program Files, skrót w menu Start, wpis w „Aplikacje i funkcje” i aktualizacje w tym samym miejscu."
+msgstr "PowerDesk is not installed (build copy). Installation: Program Files, a Start menu shortcut, an entry in “Apps & features” and updates in the same place."
+
+#: core/src/install.rs:254
+msgid "PowerDesk zainstalowano dla wszystkich użytkowników – deinstalacja wymaga uprawnień administratora"
+msgstr "PowerDesk is installed for all users – uninstalling requires administrator rights"
+
+#: core/src/shellmode.rs:388
+msgid "PowerDesk zakończył się nieoczekiwanie ({}. raz w ciągu {CRASH_WINDOW_SECS} s)"
+msgstr "PowerDesk exited unexpectedly ({} times within {CRASH_WINDOW_SECS} s)"
+
+#: app/ui/settings.slint:1552
+msgid "PowerDesk zastępuje Eksplorator Windows · wpisy odnawiają się przy każdym starcie"
+msgstr "PowerDesk replaces Windows Explorer · entries are renewed at every startup"
+
+#: app/ui/settings.slint:1277
+msgid "PowerDesk zastępuje pasek zadań Windows na każdym monitorze"
+msgstr "PowerDesk replaces the Windows taskbar on every monitor"
+
+#: app/ui/settings.slint:991
+msgid "PowerDesk zastępuje pulpit Windows na każdym monitorze"
+msgstr "PowerDesk replaces the Windows desktop on every monitor"
+
+#: app/src/setup.rs:202
+msgid "PowerDesk {have} jest już zainstalowany w:\n{}\n\nZainstalować wersję {} w tym samym miejscu?{}"
+msgstr "PowerDesk {have} is already installed in:\n{}\n\nInstall version {} in the same place?{}"
+
+#: core/src/log.rs:65
+msgid "PowerDesk {version}\n{} · {}\nProcesor: {} ({} wątków), RAM: {} MB\nTryb powłoki: {} · zainstalowany: {}\n\n--- dziennik (ostatnie 200 wierszy) ---\n{}"
+msgstr ""
+
+#: app/src/setup.rs:117
+msgid "PowerDesk {} zainstalowano w:\n{}\n\nPo zalogowaniu PowerDesk zastępuje Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu (Windows zapyta o uprawnienia administratora).\nOdinstalujesz go w Ustawieniach Windows → Aplikacje albo w Ustawieniach PowerDesk → System."
+msgstr "PowerDesk {} was installed in:\n{}\n\nAfter sign-in PowerDesk replaces Explorer: the desktop, taskbar and Start menu. Updates install in the same place (Windows will ask for administrator permission).\nYou can uninstall it in Windows Settings → Apps or in PowerDesk Settings → System."
+
+#: app/ui/start.slint:74
+msgid "PowerDesk – Start"
+msgstr ""
+
+#: app/ui/settings.slint:1920
+msgid "PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows"
+msgstr "PowerDesk – file manager, desktop and taskbar for Windows"
+
+#: app/ui/overlay.slint:8
+msgid "PowerDesk – nakładka"
+msgstr "PowerDesk – overlay"
+
+#: app/ui/taskbar.slint:1209
+msgid "PowerDesk – pasek zadań"
+msgstr "PowerDesk – taskbar"
+
+#: app/ui/desktop.slint:33
+msgid "PowerDesk – pulpit"
+msgstr "PowerDesk – desktop"
+
+#: app/ui/clip.slint:46
+msgid "PowerDesk – schowek"
+msgstr "PowerDesk – clipboard"
+
+#: app/ui/overlay.slint:142
+msgid "PowerDesk – strefy"
+msgstr "PowerDesk – zones"
+
+#: app/ui/taskbar.slint:1800
+msgid "PowerDesk – widok zadań"
+msgstr "PowerDesk – task view"
+
+#: app/ui/taskbar.slint:1686
+msgid "Powiadomienia"
+msgstr "Notifications"
+
+#: app/ui/taskbar.slint:1686
+msgid "Powiadomienia ("
+msgstr "Notifications ("
+
+#: app/ui/viewer.slint:267
+msgid "Powiększ (+)"
+msgstr "Zoom in (+)"
+
+#: app/ui/wkinds.slint:1488
+msgid "Powiększ widżet, aby liczyć"
+msgstr "Enlarge the widget to calculate"
+
+#: app/src/bulk.rs:166
+msgid "Powtarza się"
+msgstr "Duplicate"
+
+#: core/src/ops.rs:619
+msgid "Powtarza się nazwa: {dst}"
+msgstr "Duplicate name: {dst}"
+
+msgid "Powłoka i skrypty"
+msgstr "Shell and scripts"
+
+#: app/src/facets.rs:137
+msgid "Poziome"
+msgstr "Horizontal"
+
+#: core/src/space.rs:139
+msgid "Pozostałość po macOS"
+msgstr "macOS leftover"
+
+#: app/ui/taskbar.slint:939
+msgid "Połącz"
+msgstr "Connect"
+
+#: app/ui/taskbar.slint:738
+msgid "Połączenia VPN – Ustawienia Windows"
+msgstr "VPN connections – Windows Settings"
+
+msgid "Połączenia sieciowe"
+msgstr "Network connections"
+
+msgid "Połączenie"
+msgstr "Connection"
+
+#: app/ui/taskbar.slint:888
+msgid "Połączono"
+msgstr "Connected"
+
+#: app/ui/taskbar.slint:832
+msgid "Połączono kablem"
+msgstr "Connected by cable"
+
+#: app/ui/settings.slint:1126
+msgid "Prawa"
+msgstr "Right"
+
+msgid "Prawa krawędź"
+msgstr "Right edge"
+
+#: app/ui/settings.slint:1828
+msgid "Prawy dolny róg"
+msgstr "Bottom right corner"
+
+#: app/ui/settings.slint:1828
+msgid "Prawy górny róg"
+msgstr "Top right corner"
+
+#: app/ui/start.slint:374
+msgid "Prawy przycisk na aplikacji → „Przypnij do Startu”."
+msgstr "Right-click an app → “Pin to Start”."
+
+#: app/src/widgetmore.rs:97
+msgid "Prawy przycisk → „Ustaw datę…”"
+msgstr "Right-click → “Set date…”"
+
+#: core/src/clip.rs:9
+msgid "Preferred DropEffect"
+msgstr ""
+
+#: app/src/fmt.rs:43
+msgid "Prezentacja"
+msgstr "Presentation"
+
+#: app/src/menus.rs:588
+msgid "Prezentacja PowerPoint"
+msgstr "PowerPoint presentation"
+
+#: app/ui/widgets.slint:365
+msgid "Procesor"
+msgstr "Processor"
+
+msgid "Procesor, dysk, sieć na żywo"
+msgstr "CPU, disk, network live"
+
+msgid "Prognoza"
+msgstr "Forecast"
+
+#: app/src/palette.rs:95
+msgid "Program"
+msgstr ""
+
+#: app/src/taskbar.rs:238
+msgid "Program w zasobniku"
+msgstr "Tray program"
+
+msgid "Programy"
+msgstr "Programs"
+
+msgid "Programy i wydajność"
+msgstr "Programs and performance"
+
+#: app/ui/taskbar.slint:754
+msgid "Projektuj"
+msgstr "Project"
+
+msgid "Prywatność i zabezpieczenia"
+msgstr "Privacy & security"
+
+#: app/ui/term.slint:140
+msgid "Przechodź do folderu otwartego w aplikacji"
+msgstr "Go to the folder open in the app"
+
+#: app/ui/wkinds.slint:1469
+msgid "Przecinek dziesiętny"
+msgstr "Decimal comma"
+
+#: app/ui/taskbar.slint:257
+msgid "Przeciągnij ikonę na pasek albo z paska tutaj"
+msgstr "Drag an icon to the taskbar or from the taskbar here"
+
+#: app/ui/settings.slint:1006
+msgid "Przeciągnij okno za pasek tytułu z wciśniętym Shiftem – puść nad strefą, a okno ją wypełni"
+msgstr "Drag a window by its title bar while holding Shift – drop it over a zone and the window fills it"
+
+#: app/ui/shelf.slint:127
+msgid "Przeciągnij tu pliki z różnych folderów albo naciśnij Ctrl+Shift+S przy zaznaczonych, potem przenieś je naraz w jedno miejsce."
+msgstr "Drag files here from different folders or press Ctrl+Shift+S on a selection, then move them all to one place at once."
+
+#: app/ui/edgepanel.slint:241
+msgid "Przeciągnij, aby zmienić szerokość panelu"
+msgstr "Drag to change the panel width"
+
+#: app/ui/fileview.slint:333
+msgid "Przeciągnij, aby zmienić szerokość · dwuklik: domyślna"
+msgstr "Drag to change the width · double-click: default"
+
+#: app/ui/settings.slint:386
+msgid "Przeglądanie"
+msgstr "Browsing"
+
+#: app/src/menus.rs:372
+msgid "Przejdź do lokalizacji"
+msgstr "Go to location"
+
+#: core/src/weather.rs:37
+msgid "Przelotny deszcz"
+msgstr "Rain showers"
+
+#: core/src/weather.rs:38
+msgid "Przelotny śnieg"
+msgstr "Snow showers"
+
+#: app/src/spaceview.rs:388
+msgid "Przeniesiono do Kosza"
+msgstr "Moved to Recycle Bin"
+
+#: app/src/transfers.rs:261
+msgid "Przeniesiono do Kosza ({})"
+msgstr "Moved to Recycle Bin ({})"
+
+#: app/src/transfers.rs:260
+msgid "Przeniesiono do „{}”"
+msgstr "Moved to “{}”"
+
+#: app/ui/space.slint:560
+msgid "Przenieś do Kosza"
+msgstr "Move to Recycle Bin"
+
+#: app/src/menus.rs:411
+msgid "Przenieś do nowego folderu…"
+msgstr "Move to a new folder…"
+
+#: app/ui/shelf.slint:242
+msgid "Przenieś do otwartego folderu – zejdą z półki"
+msgstr "Move to the open folder – they leave the shelf"
+
+#: app/ui/shelf.slint:241
+msgid "Przenieś tutaj"
+msgstr "Move here"
+
+#: app/src/menus.rs:712
+msgid "Przenieść do Kosza?"
+msgstr "Move to Recycle Bin?"
+
+#: core/src/ops.rs:227
+msgid "Przenoszenie {} elem."
+msgstr "Moving {} items"
+
+#: app/src/spaceview.rs:570
+msgid "Przerwano"
+msgstr "Stopped"
+
+#: core/src/sync.rs:660
+msgid "Przerwano ({s})"
+msgstr "Stopped ({s})"
+
+#: app/ui/space.slint:294
+msgid "Przerwij"
+msgstr "Stop"
+
+#: app/src/edgepanels.rs:343
+msgid "Przesuń dalej"
+msgstr "Move later"
+
+#: app/ui/home.slint:428
+msgid "Przesuń sekcję niżej"
+msgstr "Move section down"
+
+#: app/ui/home.slint:419
+msgid "Przesuń sekcję wyżej"
+msgstr "Move section up"
+
+#: app/src/edgepanels.rs:342
+msgid "Przesuń wcześniej"
+msgstr "Move earlier"
+
+#: app/ui/taskbar.slint:745
+msgid "Przesyłaj"
+msgstr "Cast"
+
+#: app/ui/taskbar.slint:747
+msgid "Przesyłanie obrazu na telewizor lub monitor bezprzewodowy (Win+K)"
+msgstr "Cast to a TV or wireless display (Win+K)"
+
+#: core/src/weather.rs:25
+msgid "Przeważnie słonecznie"
+msgstr "Mostly sunny"
+
+#: app/ui/settings.slint:1503
+msgid "Przezroczysty, gdy widać pulpit"
+msgstr "Transparent when the desktop is visible"
+
+#: app/ui/settings.slint:1768
+msgid "Przełącz na Eksplorator Windows"
+msgstr "Switch to Windows Explorer"
+
+#: app/src/taskbar.rs:908
+msgid "Przełącz na to okno"
+msgstr "Switch to this window"
+
+#: app/src/start.rs:769
+msgid "Przełącz użytkownika"
+msgstr "Switch user"
+
+#: app/src/widgetlive.rs:443
+msgid "Przybywający garb"
+msgstr "Waxing gibbous"
+
+#: app/src/widgetlive.rs:441
+msgid "Przybywający sierp"
+msgstr "Waxing crescent"
+
+#: app/ui/settings.slint:1402
+msgid "Przycisk Start"
+msgstr "Start button"
+
+#: app/ui/settings.slint:1539
+msgid "Przycisk pulpitów wirtualnych"
+msgstr "Virtual desktops button"
+
+#: app/ui/settings.slint:1286
+msgid "Przyciski"
+msgstr "Buttons"
+
+#: app/src/taskbar.rs:478
+msgid "Przyciski na środku"
+msgstr "Centred buttons"
+
+#: app/ui/settings.slint:1326
+msgid "Przyciski na środku paska"
+msgstr "Buttons in the centre of the taskbar"
+
+#: app/ui/settings.slint:1530
+msgid "Przyciski wszystkich okien na każdym pasku"
+msgstr "Buttons for all windows on every taskbar"
+
+#: app/src/main.rs:3467
+msgid "Przypięte"
+msgstr "Pinned"
+
+#: app/ui/clip.slint:91
+msgid "Przypięte zostają"
+msgstr "Pinned ones stay"
+
+#: app/src/start.rs:741
+msgid "Przypnij do Startu"
+msgstr "Pin to Start"
+
+#: app/src/desktop.rs:1201
+msgid "Przypnij do krawędzi"
+msgstr "Pin to edge"
+
+#: app/src/taskbar.rs:893
+msgid "Przypnij do paska"
+msgstr "Pin to taskbar"
+
+#: app/src/start.rs:749
+msgid "Przypnij do paska zadań"
+msgstr "Pin to taskbar"
+
+#: app/ui/home.slint:588
+msgid "Przypnij folder z menu albo przeciągnij go na „Przypięte” w panelu bocznym"
+msgstr "Pin a folder from the menu or drag it onto “Pinned” in the side panel"
+
+#: app/src/menus.rs:879
+msgid "Przypnij kartę"
+msgstr "Pin tab"
+
+#: app/src/menus.rs:485
+msgid "Przypnij ten folder"
+msgstr "Pin this folder"
+
+#: app/ui/sidebar.slint:188
+msgid "Przypnij w panelu bocznym"
+msgstr "Pin to side panel"
+
+#: app/ui/clip.slint:155
+msgid "Przypnij – zostaje po czyszczeniu"
+msgstr "Pin – stays after clearing"
+
+#: app/ui/widgets.slint:241
+msgid "Przypomnienia"
+msgstr "Reminders"
+
+#: app/src/widgetfeeds.rs:265
+msgid "Przypomnienie"
+msgstr "Reminder"
+
+#: app/src/widgetfeeds.rs:443
+msgid "Przypomnienie: „14:30 tekst”, „24.12 18:00 tekst” albo „za 15 min tekst”"
+msgstr "Reminder: “14:30 text”, “24.12 18:00 text” or “in 15 min text”"
+
+#: app/src/props.rs:120
+msgid "Przysłona"
+msgstr "Aperture"
+
+#: app/src/widgetcfg.rs:130
+msgid "Przysłowie"
+msgstr "Proverb"
+
+#: app/ui/settings.slint:1686
+msgid "Przywraca pulpit, pasek i Eksplorator Windows, usuwa program (ustawienia – na życzenie)"
+msgstr "Restores the Windows desktop, taskbar and Explorer, removes the program (settings – on request)"
+
+#: app/ui/titlebar.slint:231
+msgid "Przywróć"
+msgstr "Restore"
+
+#: app/ui/wconfig.slint:417
+msgid "Przywróć domyślne"
+msgstr "Restore defaults"
+
+#: app/src/menus.rs:785
+msgid "Przywróć domyślne kolumny"
+msgstr "Restore default columns"
+
+#: app/ui/wconfig.slint:422
+msgid "Przywróć domyślny wygląd i źródło tego widżetu"
+msgstr "Restore this widget's default look and source"
+
+#: app/ui/settings.slint:1423
+msgid "Przywróć ikonę PowerDesk"
+msgstr "Restore the PowerDesk icon"
+
+#: app/src/menus.rs:443
+msgid "Przywróć poprzednie wersje…"
+msgstr "Restore previous versions…"
+
+#: app/src/start.rs:752
+msgid "Przywróć w menu Start"
+msgstr "Restore in Start menu"
+
+#: app/ui/settings.slint:398
+msgid "Przywróć zamkniętą kartę"
+msgstr "Reopen closed tab"
+
+#: app/ui/settings.slint:388
+msgid "Pulpit"
+msgstr "Desktop"
+
+#: core/src/vdesk.rs:46
+msgid "Pulpit 1"
+msgstr "Desktop 1"
+
+msgid "Pulpit zdalny"
+msgstr "Remote Desktop"
+
+#: core/src/vdesk.rs:56
+msgid "Pulpit {}"
+msgstr "Desktop {}"
+
+#: app/src/bulk.rs:162
+msgid "Pusta nazwa"
+msgstr "Empty name"
+
+#: app/ui/widgets.slint:1195
+msgid "Pusta notatka"
+msgstr "Empty note"
+
+msgid "Puste"
+msgstr "Empty"
+
+msgid "Puste foldery"
+msgstr "Empty folders"
+
+#: app/ui/edgepanel.slint:220
+msgid "Pusty folder"
+msgstr "Empty folder"
+
+#: core/src/space.rs:181
+msgid "Pusty folder (także w podfolderach)"
+msgstr "Empty folder (also in subfolders)"
+
+#: core/src/space.rs:151
+msgid "Pusty plik (0 B) sprzed {days} dni"
+msgstr "Empty file (0 B) from {days} days ago"
+
+#: app/ui/settings.slint:928
+msgid "Pytaj przed przeniesieniem do Kosza"
+msgstr "Ask before moving to Recycle Bin"
+
+#: app/ui/shelf.slint:93
+msgid "Półka"
+msgstr "Shelf"
+
+#: app/ui/toolbar.slint:497
+msgid "Półka (Ctrl+Shift+S)"
+msgstr "Shelf (Ctrl+Shift+S)"
+
+#: app/ui/settings.slint:1513
+msgid "Półprzezroczysty pasek rozmywa tapetę i okna pod sobą (jak w Windows 11)"
+msgstr "A translucent taskbar blurs the wallpaper and windows beneath it (like Windows 11)"
+
+#: app/src/home.rs:351
+msgid "RAM-dysk · "
+msgstr "RAM disk · "
+
+#: app/src/settings.rs:678
+msgid "Raport skopiowany do schowka – wklej go w zgłoszeniu; obok otwarty folder z dziennikiem"
+msgstr "Report copied to the clipboard – paste it into your report; the log folder is open next to it"
+
+#: app/ui/wkinds.slint:1746
+msgid "Rdzenie"
+msgstr "Cores"
+
+#: app/src/facets.rs:49
+msgid "Rodzaj"
+msgstr "Kind"
+
+#: app/ui/picker.slint:702
+msgid "Rodzaj plików pokazywanych na liście"
+msgstr "Kind of files shown in the list"
+
+#: app/src/widgetlive.rs:464
+msgid "Rok"
+msgstr "Year"
+
+#: app/src/facets.rs:46
+msgid "Rozdzielczość"
+msgstr "Resolution"
+
+#: app/src/start.rs:541
+msgid "Rozgrupuj folder"
+msgstr "Ungroup folder"
+
+#: app/ui/picker.slint:511
+msgid "Rozmiar"
+msgstr "Size"
+
+#: app/ui/settings.slint:919
+msgid "Rozmiary folderów"
+msgstr "Folder sizes"
+
+#: app/ui/settings.slint:1512
+msgid "Rozmycie pod paskiem"
+msgstr "Blur under the taskbar"
+
+#: app/ui/settings.slint:736
+msgid "Rozmycie tła okienek"
+msgstr "Popup background blur"
+
+#: app/ui/settings.slint:673
+msgid "Rozmyte tło spod okna (Windows 11)"
+msgstr "Blurred background from under the window (Windows 11)"
+
+msgid "Rozszerzenia"
+msgstr "Extensions"
+
+#: app/ui/bulk.slint:335
+msgid "Rozszerzenie"
+msgstr "Extension"
+
+#: app/ui/fileview.slint:449
+msgid "Rozwiń grupę"
+msgstr "Expand group"
+
+#: app/src/palette.rs:91
+msgid "Rozwiń panel boczny"
+msgstr "Expand side panel"
+
+#: app/ui/sidebar.slint:127
+msgid "Rozwiń panel boczny (Ctrl+B)"
+msgstr "Expand side panel (Ctrl+B)"
+
+#: app/ui/home.slint:388
+msgid "Rozwiń sekcję"
+msgstr "Expand section"
+
+#: app/ui/taskbar.slint:933
+msgid "Rozłącz"
+msgstr "Disconnect"
+
+#: app/ui/viewer.slint:254
+msgid "Rzeczywisty rozmiar (1)"
+msgstr "Actual size (1)"
+
+#: app/src/comparing.rs:51
+msgid "Różnice: {na} ↔ {nb}"
+msgstr "Differences: {na} ↔ {nb}"
+
+#: app/ui/wconfig.slint:208
+msgid "Różowy"
+msgstr "Pink"
+
+#: app/ui/settings.slint:1305
+msgid "Same ikony"
+msgstr "Icons only"
+
+#: app/src/taskbar.rs:477
+msgid "Same ikony (bez nazw okien)"
+msgstr "Icons only (no window names)"
+
+#: app/ui/taskbar.slint:676
+msgid "Samolot"
+msgstr "Airplane"
+
+#: core/src/gamemode.rs:108
+msgid "SaveSettings (może wymagać administratora)"
+msgstr "SaveSettings (may require administrator)"
+
+#: app/ui/shelf.slint:106
+msgid "Schowaj (pliki zostaną na półce)"
+msgstr "Hide (files stay on the shelf)"
+
+#: app/src/start.rs:417
+msgid "Schowaj ukryte"
+msgstr "Hide hidden"
+
+#: app/ui/clip.slint:75
+msgid "Schowek"
+msgstr "Clipboard"
+
+#: app/ui/theme.slint:60
+msgid "Segoe UI Variable Text"
+msgstr ""
+
+#: app/ui/settings.slint:945
+msgid "Sekcje panelu bocznego"
+msgstr "Side panel sections"
+
+#: app/ui/settings.slint:807
+msgid "Sekcje pod dyskami i folderami – wyłączone znikają z ekranu (kolejność zmienisz strzałkami przy nagłówkach)"
+msgstr "Sections under drives and folders – disabled ones disappear from the screen (change the order with the arrows next to the headers)"
+
+#: app/ui/wconfig.slint:321
+msgid "Sekundy"
+msgstr "Seconds"
+
+#: app/ui/settings.slint:1449
+msgid "Sekundy w zegarze"
+msgstr "Seconds in the clock"
+
+#: core/src/terminal.rs:103
+msgid "Set-Location -LiteralPath '{p}'\r"
+msgstr ""
+
+#: app/ui/settings.slint:1005
+msgid "Shift + przeciąganie"
+msgstr "Shift + drag"
+
+#: app/ui/settings.slint:841
+msgid "Siatka"
+msgstr "Grid"
+
+#: app/ui/toolbar.slint:566
+msgid "Siatka (Ctrl+2)"
+msgstr "Grid (Ctrl+2)"
+
+msgid "Sierpień"
+msgstr "August"
+
+#: app/ui/taskbar.slint:789
+msgid "Sieć"
+msgstr "Network"
+
+msgid "Sieć i Internet"
+msgstr "Network & internet"
+
+#: core/src/wifi.rs:166
+msgid "Sieć jest poza zasięgiem"
+msgstr "The network is out of range"
+
+#: app/ui/space.slint:302
+msgid "Skanuj ponownie"
+msgstr "Scan again"
+
+#: app/src/spaceview.rs:105
+msgid "Skanuję…"
+msgstr "Scanning…"
+
+#: app/src/props.rs:390
+msgid "Skopiowano"
+msgstr "Copied"
+
+#: app/src/transfers.rs:259
+msgid "Skopiowano do „{}”"
+msgstr "Copied to “{}”"
+
+#: app/ui/clip.slint:99
+msgid "Skopiuj coś (Ctrl+C) – pojawi się tutaj. Win+V otwiera tę historię."
+msgstr "Copy something (Ctrl+C) – it will appear here. Win+V opens this history."
+
+#: app/ui/shelf.slint:233
+msgid "Skopiuj do otwartego folderu"
+msgstr "Copy to the open folder"
+
+#: app/ui/widgets.slint:950
+msgid "Skopiuj ponownie: "
+msgstr "Copy again: "
+
+#: app/src/palette.rs:135
+msgid "Skopiuj ścieżkę"
+msgstr "Copy path"
+
+#: app/src/menus.rs:599
+msgid "Skrypt PowerShell"
+msgstr "PowerShell script"
+
+#: app/src/menus.rs:600
+msgid "Skrypt wsadowy (.bat)"
+msgstr "Batch script (.bat)"
+
+#: app/src/fmt.rs:47
+msgid "Skrót"
+msgstr "Shortcut"
+
+#: core/src/integration.rs:14
+msgid "Skrót klawiszowy otwiera nowe okno PowerDesk"
+msgstr "The keyboard shortcut opens a new PowerDesk window"
+
+#: app/ui/settings.slint:391
+msgid "Skróty klawiszowe"
+msgstr "Keyboard shortcuts"
+
+#: app/src/palette.rs:111
+msgid "Sortowanie"
+msgstr "Sorting"
+
+#: app/ui/toolbar.slint:423
+msgid "Sortowanie i grupowanie"
+msgstr "Sorting and grouping"
+
+#: app/src/palette.rs:111
+msgid "Sortuj po: {label}"
+msgstr "Sort by: {label}"
+
+#: app/src/menus.rs:515
+msgid "Sortuj według"
+msgstr "Sort by"
+
+#: app/ui/picker.slint:491
+msgid "Sortuj według daty zmiany"
+msgstr "Sort by date modified"
+
+#: app/ui/fileview.slint:264
+msgid "Sortuj według nazwy"
+msgstr "Sort by name"
+
+#: app/ui/picker.slint:512
+msgid "Sortuj według rozmiaru"
+msgstr "Sort by size"
+
+#: app/ui/picker.slint:501
+msgid "Sortuj według typu"
+msgstr "Sort by type"
+
+#: app/src/menus.rs:342
+msgid "Spacja"
+msgstr "Space"
+
+#: app/src/menus.rs:409
+msgid "Spakuj do ZIP…"
+msgstr "Compress to ZIP…"
+
+#: app/ui/settings.slint:1704
+msgid "Sprawdzaj aktualizacje automatycznie"
+msgstr "Check for updates automatically"
+
+#: app/src/updates.rs:73
+msgid "Sprawdzanie aktualizacji…"
+msgstr "Checking for updates…"
+
+#: app/src/taskbar.rs:503
+msgid "Sprawdź aktualizacje"
+msgstr "Check for updates"
+
+#: app/ui/sync.slint:541
+msgid "Sprawdź ponownie"
+msgstr "Check again"
+
+#: app/ui/settings.slint:1730
+msgid "Sprawdź teraz"
+msgstr "Check now"
+
+#: app/src/facets.rs:151
+msgid "Starsze"
+msgstr "Older"
+
+#: app/ui/taskbar.slint:1391
+msgid "Start"
+msgstr ""
+
+#: app/ui/settings.slint:1327
+msgid "Start zostaje po lewej, programy w środku"
+msgstr "Start stays on the left, programs in the centre"
+
+#: app/ui/settings.slint:1280
+msgid "Start, okna z danego monitora pogrupowane po programach (z podglądami), przypięte programy, sieć i Wi-Fi, głośność z mikserem, bateria, zegar z kalendarzem i „Pokaż pulpit” na końcu. Prawy przycisk na Start – menu z narzędziami systemu. Pasek Windows jest ukryty; wraca po zamknięciu PowerDesk, jego awarii albo odinstalowaniu. Alt+Tab, Win+Tab i Win+D zostają systemowe."
+msgstr "Start, the monitor's windows grouped by program (with previews), pinned programs, network and Wi-Fi, volume with mixer, battery, clock with calendar and “Show desktop” at the end. Right-click Start – a menu with system tools. The Windows taskbar is hidden; it comes back when PowerDesk closes, crashes or is uninstalled. Alt+Tab, Win+Tab and Win+D stay with the system."
+
+msgid "Sterowniki i sprzęt"
+msgstr "Drivers and hardware"
+
+#: app/ui/wkinds.slint:1233
+msgid "Stoper"
+msgstr "Stopwatch"
+
+#: app/src/widgetcfg.rs:111
+msgid "Strefa czasowa"
+msgstr "Time zone"
+
+#: app/ui/settings.slint:1004
+msgid "Strefy okien"
+msgstr "Window zones"
+
+#: app/ui/preview.slint:275
+msgid "Strona "
+msgstr "Page "
+
+msgid "Styczeń"
+msgstr "January"
+
+#: app/ui/wconfig.slint:281
+msgid "Styl"
+msgstr "Style"
+
+#: app/ui/props.slint:306
+msgid "Suma kontrolna pliku – do porównania z podaną przez autora"
+msgstr "File checksum – to compare with the one published by the author"
+
+#: core/src/update.rs:130
+msgid "Suma kontrolna pobranego pliku się nie zgadza – aktualizacja przerwana"
+msgstr "The downloaded file's checksum does not match – update aborted"
+
+#: app/ui/sync.slint:486
+msgid "Synchronizacja"
+msgstr "Sync"
+
+#: app/ui/sync.slint:337
+msgid "Synchronizuj na bieżąco"
+msgstr "Sync continuously"
+
+#: app/ui/sync.slint:628
+msgid "Synchronizuj teraz"
+msgstr "Sync now"
+
+#: app/ui/sync.slint:499
+msgid "Synchronizuj wszystko"
+msgstr "Sync all"
+
+#: app/src/syncview.rs:174
+msgid "Synchronizuję…"
+msgstr "Syncing…"
+
+#: app/ui/settings.slint:390
+msgid "System"
+msgstr ""
+
+#: app/ui/wconfig.slint:209
+msgid "Szary"
+msgstr "Grey"
+
+#: app/src/start.rs:498
+msgid "Szeroki"
+msgstr "Wide"
+
+#: app/ui/settings.slint:1014
+msgid "Szeroki środek"
+msgstr "Wide centre"
+
+#: app/ui/settings.slint:1149
+msgid "Szerokość"
+msgstr "Width"
+
+#: app/ui/settings.slint:1156
+msgid "Szerokość wysuniętego panelu – można ją też zmienić, przeciągając jego wewnętrzną krawędź"
+msgstr "Width of the expanded panel – you can also change it by dragging its inner edge"
+
+#: app/ui/wconfig.slint:284
+msgid "Szkło"
+msgstr "Glass"
+
+#: app/ui/settings.slint:1731
+msgid "Szuka nowej wersji PowerDesk"
+msgstr "Looks for a new version of PowerDesk"
+
+#: app/ui/start.slint:220
+msgid "Szukaj aplikacji, plików i ustawień"
+msgstr "Search apps, files and settings"
+
+#: app/ui/taskbar.slint:805
+msgid "Szukaj sieci"
+msgstr "Search for networks"
+
+#: app/ui/picker.slint:378
+msgid "Szukaj w folderze"
+msgstr "Search in folder"
+
+#: app/ui/settings.slint:454
+msgid "Szukaj w ustawieniach"
+msgstr "Search settings"
+
+#: app/ui/taskbar.slint:805
+msgid "Szukanie sieci…"
+msgstr "Searching for networks…"
+
+#: app/src/main.rs:3537
+msgid "Szybki dostęp"
+msgstr "Quick access"
+
+msgid "Szybkie akcje"
+msgstr "Quick actions"
+
+#: app/ui/toolbar.slint:215
+msgid "Szybkie miejsca"
+msgstr "Quick places"
+
+#: app/ui/settings.slint:402
+msgid "Szybkie przejście do folderu"
+msgstr "Quick jump to folder"
+
+#: app/src/widgetcfg.rs:122
+msgid "Słupki"
+msgstr "Bars"
+
+#: core/src/integration.rs:23
+msgid "Ta kopia PowerDesk nie zawiera biblioteki okien plików (budowa bez niej) – programy mają okna Windows"
+msgstr "This copy of PowerDesk does not include the file dialog library (built without it) – programs use Windows dialogs"
+
+#: core/src/drives.rs:333
+msgid "Ta litera dysku jest już zajęta"
+msgstr "This drive letter is already in use"
+
+#: app/ui/picker.slint:825
+msgid "Tak"
+msgstr "Yes"
+
+#: core/src/fsx.rs:113
+msgid "Taki element już istnieje"
+msgstr "Such an item already exists"
+
+#: app/ui/sync.slint:366
+msgid "Także pliki ukryte i systemowe"
+msgstr "Also hidden and system files"
+
+#: app/ui/settings.slint:1188
+msgid "Tapeta"
+msgstr "Wallpaper"
+
+#: app/src/desktop.rs:1129
+msgid "Tapeta i personalizacja Windows"
+msgstr "Wallpaper and Windows personalization"
+
+#: app/src/desktop.rs:1124
+msgid "Tapeta jak na pozostałych"
+msgstr "Same wallpaper as the others"
+
+#: app/src/desktop.rs:1119
+msgid "Tapeta tego monitora"
+msgstr "Wallpaper of this monitor"
+
+#: app/src/fmt.rs:45
+msgid "Tekst"
+msgstr "Text"
+
+#: app/src/main.rs:3586
+msgid "Telefon albo aparat podłączony przez USB – zdjęcia i pliki"
+msgstr "Phone or camera connected by USB – photos and files"
+
+#: app/src/main.rs:1903
+msgid "Ten folder jest pusty"
+msgstr "This folder is empty"
+
+#: app/src/picker.rs:818
+msgid "Ten komputer"
+msgstr "This PC"
+
+#: app/ui/wkinds.slint:644
+msgid "Ten komputer nie ma baterii"
+msgstr "This computer has no battery"
+
+#: app/ui/taskbar.slint:839
+msgid "Ten komputer nie ma karty Wi-Fi."
+msgstr "This computer has no Wi-Fi adapter."
+
+#: app/src/picker.rs:804
+msgid "Ten program"
+msgstr "This program"
+
+#: app/src/picker.rs:645
+msgid "Ten program przyjmuje jeden plik naraz."
+msgstr "This program accepts one file at a time."
+
+#: app/src/facets.rs:151
+msgid "Ten rok"
+msgstr "This year"
+
+#: app/ui/term.slint:24
+msgid "Terminal"
+msgstr ""
+
+#: app/ui/toolbar.slint:517
+msgid "Terminal (Ctrl+`)"
+msgstr ""
+
+#: app/src/menus.rs:424
+msgid "Terminal tutaj"
+msgstr "Terminal here"
+
+#: core/src/terminal.rs:83
+msgid "Terminal został zamknięty"
+msgstr "The terminal was closed"
+
+#: core/src/archive.rs:324
+msgid "To nie jest element archiwum"
+msgstr "This is not an archive item"
+
+#: core/src/archive.rs:302
+msgid "To nie jest element archiwum: {s}"
+msgstr "This is not an archive item: {s}"
+
+#: core/src/fsx.rs:309
+msgid "To nie jest prawidłowy dokument"
+msgstr "This is not a valid document"
+
+#: core/src/remote.rs:34
+msgid "To nie jest ścieżka FTP"
+msgstr "This is not an FTP path"
+
+#: core/src/drives.rs:337
+msgid "To połączenie nie istnieje"
+msgstr "This connection does not exist"
+
+#: app/ui/settings.slint:737
+msgid "To, co pod okienkiem, jest rozmyte (Windows 11); bez rozmycia – tylko przezroczyste"
+msgstr "What is under the popup is blurred (Windows 11); without blur – just transparent"
+
+#: app/ui/sync.slint:305
+msgid "Tryb"
+msgstr "Mode"
+
+msgid "Tryb samolotowy"
+msgstr "Airplane mode"
+
+#: app/ui/taskbar.slint:678
+msgid "Tryb samolotowy – wyłącza Wi-Fi, Bluetooth i sieć komórkową"
+msgstr "Airplane mode – turns off Wi-Fi, Bluetooth and cellular"
+
+#: app/ui/taskbar.slint:756
+msgid "Tryb wyświetlania na drugim ekranie (Win+P)"
+msgstr "Second screen display mode (Win+P)"
+
+#: core/src/quick.rs:153
+msgid "Tryb zasilania niedostępny"
+msgstr "Power mode unavailable"
+
+#: app/ui/taskbar.slint:726
+msgid "Tryb zasilania – klik przełącza: oszczędny → zrównoważony → wydajny"
+msgstr "Power mode – click to switch: efficient → balanced → performance"
+
+#: app/src/main.rs:2567
+msgid "Tu nie można niczego utworzyć – otwórz zwykły folder"
+msgstr "Nothing can be created here – open a regular folder"
+
+#: app/ui/home.slint:565
+msgid "Twoje foldery"
+msgstr "Your folders"
+
+#: app/src/widgetcfg.rs:120
+msgid "Tydzień"
+msgstr "Week"
+
+#: app/ui/widgets.slint:227
+msgid "Tydzień "
+msgstr "Week "
+
+#: app/ui/sync.slint:329
+msgid "Tylko dopisywanie – nic nie znika z celu"
+msgstr "Add only – nothing disappears from the target"
+
+msgid "Tylko filmy"
+msgstr "Videos only"
+
+msgid "Tylko foldery"
+msgstr "Folders only"
+
+msgid "Tylko zdjęcia"
+msgstr "Photos only"
+
+#: app/ui/picker.slint:500
+msgid "Typ"
+msgstr "Type"
+
+#: app/ui/wconfig.slint:397
+msgid "Tytuł"
+msgstr "Title"
+
+#: app/ui/settings.slint:1295
+msgid "Tytuł okna obok ikony"
+msgstr "Window title next to the icon"
+
+msgid "Tło"
+msgstr "Background"
+
+#: app/ui/settings.slint:646
+msgid "Tło okna"
+msgstr "Window background"
+
+#: app/src/widgetlive.rs:445
+msgid "Ubywający garb"
+msgstr "Waning gibbous"
+
+#: app/src/widgetlive.rs:447
+msgid "Ubywający sierp"
+msgstr "Waning crescent"
+
+#: app/ui/taskbar.slint:687
+msgid "Udostępnianie internetu – Ustawienia Windows"
+msgstr "Internet sharing – Windows Settings"
+
+#: app/src/menus.rs:433
+msgid "Udostępnij…"
+msgstr "Share…"
+
+msgid "Udział sieciowy jako litera dysku"
+msgstr "A network share as a drive letter"
+
+#: app/ui/overlays.slint:118
+msgid "Ukryj"
+msgstr "Hide"
+
+#: app/ui/term.slint:157
+msgid "Ukryj (Ctrl+`)"
+msgstr "Hide (Ctrl+`)"
+
+#: app/src/desktop.rs:1170
+msgid "Ukryj na pulpicie"
+msgstr "Hide on the desktop"
+
+#: app/ui/main.slint:756
+msgid "Ukryj pasek transferów"
+msgstr "Hide transfers bar"
+
+#: app/src/palette.rs:83
+msgid "Ukryj pliki ukryte"
+msgstr "Hide hidden files"
+
+#: app/ui/toolbar.slint:536
+msgid "Ukryj podgląd (Alt+P)"
+msgstr "Hide preview (Alt+P)"
+
+#: app/src/palette.rs:94
+msgid "Ukryj terminal"
+msgstr "Hide terminal"
+
+#: app/ui/toolbar.slint:517
+msgid "Ukryj terminal (Ctrl+`)"
+msgstr "Hide terminal (Ctrl+`)"
+
+#: app/src/start.rs:752
+msgid "Ukryj w menu Start"
+msgstr "Hide in Start menu"
+
+#: app/ui/settings.slint:902
+msgid "Ukryte i systemowe pliki"
+msgstr "Hidden and system files"
+
+#: app/ui/taskbar.slint:224
+msgid "Ukryte ikony"
+msgstr "Hidden icons"
+
+#: app/ui/settings.slint:416
+msgid "Ukryte pliki"
+msgstr "Hidden files"
+
+#: app/ui/wconfig.slint:293
+msgid "Układ"
+msgstr "Layout"
+
+#: app/ui/settings.slint:1025
+msgid "Układ stref: "
+msgstr "Zone layout: "
+
+#: core/src/weather.rs:32
+msgid "Ulewa"
+msgstr "Downpour"
+
+#: app/ui/widgets.slint:1122
+msgid "Ulubione"
+msgstr "Favourites"
+
+#: app/src/desktop.rs:1098
+msgid "Uporządkuj ikony"
+msgstr "Arrange icons"
+
+#: app/src/menus.rs:438
+msgid "Uprawnienia (Zabezpieczenia)…"
+msgstr "Permissions (Security)…"
+
+#: app/ui/sidebar.slint:183
+msgid "Upuść folder, aby przypiąć"
+msgstr "Drop a folder to pin it"
+
+#: app/ui/wkinds.slint:1072
+msgid "Uruchamiaj aplikacje z menu Start – najczęściej używane pojawią się tutaj"
+msgstr "Launch apps from the Start menu – the most used ones will appear here"
+
+#: app/ui/settings.slint:1574
+msgid "Uruchamiaj razem z Windows"
+msgstr "Start with Windows"
+
+msgid "Uruchamianie i rozruch"
+msgstr "Startup and boot"
+
+#: app/src/setup.rs:102
+msgid "Uruchamiać PowerDesk razem z Windows?\n\nTak – po zalogowaniu PowerDesk od razu zastępuje pulpit, pasek zadań i menu Start\nNie – uruchomisz go sam z menu Start\n\nZmienisz to w Ustawieniach PowerDesk → System."
+msgstr "Start PowerDesk with Windows?\n\nYes – after sign-in PowerDesk immediately replaces the desktop, taskbar and Start menu\nNo – you will start it yourself from the Start menu\n\nYou can change this in PowerDesk Settings → System."
+
+#: app/src/menus.rs:853
+msgid "Uruchom"
+msgstr "Run"
+
+#: app/ui/wkinds.slint:1114
+msgid "Uruchom "
+msgstr "Run "
+
+#: app/src/menus.rs:350
+msgid "Uruchom jako administrator"
+msgstr "Run as administrator"
+
+#: app/ui/term.slint:149
+msgid "Uruchom ponownie"
+msgstr "Restart"
+
+#: app/ui/settings.slint:1753
+msgid "Uruchom ponownie PowerDesk"
+msgstr "Restart PowerDesk"
+
+#: app/src/menus.rs:854
+msgid "Uruchom w nowej karcie"
+msgstr "Run in a new tab"
+
+#: app/src/taskbar.rs:899
+msgid "Uruchom {}"
+msgstr "Run {}"
+
+#: app/src/main.rs:3585
+msgid "Urządzenia"
+msgstr "Devices"
+
+msgid "Urządzenia odtwarzania i nagrywania"
+msgstr "Playback and recording devices"
+
+#: core/src/fsx.rs:107
+msgid "Urządzenie nie jest gotowe"
+msgstr "The device is not ready"
+
+#: app/ui/taskbar.slint:452
+msgid "Urządzenie odtwarzające"
+msgstr "Playback device"
+
+#: app/src/widgetmore.rs:240
+msgid "Ustaw"
+msgstr "Set"
+
+#: app/src/widgetmore.rs:234
+msgid "Ustaw datę…"
+msgstr "Set date…"
+
+#: app/ui/wkinds.slint:1452
+msgid "Ustaw minutnik na "
+msgstr "Set the timer to "
+
+#: app/ui/settings.slint:1653
+msgid "Ustaw od nowa wpisy, które nie wskazują tego programu"
+msgstr "Reset entries that do not point to this program"
+
+#: app/ui/settings.slint:404
+msgid "Ustawienia"
+msgstr "Settings"
+
+#: app/ui/sidebar.slint:117
+msgid "Ustawienia PowerDesk (Ctrl+,)"
+msgstr "PowerDesk settings (Ctrl+,)"
+
+#: app/ui/taskbar.slint:717
+msgid "Ustawienia Windows"
+msgstr "Windows Settings"
+
+#: app/ui/taskbar.slint:1072
+msgid "Ustawienia daty i godziny"
+msgstr "Date and time settings"
+
+#: app/ui/taskbar.slint:543
+msgid "Ustawienia dźwięku"
+msgstr "Sound settings"
+
+#: app/src/desktop.rs:1135
+msgid "Ustawienia ekranu"
+msgstr "Display settings"
+
+#: app/src/taskbar.rs:471
+msgid "Ustawienia paska zadań"
+msgstr "Taskbar settings"
+
+#: app/src/desktop.rs:1137
+msgid "Ustawienia pulpitu"
+msgstr "Desktop settings"
+
+#: app/ui/taskbar.slint:955
+msgid "Ustawienia sieci i internetu"
+msgstr "Network and internet settings"
+
+msgid "Ustawienia zapisane w rejestrze"
+msgstr "Settings stored in the registry"
+
+#: app/ui/settings.slint:1872
+msgid "Ustawienie sterownika NVIDIA (jak „Maksymalna liczba klatek” w jego panelu) – działa we wszystkich grach, bez dodatków w samej grze. Zapis może wymagać uruchomienia PowerDesk jako administrator."
+msgstr "An NVIDIA driver setting (like “Max Frame Rate” in its control panel) – works in all games, without add-ons in the game itself. Saving may require running PowerDesk as administrator."
+
+#: app/src/transfers.rs:262
+msgid "Usunięto ({})"
+msgstr "Deleted ({})"
+
+#: app/src/syncview.rs:347
+msgid "Usunąć synchronizację?"
+msgstr "Delete the sync?"
+
+#: app/src/setup.rs:146
+msgid "Usunąć też ustawienia PowerDesk (wygląd, kafelki, widżety, przypięte foldery)?"
+msgstr "Also delete PowerDesk settings (look, tiles, widgets, pinned folders)?"
+
+#: app/src/transfers.rs:247
+msgid "Usunąć trwale?"
+msgstr "Delete permanently?"
+
+#: app/ui/settings.slint:929
+msgid "Usuwanie trwałe (Shift+Del) zawsze wymaga potwierdzenia"
+msgstr "Permanent deletion (Shift+Del) always requires confirmation"
+
+#: core/src/ops.rs:229
+msgid "Usuwanie {} elem."
+msgstr "Deleting {} items"
+
+#: app/ui/settings.slint:1115
+msgid "Usuń"
+msgstr "Delete"
+
+#: app/src/menus.rs:810
+msgid "Usuń lokalizację z panelu"
+msgstr "Remove location from panel"
+
+#: app/ui/wkinds.slint:1469
+msgid "Usuń ostatni znak"
+msgstr "Delete last character"
+
+#: app/src/edgepanels.rs:352
+msgid "Usuń panel"
+msgstr "Remove panel"
+
+#: app/ui/settings.slint:1116
+msgid "Usuń panel z pulpitu (folder zostaje na dysku)"
+msgstr "Remove the panel from the desktop (the folder stays on disk)"
+
+#: app/ui/sync.slint:661
+msgid "Usuń synchronizację (pliki zostają)"
+msgstr "Delete sync (files stay)"
+
+#: app/src/menus.rs:416
+msgid "Usuń trwale"
+msgstr "Delete permanently"
+
+#: app/src/desktop.rs:441
+msgid "Usuń widżet"
+msgstr "Remove widget"
+
+#: app/ui/taskbar.slint:1933
+msgid "Usuń wszystkie powiadomienia z listy"
+msgstr "Remove all notifications from the list"
+
+#: app/src/widgetfeeds.rs:455
+msgid "Usuń wszystkie przypomnienia"
+msgstr "Delete all reminders"
+
+#: app/ui/settings.slint:1424
+msgid "Usuń własny obraz przycisku Start"
+msgstr "Remove custom Start button image"
+
+#: app/ui/clip.slint:162
+msgid "Usuń z historii"
+msgstr "Remove from history"
+
+#: app/src/widgetmore.rs:229
+msgid "Usuń zrobione"
+msgstr "Remove done"
+
+#: core/src/archive.rs:90
+msgid "Uszkodzone archiwum RAR: {e}"
+msgstr "Damaged RAR archive: {e}"
+
+msgid "Usługi"
+msgstr "Services"
+
+msgid "Usługi systemu Windows"
+msgstr "Windows services"
+
+msgid "Usługi, dzienniki, dyski"
+msgstr "Services, logs, disks"
+
+#: app/src/model.rs:253
+msgid "Utworzono"
+msgstr "Created"
+
+#: app/src/archives.rs:136
+msgid "Utworzono „{}”"
+msgstr "Created “{}”"
+
+#: app/ui/picker.slint:841
+msgid "Utwórz"
+msgstr "Create"
+
+#: app/ui/picker.slint:842
+msgid "Utwórz folder (Enter)"
+msgstr "Create folder (Enter)"
+
+#: app/ui/bulk.slint:313
+msgid "Uwzględniaj wielkość liter"
+msgstr "Match case"
+
+#: app/ui/space.slint:435
+msgid "Uwzględnij folder TEMP systemu"
+msgstr "Include the system TEMP folder"
+
+#: app/ui/wkinds.slint:1170
+msgid "Uśpij"
+msgstr "Sleep"
+
+#: app/ui/wkinds.slint:1170
+msgid "Uśpij komputer"
+msgstr "Put the computer to sleep"
+
+#: app/ui/overlays.slint:265
+msgid "W folderze docelowym są już elementy o tych samych nazwach."
+msgstr "The target folder already contains items with the same names."
+
+#: app/ui/toolbar.slint:159
+msgid "W górę (Alt+↑)"
+msgstr "Up (Alt+↑)"
+
+#: app/ui/settings.slint:1593
+msgid "W innych programach zamiast okien Windows – z przypiętymi folderami. Wyłączone – zwykłe okna Windows"
+msgstr "In other programs instead of Windows dialogs – with pinned folders. Off – regular Windows dialogs"
+
+msgid "W ostatnim tygodniu"
+msgstr "In the last week"
+
+#: core/src/integration.rs:25
+msgid "W programach 64- i 32-bitowych; programy uruchomione jako administrator i przy każdym problemie – okno Windows"
+msgstr "In 64- and 32-bit programs; programs run as administrator and any problem – Windows dialog"
+
+#: core/src/integration.rs:27
+msgid "W programach 64-bitowych; 32-bitowe, uruchomione jako administrator i przy każdym problemie – okno Windows"
+msgstr "In 64-bit programs; 32-bit ones, programs run as administrator and any problem – Windows dialog"
+
+#: app/src/model.rs:140
+msgid "W przyszłości"
+msgstr "In the future"
+
+msgid "W roku 2024"
+msgstr "In 2024"
+
+#: app/src/palette.rs:169
+msgid "W tym folderze"
+msgstr "In this folder"
+
+#: app/src/model.rs:158
+msgid "W zeszłym miesiącu"
+msgstr "Last month"
+
+#: app/src/model.rs:152
+msgid "W zeszłym tygodniu"
+msgstr "Last week"
+
+#: app/src/model.rs:155
+msgid "Wcześniej w tym miesiącu"
+msgstr "Earlier this month"
+
+#: app/src/model.rs:149
+msgid "Wcześniej w tym tygodniu"
+msgstr "Earlier this week"
+
+#: app/src/model.rs:146
+msgid "Wczoraj"
+msgstr "Yesterday"
+
+#: app/ui/viewer.slint:343
+msgid "Wczytuję…"
+msgstr "Loading…"
+
+#: app/src/widgetfeeds.rs:367
+msgid "Wczytywanie zdjęć…"
+msgstr "Loading photos…"
+
+#: app/ui/settings.slint:1946
+msgid "Wersja"
+msgstr "Version"
+
+#: app/src/updates.rs:96
+msgid "Wersja {v} – „Zaktualizuj” w oknie PowerDesk albo Ustawienia → System → Aktualizacje."
+msgstr "Version {v} – “Update” in the PowerDesk window or Settings → System → Updates."
+
+msgid "Wersja, sprzęt, nazwa komputera"
+msgstr "Version, hardware, computer name"
+
+#: app/ui/sync.slint:361
+msgid "Wersjonowanie"
+msgstr "Versioning"
+
+#: app/ui/wkinds.slint:244
+msgid "Wiatr "
+msgstr "Wind "
+
+#: app/ui/home.slint:688
+msgid "Wideo"
+msgstr "Video"
+
+#: app/ui/wkinds.slint:837
+msgid "Widoczne sieci Wi‑Fi: "
+msgstr "Visible Wi‑Fi networks: "
+
+#: app/src/desktop.rs:1086
+msgid "Widok"
+msgstr "View"
+
+#: app/ui/settings.slint:385
+msgid "Widok folderów"
+msgstr "Folder view"
+
+#: app/ui/picker.slint:388
+msgid "Widok listy"
+msgstr "List view"
+
+#: app/ui/picker.slint:388
+msgid "Widok siatki z miniaturami"
+msgstr "Grid view with thumbnails"
+
+#: app/src/start.rs:397
+msgid "Widok: duże ikony"
+msgstr "View: large icons"
+
+#: app/src/start.rs:395
+msgid "Widok: lista z nazwami"
+msgstr "View: list with names"
+
+#: app/src/widgets.rs:69
+msgid "Widżet"
+msgstr "Widget"
+
+#: app/src/props.rs:306
+msgid "Wiele elementów"
+msgstr "Multiple items"
+
+#: app/ui/settings.slint:1351
+msgid "Wielkość ikon programów"
+msgstr "App icon size"
+
+#: app/ui/bulk.slint:327
+msgid "Wielkość liter"
+msgstr "Letter case"
+
+#: app/ui/settings.slint:415
+msgid "Wielkość miniatur"
+msgstr "Thumbnail size"
+
+#: app/ui/toolbar.slint:455
+msgid "Wielkość miniatur (Ctrl+kółko)"
+msgstr "Thumbnail size (Ctrl+wheel)"
+
+msgid "Wiersz polecenia"
+msgstr "Command Prompt"
+
+#: app/ui/wkinds.slint:244
+msgid "Wilgotność "
+msgstr "Humidity "
+
+#: app/src/taskbar.rs:242
+msgid "Windows"
+msgstr ""
+
+#: app/ui/settings.slint:1391
+msgid "Windows 10"
+msgstr ""
+
+#: app/ui/settings.slint:1391
+msgid "Windows 11"
+msgstr ""
+
+#: app/src/desktop.rs:1225
+msgid "Więcej opcji…"
+msgstr "More options…"
+
+msgid "Większe niż 100 MB"
+msgstr "Larger than 100 MB"
+
+#: app/src/desktop.rs:1081
+msgid "Wklej"
+msgstr "Paste"
+
+#: app/ui/titlebar.slint:160
+msgid "Wklej (Ctrl+V)"
+msgstr "Paste (Ctrl+V)"
+
+#: app/src/menus.rs:393
+msgid "Wklej do folderu"
+msgstr "Paste into folder"
+
+#: app/src/widgets.rs:227
+msgid "Wolne {}"
+msgstr "{} free"
+
+#: app/src/palette.rs:162
+msgid "Wpisana ścieżka"
+msgstr "Typed path"
+
+#: app/src/palette.rs:234
+msgid "Wpisz nazwę folderu albo ścieżkę…"
+msgstr "Type a folder name or path…"
+
+#: app/ui/palette.slint:20
+msgid "Wpisz polecenie…"
+msgstr "Type a command…"
+
+#: app/ui/start.slint:220
+msgid "Wpisz, aby wyszukać"
+msgstr "Type to search"
+
+msgid "Wrzesień"
+msgstr "September"
+
+#: app/ui/taskbar.slint:999
+msgid "Wróć do bieżącego miesiąca"
+msgstr "Back to the current month"
+
+#: app/ui/start.slint:397
+msgid "Wróć do grup"
+msgstr "Back to groups"
+
+#: app/ui/viewer.slint:213
+msgid "Wróć do listy (Esc)"
+msgstr "Back to the list (Esc)"
+
+#: app/ui/picker.slint:834
+msgid "Wróć i wybierz inną nazwę"
+msgstr "Go back and choose a different name"
+
+#: app/ui/wkinds.slint:259
+msgid "Wschód "
+msgstr "Sunrise "
+
+#: app/src/widgetcfg.rs:112
+msgid "Wspólna z menu widżetu – np. Kraków"
+msgstr "Shared with the widget menu – e.g. London"
+
+#: app/src/widgetcfg.rs:195
+msgid "Wspólna: {}"
+msgstr "Shared: {}"
+
+#: app/ui/picker.slint:334
+msgid "Wstecz (Alt+←)"
+msgstr "Back (Alt+←)"
+
+#: app/ui/overlays.slint:78
+msgid "Wstrzymaj"
+msgstr "Pause"
+
+#: app/ui/player.slint:112
+msgid "Wstrzymaj (spacja)"
+msgstr "Pause (space)"
+
+#: app/src/syncview.rs:170
+msgid "Wstrzymana"
+msgstr "Paused"
+
+#: app/src/transfers.rs:363
+msgid "Wstrzymano"
+msgstr "Paused"
+
+#: core/src/sync.rs:523
+msgid "Wstrzymano: plan usuwa {deletions} elementów – potwierdź"
+msgstr "Paused: the plan deletes {deletions} items – confirm"
+
+#: app/ui/home.slint:688
+msgid "Wszystkie"
+msgstr "All"
+
+#: app/ui/taskbar.slint:284
+msgid "Wszystkie ikony na pasku"
+msgstr "All icons on the taskbar"
+
+#: app/ui/taskbar.slint:232
+msgid "Wszystkie ikony są na pasku"
+msgstr "All icons are on the taskbar"
+
+#: app/ui/settings.slint:1465
+msgid "Wszystkie ikony zasobnika na pasku"
+msgstr "All tray icons on the taskbar"
+
+#: app/ui/settings.slint:729
+msgid "Wszystkie okienka: menu podręczne, Start, okienka paska i zasobnika, podpowiedzi, historia schowka i powiadomienia"
+msgstr "All popups: context menus, Start, taskbar and tray popups, tooltips, clipboard history and notifications"
+
+msgid "Wszystkie ustawienia systemu"
+msgstr "All system settings"
+
+#: app/src/model.rs:320
+msgid "Wszystko"
+msgstr "Everything"
+
+#: app/ui/space.slint:449
+msgid "Wszystko trafia do Kosza – można przywrócić. Foldery programów, systemowe, ukryte i repozytoria są pomijane."
+msgstr "Everything goes to the Recycle Bin – it can be restored. Program, system, hidden and repository folders are skipped."
+
+#: app/src/picker.rs:860
+msgid "Wybierz folder"
+msgstr "Choose folder"
+
+#: app/ui/settings.slint:1181
+msgid "Wybierz folder i przypnij go do "
+msgstr "Choose a folder and pin it to the "
+
+#: app/ui/wconfig.slint:390
+msgid "Wybierz folder pokazywany w widżecie"
+msgstr "Choose the folder shown in the widget"
+
+#: app/src/widgetfeeds.rs:429
+msgid "Wybierz folder ze zdjęciami…"
+msgstr "Choose a photo folder…"
+
+#: core/src/sync.rs:246
+msgid "Wybierz folder źródłowy i docelowy"
+msgstr "Choose the source and target folder"
+
+#: app/ui/settings.slint:1231
+msgid "Wybierz folder…"
+msgstr "Choose folder…"
+
+#: app/src/picker.rs:630
+msgid "Wybierz jeden folder."
+msgstr "Choose one folder."
+
+#: app/ui/settings.slint:1416
+msgid "Wybierz obraz…"
+msgstr "Choose image…"
+
+#: app/ui/picker.slint:712
+msgid "Wybierz ten folder (Enter)"
+msgstr "Choose this folder (Enter)"
+
+#: app/ui/settings.slint:771
+msgid "Wybrany folder"
+msgstr "Chosen folder"
+
+#: app/ui/wkinds.slint:1173
+msgid "Wycinek"
+msgstr "Snip"
+
+#: app/ui/taskbar.slint:355
+msgid "Wycisz"
+msgstr "Mute"
+
+#: app/ui/player.slint:136
+msgid "Wycisz (M)"
+msgstr "Mute (M)"
+
+#: app/ui/wkinds.slint:1465
+msgid "Wyczyść"
+msgstr "Clear"
+
+#: app/ui/toolbar.slint:658
+msgid "Wyczyść (Esc)"
+msgstr "Clear (Esc)"
+
+#: app/ui/toolbar.slint:762
+msgid "Wyczyść filtry"
+msgstr "Clear filters"
+
+#: app/ui/shelf.slint:254
+msgid "Wyczyść półkę (pliki zostają na dysku)"
+msgstr "Clear the shelf (files stay on disk)"
+
+#: app/ui/clip.slint:86
+msgid "Wyczyść wszystko"
+msgstr "Clear all"
+
+#: app/ui/taskbar.slint:724
+msgid "Wydajny"
+msgstr "Performance"
+
+#: core/src/update.rs:106
+msgid "Wydanie nie ma sumy kontrolnej pliku PowerDesk"
+msgstr "The release has no checksum for the PowerDesk file"
+
+#: app/ui/settings.slint:383
+msgid "Wygląd"
+msgstr "Appearance"
+
+#: app/ui/viewer.slint:310
+msgid "Wyjdź z pełnego ekranu (F11)"
+msgstr "Exit full screen (F11)"
+
+#: app/ui/bulk.slint:272
+msgid "Wykonanie"
+msgstr "Taken"
+
+#: app/src/widgetcfg.rs:122
+msgid "Wykres"
+msgstr "Chart"
+
+#: app/src/widgetcfg.rs:118
+msgid "Wykres 24 h"
+msgstr "24 h chart"
+
+#: app/ui/settings.slint:1433
+msgid "Wykryj"
+msgstr "Detect"
+
+#: app/src/start.rs:770
+msgid "Wyloguj"
+msgstr "Sign out"
+
+#: app/src/model.rs:60
+msgid "Wymiary"
+msgstr "Dimensions"
+
+#: app/ui/bulk.slint:224
+msgid "Wymiary zdjęcia"
+msgstr "Photo dimensions"
+
+#: app/src/main.rs:2309
+msgid "Wymiary: {} × {}"
+msgstr "Dimensions: {} × {}"
+
+#: app/ui/wkinds.slint:1469
+msgid "Wynik"
+msgstr "Result"
+
+#: app/src/archives.rs:97
+msgid "Wypakowano do „{}”"
+msgstr "Extracted to “{}”"
+
+#: app/src/archives.rs:93
+msgid "Wypakowuję {what}…"
+msgstr "Extracting {what}…"
+
+#: app/src/archives.rs:111
+msgid "Wypakowuję „{}”…"
+msgstr "Extracting “{}”…"
+
+#: app/src/archives.rs:104
+msgid "Wypakuj do folderu"
+msgstr "Extract to folder"
+
+#: app/src/menus.rs:331
+msgid "Wypakuj do…"
+msgstr "Extract to…"
+
+#: app/src/menus.rs:381
+msgid "Wypakuj obok archiwum"
+msgstr "Extract next to the archive"
+
+#: app/src/menus.rs:329
+msgid "Wypakuj tutaj"
+msgstr "Extract here"
+
+#: app/src/widgetcfg.rs:126
+msgid "Wypełnij"
+msgstr "Fill"
+
+#: app/ui/bulk.slint:304
+msgid "Wyrażenie regularne"
+msgstr "Regular expression"
+
+#: app/src/comparing.rs:59
+msgid "Wyrównaj"
+msgstr "Align"
+
+#: app/src/desktop.rs:1093
+msgid "Wyrównaj ikony do siatki"
+msgstr "Align icons to grid"
+
+#: app/ui/settings.slint:1051
+msgid "Wyrównuj ikony do siatki"
+msgstr "Align icons to grid"
+
+#: app/ui/settings.slint:1368
+msgid "Wysokość paska"
+msgstr "Taskbar height"
+
+#: app/src/menus.rs:818
+msgid "Wysuń"
+msgstr "Eject"
+
+#: app/src/taskbar.rs:1521
+msgid "Wysuń {label} ({})"
+msgstr "Eject {label} ({})"
+
+#: app/src/taskbar.rs:506
+msgid "Wyszukaj"
+msgstr "Search"
+
+#: app/src/desktop.rs:1211
+msgid "Wytnij"
+msgstr "Cut"
+
+#: app/ui/titlebar.slint:142
+msgid "Wytnij (Ctrl+X)"
+msgstr "Cut (Ctrl+X)"
+
+#: app/ui/taskbar.slint:669
+msgid "Wyłącz Bluetooth"
+msgstr "Turn off Bluetooth"
+
+#: app/ui/toolbar.slint:297
+msgid "Wyłącz filtry"
+msgstr "Turn off filters"
+
+#: app/ui/taskbar.slint:678
+msgid "Wyłącz tryb samolotowy"
+msgstr "Turn off airplane mode"
+
+#: app/ui/toolbar.slint:768
+msgid "Wyłącz wszystkie filtry"
+msgstr "Turn off all filters"
+
+#: app/ui/settings.slint:1052
+msgid "Wyłączone – ikona zostaje dokładnie tam, gdzie ją puścisz; miejsca są zapamiętywane"
+msgstr "Off – an icon stays exactly where you drop it; positions are remembered"
+
+#: app/ui/settings.slint:1522
+msgid "Wyłączone – jeden pasek, tylko na monitorze głównym"
+msgstr "Off – one taskbar, only on the main monitor"
+
+#: app/ui/settings.slint:1557
+msgid "Wyłączone – krzyżyk kończy PowerDesk (pulpit i pasek Windows wracają)"
+msgstr "Off – the close button exits PowerDesk (the Windows desktop and taskbar come back)"
+
+#: app/ui/settings.slint:1584
+msgid "Wyłączone – po zalogowaniu tylko pulpit, pasek i ikona w zasobniku"
+msgstr "Off – after sign-in only the desktop, taskbar and tray icon"
+
+#: app/ui/settings.slint:1566
+msgid "Wyłączone – po zamknięciu okna folderów następne otwarcie (Ustawienia, folder z innego programu) pokazuje tylko to, co otwierasz; przypięte karty zostają"
+msgstr "Off – after closing the folder window, the next opening (Settings, a folder from another program) shows only what you open; pinned tabs stay"
+
+#: app/ui/settings.slint:1531
+msgid "Wyłączone – przycisk okna jest na pasku monitora, na którym leży okno (przenosi się razem z oknem)"
+msgstr "Off – a window's button is on the taskbar of the monitor the window is on (it moves with the window)"
+
+#: app/ui/settings.slint:1466
+msgid "Wyłączone – wybrane ikony na pasku, reszta pod strzałką; ikonę przeciągniesz na strzałkę albo z okienka na pasek"
+msgstr "Off – chosen icons on the taskbar, the rest under the arrow; drag an icon onto the arrow or from the popup onto the taskbar"
+
+#: app/ui/overlays.slint:78
+msgid "Wznów"
+msgstr "Resume"
+
+#: app/ui/bulk.slint:204
+msgid "Wzorzec nazwy"
+msgstr "Name pattern"
+
+#: app/ui/settings.slint:1394
+msgid "Wąska lista jak w Windows 7"
+msgstr "Narrow list like Windows 7"
+
+#: app/ui/settings.slint:1082
+msgid "Wąski pasek przy brzegu ekranu – po najechaniu wysuwa się z zawartością folderu. Kilka paneli na jednej krawędzi dzieli ją po równo."
+msgstr "A narrow strip at the screen edge – on hover it slides out with the folder's contents. Several panels on one edge share it equally."
+
+#: app/ui/settings.slint:1306
+msgid "Wąskie przyciski, jak w Windows 11"
+msgstr "Narrow buttons, like Windows 11"
+
+#: app/ui/settings.slint:626
+msgid "Własny kolor"
+msgstr "Custom colour"
+
+#: app/ui/settings.slint:1260
+msgid "Własny obraz dla jednego monitora: prawy przycisk na pulpicie → Tapeta. Tapeta Windows i ekran blokady zostają bez zmian."
+msgstr "A custom image for one monitor: right-click the desktop → Wallpaper. The Windows wallpaper and lock screen stay unchanged."
+
+#: app/src/desktop.rs:1118
+msgid "Własny obraz na tym monitorze…"
+msgstr "Custom image on this monitor…"
+
+#: app/ui/wconfig.slint:402
+msgid "Własny tytuł widżetu – Enter zatwierdza, puste przywraca domyślny"
+msgstr "Custom widget title – Enter confirms, empty restores the default"
+
+#: app/ui/preview.slint:427
+msgid "Właściwości"
+msgstr "Properties"
+
+#: app/src/menus.rs:495
+msgid "Właściwości folderu"
+msgstr "Folder properties"
+
+#: app/ui/props.slint:405
+msgid "Właściwości systemowe"
+msgstr "System properties"
+
+msgid "Właściwości systemu"
+msgstr "System Properties"
+
+#: app/ui/titlebar.slint:170
+msgid "Właściwości tego folderu (Alt+Enter)"
+msgstr "Properties of this folder (Alt+Enter)"
+
+#: app/ui/titlebar.slint:170
+msgid "Właściwości zaznaczenia (Alt+Enter)"
+msgstr "Selection properties (Alt+Enter)"
+
+#: app/ui/taskbar.slint:669
+msgid "Włącz Bluetooth"
+msgstr "Turn on Bluetooth"
+
+#: app/ui/taskbar.slint:355
+msgid "Włącz dźwięk"
+msgstr "Unmute"
+
+#: app/ui/player.slint:136
+msgid "Włącz dźwięk (M)"
+msgstr "Unmute (M)"
+
+#: app/src/settings.rs:595
+msgid "Włącza się razem z nakładką."
+msgstr "Turns on together with the overlay."
+
+#: app/ui/settings.slint:1196
+msgid "Z Windows"
+msgstr "From Windows"
+
+#: core/src/library.rs:72
+msgid "Z aparatu"
+msgstr "From camera"
+
+#: app/ui/settings.slint:1815
+msgid "Z wykresem czasu klatek, RAM i VRAM; wyłączone – tylko FPS, procesor i karta"
+msgstr "With frame time chart, RAM and VRAM; off – only FPS, CPU and GPU"
+
+#: core/src/fsx.rs:114
+msgid "Za długa nazwa lub ścieżka"
+msgstr "Name or path too long"
+
+#: app/ui/term.slint:135
+msgid "Za folderem"
+msgstr "After the folder"
+
+#: core/src/fsx.rs:110
+msgid "Za mało miejsca na dysku"
+msgstr "Not enough disk space"
+
+msgid "Zabezpieczenia Windows"
+msgstr "Windows Security"
+
+#: app/ui/wkinds.slint:1169
+msgid "Zablokuj"
+msgstr "Lock"
+
+#: app/ui/wkinds.slint:1169
+msgid "Zablokuj komputer (Win+L)"
+msgstr "Lock the computer (Win+L)"
+
+#: app/ui/overlays.slint:296
+msgid "Zachowaj oba"
+msgstr "Keep both"
+
+#: app/ui/wkinds.slint:1172
+msgid "Zadania"
+msgstr "Tasks"
+
+msgid "Zadania uruchamiane o czasie"
+msgstr "Tasks run on schedule"
+
+#: app/src/settings.rs:547
+msgid "Zainstalowany {who}: {}{note}"
+msgstr "Installed {who}: {}{note}"
+
+#: app/src/setup.rs:214
+msgid "Zainstalować PowerDesk?\n\nPowerDesk zainstaluje się w Program Files (Windows zapyta o uprawnienia administratora) i zastąpi Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu."
+msgstr "Install PowerDesk?\n\nPowerDesk will be installed in Program Files (Windows will ask for administrator permission) and will replace Explorer: the desktop, taskbar and Start menu. Updates install in the same place."
+
+#: app/ui/settings.slint:1674
+msgid "Zainstaluj PowerDesk…"
+msgstr "Install PowerDesk…"
+
+#: app/ui/space.slint:265
+msgid "Zajętość"
+msgstr "Usage"
+
+#: app/src/menus.rs:489
+msgid "Zajętość i porządki"
+msgstr "Usage and clean-up"
+
+#: app/src/palette.rs:123
+msgid "Zajętość i porządki w tym folderze"
+msgstr "Usage and clean-up in this folder"
+
+#: app/src/spaceview.rs:66
+msgid "Zajętość: {name}"
+msgstr "Usage: {name}"
+
+#: app/ui/settings.slint:1760
+msgid "Zakończ PowerDesk"
+msgstr "Exit PowerDesk"
+
+#: app/src/palette.rs:142
+msgid "Zakończ wyszukiwanie"
+msgstr "End search"
+
+#: app/src/transfers.rs:357
+msgid "Zakończono z błędami ({})"
+msgstr "Finished with errors ({})"
+
+#: app/src/updates.rs:97
+msgid "Zaktualizuj"
+msgstr "Update"
+
+#: app/ui/bulk.slint:290
+msgid "Zamień na"
+msgstr "Replace with"
+
+#: app/ui/overlays.slint:211
+msgid "Zamknij"
+msgstr "Close"
+
+#: app/ui/props.slint:246
+msgid "Zamknij (Esc)"
+msgstr "Close (Esc)"
+
+#: app/ui/picker.slint:720
+msgid "Zamknij bez wyboru (Esc)"
+msgstr "Close without choosing (Esc)"
+
+#: app/src/menus.rs:895
+msgid "Zamknij karty po prawej"
+msgstr "Close tabs to the right"
+
+#: app/src/menus.rs:886
+msgid "Zamknij kartę"
+msgstr "Close tab"
+
+#: app/ui/titlebar.slint:113
+msgid "Zamknij kartę (Ctrl+W)"
+msgstr "Close tab (Ctrl+W)"
+
+#: app/ui/picker.slint:818
+msgid "Zamknij komunikat"
+msgstr "Close message"
+
+#: app/ui/taskbar.slint:1168
+msgid "Zamknij okno"
+msgstr "Close window"
+
+#: app/src/menus.rs:892
+msgid "Zamknij pozostałe karty"
+msgstr "Close other tabs"
+
+#: app/ui/viewer.slint:318
+msgid "Zamknij przeglądarkę (Esc)"
+msgstr "Close viewer (Esc)"
+
+#: app/src/start.rs:777
+msgid "Zamknij system"
+msgstr "Shut down"
+
+#: app/src/taskbar.rs:1241
+msgid "Zamknij ten pulpit"
+msgstr "Close this desktop"
+
+#: app/src/taskbar.rs:935
+msgid "Zamknij wszystkie okna ({})"
+msgstr "Close all windows ({})"
+
+#: app/src/menus.rs:355
+msgid "Zamontuj"
+msgstr "Mount"
+
+#: app/ui/settings.slint:1754
+msgid "Zamyka i od razu uruchamia PowerDesk – pulpit i pasek wracają po chwili"
+msgstr "Closes and immediately restarts PowerDesk – the desktop and taskbar come back after a moment"
+
+#: app/ui/settings.slint:871
+msgid "Zapamiętane widoki folderów: "
+msgstr "Saved folder views: "
+
+#: app/ui/taskbar.slint:888
+msgid "Zapisana"
+msgstr "Saved"
+
+#: app/src/palette.rs:207
+msgid "Zapisane"
+msgstr "Saved"
+
+#: core/src/library.rs:73
+msgid "Zapisane obrazy"
+msgstr "Saved images"
+
+#: app/src/main.rs:3194
+msgid "Zapisane wyszukiwania"
+msgstr "Saved searches"
+
+#: app/src/taskbar.rs:1256
+msgid "Zapisano i skopiowano do schowka"
+msgstr "Saved and copied to the clipboard"
+
+#: app/src/main.rs:1831
+msgid "Zapisano „{name}” w panelu bocznym"
+msgstr "Saved “{name}” in the side panel"
+
+#: app/ui/sync.slint:397
+msgid "Zapisz"
+msgstr "Save"
+
+#: app/src/picker.rs:862
+msgid "Zapisz jako"
+msgstr "Save as"
+
+#: app/ui/picker.slint:712
+msgid "Zapisz pod tą nazwą (Enter)"
+msgstr "Save under this name (Enter)"
+
+#: app/ui/toolbar.slint:641
+msgid "Zapisz wyszukiwanie w panelu bocznym"
+msgstr "Save search in the side panel"
+
+#: app/ui/settings.slint:882
+msgid "Zapomnij wszystkie"
+msgstr "Forget all"
+
+#: app/src/menus.rs:836
+msgid "Zarządzaj funkcją BitLocker"
+msgstr "Manage BitLocker"
+
+msgid "Zarządzanie dyskami"
+msgstr "Disk Management"
+
+#: app/src/desktop.rs:1181
+msgid "Zarządzanie komputerem"
+msgstr "Computer Management"
+
+#: app/src/home.rs:477
+msgid "Zasilacz podłączony"
+msgstr "Plugged in"
+
+#: app/ui/start.slint:194
+msgid "Zasilanie"
+msgstr "Power"
+
+msgid "Zasilanie i bateria"
+msgstr "Power & battery"
+
+#: app/ui/wkinds.slint:638
+msgid "Zasilanie sieciowe"
+msgstr "Mains power"
+
+#: app/ui/wconfig.slint:126
+msgid "Zastosuj"
+msgstr "Apply"
+
+#: app/ui/overlays.slint:294
+msgid "Zastąp"
+msgstr "Replace"
+
+#: app/ui/picker.slint:826
+msgid "Zastąp istniejący plik"
+msgstr "Replace the existing file"
+
+#: app/ui/overlays.slint:295
+msgid "Zastąp tylko starsze"
+msgstr "Replace only older"
+
+#: app/ui/sync.slint:620
+msgid "Zatrzymaj"
+msgstr "Stop"
+
+#: app/ui/viewer.slint:284
+msgid "Zatrzymaj pokaz slajdów (S)"
+msgstr "Stop slideshow (S)"
+
+#: app/src/preview.rs:309
+msgid "Zawartość"
+msgstr "Contents"
+
+#: app/src/props.rs:232
+msgid "Zawiera"
+msgstr "Contains"
+
+#: app/ui/settings.slint:1340
+msgid "Zawsze"
+msgstr "Always"
+
+#: app/ui/fileview.slint:476
+msgid "Zaznacz elementy grupy (Ctrl – dodaj)"
+msgstr "Select the group's items (Ctrl – add)"
+
+#: app/ui/preview.slint:402
+msgid "Zaznacz plik, aby zobaczyć podgląd"
+msgstr "Select a file to see a preview"
+
+#: app/src/menus.rs:480
+msgid "Zaznacz wszystko"
+msgstr "Select all"
+
+#: app/ui/settings.slint:938
+msgid "Zaznaczanie: Ctrl, Shift albo ramka · jak „Kliknij raz, aby otworzyć” w Eksploratorze"
+msgstr "Selecting: Ctrl, Shift or a box · like “Single-click to open” in Explorer"
+
+#: app/src/palette.rs:129
+msgid "Zaznaczenie"
+msgstr "Selection"
+
+#: app/src/spaceview.rs:485
+msgid "Zaznaczono {count} · {}"
+msgstr "Selected {count} · {}"
+
+#: app/src/preview.rs:228
+msgid "Zaznaczono {}"
+msgstr "Selected {}"
+
+#: core/src/render.rs:40
+msgid "Zażółć gęślą jaźń"
+msgstr ""
+
+#: app/ui/shelf.slint:207
+msgid "Zdejmij z półki"
+msgstr "Remove from shelf"
+
+#: app/ui/home.slint:688
+msgid "Zdjęcia"
+msgstr "Photos"
+
+#: app/ui/settings.slint:860
+msgid "Zdjęcia i filmy w galerii"
+msgstr "Photos and videos in the gallery"
+
+#: app/ui/settings.slint:1206
+msgid "Zdjęcia z folderu, każdy monitor inne"
+msgstr "Photos from a folder, different on each monitor"
+
+#: app/ui/settings.slint:968
+msgid "Zdjęcia, filmy, PDF, tekst i kod obok listy"
+msgstr "Photos, videos, PDF, text and code next to the list"
+
+#: app/src/fmt.rs:37
+msgid "Zdjęcie RAW"
+msgstr "RAW photo"
+
+#: app/ui/settings.slint:1214
+msgid "Zdjęcie dnia"
+msgstr "Photo of the day"
+
+msgid "Zegar"
+msgstr "Clock"
+
+msgid "Zegar analogowy"
+msgstr "Analog clock"
+
+#: app/ui/settings.slint:1443
+msgid "Zegar i zasobnik"
+msgstr "Clock and tray"
+
+#: app/ui/widgets.slint:617
+msgid "Zegary świata"
+msgstr "World clocks"
+
+#: app/ui/wkinds.slint:1252
+msgid "Zeruj"
+msgstr "Reset"
+
+#: app/ui/wkinds.slint:1385
+msgid "Zeruj minutnik"
+msgstr "Reset timer"
+
+#: app/ui/settings.slint:1897
+msgid "Zezwól na pomiar FPS…"
+msgstr "Allow FPS measurement…"
+
+#: app/ui/settings.slint:1788
+msgid "Zgodne z Eksploratorem Windows tam, gdzie to możliwe"
+msgstr "Compatible with Windows Explorer wherever possible"
+
+#: app/ui/settings.slint:1931
+msgid "Zgłoś problem…"
+msgstr "Report a problem…"
+
+#: core/src/weather.rs:36
+msgid "Ziarna śniegu"
+msgstr "Snow grains"
+
+#: app/ui/wconfig.slint:203
+msgid "Zielony"
+msgstr "Green"
+
+#: app/ui/settings.slint:1252
+msgid "Zmiana co "
+msgstr "Change every "
+
+msgid "Zmiany w 14 dniach"
+msgstr "Changes in 14 days"
+
+#: app/ui/sync.slint:338
+msgid "Zmiany w źródle trafiają do celu zaraz po zapisaniu"
+msgstr "Changes in the source go to the target right after saving"
+
+#: app/ui/sync.slint:321
+msgid "Zmiany z obu stron; konflikty zachowują obie wersje"
+msgstr "Changes from both sides; conflicts keep both versions"
+
+msgid "Zmienione dziś"
+msgstr "Changed today"
+
+#: app/src/bulk.rs:295
+msgid "Zmieniono nazwy: {n}"
+msgstr "Renamed: {n}"
+
+msgid "Zmienne środowiskowe"
+msgstr "Environment variables"
+
+#: app/src/bulk.rs:254
+msgid "Zmień"
+msgstr "Change"
+
+#: app/ui/settings.slint:791
+msgid "Zmień folder…"
+msgstr "Change folder…"
+
+#: app/ui/bulk.slint:185
+msgid "Zmień nazwy"
+msgstr "Rename"
+
+#: app/src/menus.rs:406
+msgid "Zmień nazwy ({})…"
+msgstr "Rename ({})…"
+
+#: app/ui/settings.slint:408
+msgid "Zmień nazwę"
+msgstr "Rename"
+
+#: app/ui/titlebar.slint:144
+msgid "Zmień nazwę (F2)"
+msgstr "Rename (F2)"
+
+#: app/src/main.rs:1852
+msgid "Zmień nazwę wyszukiwania"
+msgstr "Rename search"
+
+#: app/src/start.rs:498
+msgid "Zmień rozmiar"
+msgstr "Resize"
+
+#: app/src/widgetfeeds.rs:390
+msgid "Zmień strefy…"
+msgstr "Change time zones…"
+
+#: app/src/start.rs:792
+msgid "Zmień ustawienia konta"
+msgstr "Change account settings"
+
+#: app/src/widgetfeeds.rs:411
+msgid "Zmień wspólną miejscowość…"
+msgstr "Change shared city…"
+
+#: app/src/bulk.rs:254
+msgid "Zmień {changed}"
+msgstr "Change {changed}"
+
+#: app/ui/wconfig.slint:384
+msgid "Zmień…"
+msgstr "Change…"
+
+#: app/src/taskbar.rs:912
+msgid "Zminimalizuj"
+msgstr "Minimize"
+
+#: app/src/taskbar.rs:921
+msgid "Zminimalizuj wszystkie"
+msgstr "Minimize all"
+
+#: app/src/model.rs:252
+msgid "Zmodyfikowano"
+msgstr "Modified"
+
+#: app/ui/bulk.slint:281
+msgid "Znajdź"
+msgstr "Find"
+
+#: app/ui/settings.slint:1714
+msgid "Znaleziona wersja pobiera się w tle (z kontrolą sumy SHA-256) i PowerDesk uruchamia się ponownie. Wyłączone – powiadomienie z przyciskiem „Zaktualizuj”"
+msgstr "A found version downloads in the background (with SHA-256 verification) and PowerDesk restarts. Off – a notification with an “Update” button"
+
+#: app/src/setup.rs:83
+msgid "Znaleziono OpenFilePower – poprzednią wersję programu. Ustawienia zostały przeniesione.\n\nOdinstalować OpenFilePower?"
+msgstr "OpenFilePower – the previous version of the program – was found. Its settings were imported.\n\nUninstall OpenFilePower?"
+
+#: app/src/taskbar.rs:1256
+msgid "Zrzut ekranu"
+msgstr "Screenshot"
+
+#: app/ui/wkinds.slint:1173
+msgid "Zrzut fragmentu ekranu"
+msgstr "Screen snip"
+
+#: app/ui/taskbar.slint:724
+msgid "Zrównoważony"
+msgstr "Balanced"
+
+#: app/ui/fileview.slint:449
+msgid "Zwiń grupę"
+msgstr "Collapse group"
+
+#: app/ui/settings.slint:417
+msgid "Zwiń panel boczny"
+msgstr "Collapse side panel"
+
+#: app/ui/sidebar.slint:150
+msgid "Zwiń panel boczny (Ctrl+B)"
+msgstr "Collapse side panel (Ctrl+B)"
+
+#: app/ui/home.slint:388
+msgid "Zwiń sekcję"
+msgstr "Collapse section"
+
+#: app/ui/picker.slint:405
+msgid "Zwykłe okno Windows – tylko dla tego wyboru"
+msgstr "Regular Windows dialog – for this choice only"
+
+#: app/ui/settings.slint:1435
+msgid "Zwykły i pod kursorem"
+msgstr "Normal and hover"
+
+#: app/ui/settings.slint:1435
+msgid "Zwykły, pod kursorem, wciśnięty (najczęstszy format)"
+msgstr "Normal, hover, pressed (most common format)"
+
+#: app/ui/settings.slint:1435
+msgid "Zwykły, pod kursorem, wciśnięty, otwarty Start"
+msgstr "Normal, hover, pressed, Start open"
+
+#: app/ui/settings.slint:996
+msgid "Złap okno za pasek tytułu i potrząśnij – reszta okien się chowa, drugie potrząśnięcie je przywraca"
+msgstr "Grab a window by its title bar and shake it – the other windows hide, a second shake restores them"
+
+#: app/src/palette.rs:113
+msgid "bez grup"
+msgstr "no groups"
+
+#: app/src/syncview.rs:159
+msgid "bez zmian"
+msgstr "unchanged"
+
+#: core/src/capture.rs:27
+msgid "brak ekranu"
+msgstr "no screen"
+
+#: core/src/bing.rs:38
+msgid "brak zdjęcia w odpowiedzi"
+msgstr "no image in the response"
+
+#: app/src/home.rs:153
+msgid "błąd"
+msgstr ""
+
+#: core/src/sync.rs:656
+msgid "błędy {}"
+msgstr "errors {}"
+
+#: app/src/home.rs:152
+msgid "cel odłączony"
+msgstr "target disconnected"
+
+msgid "cz"
+msgstr "Th"
+
+msgid "czerwca"
+msgstr "June"
+
+msgid "czerwiec"
+msgstr "June"
+
+msgid "czwartek"
+msgstr "Thursday"
+
+#: app/src/settings.rs:545
+msgid "dla bieżącego użytkownika"
+msgstr "for the current user"
+
+#: app/src/settings.rs:545
+msgid "dla wszystkich użytkowników"
+msgstr "for all users"
+
+#: app/src/props.rs:221
+msgid "dowiązanie"
+msgstr "link"
+
+#: app/ui/settings.slint:1629
+msgid "działa"
+msgstr "running"
+
+#: app/ui/widgets.slint:437
+msgid "działa "
+msgstr "running "
+
+#: app/src/widgetmore.rs:106
+msgid "dzień"
+msgstr "day"
+
+#: app/src/widgetfeeds.rs:275
+msgid "dziś"
+msgstr "today"
+
+#: app/src/fmt.rs:79
+msgid "elementów"
+msgstr "items"
+
+#: app/src/preview.rs:229
+msgid "folderów"
+msgstr "folders"
+
+msgid "grudnia"
+msgstr "December"
+
+msgid "grudzień"
+msgstr "December"
+
+#: app/ui/settings.slint:1181
+msgid "górnej"
+msgstr "top"
+
+#: app/src/widgetmore.rs:106
+msgid "i {h} h {m} min · {when}"
+msgstr "and {h} h {m} min · {when}"
+
+#: app/src/widgetmore.rs:108
+msgid "i {m} min · {when}"
+msgstr "and {m} min · {when}"
+
+#: app/src/widgetfeeds.rs:337
+msgid "jak tutaj"
+msgstr "as here"
+
+#: app/ui/widgets.slint:922
+msgid "klik – skopiuj"
+msgstr "click – copy"
+
+#: app/ui/taskbar.slint:1709
+msgid "kliknij, by zmienić język (Win+Spacja)"
+msgstr "click to change the language (Win+Space)"
+
+#: app/src/syncview.rs:119
+msgid "kopia lustrzana"
+msgstr "mirror"
+
+#: app/src/syncview.rs:121
+msgid "kopia zapasowa"
+msgstr "backup"
+
+msgid "kwiecień"
+msgstr "April"
+
+msgid "kwietnia"
+msgstr "April"
+
+#: app/ui/home.slint:569
+msgid "liczę…"
+msgstr "calculating…"
+
+#: app/src/settings.rs:642
+msgid "limit klatek: {e}"
+msgstr "frame limit: {e}"
+
+msgid "lipca"
+msgstr "July"
+
+msgid "lipiec"
+msgstr "July"
+
+msgid "listopad"
+msgstr "November"
+
+msgid "listopada"
+msgstr "November"
+
+msgid "lutego"
+msgstr "February"
+
+msgid "luty"
+msgstr "February"
+
+msgid "maj"
+msgstr "May"
+
+msgid "maja"
+msgstr "May"
+
+msgid "marca"
+msgstr "March"
+
+msgid "marzec"
+msgstr "March"
+
+#: app/ui/bulk.slint:328
+msgid "małe"
+msgstr "lowercase"
+
+#: app/ui/sync.slint:355
+msgid "min (wychwytuje zmiany po stronie celu)"
+msgstr "min (catches changes on the target side)"
+
+#: app/src/home.rs:350
+msgid "napęd optyczny · "
+msgstr "optical drive · "
+
+msgid "nd"
+msgstr "Su"
+
+#: app/ui/settings.slint:1629
+msgid "nie działa"
+msgstr "not running"
+
+#: core/src/capture.rs:45
+msgid "nie udało się odczytać ekranu"
+msgstr "cannot read the screen"
+
+msgid "niedziela"
+msgstr "Sunday"
+
+#: app/src/menus.rs:601
+msgid "nowy plik"
+msgstr "new file"
+
+#: app/ui/bulk.slint:282
+msgid "np. DSC0"
+msgstr "e.g. DSC0"
+
+#: app/ui/sync.slint:285
+msgid "np. Zdjęcia na dysk USB"
+msgstr "e.g. Photos to USB drive"
+
+#: app/ui/wkinds.slint:1265
+msgid "okrążeń: "
+msgstr "laps: "
+
+#: app/src/syncview.rs:187
+msgid "ostatnia udana {}"
+msgstr "last successful {}"
+
+#: app/src/syncview.rs:188
+msgid "ostatnio {} · {}"
+msgstr "last {} · {}"
+
+msgid "październik"
+msgstr "October"
+
+msgid "października"
+msgstr "October"
+
+msgid "piątek"
+msgstr "Friday"
+
+#: app/src/preview.rs:229
+msgid "plików"
+msgstr "files"
+
+msgid "pn"
+msgstr "Mo"
+
+#: app/src/palette.rs:113
+msgid "po dacie"
+msgstr "by date"
+
+#: app/src/palette.rs:113
+msgid "po nazwie"
+msgstr "by name"
+
+#: app/src/palette.rs:113
+msgid "po typie"
+msgstr "by type"
+
+msgid "poniedziałek"
+msgstr "Monday"
+
+#: app/src/home.rs:151
+msgid "porównuję…"
+msgstr "comparing…"
+
+#: app/src/main.rs:381
+msgid "powłoka"
+msgstr ""
+
+#: app/src/cliphistory.rs:117
+msgid "przed chwilą"
+msgstr "just now"
+
+msgid "pt"
+msgstr "Fr"
+
+#: app/src/home.rs:349
+msgid "sieciowy · "
+msgstr "network · "
+
+msgid "sierpień"
+msgstr "August"
+
+msgid "sierpnia"
+msgstr "August"
+
+msgid "so"
+msgstr "Sa"
+
+msgid "sobota"
+msgstr "Saturday"
+
+#: app/src/main.rs:379
+msgid "start {} · {} · {}"
+msgstr ""
+
+msgid "styczeń"
+msgstr "January"
+
+msgid "stycznia"
+msgstr "January"
+
+#: core/src/bing.rs:25
+msgid "tapeta Bing: {e}"
+msgstr "Bing wallpaper: {e}"
+
+#: app/src/query.rs:136
+msgid "treść:"
+msgstr "contents:"
+
+#: app/src/main.rs:2321
+msgid "tylko do odczytu"
+msgstr "read-only"
+
+#: app/src/props.rs:221
+msgid "tylko w chmurze"
+msgstr "cloud only"
+
+#: app/src/menus.rs:433
+msgid "udostępnić"
+msgstr "share"
+
+#: app/src/menus.rs:350
+msgid "uruchomić jako administrator"
+msgstr "run as administrator"
+
+#: core/src/sync.rs:650
+msgid "usunięto {}"
+msgstr "deleted {}"
+
+msgid "wrzesień"
+msgstr "September"
+
+msgid "września"
+msgstr "September"
+
+msgid "wt"
+msgstr "Tu"
+
+msgid "wtorek"
+msgstr "Tuesday"
+
+#: app/src/menus.rs:359
+msgid "wydrukować"
+msgstr "print"
+
+#: app/src/main.rs:381
+msgid "z Eksploratorem"
+msgstr ""
+
+#: app/src/menus.rs:355
+msgid "zamontować"
+msgstr "mount"
+
+#: app/ui/home.slint:491
+msgid "zmienione w ciągu 14 dni"
+msgstr "changed within 14 days"
+
+#: core/src/capture.rs:59
+msgid "zły rozmiar obrazu"
+msgstr "wrong image size"
+
+#: app/src/widgetfeeds.rs:337
+msgid "{:+}:{:02} h"
+msgstr ""
+
+#: app/src/overlay.rs:118
+msgid "{:.1} ms · maks. {:.0}"
+msgstr "{:.1} ms · max {:.0}"
+
+#: app/src/bulk.rs:253
+msgid "{changed} zmian · {problems} problemów"
+msgstr "{changed} changes · {problems} problems"
+
+#: app/src/home.rs:493
+msgid "{d} d {h} h"
+msgstr ""
+
+#: app/src/home.rs:492
+msgid "{h} h {m} min"
+msgstr "{h} h {m} min"
+
+#: app/src/widgetlive.rs:692
+msgid "{label} {when} (za {:.0} d)"
+msgstr "{label} {when} (in {:.0} d)"
+
+#: app/src/home.rs:577
+msgid "{mins} min temu"
+msgstr "{mins} min ago"
+
+#: app/src/transfers.rs:160
+msgid "{n} elementów już istnieje"
+msgstr "{n} items already exist"
+
+#: app/src/picker.rs:807
+msgid "{p}\nMiejsce dodane przez program"
+msgstr "{p}\nLocation added by a program"
+
+#: core/src/space.rs:84
+msgid "{small_count} mniejszych plików"
+msgstr "{small_count} smaller files"
+
+#: core/src/sync_core.rs:340
+msgid "{stem} (konflikt {host} {stamp}){ext}"
+msgstr ""
+
+#: app/src/shelf.rs:225
+msgid "{target} · wybrane: {picked}"
+msgstr "{target} · selected: {picked}"
+
+#: app/src/main.rs:2023
+msgid "{text} · przeszukano {}"
+msgstr "{text} · searched {}"
+
+#: app/src/main.rs:2032
+msgid "{text} · zaznaczono {}"
+msgstr "{text} · selected {}"
+
+#: app/src/widgetmore.rs:140
+msgid "{v:.4} zł"
+msgstr ""
+
+#: core/src/ops.rs:525
+msgid "{verb} przeniesienie ({})"
+msgstr "{verb} move ({})"
+
+#: core/src/ops.rs:529
+msgid "{verb} utworzenie ({n}) – elementy są w Koszu"
+msgstr "{verb} creation ({n}) – the items are in the Recycle Bin"
+
+#: core/src/ops.rs:539
+msgid "{verb} zmianę nazw ({n})"
+msgstr "{verb} rename ({n})"
+
+#: core/src/ops.rs:534
+msgid "{verb} zmianę nazwy"
+msgstr "{verb} rename"
+
+#: app/src/menus.rs:713
+msgid "{what} trafi do Kosza – można je stamtąd przywrócić."
+msgstr "{what} will go to the Recycle Bin – it can be restored from there."
+
+#: app/src/transfers.rs:248
+msgid "{what} zostanie usunięte bez przenoszenia do Kosza. Tej operacji nie można cofnąć."
+msgstr "{what} will be deleted without moving to the Recycle Bin. This cannot be undone."
+
+#: app/src/props.rs:195
+msgid "{w} × {h} ({:.1} Mpx)"
+msgstr ""
+
+#: app/src/picker.rs:235
+msgid "{}\n{kind} · {size}\nZmieniony: {date}"
+msgstr "{}\n{kind} · {size}\nModified: {date}"
+
+#: app/src/spaceview.rs:275
+msgid "{}\n{} · {} plików"
+msgstr "{}\n{} · {} files"
+
+#: app/src/syncview.rs:156
+msgid "{} błędów"
+msgstr "{} errors"
+
+#: app/src/cliphistory.rs:120
+msgid "{} dni temu"
+msgstr "{} days ago"
+
+#: app/src/syncview.rs:141
+msgid "{} do celu"
+msgstr "{} to target"
+
+#: app/src/syncview.rs:144
+msgid "{} do źródła"
+msgstr "{} to source"
+
+#: app/src/menus.rs:708
+msgid "{} elementów"
+msgstr "{} items"
+
+#: app/src/bulk.rs:198
+msgid "{} elementów · podgląd aktualizuje się na bieżąco"
+msgstr "{} items · the preview updates live"
+
+#: app/src/cliphistory.rs:119
+msgid "{} godz. temu"
+msgstr "{} h ago"
+
+#: app/src/syncview.rs:153
+msgid "{} konfliktów"
+msgstr "{} conflicts"
+
+#: app/src/cliphistory.rs:118
+msgid "{} min temu"
+msgstr "{} min ago"
+
+#: app/src/spaceview.rs:133
+msgid "{} plików · {}"
+msgstr "{} files · {}"
+
+#: app/src/widgets.rs:232
+msgid "{} rdzeni, {} wątków"
+msgstr "{} cores, {} threads"
+
+#: app/src/syncview.rs:147
+msgid "{} usunięć w celu"
+msgstr "{} deletions in target"
+
+#: app/src/syncview.rs:150
+msgid "{} usunięć w źródle"
+msgstr "{} deletions in source"
+
+#: app/src/home.rs:189
+msgid "{} w Twoich folderach"
+msgstr "{} in your folders"
+
+#: app/src/preview.rs:384
+msgid "{} w {} · {}"
+msgstr "{} in {} · {}"
+
+#: app/src/home.rs:382
+msgid "{} wolne z {}"
+msgstr "{} free of {}"
+
+#: app/src/main.rs:1948
+msgid "{} wyników"
+msgstr "{} results"
+
+#: app/src/home.rs:499
+msgid "{} · działa od {uptime}"
+msgstr "{} · up for {uptime}"
+
+#: app/src/spaceview.rs:289
+msgid "{} · {} plików"
+msgstr "{} · {} files"
+
+#: app/src/transfers.rs:282
+msgid "{}: anulowano"
+msgstr "{}: cancelled"
+
+#: core/src/ops.rs:414
+msgid "{}: nie można odczytać"
+msgstr "{}: cannot read"
+
+#: core/src/ops.rs:301
+msgid "{}: nie można skopiować folderu do jego wnętrza"
+msgstr "{}: cannot copy a folder into itself"
+
+#: core/src/ops.rs:463
+msgid "{}: skopiowano, ale nie usunięto źródła ({})"
+msgstr "{}: copied, but the source was not deleted ({})"
+
+#: app/src/transfers.rs:281
+msgid "{}: {} błędów"
+msgstr "{}: {} errors"
+
+#: app/src/home.rs:367
+msgid "{}{} wolne z {}{}"
+msgstr "{}{} free of {}{}"
+
+#: app/ui/wconfig.slint:334
+msgid "°C – Celsjusz"
+msgstr "°C – Celsius"
+
+#: app/ui/wconfig.slint:334
+msgid "°F – Fahrenheit"
+msgstr ""
+
+#: app/src/widgetlive.rs:658
+msgid "Ładowanie"
+msgstr "Charging"
+
+#: app/src/taskbar.rs:1411
+msgid "Łączenie…"
+msgstr "Connecting…"
+
+#: app/src/main.rs:3641
+msgid "Łączę z {p}…"
+msgstr "Connecting to {p}…"
+
+#: app/ui/picker.slint:362
+msgid "Ścieżka folderu – wpisz inną i naciśnij Enter"
+msgstr "Folder path – type another one and press Enter"
+
+#: core/src/fsx.rs:109
+msgid "Ścieżka sieciowa jest niedostępna"
+msgstr "The network path is unavailable"
+
+msgid "Śmieci"
+msgstr "Junk"
+
+#: core/src/weather.rs:34
+msgid "Śnieg"
+msgstr "Snow"
+
+#: app/src/start.rs:498
+msgid "Średni"
+msgstr "Medium"
+
+#: app/ui/settings.slint:1039
+msgid "Średnie"
+msgstr "Medium"
+
+msgid "Średnie (1 – 128 MB)"
+msgstr "Medium (1 – 128 MB)"
+
+#: app/src/desktop.rs:1090
+msgid "Średnie ikony"
+msgstr "Medium icons"
+
+#: app/ui/taskbar.slint:697
+msgid "Światło nocne"
+msgstr "Night light"
+
+#: app/ui/taskbar.slint:699
+msgid "Światło nocne – Ustawienia Windows"
+msgstr "Night light – Windows Settings"
+
+#: app/ui/taskbar.slint:1044
+msgid "śr"
+msgstr "We"
+
+msgid "środa"
+msgstr "Wednesday"
+
+#: app/ui/sync.slint:289
+msgid "Źródło"
+msgstr "Source"
+
+#: core/src/sync.rs:495
+msgid "Źródło niedostępne: {e}"
+msgstr "Source unavailable: {e}"
+
+#: core/src/sync_core.rs:64
+msgid "źródło"
+msgstr "source"
+
+#: app/ui/settings.slint:871
+msgid "Żaden folder nie ma zapamiętanego widoku"
+msgstr "No folder has a saved view"
+
+#: core/src/integration.rs:15
+msgid "„Otwórz w PowerDesk” dla folderów, dysków i tła folderu"
+msgstr "“Open in PowerDesk” for folders, drives and folder background"
+
+#: app/src/syncview.rs:348
+msgid "„{name}” przestanie się synchronizować. Pliki w źródle i w celu zostaną bez zmian."
+msgstr "“{name}” will stop syncing. The files in the source and target stay unchanged."
+
+#: app/src/comparing.rs:33
+msgid "„{na}” i „{nb}” są zgodne ({} plików)"
+msgstr "“{na}” and “{nb}” match ({} files)"
+
+#: app/src/comparing.rs:37
+msgid "„{na}” ↔ „{nb}”: tylko w {na} – {}, tylko w {nb} – {}, nowsze w {na} – {}, nowsze w {nb} – {}, zgodne – {}"
+msgstr "“{na}” ↔ “{nb}”: only in {na} – {}, only in {nb} – {}, newer in {na} – {}, newer in {nb} – {}, matching – {}"
+
+#: app/src/transfers.rs:175
+msgid "…i {} więcej"
+msgstr "…and {} more"
+
+#: app/ui/widgets.slint:854
+msgid "↑ wysyłanie"
+msgstr "↑ upload"
+
+#: app/ui/widgets.slint:840
+msgid "↓ pobieranie"
+msgstr "↓ download"
+
+#: core/src/sync_core.rs:64
+msgid "⚠ konflikt: {rel} (wygrywa {})"
+msgstr "⚠ conflict: {rel} ({} wins)"
+
+#: core/src/sync_core.rs:62
+msgid "✕ cel: {r}"
+msgstr "✕ target: {r}"
+
+#: core/src/sync_core.rs:63
+msgid "✕ źródło: {r}"
+msgstr "✕ source: {r}"

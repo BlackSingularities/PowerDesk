@@ -201,7 +201,7 @@ export component WeatherBody inherits Base {
         }
         Text {
             horizontal-alignment: center;
-            text: root.w.status != "" ? root.w.status : "Pobieranie pogody…";
+            text: root.w.status != "" ? root.w.status : @tr("Pobieranie pogody…");
             wrap: word-wrap;
             font-size: 11.5px;
             color: Theme.dim;
@@ -241,7 +241,7 @@ export component WeatherBody inherits Base {
             if root.cfg.variant == 0 && !root.compact && root.width >= 250px: VerticalLayout {
                 alignment: center;
                 spacing: 2px;
-                for row in ["Odczuwalna " + root.deg(root.w.feels), "Wilgotność " + root.w.humidity, "Wiatr " + root.w.wind]: Text {
+                for row in [@tr("Odczuwalna ") + root.deg(root.w.feels), @tr("Wilgotność ") + root.w.humidity, @tr("Wiatr ") + root.w.wind]: Text {
                     horizontal-alignment: right;
                     text: row;
                     font-size: 11px;
@@ -250,13 +250,13 @@ export component WeatherBody inherits Base {
             }
         }
         if !root.compact: Text {
-            text: root.w.city + (root.cfg.variant == 0 && root.width < 250px ? " · wiatr " + root.w.wind : "");
+            text: root.w.city + (root.cfg.variant == 0 && root.width < 250px ? @tr(" · wiatr ") + root.w.wind : "");
             font-size: 11px;
             color: Theme.faint;
             overflow: elide;
         }
         if !root.compact && root.cfg.variant == 0 && root.height >= 210px && root.w.sunrise != "": Text {
-            text: "Wschód " + root.w.sunrise + " · zachód " + root.w.sunset;
+            text: @tr("Wschód ") + root.w.sunrise + @tr(" · zachód ") + root.w.sunset;
             font-size: 11px;
             color: Theme.faint;
             overflow: elide;
@@ -309,7 +309,7 @@ export component ForecastBody inherits Base {
         x: root.pad;
         width: root.width - 2 * root.pad;
         horizontal-alignment: center;
-        text: root.w.status != "" ? root.w.status : "Pobieranie prognozy…";
+        text: root.w.status != "" ? root.w.status : @tr("Pobieranie prognozy…");
         wrap: word-wrap;
         font-size: 11.5px;
         color: Theme.dim;
@@ -426,7 +426,7 @@ export component ForecastBody inherits Base {
         spacing: 4px;
         WTitle {
             icon: Icons.cloud;
-            text: root.title != "" ? root.title : root.w.city + " · 24 h";
+            text: root.title != "" ? root.title : root.w.city + @tr(" · 24 h");
             extra: root.deg(root.w.temp);
             color: root.acc;
         }
@@ -635,13 +635,13 @@ export component BatteryBody inherits Base {
         }
         Text {
             horizontal-alignment: center;
-            text: "Zasilanie sieciowe";
+            text: @tr("Zasilanie sieciowe");
             font-size: 12px;
             color: Theme.text;
         }
         if root.height >= 110px: Text {
             horizontal-alignment: center;
-            text: "Ten komputer nie ma baterii";
+            text: @tr("Ten komputer nie ma baterii");
             wrap: word-wrap;
             font-size: 11px;
             color: Theme.faint;
@@ -684,7 +684,7 @@ export component BatteryBody inherits Base {
             alignment: center;
             WTitle {
                 icon: Icons.battery;
-                text: "Bateria";
+                text: @tr("Bateria");
                 color: root.tone;
             }
             Text {
@@ -713,7 +713,7 @@ export component BatteryBody inherits Base {
         alignment: center;
         if !root.compact: WTitle {
             icon: Icons.battery;
-            text: "Bateria";
+            text: @tr("Bateria");
             extra: WidgetData.bat-text;
             color: root.tone;
         }
@@ -771,7 +771,7 @@ export component BatteryBody inherits Base {
 
 // ---------- Połączenie (Wi‑Fi / kabel) ----------
 export component WifiBody inherits Base {
-    property <string> kind-name: WidgetData.net-kind == 1 ? "Wi‑Fi" : WidgetData.net-kind == 2 ? "Ethernet" : "Brak połączenia";
+    property <string> kind-name: WidgetData.net-kind == 1 ? "Wi‑Fi" : WidgetData.net-kind == 2 ? @tr("Ethernet") : @tr("Brak połączenia");
     property <string> icon: WidgetData.net-kind == 1 ? Icons.wifi : WidgetData.net-kind == 2 ? Icons.ethernet : Icons.wifi-off;
     VerticalLayout {
         padding: root.pad;
@@ -803,7 +803,7 @@ export component WifiBody inherits Base {
                     overflow: elide;
                 }
                 Text {
-                    text: WidgetData.net-kind == 1 ? root.kind-name + " · sygnał " + round(WidgetData.wifi-signal * 100) + "%" : root.kind-name;
+                    text: WidgetData.net-kind == 1 ? root.kind-name + @tr(" · sygnał ") + round(WidgetData.wifi-signal * 100) + "%" : root.kind-name;
                     font-size: 11px;
                     color: Theme.dim;
                     overflow: elide;
@@ -812,7 +812,7 @@ export component WifiBody inherits Base {
         }
         if root.height >= 100px: HorizontalLayout {
             spacing: 12px;
-            for row in [{ label: "↓ pobieranie", value: WidgetData.net-down }, { label: "↑ wysyłanie", value: WidgetData.net-up }]: VerticalLayout {
+            for row in [{ label: @tr("↓ pobieranie"), value: WidgetData.net-down }, { label: @tr("↑ wysyłanie"), value: WidgetData.net-up }]: VerticalLayout {
                 horizontal-stretch: 1;
                 Text {
                     text: row.label;
@@ -834,7 +834,7 @@ export component WifiBody inherits Base {
             tint: root.acc;
         }
         if root.height >= 150px && WidgetData.wifi-count > 0: Text {
-            text: "Widoczne sieci Wi‑Fi: " + WidgetData.wifi-count;
+            text: @tr("Widoczne sieci Wi‑Fi: ") + WidgetData.wifi-count;
             font-size: 10.5px;
             color: Theme.faint;
         }
@@ -850,7 +850,7 @@ export component VolumeBody inherits Base {
         alignment: center;
         if !root.compact: WTitle {
             icon: Icons.volume;
-            text: "Głośność";
+            text: @tr("Głośność");
             extra: WidgetData.vol-muted ? "wyciszone" : root.pct;
             color: root.acc;
         }
@@ -858,7 +858,7 @@ export component VolumeBody inherits Base {
             spacing: 10px;
             RoundButton {
                 icon: WidgetData.vol-muted ? Icons.mute : Icons.volume;
-                tip: WidgetData.vol-muted ? "Włącz dźwięk" : "Wycisz";
+                tip: WidgetData.vol-muted ? @tr("Włącz dźwięk") : @tr("Wycisz");
                 size: root.compact ? 30px : 36px;
                 primary: WidgetData.vol-muted;
                 tint: root.acc;
@@ -892,7 +892,7 @@ export component VolumeBody inherits Base {
                     background: Theme.text;
                 }
                 sl-ta := TipArea {
-                    tip: "Głośność – kliknij albo przeciągnij";
+                    tip: @tr("Głośność – kliknij albo przeciągnij");
                     moved => {
                         if (self.pressed) {
                             WidgetData.vol-set(max(0, min(1, self.mouse-x / parent.width)));
@@ -940,7 +940,7 @@ export component FilesBody inherits Base {
         }
         hd-ta := TipArea {
             enabled: root.head-path != "";
-            tip: root.head-path != "" ? "Otwórz " + root.head-path : "";
+            tip: root.head-path != "" ? @tr("Otwórz ") + root.head-path : "";
             clicked => {
                 WidgetData.open-file(root.head-path, true);
             }
@@ -1069,7 +1069,7 @@ export component LauncherBody inherits Base {
         x: root.pad;
         y: root.top;
         width: root.width - 2 * root.pad;
-        text: "Uruchamiaj aplikacje z menu Start – najczęściej używane pojawią się tutaj";
+        text: @tr("Uruchamiaj aplikacje z menu Start – najczęściej używane pojawią się tutaj");
         wrap: word-wrap;
         font-size: 11.5px;
         color: Theme.faint;
@@ -1111,7 +1111,7 @@ export component LauncherBody inherits Base {
                 overflow: elide;
             }
             ap-ta := TipArea {
-                tip: "Uruchom " + a.name;
+                tip: @tr("Uruchom ") + a.name;
                 clicked => {
                     WidgetData.launch(a.path);
                 }
@@ -1154,7 +1154,7 @@ export component LauncherBody inherits Base {
                 }
             }
             al-ta := TipArea {
-                tip: "Uruchom " + a.name;
+                tip: @tr("Uruchom ") + a.name;
                 clicked => {
                     WidgetData.launch(a.path);
                 }
@@ -1166,14 +1166,14 @@ export component LauncherBody inherits Base {
 // ---------- Szybkie akcje ----------
 export component ActionsBody inherits Base {
     property <[{id: string, name: string, icon: string, tip: string}]> acts: [
-        { id: "lock", name: "Zablokuj", icon: Icons.shield, tip: "Zablokuj komputer (Win+L)" },
-        { id: "sleep", name: "Uśpij", icon: Icons.power, tip: "Uśpij komputer" },
-        { id: "settings", name: "Ustawienia", icon: Icons.settings, tip: "Otwórz Ustawienia Windows" },
-        { id: "taskmgr", name: "Zadania", icon: Icons.bolt, tip: "Menedżer zadań" },
-        { id: "snip", name: "Wycinek", icon: Icons.cut, tip: "Zrzut fragmentu ekranu" },
-        { id: "terminal", name: "Terminal", icon: Icons.terminal, tip: "Otwórz terminal" },
-        { id: "trash", name: "Kosz", icon: Icons.trash, tip: "Otwórz Kosz" },
-        { id: "downloads", name: "Pobrane", icon: Icons.download, tip: "Otwórz folder Pobrane" },
+        { id: "lock", name: @tr("Zablokuj"), icon: Icons.shield, tip: @tr("Zablokuj komputer (Win+L)") },
+        { id: "sleep", name: @tr("Uśpij"), icon: Icons.power, tip: @tr("Uśpij komputer") },
+        { id: "settings", name: @tr("Ustawienia"), icon: Icons.settings, tip: @tr("Otwórz Ustawienia Windows") },
+        { id: "taskmgr", name: @tr("Zadania"), icon: Icons.bolt, tip: @tr("Menedżer zadań") },
+        { id: "snip", name: @tr("Wycinek"), icon: Icons.cut, tip: @tr("Zrzut fragmentu ekranu") },
+        { id: "terminal", name: @tr("Terminal"), icon: Icons.terminal, tip: @tr("Otwórz terminal") },
+        { id: "trash", name: @tr("Kosz"), icon: Icons.trash, tip: @tr("Otwórz Kosz") },
+        { id: "downloads", name: @tr("Pobrane"), icon: Icons.download, tip: @tr("Otwórz folder Pobrane") },
     ];
     property <int> cols: max(2, min(4, floor((self.width - 2 * self.pad) / 60px)));
     property <int> rows: max(1, min(ceil(8 / self.cols), floor((self.height - 2 * self.pad + 6px) / 44px)));
@@ -1230,7 +1230,7 @@ export component StopwatchBody inherits Base {
                 color: Theme.text;
             }
             if root.width >= 150px: Text {
-                text: WidgetData.sw-run ? "Mierzę…" : "Stoper";
+                text: WidgetData.sw-run ? @tr("Mierzę…") : @tr("Stoper");
                 font-size: 11px;
                 color: Theme.dim;
             }
@@ -1240,7 +1240,7 @@ export component StopwatchBody inherits Base {
             spacing: 4px;
             RoundButton {
                 icon: WidgetData.sw-run ? Icons.pause : Icons.play;
-                tip: WidgetData.sw-run ? "Zatrzymaj" : "Start";
+                tip: WidgetData.sw-run ? @tr("Zatrzymaj") : @tr("Start");
                 primary: true;
                 tint: root.acc;
                 clicked => {
@@ -1249,7 +1249,7 @@ export component StopwatchBody inherits Base {
             }
             RoundButton {
                 icon: WidgetData.sw-run ? Icons.plus : Icons.refresh;
-                tip: WidgetData.sw-run ? "Okrążenie" : "Zeruj";
+                tip: WidgetData.sw-run ? @tr("Okrążenie") : @tr("Zeruj");
                 clicked => {
                     WidgetData.sw(1);
                 }
@@ -1261,8 +1261,8 @@ export component StopwatchBody inherits Base {
         spacing: 8px;
         WTitle {
             icon: Icons.history;
-            text: "Stoper";
-            extra: WidgetData.sw-laps.length > 0 ? "okrążeń: " + WidgetData.sw-laps.length : "";
+            text: @tr("Stoper");
+            extra: WidgetData.sw-laps.length > 0 ? @tr("okrążeń: ") + WidgetData.sw-laps.length : "";
             color: root.acc;
         }
         Rectangle {
@@ -1314,7 +1314,7 @@ export component StopwatchBody inherits Base {
             spacing: 10px;
             RoundButton {
                 icon: WidgetData.sw-run ? Icons.pause : Icons.play;
-                tip: WidgetData.sw-run ? "Zatrzymaj" : "Start";
+                tip: WidgetData.sw-run ? @tr("Zatrzymaj") : @tr("Start");
                 primary: true;
                 size: 36px;
                 tint: root.acc;
@@ -1324,7 +1324,7 @@ export component StopwatchBody inherits Base {
             }
             RoundButton {
                 icon: WidgetData.sw-run ? Icons.plus : Icons.refresh;
-                tip: WidgetData.sw-run ? "Okrążenie" : "Zeruj";
+                tip: WidgetData.sw-run ? @tr("Okrążenie") : @tr("Zeruj");
                 size: 36px;
                 clicked => {
                     WidgetData.sw(1);
@@ -1363,7 +1363,7 @@ export component TimerBody inherits Base {
                 color: WidgetData.tm-done ? root.tone : Theme.text;
             }
             if root.width >= 150px: Text {
-                text: WidgetData.tm-done ? "Czas minął" : "z " + WidgetData.tm-total;
+                text: WidgetData.tm-done ? @tr("Czas minął") : "z " + WidgetData.tm-total;
                 font-size: 11px;
                 color: Theme.dim;
             }
@@ -1373,7 +1373,7 @@ export component TimerBody inherits Base {
             spacing: 4px;
             RoundButton {
                 icon: WidgetData.tm-run ? Icons.pause : Icons.play;
-                tip: WidgetData.tm-run ? "Wstrzymaj" : "Start";
+                tip: WidgetData.tm-run ? @tr("Wstrzymaj") : @tr("Start");
                 primary: true;
                 tint: root.tone;
                 clicked => {
@@ -1382,7 +1382,7 @@ export component TimerBody inherits Base {
             }
             RoundButton {
                 icon: Icons.refresh;
-                tip: "Zeruj minutnik";
+                tip: @tr("Zeruj minutnik");
                 clicked => {
                     WidgetData.tm(1);
                 }
@@ -1394,7 +1394,7 @@ export component TimerBody inherits Base {
         spacing: 8px;
         WTitle {
             icon: Icons.history;
-            text: WidgetData.tm-done ? "Czas minął!" : "Minutnik";
+            text: WidgetData.tm-done ? @tr("Czas minął!") : @tr("Minutnik");
             extra: WidgetData.tm-total;
             color: root.tone;
         }
@@ -1426,7 +1426,7 @@ export component TimerBody inherits Base {
             spacing: 10px;
             RoundButton {
                 icon: WidgetData.tm-run ? Icons.pause : Icons.play;
-                tip: WidgetData.tm-run ? "Wstrzymaj" : "Start";
+                tip: WidgetData.tm-run ? @tr("Wstrzymaj") : @tr("Start");
                 primary: true;
                 size: 36px;
                 tint: root.tone;
@@ -1436,7 +1436,7 @@ export component TimerBody inherits Base {
             }
             RoundButton {
                 icon: Icons.refresh;
-                tip: "Zeruj minutnik";
+                tip: @tr("Zeruj minutnik");
                 size: 36px;
                 clicked => {
                     WidgetData.tm(1);
@@ -1449,7 +1449,7 @@ export component TimerBody inherits Base {
             for m in [1, 5, 10, 15, 25, 60]: KeyButton {
                 horizontal-stretch: 1;
                 text: m + " min";
-                tip: "Ustaw minutnik na " + m + " min";
+                tip: @tr("Ustaw minutnik na ") + m + " min";
                 font-size: 11px;
                 clicked => {
                     WidgetData.tm-set(m);
@@ -1462,11 +1462,11 @@ export component TimerBody inherits Base {
 // ---------- Kalkulator ----------
 export component CalcBody inherits Base {
     property <[{k: string, tip: string}]> keys: [
-        { k: "C", tip: "Wyczyść" }, { k: "(", tip: "Nawias otwierający" }, { k: ")", tip: "Nawias zamykający" }, { k: "÷", tip: "Dzielenie" },
-        { k: "7", tip: "7" }, { k: "8", tip: "8" }, { k: "9", tip: "9" }, { k: "×", tip: "Mnożenie" },
-        { k: "4", tip: "4" }, { k: "5", tip: "5" }, { k: "6", tip: "6" }, { k: "−", tip: "Odejmowanie" },
-        { k: "1", tip: "1" }, { k: "2", tip: "2" }, { k: "3", tip: "3" }, { k: "+", tip: "Dodawanie" },
-        { k: "0", tip: "0" }, { k: ",", tip: "Przecinek dziesiętny" }, { k: "⌫", tip: "Usuń ostatni znak" }, { k: "=", tip: "Wynik" },
+        { k: "C", tip: @tr("Wyczyść") }, { k: "(", tip: @tr("Nawias otwierający") }, { k: ")", tip: @tr("Nawias zamykający") }, { k: "÷", tip: @tr("Dzielenie") },
+        { k: "7", tip: "7" }, { k: "8", tip: "8" }, { k: "9", tip: "9" }, { k: "×", tip: @tr("Mnożenie") },
+        { k: "4", tip: "4" }, { k: "5", tip: "5" }, { k: "6", tip: "6" }, { k: "−", tip: @tr("Odejmowanie") },
+        { k: "1", tip: "1" }, { k: "2", tip: "2" }, { k: "3", tip: "3" }, { k: "+", tip: @tr("Dodawanie") },
+        { k: "0", tip: "0" }, { k: ",", tip: @tr("Przecinek dziesiętny") }, { k: "⌫", tip: @tr("Usuń ostatni znak") }, { k: "=", tip: @tr("Wynik") },
     ];
     property <length> disp: self.compact ? self.height - 2 * self.pad : min(64px, self.height * 0.3);
     property <bool> pad-keys: self.height - self.disp - 2 * self.pad >= 5 * 22px;
@@ -1485,7 +1485,7 @@ export component CalcBody inherits Base {
             alignment: center;
             Text {
                 horizontal-alignment: right;
-                text: WidgetData.calc-expr != "" ? WidgetData.calc-expr : root.pad-keys ? "0" : "Powiększ widżet, aby liczyć";
+                text: WidgetData.calc-expr != "" ? WidgetData.calc-expr : root.pad-keys ? "0" : @tr("Powiększ widżet, aby liczyć");
                 font-size: 11.5px;
                 color: Theme.dim;
                 overflow: elide;
@@ -1569,7 +1569,7 @@ export component DayPicBody inherits Base {
         Text {
             x: 10px;
             width: parent.width - 20px;
-            text: "Obraz dnia · Bing";
+            text: @tr("Obraz dnia · Bing");
             font-size: 11px;
             color: #ffffffdd;
             overflow: elide;
@@ -1590,7 +1590,7 @@ export component DayPicBody inherits Base {
         }
         Text {
             horizontal-alignment: center;
-            text: "Pobieranie obrazu dnia…";
+            text: @tr("Pobieranie obrazu dnia…");
             wrap: word-wrap;
             font-size: 11.5px;
             color: Theme.dim;
@@ -1624,7 +1624,7 @@ export component MoonBody inherits Base {
             overflow: elide;
         }
         Text {
-            text: "Oświetlenie " + WidgetData.moon-light;
+            text: @tr("Oświetlenie ") + WidgetData.moon-light;
             font-size: 11.5px;
             color: Theme.dim;
         }
@@ -1664,7 +1664,7 @@ export component ProgressBody inherits Base {
         y: root.pad;
         width: root.width - 2 * root.pad;
         icon: Icons.history;
-        text: "Postęp czasu";
+        text: @tr("Postęp czasu");
         color: root.acc;
     }
     if root.cfg.variant == 0: Rectangle {
@@ -1740,12 +1740,12 @@ export component ProgressBody inherits Base {
 // ---------- Ten komputer ----------
 export component PcInfoBody inherits Base {
     property <[{label: string, value: string}]> rows: [
-        { label: "Nazwa", value: WidgetData.sys-host },
-        { label: "System", value: WidgetData.sys-os },
-        { label: "Procesor", value: WidgetData.cpu-name },
-        { label: "Rdzenie", value: WidgetData.cpu-cores },
-        { label: "Pamięć", value: WidgetData.ram-total },
-        { label: "Działa", value: WidgetData.uptime },
+        { label: @tr("Nazwa"), value: WidgetData.sys-host },
+        { label: @tr("System"), value: WidgetData.sys-os },
+        { label: @tr("Procesor"), value: WidgetData.cpu-name },
+        { label: @tr("Rdzenie"), value: WidgetData.cpu-cores },
+        { label: @tr("Pamięć"), value: WidgetData.ram-total },
+        { label: @tr("Działa"), value: WidgetData.uptime },
     ];
     property <length> top: self.compact ? self.pad : self.pad + 24px;
     property <length> rh: 19px;

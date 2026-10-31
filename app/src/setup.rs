@@ -70,7 +70,7 @@ fn install_flow(all_users: bool, quiet: bool, update: bool, launch: bool) -> i32
         Ok(p) => p,
         Err(e) => {
             if !quiet {
-                ask(&format!("Instalacja nie powiodła się:\n{e}"), Ask::Warning);
+                ask(&powerdesk_core::trf!("Instalacja nie powiodła się:\n{e}"), Ask::Warning);
             }
             return 1;
         }
@@ -80,7 +80,7 @@ fn install_flow(all_users: bool, quiet: bool, update: bool, launch: bool) -> i32
     }
     migrate_settings();
     let ofp = install::has_openfilepower();
-    if ofp && (quiet || ask("Znaleziono OpenFilePower – poprzednią wersję programu. Ustawienia zostały przeniesione.\n\nOdinstalować OpenFilePower?", Ask::YesNo) == Answer::Yes) {
+    if ofp && (quiet || ask(crate::tr("Znaleziono OpenFilePower – poprzednią wersję programu. Ustawienia zostały przeniesione.\n\nOdinstalować OpenFilePower?"), Ask::YesNo) == Answer::Yes) {
         install::remove_openfilepower();
     }
     if launch {
@@ -99,12 +99,12 @@ fn install_flow(all_users: bool, quiet: bool, update: bool, launch: bool) -> i32
 /// zakłada (albo zdejmuje) zainstalowany program przy starcie, już jako zwykły użytkownik.
 fn ask_autostart() {
     let on = ask(
-        "Uruchamiać PowerDesk razem z Windows?
+        crate::tr("Uruchamiać PowerDesk razem z Windows?
 
 Tak – po zalogowaniu PowerDesk od razu zastępuje pulpit, pasek zadań i menu Start
 Nie – uruchomisz go sam z menu Start
 
-Zmienisz to w Ustawieniach PowerDesk → System.",
+Zmienisz to w Ustawieniach PowerDesk → System."),
         Ask::YesNo,
     ) == Answer::Yes;
     let mut p = Prefs::load();
@@ -113,7 +113,7 @@ Zmienisz to w Ustawieniach PowerDesk → System.",
 }
 
 fn done_info(exe: &std::path::Path) {
-    info(&format!(
+    info(&powerdesk_core::trf!(
         "PowerDesk {} zainstalowano w:\n{}\n\nPo zalogowaniu PowerDesk zastępuje Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu (Windows zapyta o uprawnienia administratora).\nOdinstalujesz go w Ustawieniach Windows → Aplikacje albo w Ustawieniach PowerDesk → System.",
         version(),
         exe.parent().map(|d| d.display().to_string()).unwrap_or_default()
@@ -136,14 +136,14 @@ fn finish(quiet: bool) {
 /// `--uninstall [--quiet]`: potwierdzenie, zamknięcie programu, przywrócenie pulpitu, paska
 /// i powłoki Windows, usunięcie wpisów i plików (ustawienia – na życzenie).
 fn uninstall_flow(quiet: bool) -> i32 {
-    if !quiet && ask("Odinstalować PowerDesk?\n\nPulpit, pasek zadań i Eksplorator Windows wrócą na swoje miejsce.", Ask::YesNo) != Answer::Yes {
+    if !quiet && ask(crate::tr("Odinstalować PowerDesk?\n\nPulpit, pasek zadań i Eksplorator Windows wrócą na swoje miejsce."), Ask::YesNo) != Answer::Yes {
         return 0;
     }
     if install::installed().is_some_and(|(_, all)| all) && !install::is_admin() {
         // Potwierdzenie już było – kopia z uprawnieniami pyta tylko o ustawienia, więc bez --quiet.
         return install::relaunch_elevated(&format!("{UNINSTALL_FLAG} {QUIET_FLAG}")).map_or(1, |_| 0);
     }
-    let remove_settings = !quiet && ask("Usunąć też ustawienia PowerDesk (wygląd, kafelki, widżety, przypięte foldery)?", Ask::YesNo) == Answer::Yes;
+    let remove_settings = !quiet && ask(crate::tr("Usunąć też ustawienia PowerDesk (wygląd, kafelki, widżety, przypięte foldery)?"), Ask::YesNo) == Answer::Yes;
     stop_running();
     // Kolejność jak przy `--remove-integration`: Windows wraca, zanim znikną pliki.
     powerdesk_core::tray::hide();
@@ -161,7 +161,7 @@ fn uninstall_flow(quiet: bool) -> i32 {
         }
         Err(e) => {
             if !quiet {
-                ask(&format!("Deinstalacja nie powiodła się:\n{e}"), Ask::Warning);
+                ask(&powerdesk_core::trf!("Deinstalacja nie powiodła się:\n{e}"), Ask::Warning);
             }
             1
         }
@@ -198,11 +198,11 @@ pub fn offer_install(args: &[String]) -> Option<i32> {
     }
     if let Some((exe, all)) = install::installed() {
         let have = install::installed_version().unwrap_or_else(|| "?".into());
-        let text = format!(
+        let text = powerdesk_core::trf!(
             "PowerDesk {have} jest już zainstalowany w:\n{}\n\nZainstalować wersję {} w tym samym miejscu?{}",
             exe.parent().map(|d| d.display().to_string()).unwrap_or_default(),
             version(),
-            if all { "\n\nWindows zapyta o uprawnienia administratora." } else { "" }
+            if all { crate::tr("\n\nWindows zapyta o uprawnienia administratora.") } else { "" }
         );
         return match ask(&text, Ask::YesNo) {
             Answer::Yes => Some(install_flow(all, false, false, true)),
@@ -211,7 +211,7 @@ pub fn offer_install(args: &[String]) -> Option<i32> {
     }
     // Bez trybu przenośnego: pobrany plik to instalator – instaluje albo kończy.
     match ask(
-        "Zainstalować PowerDesk?\n\nPowerDesk zainstaluje się w Program Files (Windows zapyta o uprawnienia administratora) i zastąpi Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu.",
+        crate::tr("Zainstalować PowerDesk?\n\nPowerDesk zainstaluje się w Program Files (Windows zapyta o uprawnienia administratora) i zastąpi Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu."),
         Ask::YesNo,
     ) {
         Answer::Yes => Some(install_flow(true, false, false, true)),

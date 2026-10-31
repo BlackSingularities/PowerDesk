@@ -19,7 +19,7 @@ fn name(p: &str) -> String {
 }
 
 pub fn run(s: &Shared, a: String, b: String) {
-    transfers::toast(s, format!("Porównuję „{}” i „{}”…", name(&a), name(&b)), Kind::Info, None);
+    transfers::toast(s, powerdesk_core::trf!("Porównuję „{}” i „{}”…", name(&a), name(&b)), Kind::Info, None);
     std::thread::spawn(move || {
         let d = compare::compare(&a, &b);
         let _ = slint::invoke_from_event_loop(move || crate::with_state(|s| show(s, a, b, d)));
@@ -30,10 +30,10 @@ fn show(s: &Shared, a: String, b: String, d: Diff) {
     let (na, nb) = (name(&a), name(&b));
     let diffs = d.only_a.len() + d.only_b.len() + d.newer_a.len() + d.newer_b.len();
     if diffs == 0 {
-        transfers::toast(s, format!("„{na}” i „{nb}” są zgodne ({} plików)", d.same), Kind::Ok, None);
+        transfers::toast(s, powerdesk_core::trf!("„{na}” i „{nb}” są zgodne ({} plików)", d.same), Kind::Ok, None);
         return;
     }
-    let summary = format!(
+    let summary = powerdesk_core::trf!(
         "„{na}” ↔ „{nb}”: tylko w {na} – {}, tylko w {nb} – {}, nowsze w {na} – {}, nowsze w {nb} – {}, zgodne – {}",
         d.only_a.len(),
         d.only_b.len(),
@@ -48,7 +48,7 @@ fn show(s: &Shared, a: String, b: String, d: Diff) {
     crate::tab_mut(s, |t| {
         t.selected.clear();
         t.focus = None;
-        t.search = Some(Search { query: format!("Różnice: {na} ↔ {nb}"), id: 0, running: false, scanned: 0, results });
+        t.search = Some(Search { query: powerdesk_core::trf!("Różnice: {na} ↔ {nb}"), id: 0, running: false, scanned: 0, results });
     });
     crate::refresh(s);
     let (a2, b2) = (a.clone(), b.clone());
@@ -56,7 +56,7 @@ fn show(s: &Shared, a: String, b: String, d: Diff) {
         s,
         summary,
         Kind::Info,
-        Some(("Wyrównaj", Rc::new(move |_: &Shared| {
+        Some((crate::tr("Wyrównaj"), Rc::new(move |_: &Shared| {
             copy_all(&to_b, &a2, &b2);
             copy_all(&to_a, &b2, &a2);
         }))),

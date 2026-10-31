@@ -123,7 +123,7 @@ component Field inherits Rectangle {
             size: 24px;
             icon: Icons.check;
             icon-size: 14px;
-            tooltip: "Zastosuj";
+            tooltip: @tr("Zastosuj");
             clicked => {
                 root.accepted(fl-in.text);
             }
@@ -184,29 +184,29 @@ export component WidgetConfigPanel inherits Rectangle {
                 IconButton {
                     icon: Icons.close;
                     size: 26px;
-                    tooltip: "Zamknij (Esc)";
+                    tooltip: @tr("Zamknij (Esc)");
                     clicked => {
                         WidgetEdit.close();
                     }
                 }
             }
             Caption {
-                text: "Kolor akcentu";
+                text: @tr("Kolor akcentu");
             }
             HorizontalLayout {
                 spacing: 6px;
                 height: 22px;
                 for c[i] in [
-                    { c: #00000000, n: "Jak motyw" },
-                    { c: #4f8cff, n: "Niebieski" },
-                    { c: #2ec4b6, n: "Morski" },
-                    { c: #3ddc84, n: "Zielony" },
-                    { c: #f5b83d, n: "Bursztynowy" },
-                    { c: #ff8a3d, n: "Pomarańczowy" },
-                    { c: #ff5d73, n: "Czerwony" },
-                    { c: #c77dff, n: "Fioletowy" },
-                    { c: #ff7ac6, n: "Różowy" },
-                    { c: #8a8f99, n: "Szary" },
+                    { c: #00000000, n: @tr("Jak motyw") },
+                    { c: #4f8cff, n: @tr("Niebieski") },
+                    { c: #2ec4b6, n: @tr("Morski") },
+                    { c: #3ddc84, n: @tr("Zielony") },
+                    { c: #f5b83d, n: @tr("Bursztynowy") },
+                    { c: #ff8a3d, n: @tr("Pomarańczowy") },
+                    { c: #ff5d73, n: @tr("Czerwony") },
+                    { c: #c77dff, n: @tr("Fioletowy") },
+                    { c: #ff7ac6, n: @tr("Różowy") },
+                    { c: #8a8f99, n: @tr("Szary") },
                 ]: Rectangle {
                     property <bool> on: i == 0 ? WidgetEdit.accent.alpha == 0 : WidgetEdit.accent == c.c;
                     width: 22px;
@@ -233,7 +233,7 @@ export component WidgetConfigPanel inherits Rectangle {
             HorizontalLayout {
                 Caption {
                     horizontal-stretch: 1;
-                    text: "Krycie tła";
+                    text: @tr("Krycie tła");
                 }
                 Text {
                     text: round(WidgetEdit.alpha * 100) + "%";
@@ -261,7 +261,7 @@ export component WidgetConfigPanel inherits Rectangle {
                     border-color: Theme.popup-high;
                 }
                 al-ta := TipArea {
-                    tip: "Krycie tła widżetu – przeciągnij";
+                    tip: @tr("Krycie tła widżetu – przeciągnij");
                     moved => {
                         if (self.pressed) {
                             WidgetEdit.alpha = max(0, min(1, (self.mouse-x - 8px) / (parent.width - 16px)));
@@ -278,39 +278,39 @@ export component WidgetConfigPanel inherits Rectangle {
                 }
             }
             Caption {
-                text: "Styl";
+                text: @tr("Styl");
             }
             Segments {
-                options: ["Karta", "Szkło", "Akcent", "Bez tła"];
+                options: [@tr("Karta"), @tr("Szkło"), @tr("Akcent"), @tr("Bez tła")];
                 selected: WidgetEdit.style;
-                tip-prefix: "Styl";
+                tip-prefix: @tr("Styl");
                 select(i) => {
                     WidgetEdit.style = i;
                     WidgetEdit.changed();
                 }
             }
             if WidgetEdit.variants.length > 0: Caption {
-                text: "Układ";
+                text: @tr("Układ");
             }
             if WidgetEdit.variants.length > 0: Segments {
                 options: WidgetEdit.variants;
                 selected: WidgetEdit.variant;
-                tip-prefix: "Układ";
+                tip-prefix: @tr("Układ");
                 select(i) => {
                     WidgetEdit.variant = i;
                     WidgetEdit.changed();
                 }
             }
             if WidgetEdit.has-time: Caption {
-                text: "Format czasu";
+                text: @tr("Format czasu");
             }
             if WidgetEdit.has-time: HorizontalLayout {
                 spacing: 8px;
                 Segments {
                     horizontal-stretch: 1;
-                    options: ["24 h", "12 h"];
+                    options: [@tr("24 h"), @tr("12 h")];
                     selected: WidgetEdit.h12 ? 1 : 0;
-                    tip-prefix: "Format";
+                    tip-prefix: @tr("Format");
                     select(i) => {
                         WidgetEdit.h12 = i == 1;
                         WidgetEdit.changed();
@@ -318,9 +318,9 @@ export component WidgetConfigPanel inherits Rectangle {
                 }
                 Segments {
                     horizontal-stretch: 1;
-                    options: ["Sekundy", "Bez sekund"];
+                    options: [@tr("Sekundy"), @tr("Bez sekund")];
                     selected: WidgetEdit.seconds ? 0 : 1;
-                    tip-prefix: "Sekundy";
+                    tip-prefix: @tr("Sekundy");
                     select(i) => {
                         WidgetEdit.seconds = i == 0;
                         WidgetEdit.changed();
@@ -328,12 +328,12 @@ export component WidgetConfigPanel inherits Rectangle {
                 }
             }
             if WidgetEdit.has-temp: Caption {
-                text: "Jednostka temperatury";
+                text: @tr("Jednostka temperatury");
             }
             if WidgetEdit.has-temp: Segments {
-                options: ["°C – Celsjusz", "°F – Fahrenheit"];
+                options: [@tr("°C – Celsjusz"), @tr("°F – Fahrenheit")];
                 selected: WidgetEdit.fahrenheit ? 1 : 0;
-                tip-prefix: "Jednostka";
+                tip-prefix: @tr("Jednostka");
                 select(i) => {
                     WidgetEdit.fahrenheit = i == 1;
                     WidgetEdit.changed();
@@ -345,7 +345,7 @@ export component WidgetConfigPanel inherits Rectangle {
             if WidgetEdit.src-kind == 1: Field {
                 text: WidgetEdit.src;
                 hint: WidgetEdit.src-hint;
-                tip: WidgetEdit.src-label + " – Enter zatwierdza";
+                tip: WidgetEdit.src-label + @tr(" – Enter zatwierdza");
                 accepted(t) => {
                     WidgetEdit.src = t;
                     WidgetEdit.changed();
@@ -381,25 +381,25 @@ export component WidgetConfigPanel inherits Rectangle {
                     }
                     Text {
                         vertical-alignment: center;
-                        text: "Zmień…";
+                        text: @tr("Zmień…");
                         font-size: 11.5px;
                         color: Theme.dim;
                     }
                 }
                 pf-ta := TipArea {
-                    tip: "Wybierz folder pokazywany w widżecie";
+                    tip: @tr("Wybierz folder pokazywany w widżecie");
                     clicked => {
                         WidgetEdit.pick-folder();
                     }
                 }
             }
             Caption {
-                text: "Tytuł";
+                text: @tr("Tytuł");
             }
             Field {
                 text: WidgetEdit.title;
-                hint: "Domyślny";
-                tip: "Własny tytuł widżetu – Enter zatwierdza, puste przywraca domyślny";
+                hint: @tr("Domyślny");
+                tip: @tr("Własny tytuł widżetu – Enter zatwierdza, puste przywraca domyślny");
                 accepted(t) => {
                     WidgetEdit.title = t;
                     WidgetEdit.changed();
@@ -414,12 +414,12 @@ export component WidgetConfigPanel inherits Rectangle {
                     border-radius: Theme.r-s;
                     background: rs-ta.has-hover ? Theme.hover : Theme.card;
                     rs-t := Text {
-                        text: "Przywróć domyślne";
+                        text: @tr("Przywróć domyślne");
                         font-size: 12px;
                         color: Theme.text;
                     }
                     rs-ta := TipArea {
-                        tip: "Przywróć domyślny wygląd i źródło tego widżetu";
+                        tip: @tr("Przywróć domyślny wygląd i źródło tego widżetu");
                         clicked => {
                             WidgetEdit.reset();
                         }

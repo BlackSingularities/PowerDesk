@@ -136,7 +136,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.back;
-                tooltip: "Wstecz (Alt+←)";
+                tooltip: @tr("Wstecz (Alt+←)");
                 icon-size: 18px;
                 enabled: root.can-back;
                 clicked => {
@@ -146,7 +146,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.fwd;
-                tooltip: "Dalej (Alt+→)";
+                tooltip: @tr("Dalej (Alt+→)");
                 icon-size: 18px;
                 enabled: root.can-forward;
                 clicked => {
@@ -156,7 +156,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.up;
-                tooltip: "W górę (Alt+↑)";
+                tooltip: @tr("W górę (Alt+↑)");
                 icon-size: 18px;
                 enabled: !root.special;
                 clicked => {
@@ -166,7 +166,7 @@ export component Toolbar inherits Rectangle {
             IconButton {
                 y: 3px;
                 icon: Icons.refresh;
-                tooltip: "Odśwież (F5)";
+                tooltip: @tr("Odśwież (F5)");
                 icon-size: 17px;
                 clicked => {
                     root.refresh();
@@ -184,7 +184,7 @@ export component Toolbar inherits Rectangle {
                 clip: true;
 
                 if !root.editing: TipArea {
-                    tip: "Kliknij, aby wpisać ścieżkę (Ctrl+L)";
+                    tip: @tr("Kliknij, aby wpisać ścieżkę (Ctrl+L)");
                     clicked => {
                         root.edit-address();
                     }
@@ -212,7 +212,7 @@ export component Toolbar inherits Rectangle {
                             color: pl-ta.has-hover ? Theme.text : Theme.faint;
                         }
                         pl-ta := TipArea {
-                            tip: "Szybkie miejsca";
+                            tip: @tr("Szybkie miejsca");
                             clicked => {
                                 root.crumb-menu("ofp:places", self.absolute-position.x, self.absolute-position.y + 30px);
                             }
@@ -252,7 +252,7 @@ export component Toolbar inherits Rectangle {
                                 color: sep-ta.has-hover ? Theme.text : Theme.faint;
                             }
                             sep-ta := TipArea {
-                                tip: "Podfoldery";
+                                tip: @tr("Podfoldery");
                                 clicked => {
                                     root.crumb-menu(c.path, self.absolute-position.x, self.absolute-position.y + 30px);
                                 }
@@ -294,7 +294,7 @@ export component Toolbar inherits Rectangle {
                                 color: fs-ta.has-hover ? Theme.text : Theme.dim;
                             }
                             fs-ta := TipArea {
-                                tip: "Wyłącz filtry";
+                                tip: @tr("Wyłącz filtry");
                                 clicked => {
                                     root.clear-facets();
                                 }
@@ -392,7 +392,7 @@ export component Toolbar inherits Rectangle {
                         }
                     }
                     more-ta := TipArea {
-                        tip: "Filtry";
+                        tip: @tr("Filtry");
                         clicked => {
                             root.toggle-facets();
                         }
@@ -420,7 +420,7 @@ export component Toolbar inherits Rectangle {
                         }
                     }
                     sort-ta := TipArea {
-                        tip: "Sortowanie i grupowanie";
+                        tip: @tr("Sortowanie i grupowanie");
                         clicked => {
                             root.sort-menu(self.absolute-position.x, self.absolute-position.y + 34px);
                         }
@@ -452,7 +452,7 @@ export component Toolbar inherits Rectangle {
                         background: Theme.text;
                     }
                     TipArea {
-                        tip: "Wielkość miniatur (Ctrl+kółko)";
+                        tip: @tr("Wielkość miniatur (Ctrl+kółko)");
                         moved => {
                             if (self.pressed) {
                                 root.zoom = clamp(root.zoom-min + (self.mouse-x - 8px) / (self.width - 16px) * (root.zoom-max - root.zoom-min), root.zoom-min, root.zoom-max);
@@ -494,7 +494,7 @@ export component Toolbar inherits Rectangle {
                         }
                     }
                     shelf-ta := TipArea {
-                        tip: "Półka (Ctrl+Shift+S)";
+                        tip: @tr("Półka (Ctrl+Shift+S)");
                         drop: "ofp:shelf";
                         clicked => {
                             root.toggle-shelf();
@@ -514,7 +514,7 @@ export component Toolbar inherits Rectangle {
                         color: root.terminal-open || tm-ta.has-hover ? Theme.text : Theme.dim;
                     }
                     tm-ta := TipArea {
-                        tip: root.terminal-open ? "Ukryj terminal (Ctrl+`)" : "Terminal (Ctrl+`)";
+                        tip: root.terminal-open ? @tr("Ukryj terminal (Ctrl+`)") : @tr("Terminal (Ctrl+`)");
                         clicked => {
                             root.toggle-terminal();
                         }
@@ -533,7 +533,7 @@ export component Toolbar inherits Rectangle {
                         color: root.preview-open || pv-ta.has-hover ? Theme.text : Theme.dim;
                     }
                     pv-ta := TipArea {
-                        tip: root.preview-open ? "Ukryj podgląd (Alt+P)" : "Pokaż podgląd (Alt+P)";
+                        tip: root.preview-open ? @tr("Ukryj podgląd (Alt+P)") : @tr("Pokaż podgląd (Alt+P)");
                         clicked => {
                             root.toggle-preview();
                         }
@@ -563,7 +563,7 @@ export component Toolbar inherits Rectangle {
                                 color: root.view == i ? Theme.text : Theme.dim;
                             }
                             seg-ta := TipArea {
-                                tip: i == 0 ? "Lista (Ctrl+1)" : i == 1 ? "Siatka (Ctrl+2)" : "Galeria (Ctrl+3)";
+                                tip: i == 0 ? @tr("Lista (Ctrl+1)") : i == 1 ? @tr("Siatka (Ctrl+2)") : @tr("Galeria (Ctrl+3)");
                                 clicked => {
                                     root.set-view(i);
                                 }
@@ -630,7 +630,7 @@ export component Toolbar inherits Rectangle {
                             x: 0;
                             width: parent.width;
                             visible: root.query == "";
-                            text: root.special ? "Szukaj…" : "Filtruj · Enter: szukaj w podfolderach";
+                            text: root.special ? "Szukaj…" : @tr("Filtruj · Enter: szukaj w podfolderach");
                             color: Theme.faint;
                         }
                     }
@@ -638,7 +638,7 @@ export component Toolbar inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                         size: 24px;
                         icon: Icons.star;
-                        tooltip: "Zapisz wyszukiwanie w panelu bocznym";
+                        tooltip: @tr("Zapisz wyszukiwanie w panelu bocznym");
                         icon-size: 14px;
                         clicked => {
                             root.save-search();
@@ -655,7 +655,7 @@ export component Toolbar inherits Rectangle {
                         y: (parent.height - self.height) / 2;
                         size: 24px;
                         icon: Icons.close;
-                        tooltip: "Wyczyść (Esc)";
+                        tooltip: @tr("Wyczyść (Esc)");
                         icon-size: 13px;
                         clicked => {
                             root.query = "";
@@ -759,13 +759,13 @@ export component FacetPanel inherits Rectangle {
                         color: clr-ta.has-hover ? Theme.text : Theme.dim;
                     }
                     Label {
-                        text: "Wyczyść filtry";
+                        text: @tr("Wyczyść filtry");
                         font-size: 12px;
                         color: clr-ta.has-hover ? Theme.text : Theme.dim;
                     }
                 }
                 clr-ta := TipArea {
-                    tip: "Wyłącz wszystkie filtry";
+                    tip: @tr("Wyłącz wszystkie filtry");
                     clicked => {
                         root.clear-facets();
                     }

@@ -328,13 +328,13 @@ pub fn cleanup(letter: &str) {
 
 pub fn win_err(code: u32) -> String {
     match code {
-        5 => "Brak dostępu".into(),
-        53 | 67 => "Nie znaleziono ścieżki sieciowej".into(),
-        85 => "Ta litera dysku jest już zajęta".into(),
-        86 | 1326 => "Nieprawidłowa nazwa użytkownika lub hasło".into(),
-        1219 => "Istnieje już połączenie z tym serwerem na innych danych logowania".into(),
-        1223 => "Anulowano".into(),
-        2250 => "To połączenie nie istnieje".into(),
+        5 => crate::lang::tr("Brak dostępu").into(),
+        53 | 67 => crate::lang::tr("Nie znaleziono ścieżki sieciowej").into(),
+        85 => crate::lang::tr("Ta litera dysku jest już zajęta").into(),
+        86 | 1326 => crate::lang::tr("Nieprawidłowa nazwa użytkownika lub hasło").into(),
+        1219 => crate::lang::tr("Istnieje już połączenie z tym serwerem na innych danych logowania").into(),
+        1223 => crate::lang::tr("Anulowano").into(),
+        2250 => crate::lang::tr("To połączenie nie istnieje").into(),
         _ => std::io::Error::from_raw_os_error(code as i32).to_string(),
     }
 }

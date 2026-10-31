@@ -221,7 +221,7 @@ export component TrayOverflowWindow inherits Window {
         spacing: 8px;
         Text {
             height: 20px;
-            text: "Ukryte ikony";
+            text: @tr("Ukryte ikony");
             font-size: 13px;
             font-weight: 600;
             color: Theme.text;
@@ -229,7 +229,7 @@ export component TrayOverflowWindow inherits Window {
         }
         if root.apps.length == 0: Text {
             height: 40px;
-            text: "Wszystkie ikony są na pasku";
+            text: @tr("Wszystkie ikony są na pasku");
             font-size: 12px;
             color: Theme.faint;
             vertical-alignment: center;
@@ -254,7 +254,7 @@ export component TrayOverflowWindow inherits Window {
         }
         Text {
             height: 14px;
-            text: "Przeciągnij ikonę na pasek albo z paska tutaj";
+            text: @tr("Przeciągnij ikonę na pasek albo z paska tutaj");
             font-size: 10.5px;
             color: Theme.faint;
             vertical-alignment: center;
@@ -281,7 +281,7 @@ export component TrayOverflowWindow inherits Window {
                     }
                 }
                 Text {
-                    text: "Wszystkie ikony na pasku";
+                    text: @tr("Wszystkie ikony na pasku");
                     font-size: 12px;
                     color: Theme.text;
                     vertical-alignment: center;
@@ -352,7 +352,7 @@ component VolRow inherits HorizontalLayout {
             }
         }
         mt-ta := TipArea {
-            tip: root.muted ? "Włącz dźwięk" : "Wycisz";
+            tip: root.muted ? @tr("Włącz dźwięk") : @tr("Wycisz");
             clicked => {
                 root.mute();
             }
@@ -449,7 +449,7 @@ export component VolumeWindow inherits Window {
                 }
             }
             dv-ta := TipArea {
-                tip: "Urządzenie odtwarzające";
+                tip: @tr("Urządzenie odtwarzające");
                 clicked => {
                     root.toggle-devices();
                 }
@@ -502,7 +502,7 @@ export component VolumeWindow inherits Window {
             }
         }
         if root.has-mic: VolRow {
-            name: root.mic-muted ? "Mikrofon (wyciszony)" : "Mikrofon";
+            name: root.mic-muted ? @tr("Mikrofon (wyciszony)") : @tr("Mikrofon");
             system: true;
             level: root.mic;
             muted: root.mic-muted;
@@ -516,7 +516,7 @@ export component VolumeWindow inherits Window {
         if root.apps.length > 0: Text {
             height: 24px;
             vertical-alignment: bottom;
-            text: "Aplikacje";
+            text: @tr("Aplikacje");
             font-size: 11px;
             font-weight: 600;
             color: Theme.dim;
@@ -540,7 +540,7 @@ export component VolumeWindow inherits Window {
             alignment: end;
             Text {
                 vertical-alignment: bottom;
-                text: "Ustawienia dźwięku";
+                text: @tr("Ustawienia dźwięku");
                 font-size: 12px;
                 color: vs-ta.has-hover ? Theme.text : Theme.accent;
                 vs-ta := TouchArea {
@@ -664,27 +664,27 @@ export component NetworkWindow inherits Window {
             spacing: 6px;
             QuickTile {
                 icon: Icons.bluetooth;
-                text: "Bluetooth";
+                text: @tr("Bluetooth");
                 on: root.bt == 1;
-                tip: root.bt < 0 ? "Bluetooth niedostępny – klik otwiera ustawienia urządzeń" : root.bt == 1 ? "Wyłącz Bluetooth" : "Włącz Bluetooth";
+                tip: root.bt < 0 ? @tr("Bluetooth niedostępny – klik otwiera ustawienia urządzeń") : root.bt == 1 ? @tr("Wyłącz Bluetooth") : @tr("Włącz Bluetooth");
                 clicked => {
                     root.quick(root.bt < 0 ? "bluetooth-settings" : "bluetooth");
                 }
             }
             QuickTile {
                 icon: Icons.plane;
-                text: "Samolot";
+                text: @tr("Samolot");
                 on: root.airplane;
-                tip: root.airplane ? "Wyłącz tryb samolotowy" : "Tryb samolotowy – wyłącza Wi-Fi, Bluetooth i sieć komórkową";
+                tip: root.airplane ? @tr("Wyłącz tryb samolotowy") : @tr("Tryb samolotowy – wyłącza Wi-Fi, Bluetooth i sieć komórkową");
                 clicked => {
                     root.quick("airplane");
                 }
             }
             QuickTile {
                 icon: Icons.hotspot;
-                text: "Hotspot";
+                text: @tr("Hotspot");
                 link: true;
-                tip: "Udostępnianie internetu – Ustawienia Windows";
+                tip: @tr("Udostępnianie internetu – Ustawienia Windows");
                 clicked => {
                     root.quick("hotspot");
                 }
@@ -694,36 +694,36 @@ export component NetworkWindow inherits Window {
             spacing: 6px;
             QuickTile {
                 icon: Icons.moon;
-                text: "Światło nocne";
+                text: @tr("Światło nocne");
                 link: true;
-                tip: "Światło nocne – Ustawienia Windows";
+                tip: @tr("Światło nocne – Ustawienia Windows");
                 clicked => {
                     root.quick("nightlight");
                 }
             }
             QuickTile {
                 icon: Icons.leaf;
-                text: "Oszczędzanie";
+                text: @tr("Oszczędzanie");
                 link: true;
-                tip: "Oszczędzanie baterii – Ustawienia Windows";
+                tip: @tr("Oszczędzanie baterii – Ustawienia Windows");
                 clicked => {
                     root.quick("batterysaver");
                 }
             }
             if root.power-mode < 0: QuickTile {
                 icon: Icons.settings;
-                text: "Wszystkie";
+                text: @tr("Wszystkie");
                 link: true;
-                tip: "Ustawienia Windows";
+                tip: @tr("Ustawienia Windows");
                 clicked => {
                     root.quick("settings");
                 }
             }
             if root.power-mode >= 0: QuickTile {
                 icon: Icons.power;
-                text: root.power-mode == 0 ? "Oszczędny" : root.power-mode == 2 ? "Wydajny" : "Zrównoważony";
+                text: root.power-mode == 0 ? @tr("Oszczędny") : root.power-mode == 2 ? @tr("Wydajny") : @tr("Zrównoważony");
                 on: root.power-mode == 2;
-                tip: "Tryb zasilania – klik przełącza: oszczędny → zrównoważony → wydajny";
+                tip: @tr("Tryb zasilania – klik przełącza: oszczędny → zrównoważony → wydajny");
                 clicked => {
                     root.quick("power-mode");
                 }
@@ -735,25 +735,25 @@ export component NetworkWindow inherits Window {
                 icon: Icons.shield;
                 text: "VPN";
                 link: true;
-                tip: "Połączenia VPN – Ustawienia Windows";
+                tip: @tr("Połączenia VPN – Ustawienia Windows");
                 clicked => {
                     root.quick("vpn");
                 }
             }
             QuickTile {
                 icon: Icons.video;
-                text: "Przesyłaj";
+                text: @tr("Przesyłaj");
                 link: true;
-                tip: "Przesyłanie obrazu na telewizor lub monitor bezprzewodowy (Win+K)";
+                tip: @tr("Przesyłanie obrazu na telewizor lub monitor bezprzewodowy (Win+K)");
                 clicked => {
                     root.quick("cast");
                 }
             }
             QuickTile {
                 icon: Icons.desktop;
-                text: "Projektuj";
+                text: @tr("Projektuj");
                 link: true;
-                tip: "Tryb wyświetlania na drugim ekranie (Win+P)";
+                tip: @tr("Tryb wyświetlania na drugim ekranie (Win+P)");
                 clicked => {
                     root.quick("project");
                 }
@@ -786,7 +786,7 @@ export component NetworkWindow inherits Window {
             Text {
                 horizontal-stretch: 1;
                 vertical-alignment: center;
-                text: "Sieć";
+                text: @tr("Sieć");
                 font-size: 14px;
                 font-weight: 600;
                 color: Theme.text;
@@ -802,7 +802,7 @@ export component NetworkWindow inherits Window {
                     color: root.scanning ? Theme.accent : Theme.dim;
                 }
                 rs-ta := TipArea {
-                    tip: root.scanning ? "Szukanie sieci…" : "Szukaj sieci";
+                    tip: root.scanning ? @tr("Szukanie sieci…") : @tr("Szukaj sieci");
                     clicked => {
                         root.rescan();
                     }
@@ -829,19 +829,19 @@ export component NetworkWindow inherits Window {
                     color: Theme.text;
                 }
                 Text {
-                    text: "Połączono kablem";
+                    text: @tr("Połączono kablem");
                     font-size: 11px;
                     color: Theme.dim;
                 }
             }
         }
         if !root.has-wifi: Text {
-            text: "Ten komputer nie ma karty Wi-Fi.";
+            text: @tr("Ten komputer nie ma karty Wi-Fi.");
             font-size: 12px;
             color: Theme.dim;
         }
         if root.has-wifi && root.nets.length == 0: Text {
-            text: root.scanning ? "Szukanie sieci…" : "Nie widać żadnych sieci Wi-Fi.";
+            text: root.scanning ? @tr("Szukanie sieci…") : @tr("Nie widać żadnych sieci Wi-Fi.");
             font-size: 12px;
             color: Theme.dim;
         }
@@ -885,7 +885,7 @@ export component NetworkWindow inherits Window {
                             color: Theme.text;
                         }
                         Text {
-                            text: (n.connected ? "Połączono" : n.known ? "Zapisana" : "") + (n.connected || n.known ? ", " : "") + (n.secured ? "zabezpieczona" : "otwarta") + " · " + n.signal + "%";
+                            text: (n.connected ? @tr("Połączono") : n.known ? @tr("Zapisana") : "") + (n.connected || n.known ? ", " : "") + (n.secured ? "zabezpieczona" : "otwarta") + " · " + n.signal + "%";
                             font-size: 11px;
                             color: Theme.dim;
                         }
@@ -903,7 +903,7 @@ export component NetworkWindow inherits Window {
                             border-color: pw.has-focus ? Theme.line-strong : Theme.line;
                             if root.pass == "": Text {
                                 x: 10px;
-                                text: "Hasło sieci";
+                                text: @tr("Hasło sieci");
                                 font-size: 12px;
                                 color: Theme.faint;
                             }
@@ -930,13 +930,13 @@ export component NetworkWindow inherits Window {
                         HorizontalLayout {
                             alignment: end;
                             if n.connected: PopButton {
-                                text: "Rozłącz";
+                                text: @tr("Rozłącz");
                                 clicked => {
                                     root.disconnect();
                                 }
                             }
                             if !n.connected: PopButton {
-                                text: "Połącz";
+                                text: @tr("Połącz");
                                 primary: true;
                                 enabled: !n.secured || n.known || root.pass != "";
                                 clicked => {
@@ -952,7 +952,7 @@ export component NetworkWindow inherits Window {
             height: 20px;
             alignment: end;
             Text {
-                text: "Ustawienia sieci i internetu";
+                text: @tr("Ustawienia sieci i internetu");
                 font-size: 12px;
                 color: ns-ta.has-hover ? Theme.text : Theme.accent;
                 ns-ta := TouchArea {
@@ -996,7 +996,7 @@ export component CalendarWindow inherits Window {
             font-weight: 600;
             color: ld-ta.has-hover ? Theme.accent : Theme.text;
             ld-ta := TipArea {
-                tip: "Wróć do bieżącego miesiąca";
+                tip: @tr("Wróć do bieżącego miesiąca");
                 clicked => {
                     root.shift(0);
                 }
@@ -1022,7 +1022,7 @@ export component CalendarWindow inherits Window {
                     color: Theme.dim;
                 }
                 mv-ta := TipArea {
-                    tip: d < 0 ? "Poprzedni miesiąc" : "Następny miesiąc";
+                    tip: d < 0 ? @tr("Poprzedni miesiąc") : @tr("Następny miesiąc");
                     clicked => {
                         root.shift(d);
                     }
@@ -1041,7 +1041,7 @@ export component CalendarWindow inherits Window {
                     accept
                 }
             }
-            for n[i] in ["pn", "wt", "śr", "cz", "pt", "so", "nd"]: Text {
+            for n[i] in [@tr("pn"), @tr("wt"), @tr("śr"), @tr("cz"), @tr("pt"), @tr("so"), @tr("nd")]: Text {
                 x: i * 41px;
                 y: 0;
                 width: 38px;
@@ -1069,7 +1069,7 @@ export component CalendarWindow inherits Window {
         HorizontalLayout {
             alignment: end;
             Text {
-                text: "Ustawienia daty i godziny";
+                text: @tr("Ustawienia daty i godziny");
                 font-size: 12px;
                 color: cs-ta.has-hover ? Theme.text : Theme.accent;
                 cs-ta := TouchArea {
@@ -1165,7 +1165,7 @@ export component ThumbWindow inherits Window {
                     color: cl-ta.has-hover ? white : Theme.dim;
                 }
                 cl-ta := TipArea {
-                    tip: "Zamknij okno";
+                    tip: @tr("Zamknij okno");
                     clicked => {
                         root.close-win(i);
                     }
@@ -1206,7 +1206,7 @@ export component TaskbarWindow inherits Window {
     out property <length> lane-each: lane.each;
     no-frame: true;
     always-on-top: true;
-    title: "PowerDesk – pasek zadań";
+    title: @tr("PowerDesk – pasek zadań");
     /// Krycie tła (0–1) – z ustawień albo 0, gdy na monitorze widać pulpit (taskbar.rs).
     in property <float> bg-alpha: 1;
     background: Theme.panel.with-alpha(root.bg-alpha);
@@ -1388,7 +1388,7 @@ export component TaskbarWindow inherits Window {
                 opacity: root.start-frames < 2 && st-ta.has-hover ? 0.85 : 1;
             }
             st-ta := TipArea {
-                tip: "Start";
+                tip: @tr("Start");
                 clicked => {
                     root.start();
                 }
@@ -1426,7 +1426,7 @@ export component TaskbarWindow inherits Window {
                 }
             }
             vd-ta := TipArea {
-                tip: root.vd-name + " · kółko – sąsiedni pulpit";
+                tip: root.vd-name + @tr(" · kółko – sąsiedni pulpit");
                 clicked => {
                     root.vd-menu(self.absolute-position.x);
                 }
@@ -1546,9 +1546,9 @@ export component TaskbarWindow inherits Window {
                     }
                 }
                 tb-ta := TipArea {
-                    tip: b.count == 0 ? b.title + " · przypięty" : "";
+                    tip: b.count == 0 ? b.title + @tr(" · przypięty") : "";
                     // Uruchomione okna nie mają dymka (są podglądy) – nazwa dla czytnika ekranu i tak jest.
-                    accessible-label: b.count == 0 ? b.title + ", przypięty" : b.title + (b.count > 1 ? ", okna: " + b.count : "");
+                    accessible-label: b.count == 0 ? b.title + @tr(", przypięty") : b.title + (b.count > 1 ? @tr(", okna: ") + b.count : "");
                     clicked => {
                         if (!parent.was-drag) {
                             root.activate(i);
@@ -1590,7 +1590,7 @@ export component TaskbarWindow inherits Window {
                 width: parent.arrow-on ? 28px : 0px;
                 icon: Icons.chevron-down;
                 lit: parent.over-arrow;
-                tip: root.tray-drag-x >= 0 ? "" : root.tray-all ? "Ikony zasobnika" : "Pokaż ukryte ikony (" + root.tray-hidden + ")";
+                tip: root.tray-drag-x >= 0 ? "" : root.tray-all ? @tr("Ikony zasobnika") : @tr("Pokaż ukryte ikony (") + root.tray-hidden + ")";
                 transform-rotation: 180deg;
                 clicked => {
                     root.tray-overflow(self.absolute-position.x);
@@ -1612,14 +1612,14 @@ export component TaskbarWindow inherits Window {
             TrayIcon {
                 icon: root.net-kind == 0 ? Icons.wifi-off : root.net-kind == 1 ? Icons.wifi : Icons.ethernet;
                 dim: root.net-kind == 0;
-                tip: root.net-kind == 0 ? "Brak połączenia z internetem" : root.net-name;
+                tip: root.net-kind == 0 ? @tr("Brak połączenia z internetem") : root.net-name;
                 clicked => {
                     root.network-open(self.absolute-position.x);
                 }
             }
             if root.has-volume: TrayIcon {
                 icon: root.muted || root.volume == 0 ? Icons.mute : Icons.volume;
-                tip: root.muted ? "Głośność: wyciszona" : "Głośność: " + round(root.volume * 100) + "%";
+                tip: root.muted ? @tr("Głośność: wyciszona") : @tr("Głośność: ") + round(root.volume * 100) + "%";
                 clicked => {
                     root.volume-open(self.absolute-position.x);
                 }
@@ -1632,14 +1632,14 @@ export component TaskbarWindow inherits Window {
             }
             if root.has-usb: TrayIcon {
                 icon: Icons.usb;
-                tip: "Bezpieczne usuwanie sprzętu";
+                tip: @tr("Bezpieczne usuwanie sprzętu");
                 clicked => {
                     root.usb-open(self.absolute-position.x);
                 }
             }
             if root.has-battery: TrayIcon {
                 icon: Icons.battery;
-                tip: "Bateria: " + root.battery + "%" + (root.charging ? " · ładowanie" : "");
+                tip: "Bateria: " + root.battery + "%" + (root.charging ? @tr(" · ładowanie") : "");
                 clicked => {
                     root.battery-open();
                 }
@@ -1683,7 +1683,7 @@ export component TaskbarWindow inherits Window {
                 }
             }
             nt-ta := TipArea {
-                tip: root.notice-count > 0 ? "Powiadomienia (" + root.notice-count + " nowe)" : "Powiadomienia";
+                tip: root.notice-count > 0 ? @tr("Powiadomienia (") + root.notice-count + " nowe)" : @tr("Powiadomienia");
                 clicked => {
                     root.notices-open(nt.absolute-position.x);
                 }
@@ -1706,7 +1706,7 @@ export component TaskbarWindow inherits Window {
                 horizontal-alignment: center;
             }
             kb-ta := TipArea {
-                tip: (root.kbd-name != "" ? root.kbd-name + " · " : "") + "kliknij, by zmienić język (Win+Spacja)";
+                tip: (root.kbd-name != "" ? root.kbd-name + " · " : "") + @tr("kliknij, by zmienić język (Win+Spacja)");
                 clicked => {
                     root.kbd-next();
                 }
@@ -1738,7 +1738,7 @@ export component TaskbarWindow inherits Window {
                 }
             }
             ck-ta := TipArea {
-                tip: "Kalendarz";
+                tip: @tr("Kalendarz");
                 clicked => {
                     root.calendar-open(clock.absolute-position.x);
                 }
@@ -1751,7 +1751,7 @@ export component TaskbarWindow inherits Window {
             width: 8px;
             background: sd-ta.has-hover ? Theme.hover : transparent;
             sd-ta := TipArea {
-                tip: "Pokaż pulpit";
+                tip: @tr("Pokaż pulpit");
                 clicked => {
                     root.peek(false);
                     root.show-desktop();
@@ -1797,7 +1797,7 @@ export struct TaskCard {
 export component TaskViewWindow inherits Window {
     no-frame: true;
     always-on-top: true;
-    title: "PowerDesk – widok zadań";
+    title: @tr("PowerDesk – widok zadań");
     background: #000000b0;
     in property <[TaskCard]> cards;
     callback pick(int);
@@ -1819,7 +1819,7 @@ export component TaskViewWindow inherits Window {
         }
     }
     if root.cards.length == 0: Text {
-        text: "Brak otwartych okien";
+        text: @tr("Brak otwartych okien");
         font-size: 16px;
         color: #ffffffcc;
         horizontal-alignment: center;
@@ -1880,7 +1880,7 @@ export component TaskViewWindow inherits Window {
                     color: tx-ta.has-hover ? white : Theme.dim;
                 }
                 tx-ta := TipArea {
-                    tip: "Zamknij okno";
+                    tip: @tr("Zamknij okno");
                     clicked => {
                         root.close-win(i);
                     }
@@ -1914,7 +1914,7 @@ export component NoticesWindow inherits Window {
         HorizontalLayout {
             Text {
                 horizontal-stretch: 1;
-                text: "Powiadomienia";
+                text: @tr("Powiadomienia");
                 font-size: 14px;
                 font-weight: 600;
                 color: Theme.text;
@@ -1925,12 +1925,12 @@ export component NoticesWindow inherits Window {
                 border-radius: Theme.r-s;
                 background: cl-ta.has-hover ? Theme.hover : transparent;
                 cl := Text {
-                    text: "Wyczyść wszystko";
+                    text: @tr("Wyczyść wszystko");
                     font-size: 12px;
                     color: Theme.accent;
                 }
                 cl-ta := TipArea {
-                    tip: "Usuń wszystkie powiadomienia z listy";
+                    tip: @tr("Usuń wszystkie powiadomienia z listy");
                     clicked => {
                         root.clear();
                     }
@@ -1941,7 +1941,7 @@ export component NoticesWindow inherits Window {
             vertical-stretch: 1;
             horizontal-alignment: center;
             vertical-alignment: center;
-            text: "Brak nowych powiadomień";
+            text: @tr("Brak nowych powiadomień");
             font-size: 12.5px;
             color: Theme.faint;
         }
@@ -2044,7 +2044,7 @@ export component NoticeToastWindow inherits Window {
             color: Theme.dim;
         }
         nx-ta := TipArea {
-            tip: "Zamknij";
+            tip: @tr("Zamknij");
             clicked => {
                 root.dismiss();
             }

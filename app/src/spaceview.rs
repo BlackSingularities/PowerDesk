@@ -54,7 +54,7 @@ pub fn open(s: &Shared, path: &str) {
 pub fn open_here(s: &Shared) {
     let path = crate::tab_mut(s, |t| t.path.clone());
     if path.starts_with("ofp:") || crate::archives::browsing(&path) {
-        crate::transfers::toast(s, "Otwórz zwykły folder, aby sprawdzić jego zajętość", crate::transfers::Kind::Info, None);
+        crate::transfers::toast(s, crate::tr("Otwórz zwykły folder, aby sprawdzić jego zajętość"), crate::transfers::Kind::Info, None);
         return;
     }
     open(s, &path);
@@ -63,7 +63,7 @@ pub fn open_here(s: &Shared) {
 pub fn title(path: &str) -> Option<String> {
     let root = path.strip_prefix(PREFIX)?;
     let name = Path::new(root).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| root.to_string());
-    Some(format!("Zajętość: {name}"))
+    Some(powerdesk_core::trf!("Zajętość: {name}"))
 }
 
 pub fn sync_tab(s: &Shared) {
@@ -102,7 +102,7 @@ fn scan(s: &Shared) {
     with_ui(s, |g| {
         g.set_busy(true);
         g.set_error("".into());
-        g.set_progress("Skanuję…".into());
+        g.set_progress(crate::tr("Skanuję…").into());
     });
     render_map(s);
     std::thread::spawn(move || {
@@ -130,7 +130,7 @@ pub fn on_progress(s: &Shared, p: serde_json::Value) {
     let current = p["current"].as_str().unwrap_or_default().to_string();
     with_ui(s, |g| {
         if g.get_busy() && files > 0 {
-            g.set_progress(format!("{} plików · {}", fmt::thousands(files), fmt::size(bytes)).into());
+            g.set_progress(powerdesk_core::trf!("{} plików · {}", fmt::thousands(files), fmt::size(bytes)).into());
             g.set_current(current.into());
         }
     });
@@ -272,7 +272,7 @@ fn render_map(s: &Shared) {
                     h,
                     name: n.name.clone().into(),
                     size: fmt::size(n.size).into(),
-                    tip: if n.dir { format!("{}\n{} · {} plików", n.name, fmt::size(n.size), fmt::thousands(n.files)) } else { format!("{}\n{}", n.name, fmt::size(n.size)) }.into(),
+                    tip: if n.dir { powerdesk_core::trf!("{}\n{} · {} plików", n.name, fmt::size(n.size), fmt::thousands(n.files)) } else { format!("{}\n{}", n.name, fmt::size(n.size)) }.into(),
                     color: color_of(n, i),
                     dir: n.dir,
                 }
@@ -286,7 +286,7 @@ fn render_map(s: &Shared) {
             .enumerate()
             .map(|(i, n)| SpaceRow { index: i as i32, name: n.name.clone().into(), size: fmt::size(n.size).into(), color: color_of(n, i), frac: n.size as f32 / total })
             .collect();
-        let summary = format!("{} · {} plików", fmt::size(c.size), fmt::thousands(c.files));
+        let summary = powerdesk_core::trf!("{} · {} plików", fmt::size(c.size), fmt::thousands(c.files));
         with_ui(s, |g| {
             g.set_ready(true);
             g.set_crumbs(ModelRc::new(VecModel::from(crumbs)));
@@ -335,14 +335,14 @@ fn tile_menu(s: &Shared, i: usize, x: f32, y: f32) {
     let folder = if dir { path.clone() } else { parent(&path) };
     let mut v = Vec::new();
     if dir && deeper {
-        v.push(it("Pokaż szczegóły", "grid", move |s| open_tile(s, i)));
+        v.push(it(crate::tr("Pokaż szczegóły"), "grid", move |s| open_tile(s, i)));
     }
     let f = folder.clone();
-    v.push(it(if dir { "Otwórz folder" } else { "Pokaż w folderze" }, "folder", move |s| crate::navigate(s, &f, true)));
-    v.push(it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &folder, false)));
+    v.push(it(if dir { crate::tr("Otwórz folder") } else { crate::tr("Pokaż w folderze") }, "folder", move |s| crate::navigate(s, &f, true)));
+    v.push(it(crate::tr("Otwórz w nowej karcie"), "plus", move |s| crate::new_tab_at(s, &folder, false)));
     v.push(sep());
     v.push(
-        it("Do Kosza", "trash", move |s| {
+        it(crate::tr("Do Kosza"), "trash", move |s| {
             let path = path.clone();
             trash_paths(s, vec![path.clone()], &format!("„{name}” ({})", fmt::size(size)), Box::new(move |s| drop_tile(s, &path)));
         })
@@ -379,13 +379,13 @@ fn trash_paths(s: &Shared, paths: Vec<String>, what: &str, done: Box<dyn Fn(&Sha
     let done = std::rc::Rc::new(done);
     crate::transfers::confirm(
         s,
-        "Przenieść do Kosza?",
-        &format!("{what} trafi do Kosza – można je stamtąd przywrócić."),
-        "Do Kosza",
+        crate::tr("Przenieść do Kosza?"),
+        &powerdesk_core::trf!("{what} trafi do Kosza – można je stamtąd przywrócić."),
+        crate::tr("Do Kosza"),
         false,
         std::rc::Rc::new(move |s| {
             ops::start(Core, "trash".into(), paths.clone(), String::new(), ops::Conflict::Skip);
-            crate::transfers::toast(s, "Przeniesiono do Kosza", crate::transfers::Kind::Ok, None);
+            crate::transfers::toast(s, crate::tr("Przeniesiono do Kosza"), crate::transfers::Kind::Ok, None);
             done(s);
         }),
     );
@@ -446,6 +446,7 @@ fn render_junk(s: &Shared) {
         };
         let mut rows = Vec::new();
         for (gi, (kind, title, hint)) in GROUPS.iter().enumerate() {
+            let (title, hint) = (&crate::tr(*title), &crate::tr(*hint));
             let list: Vec<&Junk> = junk.iter().filter(|j| j.kind == *kind).collect();
             if list.is_empty() {
                 continue;
@@ -482,7 +483,7 @@ fn render_junk(s: &Shared) {
             g.set_scanned(true);
             g.set_junk(ModelRc::new(VecModel::from(rows)));
             g.set_picked_count(count as i32);
-            g.set_picked_text(format!("Zaznaczono {count} · {}", fmt::size(size)).into());
+            g.set_picked_text(powerdesk_core::trf!("Zaznaczono {count} · {}", fmt::size(size)).into());
         });
     });
 }
@@ -567,7 +568,7 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         ST.with(|st| st.borrow_mut().gen += 1);
         with_ui(&s, |g| {
             g.set_busy(false);
-            g.set_error("Przerwano".into());
+            g.set_error(crate::tr("Przerwano").into());
         });
     });
     let s = st.clone();

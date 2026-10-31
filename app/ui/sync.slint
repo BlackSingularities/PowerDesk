@@ -267,7 +267,7 @@ component Editor inherits Rectangle {
                 padding: 22px;
                 spacing: 12px;
                 Label {
-                    text: SyncState.e-id == "" ? "Nowa synchronizacja" : "Edytuj synchronizację";
+                    text: SyncState.e-id == "" ? @tr("Nowa synchronizacja") : @tr("Edytuj synchronizację");
                     font-size: 17px;
                     font-weight: 600;
                 }
@@ -275,58 +275,58 @@ component Editor inherits Rectangle {
                     spacing: 10px;
                     Label {
                         width: 110px;
-                        text: "Nazwa";
+                        text: @tr("Nazwa");
                         font-size: 12.5px;
                         color: Theme.dim;
                     }
                     LineEdit {
                         horizontal-stretch: 1;
                         text <=> SyncState.e-name;
-                        placeholder-text: "np. Zdjęcia na dysk USB";
+                        placeholder-text: @tr("np. Zdjęcia na dysk USB");
                     }
                 }
                 FolderField {
-                    label: "Źródło";
+                    label: @tr("Źródło");
                     value: SyncState.e-source;
-                    placeholder: "Folder na tym komputerze";
+                    placeholder: @tr("Folder na tym komputerze");
                     pick => {
                         SyncState.pick-source();
                     }
                 }
                 FolderField {
-                    label: "Cel";
+                    label: @tr("Cel");
                     value: SyncState.e-target;
-                    placeholder: "Folder na dysku zewnętrznym albo w sieci";
+                    placeholder: @tr("Folder na dysku zewnętrznym albo w sieci");
                     pick => {
                         SyncState.pick-target();
                     }
                 }
                 Label {
-                    text: "Tryb";
+                    text: @tr("Tryb");
                     font-size: 12.5px;
                     color: Theme.dim;
                 }
                 HorizontalLayout {
                     spacing: 8px;
                     ModeChoice {
-                        text: "Kopia lustrzana";
-                        hint: "Cel jest dokładną kopią źródła, także usunięcia";
+                        text: @tr("Kopia lustrzana");
+                        hint: @tr("Cel jest dokładną kopią źródła, także usunięcia");
                         on: SyncState.e-mode == 0;
                         clicked => {
                             SyncState.e-mode = 0;
                         }
                     }
                     ModeChoice {
-                        text: "Dwukierunkowa";
-                        hint: "Zmiany z obu stron; konflikty zachowują obie wersje";
+                        text: @tr("Dwukierunkowa");
+                        hint: @tr("Zmiany z obu stron; konflikty zachowują obie wersje");
                         on: SyncState.e-mode == 1;
                         clicked => {
                             SyncState.e-mode = 1;
                         }
                     }
                     ModeChoice {
-                        text: "Kopia zapasowa";
-                        hint: "Tylko dopisywanie – nic nie znika z celu";
+                        text: @tr("Kopia zapasowa");
+                        hint: @tr("Tylko dopisywanie – nic nie znika z celu");
                         on: SyncState.e-mode == 2;
                         clicked => {
                             SyncState.e-mode = 2;
@@ -334,14 +334,14 @@ component Editor inherits Rectangle {
                     }
                 }
                 Check {
-                    text: "Synchronizuj na bieżąco";
-                    hint: "Zmiany w źródle trafiają do celu zaraz po zapisaniu";
+                    text: @tr("Synchronizuj na bieżąco");
+                    hint: @tr("Zmiany w źródle trafiają do celu zaraz po zapisaniu");
                     on <=> SyncState.e-continuous;
                 }
                 HorizontalLayout {
                     spacing: 10px;
                     Label {
-                        text: "Pełne porównanie co";
+                        text: @tr("Pełne porównanie co");
                         font-size: 12.5px;
                         color: Theme.dim;
                     }
@@ -352,18 +352,18 @@ component Editor inherits Rectangle {
                     }
                     Label {
                         horizontal-stretch: 1;
-                        text: "min (wychwytuje zmiany po stronie celu)";
+                        text: @tr("min (wychwytuje zmiany po stronie celu)");
                         font-size: 12px;
                         color: Theme.faint;
                     }
                 }
                 Check {
-                    text: "Wersjonowanie";
-                    hint: "Nadpisane i usunięte pliki trafiają do folderu z wersjami w celu";
+                    text: @tr("Wersjonowanie");
+                    hint: @tr("Nadpisane i usunięte pliki trafiają do folderu z wersjami w celu");
                     on <=> SyncState.e-versioning;
                 }
                 Check {
-                    text: "Także pliki ukryte i systemowe";
+                    text: @tr("Także pliki ukryte i systemowe");
                     on <=> SyncState.e-hidden;
                 }
                 Label {
@@ -387,14 +387,14 @@ component Editor inherits Rectangle {
                     spacing: 8px;
                     alignment: end;
                     Btn {
-                        text: "Anuluj";
+                        text: @tr("Anuluj");
                         clicked => {
                             SyncState.cancel-edit();
                         }
                     }
                     Btn {
                         main: true;
-                        text: "Zapisz";
+                        text: @tr("Zapisz");
                         enabled: SyncState.e-source != "" && SyncState.e-target != "";
                         clicked => {
                             SyncState.save();
@@ -431,7 +431,7 @@ component PreviewDialog inherits Rectangle {
                 font-weight: 600;
             }
             Text {
-                text: SyncState.preview-loading ? "Porównuję foldery…" : SyncState.preview-summary;
+                text: SyncState.preview-loading ? @tr("Porównuję foldery…") : SyncState.preview-summary;
                 wrap: word-wrap;
                 font-family: Theme.font;
                 font-size: 12.5px;
@@ -458,7 +458,7 @@ component PreviewDialog inherits Rectangle {
             HorizontalLayout {
                 alignment: end;
                 Btn {
-                    text: "Zamknij";
+                    text: @tr("Zamknij");
                     clicked => {
                         SyncState.preview-open = false;
                     }
@@ -483,12 +483,12 @@ export component SyncView inherits Rectangle {
                     horizontal-stretch: 1;
                     spacing: 2px;
                     Label {
-                        text: "Synchronizacja";
+                        text: @tr("Synchronizacja");
                         font-size: 20px;
                         font-weight: 600;
                     }
                     Label {
-                        text: "Foldery kopiowane na dysk zewnętrzny albo sieciowy – także pod inną literą dysku";
+                        text: @tr("Foldery kopiowane na dysk zewnętrzny albo sieciowy – także pod inną literą dysku");
                         font-size: 12.5px;
                         color: Theme.faint;
                     }
@@ -496,7 +496,7 @@ export component SyncView inherits Rectangle {
                 if SyncState.cards.length > 1: Btn {
                     y: (parent.height - self.height) / 2;
                     icon: Icons.sync;
-                    text: "Synchronizuj wszystko";
+                    text: @tr("Synchronizuj wszystko");
                     enabled: !SyncState.blocked;
                     clicked => {
                         SyncState.sync-all();
@@ -506,7 +506,7 @@ export component SyncView inherits Rectangle {
                     y: (parent.height - self.height) / 2;
                     main: true;
                     icon: Icons.plus;
-                    text: "Nowa synchronizacja";
+                    text: @tr("Nowa synchronizacja");
                     clicked => {
                         SyncState.add();
                     }
@@ -530,7 +530,7 @@ export component SyncView inherits Rectangle {
                     }
                     Text {
                         horizontal-stretch: 1;
-                        text: "Działa OpenFilePower i to on synchronizuje te profile. Zamknij go (także z zasobnika), aby PowerDesk przejął synchronizację – do tego czasu zmiany ustawień zapiszą się, ale nic się nie skopiuje.";
+                        text: @tr("Działa OpenFilePower i to on synchronizuje te profile. Zamknij go (także z zasobnika), aby PowerDesk przejął synchronizację – do tego czasu zmiany ustawień zapiszą się, ale nic się nie skopiuje.");
                         wrap: word-wrap;
                         font-family: Theme.font;
                         font-size: 12.5px;
@@ -538,7 +538,7 @@ export component SyncView inherits Rectangle {
                     }
                     Btn {
                         y: (parent.height - self.height) / 2;
-                        text: "Sprawdź ponownie";
+                        text: @tr("Sprawdź ponownie");
                         clicked => {
                             SyncState.retry-start();
                         }
@@ -562,12 +562,12 @@ export component SyncView inherits Rectangle {
                     }
                     Label {
                         horizontal-alignment: center;
-                        text: "Nie ma jeszcze żadnej synchronizacji";
+                        text: @tr("Nie ma jeszcze żadnej synchronizacji");
                         font-size: 13px;
                     }
                     Label {
                         horizontal-alignment: center;
-                        text: "Dodaj folder i dysk, na który ma się kopiować";
+                        text: @tr("Dodaj folder i dysk, na który ma się kopiować");
                         font-size: 12px;
                         color: Theme.faint;
                     }
@@ -617,7 +617,7 @@ export component SyncView inherits Rectangle {
                         if c.busy: Btn {
                             y: (parent.height - self.height) / 2;
                             icon: Icons.close;
-                            text: "Zatrzymaj";
+                            text: @tr("Zatrzymaj");
                             clicked => {
                                 SyncState.stop(c.id);
                             }
@@ -625,7 +625,7 @@ export component SyncView inherits Rectangle {
                         if !c.busy: Btn {
                             y: (parent.height - self.height) / 2;
                             icon: Icons.sync;
-                            text: "Synchronizuj teraz";
+                            text: @tr("Synchronizuj teraz");
                             enabled: c.enabled && !SyncState.blocked;
                             clicked => {
                                 SyncState.sync-now(c.id);
@@ -634,7 +634,7 @@ export component SyncView inherits Rectangle {
                         IconBtn {
                             y: (parent.height - self.height) / 2;
                             icon: Icons.eye;
-                            tip: "Podgląd: co się zmieni";
+                            tip: @tr("Podgląd: co się zmieni");
                             clicked => {
                                 SyncState.preview(c.id);
                             }
@@ -642,7 +642,7 @@ export component SyncView inherits Rectangle {
                         IconBtn {
                             y: (parent.height - self.height) / 2;
                             icon: c.enabled ? Icons.pause : Icons.play;
-                            tip: c.enabled ? "Wstrzymaj" : "Wznów";
+                            tip: c.enabled ? @tr("Wstrzymaj") : @tr("Wznów");
                             clicked => {
                                 SyncState.toggle(c.id);
                             }
@@ -650,7 +650,7 @@ export component SyncView inherits Rectangle {
                         IconBtn {
                             y: (parent.height - self.height) / 2;
                             icon: Icons.edit;
-                            tip: "Edytuj";
+                            tip: @tr("Edytuj");
                             clicked => {
                                 SyncState.edit(c.id);
                             }
@@ -658,7 +658,7 @@ export component SyncView inherits Rectangle {
                         IconBtn {
                             y: (parent.height - self.height) / 2;
                             icon: Icons.trash;
-                            tip: "Usuń synchronizację (pliki zostają)";
+                            tip: @tr("Usuń synchronizację (pliki zostają)");
                             clicked => {
                                 SyncState.remove(c.id);
                             }
@@ -690,7 +690,7 @@ export component SyncView inherits Rectangle {
                                 }
                             }
                             fp-ta := TipArea {
-                                tip: i == 0 ? "Otwórz źródło" : "Otwórz cel";
+                                tip: i == 0 ? @tr("Otwórz źródło") : @tr("Otwórz cel");
                                 clicked => {
                                     SyncState.open-folder(p);
                                 }
@@ -728,7 +728,7 @@ export component SyncView inherits Rectangle {
                         }
                         Btn {
                             y: (parent.height - self.height) / 2;
-                            text: "Podgląd";
+                            text: @tr("Podgląd");
                             clicked => {
                                 SyncState.preview(c.id);
                             }
@@ -736,7 +736,7 @@ export component SyncView inherits Rectangle {
                         Btn {
                             y: (parent.height - self.height) / 2;
                             main: true;
-                            text: "Potwierdź";
+                            text: @tr("Potwierdź");
                             clicked => {
                                 SyncState.confirm(c.id);
                             }
@@ -757,7 +757,7 @@ export component SyncView inherits Rectangle {
                                     color: Theme.faint;
                                 }
                                 Label {
-                                    text: "Historia (" + c.history.length + ")";
+                                    text: @tr("Historia (") + c.history.length + ")";
                                     font-size: 11.5px;
                                     color: Theme.faint;
                                 }

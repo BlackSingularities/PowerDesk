@@ -172,6 +172,10 @@ export global SettingsState {
     /// Zakończenie: 0 – uruchom ponownie, 1 – zakończ, 2 – przełącz na Eksplorator (tryb powłoki).
     callback app-quit(int);
     callback set-theme(int);
+    /// Języki: „Jak w Windows” i wbudowane (nazwy); wybrany – numer na tej liście.
+    in-out property <[string]> languages;
+    in-out property <int> language;
+    callback set-language(int);
     callback set-effect(int);
     callback set-popup-opacity(float);
     callback set-accent(string);
@@ -380,43 +384,43 @@ export component SettingsView inherits Rectangle {
     /// Którakolwiek sekcja pasuje do szukania.
     property <bool> any-match: SettingsState.matches.length > 0 && (SettingsState.matches[0] || SettingsState.matches[1] || SettingsState.matches[2] || SettingsState.matches[3] || SettingsState.matches[4] || SettingsState.matches[5] || SettingsState.matches[6] || SettingsState.matches[7] || SettingsState.matches[8] || SettingsState.matches[9] || SettingsState.matches[10]);
     property <[{title: string, icon: string}]> nav: [
-        { title: "Wygląd", icon: Icons.eye },
-        { title: "Nowe okno", icon: Icons.bolt },
-        { title: "Widok folderów", icon: Icons.grid },
-        { title: "Przeglądanie", icon: Icons.folder },
-        { title: "Podgląd", icon: Icons.panel },
-        { title: "Pulpit", icon: Icons.desktop },
-        { title: "Pasek zadań", icon: Icons.sidebar },
-        { title: "System", icon: Icons.shield },
-        { title: "Skróty klawiszowe", icon: Icons.hash },
-        { title: "O aplikacji", icon: Icons.info },
-        { title: "Nakładka", icon: Icons.bolt },
+        { title: @tr("Wygląd"), icon: Icons.eye },
+        { title: @tr("Nowe okno"), icon: Icons.bolt },
+        { title: @tr("Widok folderów"), icon: Icons.grid },
+        { title: @tr("Przeglądanie"), icon: Icons.folder },
+        { title: @tr("Podgląd"), icon: Icons.panel },
+        { title: @tr("Pulpit"), icon: Icons.desktop },
+        { title: @tr("Pasek zadań"), icon: Icons.sidebar },
+        { title: @tr("System"), icon: Icons.shield },
+        { title: @tr("Skróty klawiszowe"), icon: Icons.hash },
+        { title: @tr("O aplikacji"), icon: Icons.info },
+        { title: @tr("Nakładka"), icon: Icons.bolt },
     ];
     property <[string]> accents: ["#4f8cff", "#8b5cf6", "#ec4899", "#ef4444", "#f97316", "#eab308", "#22c55e", "#14b8a6"];
     property <[{keys: string, what: string}]> shortcuts: [
         { keys: "Ctrl+T / Ctrl+W", what: "Nowa / zamknij kartę" },
-        { keys: "Ctrl+Shift+T", what: "Przywróć zamkniętą kartę" },
-        { keys: "Ctrl+Tab", what: "Następna karta" },
-        { keys: "Ctrl+\\", what: "Podział na dwa panele" },
-        { keys: "F6", what: "Kolejno: adres, panel boczny, lista, podgląd" },
-        { keys: "Ctrl+K", what: "Szybkie przejście do folderu" },
-        { keys: "Ctrl+Shift+P", what: "Paleta poleceń" },
-        { keys: "Ctrl+,", what: "Ustawienia" },
-        { keys: "Ctrl+L / Alt+D", what: "Edytuj ścieżkę" },
+        { keys: "Ctrl+Shift+T", what: @tr("Przywróć zamkniętą kartę") },
+        { keys: "Ctrl+Tab", what: @tr("Następna karta") },
+        { keys: "Ctrl+\\", what: @tr("Podział na dwa panele") },
+        { keys: "F6", what: @tr("Kolejno: adres, panel boczny, lista, podgląd") },
+        { keys: "Ctrl+K", what: @tr("Szybkie przejście do folderu") },
+        { keys: "Ctrl+Shift+P", what: @tr("Paleta poleceń") },
+        { keys: "Ctrl+,", what: @tr("Ustawienia") },
+        { keys: "Ctrl+L / Alt+D", what: @tr("Edytuj ścieżkę") },
         { keys: "Alt+← / → / ↑", what: "Wstecz / dalej / w górę" },
-        { keys: "Alt+P", what: "Panel podglądu" },
-        { keys: "F2", what: "Zmień nazwę" },
+        { keys: "Alt+P", what: @tr("Panel podglądu") },
+        { keys: "F2", what: @tr("Zmień nazwę") },
         { keys: "Del / Shift+Del", what: "Kosz / usuń trwale" },
         { keys: "Ctrl+C / X / V", what: "Kopiuj / wytnij / wklej" },
         { keys: "Ctrl+Z / Ctrl+Y", what: "Cofnij / ponów" },
-        { keys: "Ctrl+Shift+N", what: "Nowy folder" },
-        { keys: "Ctrl+Shift+S", what: "Dodaj na półkę" },
+        { keys: "Ctrl+Shift+N", what: @tr("Nowy folder") },
+        { keys: "Ctrl+Shift+S", what: @tr("Dodaj na półkę") },
         { keys: "Ctrl+1 / 2 / 3", what: "Lista / siatka / galeria" },
-        { keys: "Ctrl+kółko", what: "Wielkość miniatur" },
-        { keys: "Ctrl+H", what: "Ukryte pliki" },
-        { keys: "Ctrl+B", what: "Zwiń panel boczny" },
-        { keys: "Alt+Enter", what: "Właściwości" },
-        { keys: "F11", what: "Pełny ekran w przeglądarce zdjęć" },
+        { keys: @tr("Ctrl+kółko"), what: @tr("Wielkość miniatur") },
+        { keys: "Ctrl+H", what: @tr("Ukryte pliki") },
+        { keys: "Ctrl+B", what: @tr("Zwiń panel boczny") },
+        { keys: "Alt+Enter", what: @tr("Właściwości") },
+        { keys: "F11", what: @tr("Pełny ekran w przeglądarce zdjęć") },
     ];
 
     HorizontalLayout {
@@ -429,7 +433,7 @@ export component SettingsView inherits Rectangle {
                 spacing: 2px;
                 alignment: start;
                 Label {
-                    text: "Ustawienia";
+                    text: @tr("Ustawienia");
                     font-size: 15px;
                     font-weight: 600;
                 }
@@ -451,7 +455,7 @@ export component SettingsView inherits Rectangle {
                     }
                     if SettingsState.query == "": Text {
                         x: 30px;
-                        text: "Szukaj w ustawieniach";
+                        text: @tr("Szukaj w ustawieniach");
                         font-size: 12px;
                         color: Theme.faint;
                         vertical-alignment: center;
@@ -481,7 +485,7 @@ export component SettingsView inherits Rectangle {
                     height: 6px;
                 }
                 if SettingsState.query != "" && !root.any-match: Text {
-                    text: "Nic nie pasuje";
+                    text: @tr("Nic nie pasuje");
                     font-size: 12px;
                     color: Theme.faint;
                 }
@@ -526,15 +530,15 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 0: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Wygląd";
-                        lead: "Motyw i kolor akcentu całej aplikacji";
+                        title: @tr("Wygląd");
+                        lead: @tr("Motyw i kolor akcentu całej aplikacji");
                     }
                     HorizontalLayout {
                         spacing: 10px;
                         Choice {
                             icon: Icons.app;
-                            text: "Jak w systemie";
-                            hint: "Podąża za ustawieniem Windows";
+                            text: @tr("Jak w systemie");
+                            hint: @tr("Podąża za ustawieniem Windows");
                             on: SettingsState.theme == 0;
                             clicked => {
                                 SettingsState.set-theme(0);
@@ -542,8 +546,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.eye;
-                            text: "Ciemny";
-                            hint: "Czarne tło";
+                            text: @tr("Ciemny");
+                            hint: @tr("Czarne tło");
                             on: SettingsState.theme == 1;
                             clicked => {
                                 SettingsState.set-theme(1);
@@ -551,8 +555,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.eye;
-                            text: "Jasny";
-                            hint: "Jasne tło";
+                            text: @tr("Jasny");
+                            hint: @tr("Jasne tło");
                             on: SettingsState.theme == 2;
                             clicked => {
                                 SettingsState.set-theme(2);
@@ -560,7 +564,25 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Kolor akcentu";
+                        text: @tr("Język");
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        alignment: start;
+                        for name[k] in SettingsState.languages: Choice {
+                            icon: Icons.app;
+                            text: name;
+                            hint: k == 0 ? @tr("Język Windows, gdy jest tłumaczenie") : "";
+                            on: SettingsState.language == k;
+                            clicked => {
+                                SettingsState.set-language(k);
+                            }
+                        }
+                    }
+                    Label {
+                        text: @tr("Kolor akcentu");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -576,7 +598,7 @@ export component SettingsView inherits Rectangle {
                             border-color: SettingsState.accent == "mono" ? Theme.text : Theme.line-strong;
                             background: Theme.light ? #111111 : #ffffff;
                             TipArea {
-                                tip: "Biały lub czarny";
+                                tip: @tr("Biały lub czarny");
                                 clicked => {
                                     SettingsState.set-accent("mono");
                                 }
@@ -598,7 +620,7 @@ export component SettingsView inherits Rectangle {
                                 color: #ffffff;
                             }
                             TipArea {
-                                tip: "Kolor akcentu z Windows";
+                                tip: @tr("Kolor akcentu z Windows");
                                 clicked => {
                                     SettingsState.set-accent("system");
                                 }
@@ -623,7 +645,7 @@ export component SettingsView inherits Rectangle {
                         alignment: start;
                         Label {
                             y: (parent.height - self.height) / 2;
-                            text: "Własny kolor";
+                            text: @tr("Własny kolor");
                             font-size: 12.5px;
                             color: Theme.dim;
                         }
@@ -637,13 +659,13 @@ export component SettingsView inherits Rectangle {
                         }
                         Label {
                             y: (parent.height - self.height) / 2;
-                            text: "Enter zatwierdza";
+                            text: @tr("Enter zatwierdza");
                             font-size: 11px;
                             color: Theme.faint;
                         }
                     }
                     Label {
-                        text: "Tło okna";
+                        text: @tr("Tło okna");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -651,8 +673,8 @@ export component SettingsView inherits Rectangle {
                         spacing: 10px;
                         Choice {
                             icon: Icons.panel;
-                            text: "Pełne";
-                            hint: "Jednolity kolor motywu";
+                            text: @tr("Pełne");
+                            hint: @tr("Jednolity kolor motywu");
                             on: SettingsState.effect == 0;
                             clicked => {
                                 SettingsState.set-effect(0);
@@ -660,8 +682,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.gallery;
-                            text: "Mica";
-                            hint: "Delikatnie przepuszcza kolor tapety (Windows 11)";
+                            text: @tr("Mica");
+                            hint: @tr("Delikatnie przepuszcza kolor tapety (Windows 11)");
                             on: SettingsState.effect == 1;
                             clicked => {
                                 SettingsState.set-effect(1);
@@ -669,8 +691,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.gallery;
-                            text: "Acrylic";
-                            hint: "Rozmyte tło spod okna (Windows 11)";
+                            text: @tr("Acrylic");
+                            hint: @tr("Rozmyte tło spod okna (Windows 11)");
                             on: SettingsState.effect == 2;
                             clicked => {
                                 SettingsState.set-effect(2);
@@ -678,7 +700,7 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     if SettingsState.effect != 0: Label {
-                        text: "Krycie tła okna";
+                        text: @tr("Krycie tła okna");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -702,7 +724,7 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Krycie okienek";
+                        text: @tr("Krycie okienek");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -726,15 +748,15 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Wszystkie okienka: menu podręczne, Start, okienka paska i zasobnika, podpowiedzi, historia schowka i powiadomienia";
+                        text: @tr("Wszystkie okienka: menu podręczne, Start, okienka paska i zasobnika, podpowiedzi, historia schowka i powiadomienia");
                         font-size: 11.5px;
                         color: Theme.faint;
                         wrap: word-wrap;
                     }
                     ToggleRow {
                         icon: Icons.eye;
-                        text: "Rozmycie tła okienek";
-                        hint: "To, co pod okienkiem, jest rozmyte (Windows 11); bez rozmycia – tylko przezroczyste";
+                        text: @tr("Rozmycie tła okienek");
+                        hint: @tr("To, co pod okienkiem, jest rozmyte (Windows 11); bez rozmycia – tylko przezroczyste");
                         on: SettingsState.popup-blur;
                         toggled => {
                             SettingsState.toggle("popup-blur");
@@ -745,13 +767,13 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 1: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Nowe okno";
-                        lead: "Co pokazuje nowa karta i okno (Win+E, menu ikony w zasobniku) · przypięte karty wracają zawsze";
+                        title: @tr("Nowe okno");
+                        lead: @tr("Co pokazuje nowa karta i okno (Win+E, menu ikony w zasobniku) · przypięte karty wracają zawsze");
                     }
                     Choice {
                         icon: Icons.home;
-                        text: "Folder domowy";
-                        hint: "Jedna karta z Twoim folderem użytkownika";
+                        text: @tr("Folder domowy");
+                        hint: @tr("Jedna karta z Twoim folderem użytkownika");
                         on: SettingsState.start == 0;
                         clicked => {
                             SettingsState.set-start(0);
@@ -759,8 +781,8 @@ export component SettingsView inherits Rectangle {
                     }
                     Choice {
                         icon: Icons.pc;
-                        text: "Komputer";
-                        hint: "Dyski, foldery i ostatnie pliki";
+                        text: @tr("Komputer");
+                        hint: @tr("Dyski, foldery i ostatnie pliki");
                         on: SettingsState.start == 1;
                         clicked => {
                             SettingsState.set-start(1);
@@ -768,8 +790,8 @@ export component SettingsView inherits Rectangle {
                     }
                     Choice {
                         icon: Icons.folder;
-                        text: "Wybrany folder";
-                        hint: SettingsState.start-folder != "" ? SettingsState.start-folder : "Kliknij, aby wybrać folder";
+                        text: @tr("Wybrany folder");
+                        hint: SettingsState.start-folder != "" ? SettingsState.start-folder : @tr("Kliknij, aby wybrać folder");
                         on: SettingsState.start == 2;
                         clicked => {
                             if (SettingsState.start-folder == "") {
@@ -788,7 +810,7 @@ export component SettingsView inherits Rectangle {
                             background: pf-ta.has-hover ? Theme.press : Theme.card;
                             pf := Label {
                                 horizontal-alignment: center;
-                                text: "Zmień folder…";
+                                text: @tr("Zmień folder…");
                                 font-size: 12.5px;
                             }
                             pf-ta := TouchArea {
@@ -799,12 +821,12 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Ekran „Komputer”";
+                        text: @tr("Ekran „Komputer”");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     Label {
-                        text: "Sekcje pod dyskami i folderami – wyłączone znikają z ekranu (kolejność zmienisz strzałkami przy nagłówkach)";
+                        text: @tr("Sekcje pod dyskami i folderami – wyłączone znikają z ekranu (kolejność zmienisz strzałkami przy nagłówkach)");
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.faint;
@@ -822,14 +844,14 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 2: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Widok folderów";
-                        lead: "Jak otwiera się folder, dla którego nic nie zapamiętano";
+                        title: @tr("Widok folderów");
+                        lead: @tr("Jak otwiera się folder, dla którego nic nie zapamiętano");
                     }
                     HorizontalLayout {
                         spacing: 10px;
                         Choice {
                             icon: Icons.list;
-                            text: "Lista";
+                            text: @tr("Lista");
                             hint: "Ctrl+1";
                             on: SettingsState.default-view == 0;
                             clicked => {
@@ -838,7 +860,7 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.grid;
-                            text: "Siatka";
+                            text: @tr("Siatka");
                             hint: "Ctrl+2";
                             on: SettingsState.default-view == 1;
                             clicked => {
@@ -847,7 +869,7 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.gallery;
-                            text: "Galeria";
+                            text: @tr("Galeria");
                             hint: "Ctrl+3";
                             on: SettingsState.default-view == 2;
                             clicked => {
@@ -857,8 +879,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.gallery;
-                        text: "Zdjęcia i filmy w galerii";
-                        hint: "Foldery z samymi mediami otwierają się w galerii";
+                        text: @tr("Zdjęcia i filmy w galerii");
+                        hint: @tr("Foldery z samymi mediami otwierają się w galerii");
                         on: SettingsState.auto-gallery;
                         toggled => {
                             SettingsState.toggle("auto-gallery");
@@ -868,7 +890,7 @@ export component SettingsView inherits Rectangle {
                         spacing: 12px;
                         Label {
                             horizontal-stretch: 1;
-                            text: SettingsState.remembered > 0 ? "Zapamiętane widoki folderów: " + SettingsState.remembered : "Żaden folder nie ma zapamiętanego widoku";
+                            text: SettingsState.remembered > 0 ? @tr("Zapamiętane widoki folderów: ") + SettingsState.remembered : @tr("Żaden folder nie ma zapamiętanego widoku");
                             font-size: 12px;
                             color: Theme.faint;
                         }
@@ -879,7 +901,7 @@ export component SettingsView inherits Rectangle {
                             background: fv-ta.has-hover ? Theme.press : Theme.card;
                             fv := Label {
                                 horizontal-alignment: center;
-                                text: "Zapomnij wszystkie";
+                                text: @tr("Zapomnij wszystkie");
                                 font-size: 12.5px;
                             }
                             fv-ta := TouchArea {
@@ -894,12 +916,12 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 3: VerticalLayout {
                     spacing: 8px;
                     Heading {
-                        title: "Przeglądanie";
-                        lead: "Jak wyglądają i otwierają się foldery";
+                        title: @tr("Przeglądanie");
+                        lead: @tr("Jak wyglądają i otwierają się foldery");
                     }
                     ToggleRow {
                         icon: Icons.eye;
-                        text: "Ukryte i systemowe pliki";
+                        text: @tr("Ukryte i systemowe pliki");
                         kbd: "Ctrl+H";
                         on: SettingsState.show-hidden;
                         toggled => {
@@ -908,7 +930,7 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.sort;
-                        text: "Foldery przed plikami";
+                        text: @tr("Foldery przed plikami");
                         on: SettingsState.folders-first;
                         toggled => {
                             SettingsState.toggle("folders-first");
@@ -916,8 +938,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.hash;
-                        text: "Rozmiary folderów";
-                        hint: "Liczone w tle w kolumnie Rozmiar · bez dysków sieciowych";
+                        text: @tr("Rozmiary folderów");
+                        hint: @tr("Liczone w tle w kolumnie Rozmiar · bez dysków sieciowych");
                         on: SettingsState.folder-sizes;
                         toggled => {
                             SettingsState.toggle("folder-sizes");
@@ -925,8 +947,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.trash;
-                        text: "Pytaj przed przeniesieniem do Kosza";
-                        hint: "Usuwanie trwałe (Shift+Del) zawsze wymaga potwierdzenia";
+                        text: @tr("Pytaj przed przeniesieniem do Kosza");
+                        hint: @tr("Usuwanie trwałe (Shift+Del) zawsze wymaga potwierdzenia");
                         on: SettingsState.confirm-trash;
                         toggled => {
                             SettingsState.toggle("confirm-trash");
@@ -934,15 +956,15 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.open;
-                        text: "Jedno kliknięcie otwiera";
-                        hint: "Zaznaczanie: Ctrl, Shift albo ramka · jak „Kliknij raz, aby otworzyć” w Eksploratorze";
+                        text: @tr("Jedno kliknięcie otwiera");
+                        hint: @tr("Zaznaczanie: Ctrl, Shift albo ramka · jak „Kliknij raz, aby otworzyć” w Eksploratorze");
                         on: SettingsState.single-click;
                         toggled => {
                             SettingsState.toggle("single-click");
                         }
                     }
                     Label {
-                        text: "Sekcje panelu bocznego";
+                        text: @tr("Sekcje panelu bocznego");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -959,13 +981,13 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 4: VerticalLayout {
                     spacing: 8px;
                     Heading {
-                        title: "Podgląd";
-                        lead: "Panel z prawej i przeglądarka zdjęć";
+                        title: @tr("Podgląd");
+                        lead: @tr("Panel z prawej i przeglądarka zdjęć");
                     }
                     ToggleRow {
                         icon: Icons.panel;
-                        text: "Panel podglądu";
-                        hint: "Zdjęcia, filmy, PDF, tekst i kod obok listy";
+                        text: @tr("Panel podglądu");
+                        hint: @tr("Zdjęcia, filmy, PDF, tekst i kod obok listy");
                         kbd: "Alt+P";
                         on: SettingsState.preview-open;
                         toggled => {
@@ -974,8 +996,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.info;
-                        text: "Informacje i EXIF w przeglądarce";
-                        hint: "Panel z metadanymi po prawej stronie zdjęcia";
+                        text: @tr("Informacje i EXIF w przeglądarce");
+                        hint: @tr("Panel z metadanymi po prawej stronie zdjęcia");
                         kbd: "I";
                         on: SettingsState.viewer-info;
                         toggled => {
@@ -987,13 +1009,13 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 5: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Pulpit";
-                        lead: "PowerDesk zastępuje pulpit Windows na każdym monitorze";
+                        title: @tr("Pulpit");
+                        lead: @tr("PowerDesk zastępuje pulpit Windows na każdym monitorze");
                     }
                     ToggleRow {
                         icon: Icons.desktop;
-                        text: "Potrząśnięcie oknem minimalizuje pozostałe";
-                        hint: "Złap okno za pasek tytułu i potrząśnij – reszta okien się chowa, drugie potrząśnięcie je przywraca";
+                        text: @tr("Potrząśnięcie oknem minimalizuje pozostałe");
+                        hint: @tr("Złap okno za pasek tytułu i potrząśnij – reszta okien się chowa, drugie potrząśnięcie je przywraca");
                         on: SettingsState.shake;
                         toggled => {
                             SettingsState.toggle("shake");
@@ -1001,9 +1023,9 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.grid;
-                        text: "Strefy okien";
-                        kbd: "Shift + przeciąganie";
-                        hint: "Przeciągnij okno za pasek tytułu z wciśniętym Shiftem – puść nad strefą, a okno ją wypełni";
+                        text: @tr("Strefy okien");
+                        kbd: @tr("Shift + przeciąganie");
+                        hint: @tr("Przeciągnij okno za pasek tytułu z wciśniętym Shiftem – puść nad strefą, a okno ją wypełni");
                         on: SettingsState.zones-on;
                         toggled => {
                             SettingsState.toggle("zones");
@@ -1011,7 +1033,7 @@ export component SettingsView inherits Rectangle {
                     }
                     if SettingsState.zones-on: HorizontalLayout {
                         spacing: 6px;
-                        for name[k] in ["2 kolumny", "3 kolumny", "2 × 2", "Główna + 2", "Szeroki środek"]: Rectangle {
+                        for name[k] in [@tr("2 kolumny"), @tr("3 kolumny"), "2 × 2", @tr("Główna + 2"), @tr("Szeroki środek")]: Rectangle {
                             height: 30px;
                             horizontal-stretch: 1;
                             border-radius: Theme.r-s;
@@ -1022,7 +1044,7 @@ export component SettingsView inherits Rectangle {
                                 font-size: 12px;
                             }
                             zl-ta := TipArea {
-                                tip: "Układ stref: " + name;
+                                tip: @tr("Układ stref: ") + name;
                                 clicked => {
                                     SettingsState.set-zones-layout(k);
                                 }
@@ -1030,16 +1052,16 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Ikony";
+                        text: @tr("Ikony");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     HorizontalLayout {
                         spacing: 10px;
-                        for name[k] in ["Małe", "Średnie", "Duże"]: Choice {
+                        for name[k] in [@tr("Małe"), @tr("Średnie"), @tr("Duże")]: Choice {
                             icon: Icons.grid;
                             text: name;
-                            hint: k == 0 ? "32 px, gęsta siatka" : k == 1 ? "48 px – jak w Windows" : "64 px, wyraźne";
+                            hint: k == 0 ? @tr("32 px, gęsta siatka") : k == 1 ? @tr("48 px – jak w Windows") : @tr("64 px, wyraźne");
                             on: SettingsState.desktop-icon-size == k;
                             clicked => {
                                 SettingsState.set-desktop-icon-size(k);
@@ -1048,8 +1070,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.grid;
-                        text: "Wyrównuj ikony do siatki";
-                        hint: "Wyłączone – ikona zostaje dokładnie tam, gdzie ją puścisz; miejsca są zapamiętywane";
+                        text: @tr("Wyrównuj ikony do siatki");
+                        hint: @tr("Wyłączone – ikona zostaje dokładnie tam, gdzie ją puścisz; miejsca są zapamiętywane");
                         on: !SettingsState.desktop-free;
                         toggled => {
                             SettingsState.toggle("desktop-free");
@@ -1057,8 +1079,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.trash;
-                        text: "Kosz na pulpicie";
-                        hint: "Ikona z Windows (pusty albo pełny); prawy przycisk – Opróżnij Kosz";
+                        text: @tr("Kosz na pulpicie");
+                        hint: @tr("Ikona z Windows (pusty albo pełny); prawy przycisk – Opróżnij Kosz");
                         on: SettingsState.desktop-recycle;
                         toggled => {
                             SettingsState.toggle("desktop-recycle");
@@ -1066,20 +1088,20 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.pc;
-                        text: "Ikona „Komputer”";
-                        hint: "Na pulpicie, z ikoną komputera z Windows – otwiera widok Komputer z dyskami i folderami";
+                        text: @tr("Ikona „Komputer”");
+                        hint: @tr("Na pulpicie, z ikoną komputera z Windows – otwiera widok Komputer z dyskami i folderami");
                         on: SettingsState.desktop-computer;
                         toggled => {
                             SettingsState.toggle("desktop-computer");
                         }
                     }
                     Label {
-                        text: "Foldery przy krawędziach";
+                        text: @tr("Foldery przy krawędziach");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     Label {
-                        text: "Wąski pasek przy brzegu ekranu – po najechaniu wysuwa się z zawartością folderu. Kilka paneli na jednej krawędzi dzieli ją po równo.";
+                        text: @tr("Wąski pasek przy brzegu ekranu – po najechaniu wysuwa się z zawartością folderu. Kilka paneli na jednej krawędzi dzieli ją po równo.");
                         font-size: 11.5px;
                         color: Theme.faint;
                         wrap: word-wrap;
@@ -1112,8 +1134,8 @@ export component SettingsView inherits Rectangle {
                                     }
                                 }
                                 SetButton {
-                                    text: "Usuń";
-                                    tip: "Usuń panel z pulpitu (folder zostaje na dysku)";
+                                    text: @tr("Usuń");
+                                    tip: @tr("Usuń panel z pulpitu (folder zostaje na dysku)");
                                     danger: true;
                                     clicked => {
                                         SettingsState.edge-remove(k);
@@ -1123,9 +1145,9 @@ export component SettingsView inherits Rectangle {
                             HorizontalLayout {
                                 alignment: start;
                                 spacing: 6px;
-                                for name[e] in ["Lewa", "Prawa", "Górna"]: SetButton {
+                                for name[e] in [@tr("Lewa"), @tr("Prawa"), @tr("Górna")]: SetButton {
                                     text: name;
-                                    tip: name + " krawędź ekranu";
+                                    tip: name + @tr(" krawędź ekranu");
                                     on: r.edge == e;
                                     clicked => {
                                         SettingsState.edge-set-edge(k, e);
@@ -1135,8 +1157,8 @@ export component SettingsView inherits Rectangle {
                                     width: 10px;
                                 }
                                 for m in SettingsState.edge-monitors > 1 ? SettingsState.edge-monitors : 0: SetButton {
-                                    text: "Monitor " + (m + 1);
-                                    tip: "Panel na monitorze " + (m + 1);
+                                    text: @tr("Monitor ") + (m + 1);
+                                    tip: @tr("Panel na monitorze ") + (m + 1);
                                     on: r.monitor == m;
                                     clicked => {
                                         SettingsState.edge-set-monitor(k, m);
@@ -1146,14 +1168,14 @@ export component SettingsView inherits Rectangle {
                             HorizontalLayout {
                                 spacing: 12px;
                                 Label {
-                                    text: "Szerokość";
+                                    text: @tr("Szerokość");
                                     font-size: 12.5px;
                                     color: Theme.dim;
                                 }
                                 // Suwak w obszarze podpowiedzi – najechanie na niego też ją pokazuje.
                                 TipArea {
                                     horizontal-stretch: 1;
-                                    tip: "Szerokość wysuniętego panelu – można ją też zmienić, przeciągając jego wewnętrzną krawędź";
+                                    tip: @tr("Szerokość wysuniętego panelu – można ją też zmienić, przeciągając jego wewnętrzną krawędź");
                                     Slider {
                                         width: parent.width;
                                         minimum: 160;
@@ -1176,16 +1198,16 @@ export component SettingsView inherits Rectangle {
                     HorizontalLayout {
                         alignment: start;
                         spacing: 6px;
-                        for name[e] in ["Dodaj z lewej…", "Dodaj z prawej…", "Dodaj u góry…"]: SetButton {
+                        for name[e] in [@tr("Dodaj z lewej…"), @tr("Dodaj z prawej…"), @tr("Dodaj u góry…")]: SetButton {
                             text: name;
-                            tip: "Wybierz folder i przypnij go do " + (e == 0 ? "lewej" : e == 1 ? "prawej" : "górnej") + " krawędzi głównego monitora";
+                            tip: @tr("Wybierz folder i przypnij go do ") + (e == 0 ? "lewej" : e == 1 ? "prawej" : @tr("górnej")) + @tr(" krawędzi głównego monitora");
                             clicked => {
                                 SettingsState.edge-add(e);
                             }
                         }
                     }
                     Label {
-                        text: "Tapeta";
+                        text: @tr("Tapeta");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1193,8 +1215,8 @@ export component SettingsView inherits Rectangle {
                         spacing: 10px;
                         Choice {
                             icon: Icons.image;
-                            text: "Z Windows";
-                            hint: "Jak w Personalizacji";
+                            text: @tr("Z Windows");
+                            hint: @tr("Jak w Personalizacji");
                             on: SettingsState.wall-mode == 0;
                             clicked => {
                                 SettingsState.set-wall-mode(0);
@@ -1202,8 +1224,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.gallery;
-                            text: "Pokaz slajdów";
-                            hint: "Zdjęcia z folderu, każdy monitor inne";
+                            text: @tr("Pokaz slajdów");
+                            hint: @tr("Zdjęcia z folderu, każdy monitor inne");
                             on: SettingsState.wall-mode == 1;
                             clicked => {
                                 SettingsState.set-wall-mode(1);
@@ -1211,8 +1233,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.cloud;
-                            text: "Zdjęcie dnia";
-                            hint: "Bing – nowe codziennie";
+                            text: @tr("Zdjęcie dnia");
+                            hint: @tr("Bing – nowe codziennie");
                             on: SettingsState.wall-mode == 2;
                             clicked => {
                                 SettingsState.set-wall-mode(2);
@@ -1228,11 +1250,11 @@ export component SettingsView inherits Rectangle {
                             background: wf-ta.has-hover ? Theme.press : Theme.card;
                             wf := Label {
                                 horizontal-alignment: center;
-                                text: SettingsState.wall-folder == "" ? "Wybierz folder…" : SettingsState.wall-folder;
+                                text: SettingsState.wall-folder == "" ? @tr("Wybierz folder…") : SettingsState.wall-folder;
                                 font-size: 12.5px;
                             }
                             wf-ta := TipArea {
-                                tip: "Folder ze zdjęciami (z podfolderami)";
+                                tip: @tr("Folder ze zdjęciami (z podfolderami)");
                                 clicked => {
                                     SettingsState.pick-wall-folder();
                                 }
@@ -1249,7 +1271,7 @@ export component SettingsView inherits Rectangle {
                                 font-size: 12px;
                             }
                             wm-ta := TipArea {
-                                tip: "Zmiana co " + m + " minut";
+                                tip: @tr("Zmiana co ") + m + " minut";
                                 clicked => {
                                     SettingsState.set-wall-minutes(m);
                                 }
@@ -1257,13 +1279,13 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Własny obraz dla jednego monitora: prawy przycisk na pulpicie → Tapeta. Tapeta Windows i ekran blokady zostają bez zmian.";
+                        text: @tr("Własny obraz dla jednego monitora: prawy przycisk na pulpicie → Tapeta. Tapeta Windows i ekran blokady zostają bez zmian.");
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.faint;
                     }
                     Label {
-                        text: "Na każdym monitorze tapeta z ustawień Windows, na głównym ikony z Pulpitu użytkownika i publicznego – w siatce albo dowolnie, z przesuwaniem, zaznaczaniem i menu PowerDesk. Miejsca ikon zostają po aktualizacji i ponownym uruchomieniu. Ikony Windows są ukryte. Po zamknięciu PowerDesk, jego awarii albo odinstalowaniu pulpit Windows wraca.";
+                        text: @tr("Na każdym monitorze tapeta z ustawień Windows, na głównym ikony z Pulpitu użytkownika i publicznego – w siatce albo dowolnie, z przesuwaniem, zaznaczaniem i menu PowerDesk. Miejsca ikon zostają po aktualizacji i ponownym uruchomieniu. Ikony Windows są ukryte. Po zamknięciu PowerDesk, jego awarii albo odinstalowaniu pulpit Windows wraca.");
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
@@ -1273,17 +1295,17 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 6: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "Pasek zadań";
-                        lead: "PowerDesk zastępuje pasek zadań Windows na każdym monitorze";
+                        title: @tr("Pasek zadań");
+                        lead: @tr("PowerDesk zastępuje pasek zadań Windows na każdym monitorze");
                     }
                     Label {
-                        text: "Start, okna z danego monitora pogrupowane po programach (z podglądami), przypięte programy, sieć i Wi-Fi, głośność z mikserem, bateria, zegar z kalendarzem i „Pokaż pulpit” na końcu. Prawy przycisk na Start – menu z narzędziami systemu. Pasek Windows jest ukryty; wraca po zamknięciu PowerDesk, jego awarii albo odinstalowaniu. Alt+Tab, Win+Tab i Win+D zostają systemowe.";
+                        text: @tr("Start, okna z danego monitora pogrupowane po programach (z podglądami), przypięte programy, sieć i Wi-Fi, głośność z mikserem, bateria, zegar z kalendarzem i „Pokaż pulpit” na końcu. Prawy przycisk na Start – menu z narzędziami systemu. Pasek Windows jest ukryty; wraca po zamknięciu PowerDesk, jego awarii albo odinstalowaniu. Alt+Tab, Win+Tab i Win+D zostają systemowe.");
                         wrap: word-wrap;
                         font-size: 12.5px;
                         color: Theme.dim;
                     }
                     Label {
-                        text: "Przyciski";
+                        text: @tr("Przyciski");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1291,8 +1313,8 @@ export component SettingsView inherits Rectangle {
                         spacing: 10px;
                         Choice {
                             icon: Icons.sidebar;
-                            text: "Ikony z nazwami";
-                            hint: "Tytuł okna obok ikony";
+                            text: @tr("Ikony z nazwami");
+                            hint: @tr("Tytuł okna obok ikony");
                             on: SettingsState.taskbar-labels;
                             clicked => {
                                 if (!SettingsState.taskbar-labels) {
@@ -1302,8 +1324,8 @@ export component SettingsView inherits Rectangle {
                         }
                         Choice {
                             icon: Icons.grid;
-                            text: "Same ikony";
-                            hint: "Wąskie przyciski, jak w Windows 11";
+                            text: @tr("Same ikony");
+                            hint: @tr("Wąskie przyciski, jak w Windows 11");
                             on: !SettingsState.taskbar-labels;
                             clicked => {
                                 if (SettingsState.taskbar-labels) {
@@ -1314,8 +1336,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.grid;
-                        text: "Automatycznie ukrywaj pasek";
-                        hint: "Pasek chowa się pod krawędź ekranu i wysuwa, gdy dotkniesz jej kursorem";
+                        text: @tr("Automatycznie ukrywaj pasek");
+                        hint: @tr("Pasek chowa się pod krawędź ekranu i wysuwa, gdy dotkniesz jej kursorem");
                         on: SettingsState.taskbar-autohide;
                         toggled => {
                             SettingsState.toggle("taskbar-autohide");
@@ -1323,24 +1345,24 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.grid;
-                        text: "Przyciski na środku paska";
-                        hint: "Start zostaje po lewej, programy w środku";
+                        text: @tr("Przyciski na środku paska");
+                        hint: @tr("Start zostaje po lewej, programy w środku");
                         on: SettingsState.taskbar-center;
                         toggled => {
                             SettingsState.toggle("taskbar-center");
                         }
                     }
                     Label {
-                        text: "Grupowanie okien";
+                        text: @tr("Grupowanie okien");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     HorizontalLayout {
                         spacing: 10px;
-                        for g[k] in ["Zawsze", "Gdy pasek jest pełny", "Nigdy"]: Choice {
+                        for g[k] in [@tr("Zawsze"), @tr("Gdy pasek jest pełny"), @tr("Nigdy")]: Choice {
                             icon: Icons.grid;
                             text: g;
-                            hint: k == 0 ? "Okna programu pod jednym przyciskiem" : k == 1 ? "Osobno, dopóki się mieszczą" : "Każde okno ma swój przycisk";
+                            hint: k == 0 ? @tr("Okna programu pod jednym przyciskiem") : k == 1 ? @tr("Osobno, dopóki się mieszczą") : @tr("Każde okno ma swój przycisk");
                             on: SettingsState.taskbar-group == k;
                             clicked => {
                                 SettingsState.set-taskbar-group(k);
@@ -1348,7 +1370,7 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Wielkość ikon programów";
+                        text: @tr("Wielkość ikon programów");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1357,7 +1379,7 @@ export component SettingsView inherits Rectangle {
                         spacing: 6px;
                         for px in [20, 24, 28, 32, 40, 48]: SetButton {
                             text: px + " px";
-                            tip: "Ikony programów " + px + " px" + (px >= 40 ? " – wymaga wyższego paska (56–72 px)" : "");
+                            tip: @tr("Ikony programów ") + px + " px" + (px >= 40 ? @tr(" – wymaga wyższego paska (56–72 px)") : "");
                             on: SettingsState.taskbar-icon == px;
                             clicked => {
                                 SettingsState.set-taskbar-icon(px);
@@ -1365,7 +1387,7 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Wysokość paska";
+                        text: @tr("Wysokość paska");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1374,7 +1396,7 @@ export component SettingsView inherits Rectangle {
                         spacing: 6px;
                         for hh in [36, 40, 44, 48, 56, 64, 72]: SetButton {
                             text: hh + " px";
-                            tip: "Pasek o wysokości " + hh + " pikseli" + (hh == 48 ? " (domyślna)" : "");
+                            tip: @tr("Pasek o wysokości ") + hh + " pikseli" + (hh == 48 ? @tr(" (domyślna)") : "");
                             on: SettingsState.taskbar-height == hh;
                             clicked => {
                                 SettingsState.set-taskbar-height(hh);
@@ -1382,16 +1404,16 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Menu Start";
+                        text: @tr("Menu Start");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     HorizontalLayout {
                         spacing: 10px;
-                        for st[k] in ["Windows 10", "Windows 11", "Klasyczne"]: Choice {
+                        for st[k] in [@tr("Windows 10"), @tr("Windows 11"), @tr("Klasyczne")]: Choice {
                             icon: Icons.grid;
                             text: st;
-                            hint: k == 0 ? "Lista aplikacji i kafelki" : k == 1 ? "Na środku, siatka aplikacji" : "Wąska lista jak w Windows 7";
+                            hint: k == 0 ? @tr("Lista aplikacji i kafelki") : k == 1 ? @tr("Na środku, siatka aplikacji") : @tr("Wąska lista jak w Windows 7");
                             on: SettingsState.start-style == k;
                             clicked => {
                                 SettingsState.set-start-style(k);
@@ -1399,12 +1421,12 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Przycisk Start";
+                        text: @tr("Przycisk Start");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     Label {
-                        text: SettingsState.start-image == "" ? "Ikona PowerDesk. Możesz wybrać własny obraz (PNG, BMP) – pasek z klatkami jedna pod drugą: zwykły, pod kursorem, wciśnięty i opcjonalnie otwarty Start, jak przyciski Start z innych programów." : SettingsState.start-image;
+                        text: SettingsState.start-image == "" ? @tr("Ikona PowerDesk. Możesz wybrać własny obraz (PNG, BMP) – pasek z klatkami jedna pod drugą: zwykły, pod kursorem, wciśnięty i opcjonalnie otwarty Start, jak przyciski Start z innych programów.") : SettingsState.start-image;
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.dim;
@@ -1413,15 +1435,15 @@ export component SettingsView inherits Rectangle {
                         alignment: start;
                         spacing: 6px;
                         SetButton {
-                            text: "Wybierz obraz…";
-                            tip: "Plik z klatkami przycisku Start (PNG z przezroczystością najlepiej)";
+                            text: @tr("Wybierz obraz…");
+                            tip: @tr("Plik z klatkami przycisku Start (PNG z przezroczystością najlepiej)");
                             clicked => {
                                 SettingsState.pick-start-image();
                             }
                         }
                         if SettingsState.start-image != "": SetButton {
-                            text: "Przywróć ikonę PowerDesk";
-                            tip: "Usuń własny obraz przycisku Start";
+                            text: @tr("Przywróć ikonę PowerDesk");
+                            tip: @tr("Usuń własny obraz przycisku Start");
                             clicked => {
                                 SettingsState.clear-start-image();
                             }
@@ -1430,9 +1452,9 @@ export component SettingsView inherits Rectangle {
                     if SettingsState.start-image != "": HorizontalLayout {
                         alignment: start;
                         spacing: 6px;
-                        for f[k] in ["Wykryj", "1 klatka", "2 klatki", "3 klatki", "4 klatki"]: SetButton {
+                        for f[k] in [@tr("Wykryj"), @tr("1 klatka"), @tr("2 klatki"), @tr("3 klatki"), @tr("4 klatki")]: SetButton {
                             text: f;
-                            tip: k == 0 ? "Liczba klatek z proporcji obrazu (kwadratowe klatki jedna pod drugą)" : k == 1 ? "Jeden obraz – pod kursorem lekko przygasa" : k == 2 ? "Zwykły i pod kursorem" : k == 3 ? "Zwykły, pod kursorem, wciśnięty (najczęstszy format)" : "Zwykły, pod kursorem, wciśnięty, otwarty Start";
+                            tip: k == 0 ? @tr("Liczba klatek z proporcji obrazu (kwadratowe klatki jedna pod drugą)") : k == 1 ? @tr("Jeden obraz – pod kursorem lekko przygasa") : k == 2 ? @tr("Zwykły i pod kursorem") : k == 3 ? @tr("Zwykły, pod kursorem, wciśnięty (najczęstszy format)") : @tr("Zwykły, pod kursorem, wciśnięty, otwarty Start");
                             on: SettingsState.start-frames == k;
                             clicked => {
                                 SettingsState.set-start-frames(k);
@@ -1440,13 +1462,13 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Zegar i zasobnik";
+                        text: @tr("Zegar i zasobnik");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     ToggleRow {
                         icon: Icons.history;
-                        text: "Sekundy w zegarze";
+                        text: @tr("Sekundy w zegarze");
                         on: SettingsState.taskbar-seconds;
                         toggled => {
                             SettingsState.toggle("taskbar-seconds");
@@ -1454,7 +1476,7 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.history;
-                        text: "Data pod godziną";
+                        text: @tr("Data pod godziną");
                         on: SettingsState.taskbar-date;
                         toggled => {
                             SettingsState.toggle("taskbar-date");
@@ -1462,15 +1484,15 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.grid;
-                        text: "Wszystkie ikony zasobnika na pasku";
-                        hint: "Wyłączone – wybrane ikony na pasku, reszta pod strzałką; ikonę przeciągniesz na strzałkę albo z okienka na pasek";
+                        text: @tr("Wszystkie ikony zasobnika na pasku");
+                        hint: @tr("Wyłączone – wybrane ikony na pasku, reszta pod strzałką; ikonę przeciągniesz na strzałkę albo z okienka na pasek");
                         on: SettingsState.tray-all;
                         toggled => {
                             SettingsState.toggle("tray-all");
                         }
                     }
                     Label {
-                        text: "Krycie paska";
+                        text: @tr("Krycie paska");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1500,8 +1522,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.desktop;
-                        text: "Przezroczysty, gdy widać pulpit";
-                        hint: "Osobno na każdym monitorze: bez otwartych okien pasek jest przezroczysty";
+                        text: @tr("Przezroczysty, gdy widać pulpit");
+                        hint: @tr("Osobno na każdym monitorze: bez otwartych okien pasek jest przezroczysty");
                         on: SettingsState.taskbar-clear-desktop;
                         toggled => {
                             SettingsState.toggle("taskbar-clear-desktop");
@@ -1509,8 +1531,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.eye;
-                        text: "Rozmycie pod paskiem";
-                        hint: "Półprzezroczysty pasek rozmywa tapetę i okna pod sobą (jak w Windows 11)";
+                        text: @tr("Rozmycie pod paskiem");
+                        hint: @tr("Półprzezroczysty pasek rozmywa tapetę i okna pod sobą (jak w Windows 11)");
                         on: SettingsState.taskbar-blur;
                         toggled => {
                             SettingsState.toggle("taskbar-blur");
@@ -1518,8 +1540,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.desktop;
-                        text: "Pasek zadań na każdym monitorze";
-                        hint: "Wyłączone – jeden pasek, tylko na monitorze głównym";
+                        text: @tr("Pasek zadań na każdym monitorze");
+                        hint: @tr("Wyłączone – jeden pasek, tylko na monitorze głównym");
                         on: SettingsState.taskbar-all;
                         toggled => {
                             SettingsState.toggle("taskbar-all");
@@ -1527,8 +1549,8 @@ export component SettingsView inherits Rectangle {
                     }
                     if SettingsState.taskbar-all: ToggleRow {
                         icon: Icons.desktop;
-                        text: "Przyciski wszystkich okien na każdym pasku";
-                        hint: "Wyłączone – przycisk okna jest na pasku monitora, na którym leży okno (przenosi się razem z oknem)";
+                        text: @tr("Przyciski wszystkich okien na każdym pasku");
+                        hint: @tr("Wyłączone – przycisk okna jest na pasku monitora, na którym leży okno (przenosi się razem z oknem)");
                         on: SettingsState.taskbar-buttons-all;
                         toggled => {
                             SettingsState.toggle("taskbar-buttons-all");
@@ -1536,8 +1558,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.grid;
-                        text: "Przycisk pulpitów wirtualnych";
-                        hint: "Numer pulpitu na pasku, lista i nowy pulpit; kółko – sąsiedni pulpit (tylko z Eksploratorem)";
+                        text: @tr("Przycisk pulpitów wirtualnych");
+                        hint: @tr("Numer pulpitu na pasku, lista i nowy pulpit; kółko – sąsiedni pulpit (tylko z Eksploratorem)");
                         on: SettingsState.vd-button;
                         toggled => {
                             SettingsState.toggle("vd-button");
@@ -1548,13 +1570,13 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 7: VerticalLayout {
                     spacing: 8px;
                     Heading {
-                        title: "System";
-                        lead: "PowerDesk zastępuje Eksplorator Windows · wpisy odnawiają się przy każdym starcie";
+                        title: @tr("System");
+                        lead: @tr("PowerDesk zastępuje Eksplorator Windows · wpisy odnawiają się przy każdym starcie");
                     }
                     ToggleRow {
                         icon: Icons.min;
-                        text: "Krzyżyk chowa okno do zasobnika";
-                        hint: "Wyłączone – krzyżyk kończy PowerDesk (pulpit i pasek Windows wracają)";
+                        text: @tr("Krzyżyk chowa okno do zasobnika");
+                        hint: @tr("Wyłączone – krzyżyk kończy PowerDesk (pulpit i pasek Windows wracają)");
                         on: SettingsState.close-to-tray;
                         toggled => {
                             SettingsState.toggle("close-to-tray");
@@ -1562,8 +1584,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.folder;
-                        text: "Pamiętaj karty po zamknięciu okna";
-                        hint: "Wyłączone – po zamknięciu okna folderów następne otwarcie (Ustawienia, folder z innego programu) pokazuje tylko to, co otwierasz; przypięte karty zostają";
+                        text: @tr("Pamiętaj karty po zamknięciu okna");
+                        hint: @tr("Wyłączone – po zamknięciu okna folderów następne otwarcie (Ustawienia, folder z innego programu) pokazuje tylko to, co otwierasz; przypięte karty zostają");
                         on: SettingsState.remember-tabs;
                         toggled => {
                             SettingsState.toggle("remember-tabs");
@@ -1571,8 +1593,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.power;
-                        text: "Uruchamiaj razem z Windows";
-                        hint: "Po zalogowaniu PowerDesk od razu zastępuje pulpit, pasek zadań i menu Start (tylko zainstalowana kopia)";
+                        text: @tr("Uruchamiaj razem z Windows");
+                        hint: @tr("Po zalogowaniu PowerDesk od razu zastępuje pulpit, pasek zadań i menu Start (tylko zainstalowana kopia)");
                         on: SettingsState.autostart;
                         toggled => {
                             SettingsState.toggle("autostart");
@@ -1580,8 +1602,8 @@ export component SettingsView inherits Rectangle {
                     }
                     if SettingsState.autostart: ToggleRow {
                         icon: Icons.power;
-                        text: "Okno folderów przy starcie z Windows";
-                        hint: "Wyłączone – po zalogowaniu tylko pulpit, pasek i ikona w zasobniku";
+                        text: @tr("Okno folderów przy starcie z Windows");
+                        hint: @tr("Wyłączone – po zalogowaniu tylko pulpit, pasek i ikona w zasobniku");
                         on: SettingsState.autostart-window;
                         toggled => {
                             SettingsState.toggle("autostart-window");
@@ -1589,8 +1611,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.folder;
-                        text: "Okna „Otwórz” i „Zapisz jako” PowerDesk";
-                        hint: "W innych programach zamiast okien Windows – z przypiętymi folderami. Wyłączone – zwykłe okna Windows";
+                        text: @tr("Okna „Otwórz” i „Zapisz jako” PowerDesk");
+                        hint: @tr("W innych programach zamiast okien Windows – z przypiętymi folderami. Wyłączone – zwykłe okna Windows");
                         on: SettingsState.file-dialogs;
                         toggled => {
                             SettingsState.toggle("file-dialogs");
@@ -1626,7 +1648,7 @@ export component SettingsView inherits Rectangle {
                                 }
                             }
                             Label {
-                                text: it.ok ? "działa" : "nie działa";
+                                text: it.ok ? @tr("działa") : @tr("nie działa");
                                 font-size: 12px;
                                 color: it.ok ? Theme.dim : Theme.rec;
                             }
@@ -1646,11 +1668,11 @@ export component SettingsView inherits Rectangle {
                             background: rp-ta.has-hover ? Theme.press : Theme.card;
                             rp := Label {
                                 horizontal-alignment: center;
-                                text: "Napraw";
+                                text: @tr("Napraw");
                                 font-size: 12.5px;
                             }
                             rp-ta := TipArea {
-                                tip: "Ustaw od nowa wpisy, które nie wskazują tego programu";
+                                tip: @tr("Ustaw od nowa wpisy, które nie wskazują tego programu");
                                 clicked => {
                                     SettingsState.repair-integration();
                                 }
@@ -1658,12 +1680,12 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Instalacja";
+                        text: @tr("Instalacja");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     Label {
-                        text: SettingsState.installed ? SettingsState.install-place : "PowerDesk nie jest zainstalowany (kopia z budowania). Instalacja: Program Files, skrót w menu Start, wpis w „Aplikacje i funkcje” i aktualizacje w tym samym miejscu.";
+                        text: SettingsState.installed ? SettingsState.install-place : @tr("PowerDesk nie jest zainstalowany (kopia z budowania). Instalacja: Program Files, skrót w menu Start, wpis w „Aplikacje i funkcje” i aktualizacje w tym samym miejscu.");
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.dim;
@@ -1671,7 +1693,7 @@ export component SettingsView inherits Rectangle {
                     HorizontalLayout {
                         alignment: start;
                         spacing: 8px;
-                        for b[k] in SettingsState.installed ? ["Odinstaluj PowerDesk…"] : ["Zainstaluj PowerDesk…"]: Rectangle {
+                        for b[k] in SettingsState.installed ? [@tr("Odinstaluj PowerDesk…")] : [@tr("Zainstaluj PowerDesk…")]: Rectangle {
                             width: ib.preferred-width + 24px;
                             height: 30px;
                             border-radius: Theme.r-s;
@@ -1683,7 +1705,7 @@ export component SettingsView inherits Rectangle {
                                 color: SettingsState.installed ? Theme.rec : Theme.text;
                             }
                             ib-ta := TipArea {
-                                tip: SettingsState.installed ? "Przywraca pulpit, pasek i Eksplorator Windows, usuwa program (ustawienia – na życzenie)" : "Do Program Files – Windows zapyta o uprawnienia administratora";
+                                tip: SettingsState.installed ? @tr("Przywraca pulpit, pasek i Eksplorator Windows, usuwa program (ustawienia – na życzenie)") : @tr("Do Program Files – Windows zapyta o uprawnienia administratora");
                                 clicked => {
                                     if (SettingsState.installed) {
                                         SettingsState.uninstall();
@@ -1695,14 +1717,14 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Aktualizacje";
+                        text: @tr("Aktualizacje");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     ToggleRow {
                         icon: Icons.refresh;
-                        text: "Sprawdzaj aktualizacje automatycznie";
-                        hint: "Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba";
+                        text: @tr("Sprawdzaj aktualizacje automatycznie");
+                        hint: @tr("Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba");
                         on: SettingsState.update-check;
                         toggled => {
                             SettingsState.toggle("update-check");
@@ -1710,8 +1732,8 @@ export component SettingsView inherits Rectangle {
                     }
                     if SettingsState.update-check: ToggleRow {
                         icon: Icons.refresh;
-                        text: "Pobieraj i instaluj bez pytania";
-                        hint: "Znaleziona wersja pobiera się w tle (z kontrolą sumy SHA-256) i PowerDesk uruchamia się ponownie. Wyłączone – powiadomienie z przyciskiem „Zaktualizuj”";
+                        text: @tr("Pobieraj i instaluj bez pytania");
+                        hint: @tr("Znaleziona wersja pobiera się w tle (z kontrolą sumy SHA-256) i PowerDesk uruchamia się ponownie. Wyłączone – powiadomienie z przyciskiem „Zaktualizuj”");
                         on: SettingsState.update-auto;
                         toggled => {
                             SettingsState.toggle("update-auto");
@@ -1727,22 +1749,22 @@ export component SettingsView inherits Rectangle {
                         alignment: start;
                         spacing: 8px;
                         SetButton {
-                            text: "Sprawdź teraz";
-                            tip: "Szuka nowej wersji PowerDesk";
+                            text: @tr("Sprawdź teraz");
+                            tip: @tr("Szuka nowej wersji PowerDesk");
                             clicked => {
                                 SettingsState.update-check-now();
                             }
                         }
                         if SettingsState.update-ready: SetButton {
-                            text: "Pobierz i zainstaluj";
-                            tip: "Pobiera nową wersję, sprawdza sumę kontrolną i uruchamia PowerDesk ponownie";
+                            text: @tr("Pobierz i zainstaluj");
+                            tip: @tr("Pobiera nową wersję, sprawdza sumę kontrolną i uruchamia PowerDesk ponownie");
                             clicked => {
                                 SettingsState.update-install();
                             }
                         }
                     }
                     Label {
-                        text: "Działanie PowerDesk";
+                        text: @tr("Działanie PowerDesk");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1750,22 +1772,22 @@ export component SettingsView inherits Rectangle {
                         alignment: start;
                         spacing: 8px;
                         SetButton {
-                            text: "Uruchom ponownie PowerDesk";
-                            tip: "Zamyka i od razu uruchamia PowerDesk – pulpit i pasek wracają po chwili";
+                            text: @tr("Uruchom ponownie PowerDesk");
+                            tip: @tr("Zamyka i od razu uruchamia PowerDesk – pulpit i pasek wracają po chwili");
                             clicked => {
                                 SettingsState.app-quit(0);
                             }
                         }
                         SetButton {
-                            text: "Zakończ PowerDesk";
+                            text: @tr("Zakończ PowerDesk");
                             danger: true;
-                            tip: SettingsState.shell-mode ? "PowerDesk jest powłoką – po zakończeniu strażnik uruchomi go ponownie" : "Kończy PowerDesk – wracają pulpit, pasek i Eksplorator Windows";
+                            tip: SettingsState.shell-mode ? @tr("PowerDesk jest powłoką – po zakończeniu strażnik uruchomi go ponownie") : @tr("Kończy PowerDesk – wracają pulpit, pasek i Eksplorator Windows");
                             clicked => {
                                 SettingsState.app-quit(1);
                             }
                         }
                         if SettingsState.shell-mode: SetButton {
-                            text: "Przełącz na Eksplorator Windows";
+                            text: @tr("Przełącz na Eksplorator Windows");
                             danger: true;
                             tip: "Zdejmuje PowerDesk z powłoki systemu – po zakończeniu wraca explorer.exe";
                             clicked => {
@@ -1784,8 +1806,8 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 8: VerticalLayout {
                     spacing: 2px;
                     Heading {
-                        title: "Skróty klawiszowe";
-                        lead: "Zgodne z Eksploratorem Windows tam, gdzie to możliwe";
+                        title: @tr("Skróty klawiszowe");
+                        lead: @tr("Zgodne z Eksploratorem Windows tam, gdzie to możliwe");
                     }
                     for k in root.shortcuts: Key {
                         keys: k.keys;
@@ -1796,14 +1818,14 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 10: VerticalLayout {
                     spacing: 8px;
                     Heading {
-                        title: "Nakładka";
-                        lead: "FPS, czas klatki, procesor, karta graficzna i pamięć nad dowolnym programem";
+                        title: @tr("Nakładka");
+                        lead: @tr("FPS, czas klatki, procesor, karta graficzna i pamięć nad dowolnym programem");
                     }
                     ToggleRow {
                         icon: Icons.bolt;
-                        text: "Pokaż nakładkę";
+                        text: @tr("Pokaż nakładkę");
                         kbd: "Alt+R";
-                        hint: "Działa w każdym programie i grze w oknie albo w oknie bez ramki";
+                        hint: @tr("Działa w każdym programie i grze w oknie albo w oknie bez ramki");
                         on: SettingsState.overlay-on;
                         toggled => {
                             SettingsState.toggle("overlay");
@@ -1811,21 +1833,21 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.panel;
-                        text: "Pełna nakładka";
-                        hint: "Z wykresem czasu klatek, RAM i VRAM; wyłączone – tylko FPS, procesor i karta";
+                        text: @tr("Pełna nakładka");
+                        hint: @tr("Z wykresem czasu klatek, RAM i VRAM; wyłączone – tylko FPS, procesor i karta");
                         on: SettingsState.overlay-full;
                         toggled => {
                             SettingsState.toggle("overlay-full");
                         }
                     }
                     Label {
-                        text: "Miejsce na ekranie";
+                        text: @tr("Miejsce na ekranie");
                         font-size: 13px;
                         font-weight: 600;
                     }
                     HorizontalLayout {
                         spacing: 10px;
-                        for c[k] in ["Lewy górny róg", "Prawy górny róg", "Lewy dolny róg", "Prawy dolny róg"]: Choice {
+                        for c[k] in [@tr("Lewy górny róg"), @tr("Prawy górny róg"), @tr("Lewy dolny róg"), @tr("Prawy dolny róg")]: Choice {
                             icon: Icons.grid;
                             text: c;
                             on: SettingsState.overlay-corner == k;
@@ -1836,15 +1858,15 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.power;
-                        text: "Plan „Najwyższa wydajność” w grach";
-                        hint: "Gdy program zajmuje cały monitor; po wyjściu wraca poprzedni plan zasilania";
+                        text: @tr("Plan „Najwyższa wydajność” w grach");
+                        hint: @tr("Gdy program zajmuje cały monitor; po wyjściu wraca poprzedni plan zasilania");
                         on: SettingsState.game-power;
                         toggled => {
                             SettingsState.toggle("game-power");
                         }
                     }
                     Label {
-                        text: "Limit klatek (karty NVIDIA)";
+                        text: @tr("Limit klatek (karty NVIDIA)");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1857,11 +1879,11 @@ export component SettingsView inherits Rectangle {
                             background: SettingsState.fps-limit == f ? Theme.sel : fl-ta.has-hover ? Theme.hover : Theme.card;
                             Label {
                                 horizontal-alignment: center;
-                                text: f == 0 ? "Bez" : f;
+                                text: f == 0 ? @tr("Bez") : f;
                                 font-size: 12px;
                             }
                             fl-ta := TipArea {
-                                tip: f == 0 ? "Bez limitu klatek" : "Najwyżej " + f + " klatek na sekundę we wszystkich grach";
+                                tip: f == 0 ? @tr("Bez limitu klatek") : @tr("Najwyżej ") + f + @tr(" klatek na sekundę we wszystkich grach");
                                 clicked => {
                                     SettingsState.set-fps-limit(f);
                                 }
@@ -1869,13 +1891,13 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "Ustawienie sterownika NVIDIA (jak „Maksymalna liczba klatek” w jego panelu) – działa we wszystkich grach, bez dodatków w samej grze. Zapis może wymagać uruchomienia PowerDesk jako administrator.";
+                        text: @tr("Ustawienie sterownika NVIDIA (jak „Maksymalna liczba klatek” w jego panelu) – działa we wszystkich grach, bez dodatków w samej grze. Zapis może wymagać uruchomienia PowerDesk jako administrator.");
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.faint;
                     }
                     Label {
-                        text: "Pomiar FPS";
+                        text: @tr("Pomiar FPS");
                         font-size: 13px;
                         font-weight: 600;
                     }
@@ -1894,11 +1916,11 @@ export component SettingsView inherits Rectangle {
                             background: ga-ta.has-hover ? Theme.press : Theme.card;
                             ga := Label {
                                 horizontal-alignment: center;
-                                text: "Zezwól na pomiar FPS…";
+                                text: @tr("Zezwól na pomiar FPS…");
                                 font-size: 12.5px;
                             }
                             ga-ta := TipArea {
-                                tip: "Dopisuje Twoje konto do grupy „Użytkownicy dzienników wydajności” (raz, Windows zapyta o uprawnienia); działa po ponownym zalogowaniu";
+                                tip: @tr("Dopisuje Twoje konto do grupy „Użytkownicy dzienników wydajności” (raz, Windows zapyta o uprawnienia); działa po ponownym zalogowaniu");
                                 clicked => {
                                     SettingsState.grant-fps();
                                 }
@@ -1906,7 +1928,7 @@ export component SettingsView inherits Rectangle {
                         }
                     }
                     Label {
-                        text: "FPS liczone ze zdarzeń systemowych Windows (jak PresentMon) – nic nie trafia do gry. DirectX 9–12, Vulkan i OpenGL. W grach w trybie „pełny ekran wyłączny” nakładka może być niewidoczna – wtedy tryb okna bez ramki. Temperatura karty – tylko NVIDIA.";
+                        text: @tr("FPS liczone ze zdarzeń systemowych Windows (jak PresentMon) – nic nie trafia do gry. DirectX 9–12, Vulkan i OpenGL. W grach w trybie „pełny ekran wyłączny” nakładka może być niewidoczna – wtedy tryb okna bez ramki. Temperatura karty – tylko NVIDIA.");
                         wrap: word-wrap;
                         font-size: 12px;
                         color: Theme.faint;
@@ -1916,8 +1938,8 @@ export component SettingsView inherits Rectangle {
                 if SettingsState.section == 9: VerticalLayout {
                     spacing: 10px;
                     Heading {
-                        title: "O aplikacji";
-                        lead: "PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows";
+                        title: @tr("O aplikacji");
+                        lead: @tr("PowerDesk – menedżer plików, pulpit i pasek zadań dla Windows");
                     }
                     HorizontalLayout {
                         alignment: start;
@@ -1928,11 +1950,11 @@ export component SettingsView inherits Rectangle {
                             background: zp-ta.has-hover ? Theme.press : Theme.card;
                             zp := Label {
                                 horizontal-alignment: center;
-                                text: "Zgłoś problem…";
+                                text: @tr("Zgłoś problem…");
                                 font-size: 12.5px;
                             }
                             zp-ta := TipArea {
-                                tip: "Kopiuje raport (wersja, system, dziennik) do schowka i otwiera folder z dziennikiem";
+                                tip: @tr("Kopiuje raport (wersja, system, dziennik) do schowka i otwiera folder z dziennikiem");
                                 clicked => {
                                     SettingsState.report-problem();
                                 }
@@ -1943,7 +1965,7 @@ export component SettingsView inherits Rectangle {
                         spacing: 12px;
                         Label {
                             width: 120px;
-                            text: "Wersja";
+                            text: @tr("Wersja");
                             font-size: 12.5px;
                             color: Theme.dim;
                         }
@@ -1956,7 +1978,7 @@ export component SettingsView inherits Rectangle {
                         spacing: 12px;
                         Label {
                             width: 120px;
-                            text: "Ustawienia";
+                            text: @tr("Ustawienia");
                             font-size: 12.5px;
                             color: Theme.dim;
                         }
@@ -1972,7 +1994,7 @@ export component SettingsView inherits Rectangle {
                                 color: Theme.faint;
                             }
                             pp-ta := TipArea {
-                                tip: "Otwórz folder z ustawieniami";
+                                tip: @tr("Otwórz folder z ustawieniami");
                                 clicked => {
                                     SettingsState.open-prefs-folder();
                                 }

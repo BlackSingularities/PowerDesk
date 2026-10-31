@@ -78,16 +78,16 @@ fn read_items(arc: &Path) -> Result<Vec<Item>, String> {
     let mut out = Vec::new();
     if ext == "zip" {
         let f = std::fs::File::open(arc).map_err(|e| io_err(&e))?;
-        let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| "Nieobsługiwane lub uszkodzone archiwum".to_string())?;
+        let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| crate::lang::tr("Nieobsługiwane lub uszkodzone archiwum").to_string())?;
         for i in 0..z.len() {
             if let Ok(f) = z.by_index_raw(i) {
                 out.push(Item { name: f.name().replace('\\', "/"), dir: f.is_dir(), size: f.size(), modified: zip_time(f.last_modified()) });
             }
         }
     } else if ext == "rar" {
-        let list = unrar::Archive::new(arc).open_for_listing().map_err(|e| format!("Nie udało się otworzyć archiwum RAR: {e}"))?;
+        let list = unrar::Archive::new(arc).open_for_listing().map_err(|e| crate::trf!("Nie udało się otworzyć archiwum RAR: {e}"))?;
         for h in list {
-            let h = h.map_err(|e| format!("Uszkodzone archiwum RAR: {e}"))?;
+            let h = h.map_err(|e| crate::trf!("Uszkodzone archiwum RAR: {e}"))?;
             // Plik podzielony na woluminy występuje w spisie raz na każdy wolumin.
             if h.is_split_before() {
                 continue;
@@ -95,7 +95,7 @@ fn read_items(arc: &Path) -> Result<Vec<Item>, String> {
             out.push(Item { name: rar_name(&h), dir: h.is_directory(), size: h.unpacked_size, modified: dos_time(h.file_time) });
         }
     } else {
-        let a = sevenz_rust::Archive::open(arc).map_err(|e| format!("Nie udało się otworzyć archiwum 7z: {e}"))?;
+        let a = sevenz_rust::Archive::open(arc).map_err(|e| crate::trf!("Nie udało się otworzyć archiwum 7z: {e}"))?;
         for f in &a.files {
             let ft: u64 = f.last_modified_date.into();
             let modified = if f.has_last_modified_date { (ft / 10_000) as i64 - 11_644_473_600_000 } else { 0 };
@@ -220,7 +220,7 @@ fn extract_from(arc: &Path, inners: &[String], dest: &Path) -> Result<Vec<String
     let ext = arc.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     if ext == "zip" {
         let f = std::fs::File::open(arc).map_err(|e| io_err(&e))?;
-        let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| "Nieobsługiwane archiwum".to_string())?;
+        let mut z = zip::ZipArchive::new(std::io::BufReader::new(f)).map_err(|_| crate::lang::tr("Nieobsługiwane archiwum").to_string())?;
         for i in 0..z.len() {
             let mut f = z.by_index(i).map_err(|e| e.to_string())?;
             let Some(out) = target(&f.name().replace('\\', "/")) else { continue };
@@ -235,8 +235,8 @@ fn extract_from(arc: &Path, inners: &[String], dest: &Path) -> Result<Vec<String
             std::io::copy(&mut f, &mut w).map_err(|e| io_err(&e))?;
         }
     } else if ext == "rar" {
-        let mut a = unrar::Archive::new(arc).open_for_processing().map_err(|e| format!("Nie udało się otworzyć archiwum RAR: {e}"))?;
-        while let Some(h) = a.read_header().map_err(|e| format!("Uszkodzone archiwum RAR: {e}"))? {
+        let mut a = unrar::Archive::new(arc).open_for_processing().map_err(|e| crate::trf!("Nie udało się otworzyć archiwum RAR: {e}"))?;
+        while let Some(h) = a.read_header().map_err(|e| crate::trf!("Uszkodzone archiwum RAR: {e}"))? {
             let out = target(&rar_name(h.entry()));
             a = match out {
                 Some(out) if h.entry().is_directory() => {
@@ -251,7 +251,7 @@ fn extract_from(arc: &Path, inners: &[String], dest: &Path) -> Result<Vec<String
                 }
                 None => h.skip(),
             }
-            .map_err(|e| format!("Nie udało się wypakować z RAR: {e}"))?;
+            .map_err(|e| crate::trf!("Nie udało się wypakować z RAR: {e}"))?;
         }
     } else {
         let mut r = sevenz_rust::SevenZReader::open(arc, sevenz_rust::Password::empty()).map_err(|e| e.to_string())?;
@@ -299,7 +299,7 @@ fn extract_from(arc: &Path, inners: &[String], dest: &Path) -> Result<Vec<String
 pub fn extract(sources: &[String], dest: &str) -> Result<Vec<String>, String> {
     let mut by_arc: BTreeMap<PathBuf, Vec<String>> = BTreeMap::new();
     for s in sources {
-        let (arc, inner) = split(s).ok_or_else(|| format!("To nie jest element archiwum: {s}"))?;
+        let (arc, inner) = split(s).ok_or_else(|| crate::trf!("To nie jest element archiwum: {s}"))?;
         by_arc.entry(arc).or_default().push(inner);
     }
     let mut out = Vec::new();
@@ -321,12 +321,12 @@ pub fn extract_here(arc: &str) -> Result<String, String> {
 
 /// Wypakowuje pojedynczy plik do folderu tymczasowego (do otwarcia w programie albo podglądu).
 pub fn extract_temp(path: &str) -> Result<String, String> {
-    let (arc, inner) = split(path).ok_or("To nie jest element archiwum")?;
+    let (arc, inner) = split(path).ok_or(crate::lang::tr("To nie jest element archiwum"))?;
     let tag = format!("{:x}", { let mut h: u64 = 1469598103934665603; for b in arc.to_string_lossy().bytes() { h = (h ^ b as u64).wrapping_mul(1099511628211); } h });
     let dest = std::env::temp_dir().join("OpenFilePower").join(tag);
     let _ = std::fs::create_dir_all(&dest);
     let out = extract_from(&arc, &[inner], &dest)?;
-    out.into_iter().next().ok_or_else(|| "Nie znaleziono pliku w archiwum".into())
+    out.into_iter().next().ok_or_else(|| crate::lang::tr("Nie znaleziono pliku w archiwum").into())
 }
 
 /// Wypakowuje elementy (pliki i foldery) do nowego folderu tymczasowego – do przeciągnięcia

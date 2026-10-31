@@ -753,7 +753,7 @@ export component MainWindow inherits Window {
                                     }
                                 }
                                 sum-ta := TipArea {
-                                    tip: root.transfers-hidden ? "Pokaż pasek transferów" : "Ukryj pasek transferów";
+                                    tip: root.transfers-hidden ? @tr("Pokaż pasek transferów") : @tr("Ukryj pasek transferów");
                                     clicked => {
                                         root.toggle-transfers();
                                     }
@@ -948,7 +948,7 @@ export component MainWindow inherits Window {
                 }
             }
             Text {
-                text: "Pisz, aby filtrować ten folder · Enter szuka także w podfolderach · dodaj filtr:";
+                text: @tr("Pisz, aby filtrować ten folder · Enter szuka także w podfolderach · dodaj filtr:");
                 wrap: word-wrap;
                 font-family: Theme.font;
                 font-size: 12px;

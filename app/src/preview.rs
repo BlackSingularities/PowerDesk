@@ -208,10 +208,10 @@ fn folder(s: &Shared, dir: &str, count: usize) {
         clear(g);
         g.set_mode(0);
         g.set_title(title.into());
-        g.set_subtitle(if dir.starts_with("ofp:") { "".into() } else { plural(count as u64, "element", "elementy", "elementów").into() });
+        g.set_subtitle(if dir.starts_with("ofp:") { "".into() } else { plural(count as u64, "element", "elementy", crate::tr("elementów")).into() });
         if let Some(d) = drive.filter(|d| d.total > 0) {
             g.set_usage(1.0 - d.free as f32 / d.total as f32);
-            g.set_drive(format!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)).into());
+            g.set_drive(powerdesk_core::trf!("{} wolne z {}", fmt::size(d.free), fmt::size(d.total)).into());
         }
     });
 }
@@ -225,8 +225,8 @@ fn many(s: &Shared, sel: &[Entry]) {
     with_ui(s, |g| {
         clear(g);
         g.set_mode(2);
-        g.set_title(format!("Zaznaczono {}", plural(sel.len() as u64, "element", "elementy", "elementów")).into());
-        g.set_subtitle(format!("{} · {} · {}", plural(dirs, "folder", "foldery", "folderów"), plural(files, "plik", "pliki", "plików"), fmt::size(size)).into());
+        g.set_title(powerdesk_core::trf!("Zaznaczono {}", plural(sel.len() as u64, "element", "elementy", crate::tr("elementów"))).into());
+        g.set_subtitle(format!("{} · {} · {}", plural(dirs, "folder", "foldery", crate::tr("folderów")), plural(files, "plik", "pliki", crate::tr("plików")), fmt::size(size)).into());
         if let Some(e) = sel.first() {
             image(g, &e.path, (160.0 * scale) as u32, e.dir);
         }
@@ -304,9 +304,9 @@ fn one(s: &Shared, gen: u64, e: Entry) {
                 _ => 0,
             });
         }
-        let mut rows = vec![row("Zmodyfikowano", fmt::date(e.modified)), row("Utworzono", fmt::date(e.created))];
+        let mut rows = vec![row(crate::tr("Zmodyfikowano"), fmt::date(e.modified)), row(crate::tr("Utworzono"), fmt::date(e.created))];
         if e.dir && !packed {
-            rows.insert(0, row("Zawartość", "liczę…"));
+            rows.insert(0, row(crate::tr("Zawartość"), crate::tr("liczę…")));
         }
         g.set_rows(ModelRc::new(VecModel::from(rows)));
         // Obraz z powłoki (miniatura w rozmiarze panelu); dla tekstu i archiwów tylko ikona.
@@ -381,9 +381,9 @@ fn one(s: &Shared, gen: u64, e: Entry) {
         let (m, c) = (e.modified, e.created);
         std::thread::spawn(move || {
             let d = fsx::dir_size(&p);
-            let text = format!("{} w {} · {}", plural(d.files, "plik", "pliki", "plików"), plural(d.dirs, "folderze", "folderach", "folderach"), fmt::size(d.size));
+            let text = powerdesk_core::trf!("{} w {} · {}", plural(d.files, "plik", "pliki", crate::tr("plików")), plural(d.dirs, "folderze", "folderach", "folderach"), fmt::size(d.size));
             deliver(gen, move |_, g| {
-                let rows = vec![row("Zawartość", text), row("Zmodyfikowano", fmt::date(m)), row("Utworzono", fmt::date(c))];
+                let rows = vec![row(crate::tr("Zawartość"), text), row(crate::tr("Zmodyfikowano"), fmt::date(m)), row(crate::tr("Utworzono"), fmt::date(c))];
                 g.set_rows(ModelRc::new(VecModel::from(rows)));
             });
         });

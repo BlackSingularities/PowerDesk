@@ -210,7 +210,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.back;
-                        tip: "Wróć do listy (Esc)";
+                        tip: @tr("Wróć do listy (Esc)");
                         clicked => {
                             ViewerState.close();
                         }
@@ -233,7 +233,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.minus;
-                        tip: "Pomniejsz (−)";
+                        tip: @tr("Pomniejsz (−)");
                         clicked => {
                             root.zoom-center(0.8);
                         }
@@ -251,7 +251,7 @@ export component ViewerView inherits Rectangle {
                             color: #ffffffe6;
                         }
                         pct-ta := TipArea {
-                            tip: root.fit ? "Rzeczywisty rozmiar (1)" : "Dopasuj do okna (0)";
+                            tip: root.fit ? @tr("Rzeczywisty rozmiar (1)") : @tr("Dopasuj do okna (0)");
                             clicked => {
                                 if (root.fit) {
                                     root.zoom-center(1 / root.eff);
@@ -264,7 +264,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.plus;
-                        tip: "Powiększ (+)";
+                        tip: @tr("Powiększ (+)");
                         clicked => {
                             root.zoom-center(1.25);
                         }
@@ -272,7 +272,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.refresh;
-                        tip: "Obróć w prawo (R, Shift+R – w lewo)";
+                        tip: @tr("Obróć w prawo (R, Shift+R – w lewo)");
                         clicked => {
                             ViewerState.rotation = mod(ViewerState.rotation + 1, 4);
                             root.reset();
@@ -281,7 +281,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.play;
-                        tip: ViewerState.slideshow ? "Zatrzymaj pokaz slajdów (S)" : "Pokaz slajdów (S)";
+                        tip: ViewerState.slideshow ? @tr("Zatrzymaj pokaz slajdów (S)") : @tr("Pokaz slajdów (S)");
                         on: ViewerState.slideshow;
                         clicked => {
                             ViewerState.slideshow = !ViewerState.slideshow;
@@ -290,7 +290,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.info;
-                        tip: "Informacje i EXIF (I)";
+                        tip: @tr("Informacje i EXIF (I)");
                         on: ViewerState.info-open;
                         clicked => {
                             ViewerState.toggle-info();
@@ -299,7 +299,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.open;
-                        tip: "Otwórz w domyślnym programie (Enter)";
+                        tip: @tr("Otwórz w domyślnym programie (Enter)");
                         clicked => {
                             ViewerState.open-external();
                         }
@@ -307,7 +307,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: ViewerState.fullscreen ? Icons.restore : Icons.max;
-                        tip: ViewerState.fullscreen ? "Wyjdź z pełnego ekranu (F11)" : "Pełny ekran (F11)";
+                        tip: ViewerState.fullscreen ? @tr("Wyjdź z pełnego ekranu (F11)") : @tr("Pełny ekran (F11)");
                         clicked => {
                             ViewerState.toggle-fullscreen();
                         }
@@ -315,7 +315,7 @@ export component ViewerView inherits Rectangle {
                     VButton {
                         y: (parent.height - self.height) / 2;
                         icon: Icons.close;
-                        tip: "Zamknij przeglądarkę (Esc)";
+                        tip: @tr("Zamknij przeglądarkę (Esc)");
                         clicked => {
                             ViewerState.close();
                         }
@@ -340,7 +340,7 @@ export component ViewerView inherits Rectangle {
                     }
                     if ViewerState.loading && !ViewerState.has-img: Label {
                         horizontal-alignment: center;
-                        text: "Wczytuję…";
+                        text: @tr("Wczytuję…");
                         color: #ffffffa6;
                     }
                     pan := TouchArea {
@@ -409,7 +409,7 @@ export component ViewerView inherits Rectangle {
                             color: #ffffff;
                         }
                         arrow-ta := TipArea {
-                            tip: side < 0 ? "Poprzednie (←)" : "Następne (→)";
+                            tip: side < 0 ? @tr("Poprzednie (←)") : @tr("Następne (→)");
                             clicked => {
                                 root.go-step(side);
                             }
@@ -426,7 +426,7 @@ export component ViewerView inherits Rectangle {
                             color: #ffffff;
                         }
                         play-ta := TipArea {
-                            tip: "Odtwórz (spacja); Enter – w domyślnym odtwarzaczu";
+                            tip: @tr("Odtwórz (spacja); Enter – w domyślnym odtwarzaczu");
                             clicked => {
                                 PlayerState.start(2, ViewerState.path);
                             }
@@ -439,7 +439,7 @@ export component ViewerView inherits Rectangle {
                         width: parent.width - 32px;
                     }
                     if root.playing-here && PlayerState.error: Label {
-                        text: "Nie udało się odtworzyć tego pliku – Enter otworzy go w domyślnym odtwarzaczu";
+                        text: @tr("Nie udało się odtworzyć tego pliku – Enter otworzy go w domyślnym odtwarzaczu");
                         color: #ffffffd9;
                     }
                 }

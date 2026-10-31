@@ -37,7 +37,7 @@ pub fn read_only_dest(s: &Shared, dest: &str) -> bool {
 
 fn blocked(s: &Shared, hit: bool) -> bool {
     if hit {
-        transfers::toast(s, "Archiwa są tylko do odczytu", Kind::Error, None);
+        transfers::toast(s, crate::tr("Archiwa są tylko do odczytu"), Kind::Error, None);
     }
     hit
 }
@@ -90,29 +90,29 @@ pub fn extract_to(s: &Shared, sources: Vec<String>, dest: &str) {
         return;
     }
     let what = if sources.len() == 1 { format!("„{}”", base(&sources[0])) } else { format!("{} elem.", sources.len()) };
-    transfers::toast(s, format!("Wypakowuję {what}…"), Kind::Info, None);
+    transfers::toast(s, powerdesk_core::trf!("Wypakowuję {what}…"), Kind::Info, None);
     let dest = dest.to_string();
     background(move || {
         let out = archive::extract(&sources, &dest)?;
-        Ok((format!("Wypakowano do „{}”", base(&dest)), out.into_iter().next()))
+        Ok((powerdesk_core::trf!("Wypakowano do „{}”", base(&dest)), out.into_iter().next()))
     });
 }
 
 /// „Wypakuj do…”: folder z systemowego okna wyboru, start w folderze archiwum.
 pub fn extract_pick(s: &Shared, sources: Vec<String>) {
     let start = sources.first().and_then(|p| archive::split(p)).and_then(|(arc, _)| arc.parent().map(|d| d.to_string_lossy().to_string()));
-    if let Some(dest) = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Wypakuj do folderu", start.as_deref()) {
+    if let Some(dest) = powerdesk_core::shell::pick_folder(crate::hwnd(s), crate::tr("Wypakuj do folderu"), start.as_deref()) {
         extract_to(s, sources, &dest);
     }
 }
 
 /// Całe archiwum do folderu obok, o tej samej nazwie.
 pub fn extract_here(s: &Shared, arc: &str) {
-    transfers::toast(s, format!("Wypakowuję „{}”…", base(arc)), Kind::Info, None);
+    transfers::toast(s, powerdesk_core::trf!("Wypakowuję „{}”…", base(arc)), Kind::Info, None);
     let arc = arc.to_string();
     background(move || {
         let out = archive::extract_here(&arc)?;
-        Ok((format!("Wypakowano do „{}”", base(&out)), Some(out)))
+        Ok((powerdesk_core::trf!("Wypakowano do „{}”", base(&out)), Some(out)))
     });
 }
 
@@ -127,12 +127,12 @@ pub fn zip(s: &Shared, sources: &[String]) {
     } else {
         Path::new(&dir).file_name().map(|n| n.to_string_lossy().to_string())
     }
-    .unwrap_or_else(|| "Archiwum".into());
+    .unwrap_or_else(|| crate::tr("Archiwum").into());
     let dest = Path::new(&dir).join(format!("{name}.zip")).to_string_lossy().to_string();
-    transfers::toast(s, format!("Pakuję {} elem.…", sources.len()), Kind::Info, None);
+    transfers::toast(s, powerdesk_core::trf!("Pakuję {} elem.…", sources.len()), Kind::Info, None);
     let sources = sources.to_vec();
     background(move || {
         let out = archive::create_zip(&sources, &dest)?;
-        Ok((format!("Utworzono „{}”", base(&out)), Some(out)))
+        Ok((powerdesk_core::trf!("Utworzono „{}”", base(&out)), Some(out)))
     });
 }

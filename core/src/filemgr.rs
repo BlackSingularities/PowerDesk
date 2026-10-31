@@ -40,7 +40,7 @@ pub fn set_default(on: bool) -> Result<(), String> {
         let shell = format!(r"{CLASSES}\{c}\shell");
         let verb = format!(r"{shell}\{DEFAULT_VERB}");
         if on {
-            reg(&["add", &verb, "/ve", "/d", "Otwórz w PowerDesk", "/f"])?;
+            reg(&["add", &verb, "/ve", "/d", crate::lang::tr("Otwórz w PowerDesk"), "/f"])?;
             reg(&["add", &format!(r"{verb}\command"), "/ve", "/d", &command("%1")?, "/f"])?;
             // Domyślne polecenie klasy – to ono rusza po dwukliku i z innych programów.
             reg(&["add", &shell, "/ve", "/d", DEFAULT_VERB, "/f"])?;
@@ -65,8 +65,8 @@ pub fn set_menu(on: bool) -> Result<(), String> {
     for (c, arg) in MENU_TARGETS {
         let verb = format!(r"{CLASSES}\{c}\shell\{MENU_VERB}");
         if on {
-            reg(&["add", &verb, "/v", "MUIVerb", "/d", "Otwórz w PowerDesk", "/f"])?;
-            reg(&["add", &verb, "/v", "Icon", "/d", &format!("\"{}\",0", exe()?), "/f"])?;
+            reg(&["add", &verb, "/v", "MUIVerb", "/d", crate::lang::tr("Otwórz w PowerDesk"), "/f"])?;
+            reg(&["add", &verb, "/v", crate::lang::tr("Icon"), "/d", &format!("\"{}\",0", exe()?), "/f"])?;
             reg(&["add", &format!(r"{verb}\command"), "/ve", "/d", &command(arg)?, "/f"])?;
         } else if reg(&["query", &verb]).is_ok() {
             reg(&["delete", &verb, "/f"])?;

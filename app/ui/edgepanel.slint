@@ -138,7 +138,7 @@ export component EdgePanelView inherits Rectangle {
                         overflow: elide;
                     }
                     ttl-ta := TipArea {
-                        tip: root.data.root ? root.data.path : root.data.path + "\nKliknij, aby wrócić do folderu głównego";
+                        tip: root.data.root ? root.data.path : root.data.path + @tr("\nKliknij, aby wrócić do folderu głównego");
                         clicked => {
                             root.to-root();
                         }
@@ -154,7 +154,7 @@ export component EdgePanelView inherits Rectangle {
                         color: fs-ta.has-hover ? Theme.text : Theme.dim;
                     }
                     fs-ta := TipArea {
-                        tip: "Otwórz ten folder w oknie PowerDesk";
+                        tip: @tr("Otwórz ten folder w oknie PowerDesk");
                         clicked => {
                             root.full();
                         }
@@ -209,7 +209,7 @@ export component EdgePanelView inherits Rectangle {
                         }
                     }
                     row-ta := TipArea {
-                        tip: it.dir ? it.name + "\nKliknij, aby wejść do folderu" : it.name + "\nKliknij, aby otworzyć";
+                        tip: it.dir ? it.name + @tr("\nKliknij, aby wejść do folderu") : it.name + @tr("\nKliknij, aby otworzyć");
                         clicked => {
                             root.open-item(k);
                         }
@@ -217,7 +217,7 @@ export component EdgePanelView inherits Rectangle {
                 }
             }
             if root.data.items.length == 0: Text {
-                text: "Pusty folder";
+                text: @tr("Pusty folder");
                 font-family: Theme.font;
                 font-size: 12px;
                 color: Theme.faint;
@@ -238,7 +238,7 @@ export component EdgePanelView inherits Rectangle {
                 background: gr-ta.has-hover || root.resizing ? Theme.dim : transparent;
             }
             gr-ta := TipArea {
-                tip: "Przeciągnij, aby zmienić szerokość panelu";
+                tip: @tr("Przeciągnij, aby zmienić szerokość panelu");
                 mouse-cursor: root.horiz ? MouseCursor.ns-resize : MouseCursor.ew-resize;
                 moved => {
                     if (self.pressed) {

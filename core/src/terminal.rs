@@ -80,7 +80,7 @@ pub fn start(app: AppHandle, cwd: &str, cols: u16, rows: u16) -> Result<u64, Str
 
 pub fn write(id: u64, data: &str) -> Result<(), String> {
     let mut s = SESSIONS.lock();
-    let sess = s.get_mut(&id).ok_or("Terminal został zamknięty")?;
+    let sess = s.get_mut(&id).ok_or(crate::lang::tr("Terminal został zamknięty"))?;
     sess.writer.write_all(data.as_bytes()).map_err(|e| e.to_string())?;
     sess.writer.flush().map_err(|e| e.to_string())
 }
@@ -100,5 +100,5 @@ pub fn kill(id: u64) {
 /// Przechodzi do folderu (gdy w aplikacji zmieni się bieżący folder).
 pub fn cd(id: u64, path: &str) -> Result<(), String> {
     let p = path.replace('\'', "''");
-    write(id, &format!("Set-Location -LiteralPath '{p}'\r"))
+    write(id, &crate::trf!("Set-Location -LiteralPath '{p}'\r"))
 }

@@ -58,7 +58,7 @@ pub fn from_openfilepower(p: &mut Prefs) -> bool {
     };
     // Sekcje panelu bocznego: wyłączone w starej wersji – ukryte tutaj.
     let side = &s["sidebar"];
-    for (key, name) in [("showSaved", "Zapisane wyszukiwania"), ("showFav", "Przypięte"), ("showLibs", "Biblioteki"), ("showDrives", "Dyski"), ("showNet", "Sieć"), ("showSync", "Synchronizacja")] {
+    for (key, name) in [("showSaved", crate::tr("Zapisane wyszukiwania")), ("showFav", crate::tr("Przypięte")), ("showLibs", crate::tr("Biblioteki")), ("showDrives", crate::tr("Dyski")), ("showNet", crate::tr("Sieć")), ("showSync", crate::tr("Synchronizacja"))] {
         if side[key].as_bool() == Some(false) && !p.side_hidden.iter().any(|h| h == name) {
             p.side_hidden.push(name.to_string());
         }

@@ -297,7 +297,7 @@ const PRINTABLE: [&str; 14] = ["pdf", "txt", "rtf", "doc", "docx", "xls", "xlsx"
 /// Czasownik powłoki na pliku; błąd – powiadomienie („Nie udało się {co}: …”).
 fn verb(s: &Shared, path: &str, name: &str, what: &str) {
     if let Err(e) = shell::invoke_verb(crate::hwnd(s), path, name) {
-        crate::transfers::toast(s, format!("Nie udało się {what}: {e}"), crate::transfers::Kind::Error, None);
+        crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się {what}: {e}"), crate::transfers::Kind::Error, None);
     }
 }
 
@@ -312,64 +312,64 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     // Dwa foldery – porównanie (różnice w nowej karcie, „Wyrównaj” w powiadomieniu).
     if sel.len() == 2 && sel.iter().all(|e| e.dir) {
         let (a, b) = (sel[0].path.clone(), sel[1].path.clone());
-        v.push(it("Porównaj foldery", "split", move |s| crate::comparing::run(s, a.clone(), b.clone())));
+        v.push(it(crate::tr("Porównaj foldery"), "split", move |s| crate::comparing::run(s, a.clone(), b.clone())));
         v.push(sep());
     }
     match &one {
         Some(e) if e.dir => {
             let p = e.path.clone();
-            v.push(it("Otwórz", "folder", move |s| crate::navigate(s, &p, true)).kbd("Enter"));
+            v.push(it(crate::tr("Otwórz"), "folder", move |s| crate::navigate(s, &p, true)).kbd(crate::tr("Enter")));
             let p = e.path.clone();
-            v.push(it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &p, false)).kbd("Ctrl+Enter"));
+            v.push(it(crate::tr("Otwórz w nowej karcie"), "plus", move |s| crate::new_tab_at(s, &p, false)).kbd("Ctrl+Enter"));
         }
         Some(e) if crate::archives::browsable(e) => {
             let p = e.path.clone();
-            v.push(it("Otwórz jako folder", "archive", move |s| crate::navigate(s, &p, true)).kbd("Enter"));
+            v.push(it(crate::tr("Otwórz jako folder"), "archive", move |s| crate::navigate(s, &p, true)).kbd(crate::tr("Enter")));
             let p = e.path.clone();
-            v.push(it("Wypakuj tutaj", "download", move |s| crate::archives::extract_here(s, &p)));
+            v.push(it(crate::tr("Wypakuj tutaj"), "download", move |s| crate::archives::extract_here(s, &p)));
             let p = e.path.clone();
-            v.push(it("Wypakuj do…", "download", move |s| crate::archives::extract_pick(s, vec![p.clone()])));
+            v.push(it(crate::tr("Wypakuj do…"), "download", move |s| crate::archives::extract_pick(s, vec![p.clone()])));
             let p = e.path.clone();
-            v.push(it("Otwórz w programie", "open", move |_| {
+            v.push(it(crate::tr("Otwórz w programie"), "open", move |_| {
                 let _ = open::that_detached(&p);
             }));
         }
         Some(e) => {
             let p = e.path.clone();
-            v.push(it("Otwórz", "open", move |s| crate::open_path(s, &p)).kbd("Enter"));
+            v.push(it(crate::tr("Otwórz"), "open", move |s| crate::open_path(s, &p)).kbd(crate::tr("Enter")));
             if crate::fmt::is_media(e) && !crate::archives::inside(&e.path) {
                 let p = e.path.clone();
-                v.push(it("Podgląd", "eye", move |s| crate::open_path(s, &p)).kbd("Spacja"));
+                v.push(it(crate::tr("Podgląd"), "eye", move |s| crate::open_path(s, &p)).kbd(crate::tr("Spacja")));
             }
             let p = e.path.clone();
-            v.push(it("Otwórz za pomocą…", "app", move |s| {
+            v.push(it(crate::tr("Otwórz za pomocą…"), "app", move |s| {
                 shell::open_with(crate::hwnd(s), &p);
             }));
             if ["exe", "bat", "cmd", "msi", "lnk"].iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
                 let p = e.path.clone();
-                v.push(it("Uruchom jako administrator", "shield", move |s| verb(s, &p, "runas", "uruchomić jako administrator")));
+                v.push(it(crate::tr("Uruchom jako administrator"), "shield", move |s| verb(s, &p, "runas", crate::tr("uruchomić jako administrator"))));
             }
             // Obrazy płyt i dysków wirtualnych – podłączenie jako dysk (jak „Zamontuj” w Eksploratorze).
             if ["iso", "img", "vhd", "vhdx"].iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
                 let p = e.path.clone();
-                v.push(it("Zamontuj", "archive", move |s| verb(s, &p, "mount", "zamontować")));
+                v.push(it(crate::tr("Zamontuj"), "archive", move |s| verb(s, &p, "mount", crate::tr("zamontować"))));
             }
             if PRINTABLE.iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
                 let p = e.path.clone();
-                v.push(it("Drukuj", "open", move |s| verb(s, &p, "print", "wydrukować")));
+                v.push(it(crate::tr("Drukuj"), "open", move |s| verb(s, &p, "print", crate::tr("wydrukować"))));
             }
             if e.ext.eq_ignore_ascii_case("lnk") {
                 let p = e.path.clone();
-                v.push(it("Otwórz lokalizację pliku", "folder", move |s| shortcut_target(s, &p, false)));
+                v.push(it(crate::tr("Otwórz lokalizację pliku"), "folder", move |s| shortcut_target(s, &p, false)));
                 let p = e.path.clone();
-                v.push(it("Otwórz lokalizację w nowej karcie", "plus", move |s| shortcut_target(s, &p, true)));
+                v.push(it(crate::tr("Otwórz lokalizację w nowej karcie"), "plus", move |s| shortcut_target(s, &p, true)));
             }
         }
         None => {}
     }
     if let (true, Some(e)) = (searching, &one) {
         let p = e.path.clone();
-        v.push(it("Przejdź do lokalizacji", "folder", move |s| {
+        v.push(it(crate::tr("Przejdź do lokalizacji"), "folder", move |s| {
             if let Some(parent) = Path::new(&p).parent() {
                 crate::navigate(s, &parent.to_string_lossy(), true);
             }
@@ -378,78 +378,78 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     // Elementy z archiwum: wypakowanie do folderu, w którym leży archiwum.
     if let Some(dir) = sel.iter().find(|e| crate::archives::inside(&e.path)).and_then(|e| archive::split(&e.path)).and_then(|(arc, _)| arc.parent().map(|d| d.to_string_lossy().to_string())) {
         let ps = paths(&sel);
-        v.push(it("Wypakuj obok archiwum", "download", move |s| crate::archives::extract_to(s, ps.clone(), &dir)));
+        v.push(it(crate::tr("Wypakuj obok archiwum"), "download", move |s| crate::archives::extract_to(s, ps.clone(), &dir)));
         let ps = paths(&sel);
-        v.push(it("Wypakuj do…", "download", move |s| crate::archives::extract_pick(s, ps.clone())));
+        v.push(it(crate::tr("Wypakuj do…"), "download", move |s| crate::archives::extract_pick(s, ps.clone())));
     }
     v.push(sep());
     let ps = paths(&sel);
     let p2 = ps.clone();
-    v.push(it("Wytnij", "cut", move |_| copy(&p2, true)).kbd("Ctrl+X"));
+    v.push(it(crate::tr("Wytnij"), "cut", move |_| copy(&p2, true)).kbd("Ctrl+X"));
     let p2 = ps.clone();
-    v.push(it("Kopiuj", "copy", move |_| copy(&p2, false)).kbd("Ctrl+C"));
+    v.push(it(crate::tr("Kopiuj"), "copy", move |_| copy(&p2, false)).kbd("Ctrl+C"));
     if let Some(e) = one.as_ref().filter(|e| e.dir) {
         let p = e.path.clone();
-        v.push(it("Wklej do folderu", "paste", move |s| paste(s, Some(&p))));
+        v.push(it(crate::tr("Wklej do folderu"), "paste", move |s| paste(s, Some(&p))));
     }
     let p2 = ps.clone();
     v.push(
-        it("Kopiuj ścieżkę", "link", move |_| {
+        it(crate::tr("Kopiuj ścieżkę"), "link", move |_| {
             let _ = clip::set_text(&p2.iter().map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join("\n"));
         })
         .kbd("Ctrl+Shift+C"),
     );
     v.push(sep());
     if one.is_some() {
-        v.push(it("Zmień nazwę", "edit", crate::start_rename).kbd("F2"));
+        v.push(it(crate::tr("Zmień nazwę"), "edit", crate::start_rename).kbd("F2"));
     } else {
-        v.push(it(format!("Zmień nazwy ({})…", sel.len()), "edit", crate::bulk::open).kbd("F2"));
+        v.push(it(powerdesk_core::trf!("Zmień nazwy ({})…", sel.len()), "edit", crate::bulk::open).kbd("F2"));
     }
     let p2 = ps.clone();
-    v.push(it("Spakuj do ZIP…", "archive", move |s| crate::archives::zip(s, &p2)));
+    v.push(it(crate::tr("Spakuj do ZIP…"), "archive", move |s| crate::archives::zip(s, &p2)));
     if sel.len() > 1 {
-        v.push(it("Przenieś do nowego folderu…", "folderPlus", crate::create_with_selection));
+        v.push(it(crate::tr("Przenieś do nowego folderu…"), "folderPlus", crate::create_with_selection));
     }
     let p2 = ps.clone();
-    v.push(it("Do Kosza", "trash", move |s| trash(s, &p2)).kbd("Del"));
+    v.push(it(crate::tr("Do Kosza"), "trash", move |s| trash(s, &p2)).kbd(crate::tr("Del")));
     let p3 = ps.clone();
-    v.push(it("Usuń trwale", "trash", move |s| crate::transfers::delete_permanently(s, p3.clone())).kbd("Shift+Del").danger());
+    v.push(it(crate::tr("Usuń trwale"), "trash", move |s| crate::transfers::delete_permanently(s, p3.clone())).kbd("Shift+Del").danger());
     v.push(sep());
     if let Some(e) = one.as_ref().filter(|e| e.dir) {
         let p = e.path.clone();
         let pinned = crate::is_favorite(s, &p);
-        v.push(it(if pinned { "Odepnij z panelu bocznego" } else { "Przypnij w panelu bocznym" }, "pin", move |s| crate::toggle_favorite(s, &p)));
-        v.push(it("Pokaż na ekranie Komputer", "grid", |_| {}).later());
+        v.push(it(if pinned { crate::tr("Odepnij z panelu bocznego") } else { crate::tr("Przypnij w panelu bocznym") }, "pin", move |s| crate::toggle_favorite(s, &p)));
+        v.push(it(crate::tr("Pokaż na ekranie Komputer"), "grid", |_| {}).later());
         let p = e.path.clone();
-        v.push(it("Terminal tutaj", "terminal", move |_| terminal(&p)));
+        v.push(it(crate::tr("Terminal tutaj"), "terminal", move |_| terminal(&p)));
     }
     let p2 = ps.clone();
-    v.push(it("Dodaj do półki", "archive", move |s| crate::shelf::add(s, &p2)).kbd("Ctrl+Shift+S"));
+    v.push(it(crate::tr("Dodaj do półki"), "archive", move |s| crate::shelf::add(s, &p2)).kbd("Ctrl+Shift+S"));
     let first = ps[0].clone();
-    v.push(it("Pokaż w Eksploratorze", "open", move |_| reveal(&first)));
+    v.push(it(crate::tr("Pokaż w Eksploratorze"), "open", move |_| reveal(&first)));
     v.push(sep());
     if let Some(e) = one.as_ref().filter(|e| !crate::archives::inside(&e.path)) {
         let p = e.path.clone();
-        v.push(it("Udostępnij…", "link", move |s| verb(s, &p, "Windows.ModernShare", "udostępnić")));
+        v.push(it(crate::tr("Udostępnij…"), "link", move |s| verb(s, &p, "Windows.ModernShare", crate::tr("udostępnić"))));
     }
-    v.push(it("Właściwości", "info", crate::props::open).kbd("Alt+Enter"));
+    v.push(it(crate::tr("Właściwości"), "info", crate::props::open).kbd("Alt+Enter"));
     if let Some(e) = one.as_ref().filter(|e| !crate::archives::inside(&e.path)) {
         let p = e.path.clone();
-        v.push(it("Uprawnienia (Zabezpieczenia)…", "settings", move |s| {
-            shell::show_properties_page(crate::hwnd(s), &p, "Zabezpieczenia");
+        v.push(it(crate::tr("Uprawnienia (Zabezpieczenia)…"), "settings", move |s| {
+            shell::show_properties_page(crate::hwnd(s), &p, crate::tr("Zabezpieczenia"));
         }));
         // Kopie z punktów przywracania i Historii plików – zakładka Windows (przywracanie i podgląd).
         let p = e.path.clone();
-        v.push(it("Przywróć poprzednie wersje…", "history", move |s| {
-            shell::show_properties_page(crate::hwnd(s), &p, "Poprzednie wersje");
+        v.push(it(crate::tr("Przywróć poprzednie wersje…"), "history", move |s| {
+            shell::show_properties_page(crate::hwnd(s), &p, crate::tr("Poprzednie wersje"));
         }));
     }
     v.push(sep());
     let p2 = ps.clone();
-    v.push(it("Pokaż więcej opcji (menu Windows)", "more", move |s| crate::native_menu(s, &p2, x, y)).kbd("Shift+PPM"));
+    v.push(it(crate::tr("Pokaż więcej opcji (menu Windows)"), "more", move |s| crate::native_menu(s, &p2, x, y)).kbd("Shift+PPM"));
     if let Some(e) = &one {
         let p = e.path.clone();
-        v.push(it("Właściwości systemowe", "settings", move |s| {
+        v.push(it(crate::tr("Właściwości systemowe"), "settings", move |s| {
             shell::show_properties(crate::hwnd(s), &p);
         }));
     }
@@ -460,41 +460,41 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
 pub fn background_menu(s: &Shared, x: f32, y: f32) {
     let path = s.borrow().tabs[s.borrow().active].path.clone();
     let mut v = vec![
-        it("Nowy folder", "folderPlus", |s| crate::create(s, true)).kbd("Ctrl+Shift+N"),
-        it("Nowy plik tekstowy", "filePlus", |s| crate::create(s, false)),
-        it("Wklej", "paste", |s| paste(s, None)).kbd("Ctrl+V"),
+        it(crate::tr("Nowy folder"), "folderPlus", |s| crate::create(s, true)).kbd("Ctrl+Shift+N"),
+        it(crate::tr("Nowy plik tekstowy"), "filePlus", |s| crate::create(s, false)),
+        it(crate::tr("Wklej"), "paste", |s| paste(s, None)).kbd("Ctrl+V"),
         sep(),
         sub(
-            "Widok",
+            crate::tr("Widok"),
             "grid",
             vec![
-                it("Lista", "list", |s| crate::set_view(s, View::List)).kbd("Ctrl+1"),
-                it("Siatka", "grid", |s| crate::set_view(s, View::Grid)).kbd("Ctrl+2"),
-                it("Galeria", "gallery", |s| crate::set_view(s, View::Gallery)).kbd("Ctrl+3"),
+                it(crate::tr("Lista"), "list", |s| crate::set_view(s, View::List)).kbd("Ctrl+1"),
+                it(crate::tr("Siatka"), "grid", |s| crate::set_view(s, View::Grid)).kbd("Ctrl+2"),
+                it(crate::tr("Galeria"), "gallery", |s| crate::set_view(s, View::Gallery)).kbd("Ctrl+3"),
             ],
         ),
     ];
     v.push(sort_sub(s));
     v.push(group_sub(s));
-    v.push(it("Odśwież", "refresh", |s| crate::load(s, true)).kbd("F5"));
-    v.push(it("Zaznacz wszystko", "check", crate::select_all).kbd("Ctrl+A"));
+    v.push(it(crate::tr("Odśwież"), "refresh", |s| crate::load(s, true)).kbd("F5"));
+    v.push(it(crate::tr("Zaznacz wszystko"), "check", crate::select_all).kbd("Ctrl+A"));
     v.push(sep());
     if !path.starts_with("ofp:") {
         let p = path.clone();
         let pinned = crate::is_favorite(s, &p);
-        v.push(it(if pinned { "Odepnij ten folder" } else { "Przypnij ten folder" }, "pin", move |s| crate::toggle_favorite(s, &p)));
+        v.push(it(if pinned { crate::tr("Odepnij ten folder") } else { crate::tr("Przypnij ten folder") }, "pin", move |s| crate::toggle_favorite(s, &p)));
     }
     let p = path.clone();
-    v.push(it("Terminal tutaj", "terminal", move |_| terminal(&p)));
-    v.push(it("Zajętość i porządki", "grid", crate::spaceview::open_here));
+    v.push(it(crate::tr("Terminal tutaj"), "terminal", move |_| terminal(&p)));
+    v.push(it(crate::tr("Zajętość i porządki"), "grid", crate::spaceview::open_here));
     let p = path.clone();
-    v.push(it("Otwórz w Eksploratorze", "open", move |_| {
+    v.push(it(crate::tr("Otwórz w Eksploratorze"), "open", move |_| {
         let _ = open::that_detached(&p);
     }));
     v.push(sep());
-    v.push(it("Właściwości folderu", "info", crate::props::open_folder));
+    v.push(it(crate::tr("Właściwości folderu"), "info", crate::props::open_folder));
     v.push(sep());
-    v.push(it("Pokaż więcej opcji (menu Windows)", "more", move |s| crate::native_menu(s, &[path.clone()], x, y)));
+    v.push(it(crate::tr("Pokaż więcej opcji (menu Windows)"), "more", move |s| crate::native_menu(s, &[path.clone()], x, y)));
     show(s, v, x, y);
 }
 
@@ -512,14 +512,14 @@ fn sort_sub(s: &Shared) -> Item {
             it(format!("{mark}{}", k.label()), "", move |s| crate::set_sort(s, k))
         })
         .collect();
-    sub("Sortuj według", "sort", items)
+    sub(crate::tr("Sortuj według"), "sort", items)
 }
 
 /// „Grupuj według” – ptaszek przy bieżącym grupowaniu.
 fn group_sub(s: &Shared) -> Item {
     let g = crate::tab_mut(s, |t| t.group);
     let items = GroupKey::ALL.iter().map(|&k| it(k.label(), "", move |s| crate::set_group(s, k)).checked(k == g)).collect();
-    sub("Grupuj według", "list", items)
+    sub(crate::tr("Grupuj według"), "list", items)
 }
 
 /// Menu przycisku sortowania na pasku narzędzi.
@@ -542,7 +542,7 @@ pub fn sort_menu(s: &Shared, x: f32, y: f32) {
         .collect();
     v.push(sep());
     v.push(
-        it("Malejąco", "", |s| {
+        it(crate::tr("Malejąco"), "", |s| {
             crate::tab_mut(s, |t| t.desc = !t.desc);
             crate::save_prefs(s);
             crate::refresh(s);
@@ -550,7 +550,7 @@ pub fn sort_menu(s: &Shared, x: f32, y: f32) {
         .checked(desc),
     );
     v.push(
-        it("Foldery na górze", "", |s| {
+        it(crate::tr("Foldery na górze"), "", |s| {
             {
                 let mut b = s.borrow_mut();
                 b.prefs.folders_first = !b.prefs.folders_first;
@@ -569,50 +569,50 @@ pub fn new_menu(s: &Shared, x: f32, y: f32) {
     let file = |label: &str, icon: &'static str, name: &'static str| it(label, icon, move |s| crate::create_named(s, name, false));
     let n = crate::selected_paths(s).len();
     let mut v = vec![
-        it("Folder", "folderPlus", |s| crate::create(s, true)).kbd("Ctrl+Shift+N"),
-        it("Folder z dzisiejszą datą", "folderPlus", |s| {
+        it(crate::tr("Folder"), "folderPlus", |s| crate::create(s, true)).kbd("Ctrl+Shift+N"),
+        it(crate::tr("Folder z dzisiejszą datą"), "folderPlus", |s| {
             crate::create_named(s, &chrono::Local::now().format("%Y-%m-%d").to_string(), true)
         }),
     ];
     if n > 0 {
-        v.push(it(format!("Folder z zaznaczonych ({n})"), "folderPlus", crate::create_with_selection));
+        v.push(it(powerdesk_core::trf!("Folder z zaznaczonych ({n})"), "folderPlus", crate::create_with_selection));
     }
     v.push(sep());
-    v.push(file("Plik tekstowy", "filePlus", "Nowy dokument tekstowy.txt"));
+    v.push(file(crate::tr("Plik tekstowy"), "filePlus", crate::tr("Nowy dokument tekstowy.txt")));
     v.push(sub(
-        "Dokumenty",
+        crate::tr("Dokumenty"),
         "doc",
         vec![
-            file("Dokument Word", "doc", "Nowy dokument.docx"),
-            file("Arkusz Excel", "sheet", "Nowy arkusz.xlsx"),
-            file("Prezentacja PowerPoint", "doc", "Nowa prezentacja.pptx"),
-            file("Notatka Markdown", "doc", "Notatka.md"),
-            file("Plik CSV", "sheet", "Dane.csv"),
+            file(crate::tr("Dokument Word"), "doc", crate::tr("Nowy dokument.docx")),
+            file(crate::tr("Arkusz Excel"), "sheet", crate::tr("Nowy arkusz.xlsx")),
+            file(crate::tr("Prezentacja PowerPoint"), "doc", crate::tr("Nowa prezentacja.pptx")),
+            file(crate::tr("Notatka Markdown"), "doc", "Notatka.md"),
+            file(crate::tr("Plik CSV"), "sheet", "Dane.csv"),
         ],
     ));
     v.push(sub(
-        "Pliki programisty",
+        crate::tr("Pliki programisty"),
         "code",
         vec![
             file("JSON", "code", "plik.json"),
             file("HTML", "code", "index.html"),
-            file("Skrypt PowerShell", "terminal", "skrypt.ps1"),
-            file("Skrypt wsadowy (.bat)", "terminal", "skrypt.bat"),
-            file("Inny plik…", "filePlus", "nowy plik"),
+            file(crate::tr("Skrypt PowerShell"), "terminal", "skrypt.ps1"),
+            file(crate::tr("Skrypt wsadowy (.bat)"), "terminal", "skrypt.bat"),
+            file(crate::tr("Inny plik…"), "filePlus", crate::tr("nowy plik")),
         ],
     ));
     // Typy zarejestrowane przez programy (jak „Nowy” w Eksploratorze).
     let types = crate::shellnew_types();
     if !types.is_empty() {
         v.push(sub(
-            "Inne typy",
+            crate::tr("Inne typy"),
             "filePlus",
             types.into_iter().map(|t| it(t.name.clone(), "filePlus", move |s| crate::create_typed(s, &t))).collect(),
         ));
     }
     if n > 0 {
         v.push(sep());
-        v.push(it(format!("Archiwum ZIP z zaznaczonych ({n})"), "archive", |s| crate::archives::zip(s, &crate::selected_paths(s))));
+        v.push(it(powerdesk_core::trf!("Archiwum ZIP z zaznaczonych ({n})"), "archive", |s| crate::archives::zip(s, &crate::selected_paths(s))));
     }
     show(s, v, x, y);
 }
@@ -622,22 +622,22 @@ pub fn new_menu(s: &Shared, x: f32, y: f32) {
 pub const PLACES: &str = "ofp:places";
 
 fn places_menu(s: &Shared, x: f32, y: f32) {
-    let mut v = vec![it("Komputer", "pc", |s| crate::navigate(s, crate::model::HOME, true))];
+    let mut v = vec![it(crate::tr("Komputer"), "pc", |s| crate::navigate(s, crate::model::HOME, true))];
     for (name, dir, icon) in [
-        ("Pulpit", dirs::desktop_dir(), "desktop"),
-        ("Folder osobisty", dirs::home_dir(), "home"),
-        ("Dokumenty", dirs::document_dir(), "doc"),
-        ("Pobrane", dirs::download_dir(), "download"),
-        ("Obrazy", dirs::picture_dir(), "image"),
-        ("Muzyka", dirs::audio_dir(), "music"),
-        ("Wideo", dirs::video_dir(), "video"),
+        (crate::tr("Pulpit"), dirs::desktop_dir(), "desktop"),
+        (crate::tr("Folder osobisty"), dirs::home_dir(), "home"),
+        (crate::tr("Dokumenty"), dirs::document_dir(), "doc"),
+        (crate::tr("Pobrane"), dirs::download_dir(), "download"),
+        (crate::tr("Obrazy"), dirs::picture_dir(), "image"),
+        (crate::tr("Muzyka"), dirs::audio_dir(), "music"),
+        (crate::tr("Wideo"), dirs::video_dir(), "video"),
     ] {
         if let Some(p) = dir.filter(|d| d.is_dir()) {
             let p = p.to_string_lossy().to_string();
             v.push(it(name, icon, move |s| crate::navigate(s, &p, true)));
         }
     }
-    let drives: Vec<_> = s.borrow().drives.iter().filter(|d| d.online).map(|d| (if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) }, d.path.clone(), d.kind == "network")).collect();
+    let drives: Vec<_> = s.borrow().drives.iter().filter(|d| d.online).map(|d| (if d.label.is_empty() { powerdesk_core::trf!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) }, d.path.clone(), d.kind == "network")).collect();
     if !drives.is_empty() {
         v.push(sep());
     }
@@ -705,13 +705,13 @@ pub fn trash(s: &Shared, paths: &[String]) {
     let what = if paths.len() == 1 {
         format!("„{}”", Path::new(&paths[0]).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default())
     } else {
-        format!("{} elementów", paths.len())
+        powerdesk_core::trf!("{} elementów", paths.len())
     };
     crate::transfers::confirm(
         s,
-        "Przenieść do Kosza?",
-        &format!("{what} trafi do Kosza – można je stamtąd przywrócić."),
-        "Do Kosza",
+        crate::tr("Przenieść do Kosza?"),
+        &powerdesk_core::trf!("{what} trafi do Kosza – można je stamtąd przywrócić."),
+        crate::tr("Do Kosza"),
         false,
         std::rc::Rc::new(move |_| {
             ops::start(Core, "trash".into(), paths.clone(), String::new(), ops::Conflict::Skip);
@@ -772,7 +772,7 @@ pub fn column_menu(s: &Shared, x: f32, y: f32) {
         .collect();
     v.push(sep());
     v.push(
-        it("Rozmiary folderów", "", |s| {
+        it(crate::tr("Rozmiary folderów"), "", |s| {
             {
                 let mut b = s.borrow_mut();
                 b.prefs.folder_sizes = !b.prefs.folder_sizes;
@@ -782,7 +782,7 @@ pub fn column_menu(s: &Shared, x: f32, y: f32) {
         })
         .checked(sizes),
     );
-    v.push(it("Przywróć domyślne kolumny", "undo", |s| {
+    v.push(it(crate::tr("Przywróć domyślne kolumny"), "undo", |s| {
         {
             let mut b = s.borrow_mut();
             b.prefs.list_cols = Col::DEFAULT.to_vec();
@@ -800,14 +800,14 @@ pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
     let (a, b, c) = (path.clone(), path.clone(), path.clone());
     let pinned = crate::is_favorite(s, &path);
     let mut v = vec![
-        it("Otwórz", "folder", move |s| crate::navigate(s, &a, true)),
-        it("Otwórz w nowej karcie", "plus", move |s| crate::new_tab_at(s, &b, false)),
+        it(crate::tr("Otwórz"), "folder", move |s| crate::navigate(s, &a, true)),
+        it(crate::tr("Otwórz w nowej karcie"), "plus", move |s| crate::new_tab_at(s, &b, false)),
         sep(),
-        it(if pinned { "Odepnij" } else { "Przypnij w panelu bocznym" }, "pin", move |s| crate::toggle_favorite(s, &c)),
+        it(if pinned { crate::tr("Odepnij") } else { crate::tr("Przypnij w panelu bocznym") }, "pin", move |s| crate::toggle_favorite(s, &c)),
     ];
     if crate::is_net_place(s, &path) {
         let p = path.clone();
-        v.push(it("Usuń lokalizację z panelu", "close", move |s| crate::remove_net_place(s, &p)));
+        v.push(it(crate::tr("Usuń lokalizację z panelu"), "close", move |s| crate::remove_net_place(s, &p)));
     }
     // Dysk: wysuwanie, odłączanie, oczyszczanie i mapowanie – zależnie od rodzaju.
     let drive = s.borrow().drives.iter().find(|d| d.path.eq_ignore_ascii_case(&path)).cloned();
@@ -815,33 +815,33 @@ pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
         v.push(sep());
         let root = d.path.clone();
         match d.kind.as_str() {
-            "removable" | "cdrom" => v.push(it("Wysuń", "eject", move |s| {
+            "removable" | "cdrom" => v.push(it(crate::tr("Wysuń"), "eject", move |s| {
                 if let Err(e) = drives::eject(crate::hwnd(s), &root) {
-                    crate::transfers::toast(s, format!("Nie udało się wysunąć: {e}"), crate::transfers::Kind::Error, None);
+                    crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się wysunąć: {e}"), crate::transfers::Kind::Error, None);
                 }
             })),
-            "network" => v.push(it("Odłącz dysk sieciowy", "unlink", move |s| match drives::unmap(&root, true) {
-                Ok(()) => crate::transfers::toast(s, "Dysk sieciowy odłączony", crate::transfers::Kind::Ok, None),
-                Err(e) => crate::transfers::toast(s, format!("Nie udało się odłączyć: {e}"), crate::transfers::Kind::Error, None),
+            "network" => v.push(it(crate::tr("Odłącz dysk sieciowy"), "unlink", move |s| match drives::unmap(&root, true) {
+                Ok(()) => crate::transfers::toast(s, crate::tr("Dysk sieciowy odłączony"), crate::transfers::Kind::Ok, None),
+                Err(e) => crate::transfers::toast(s, powerdesk_core::trf!("Nie udało się odłączyć: {e}"), crate::transfers::Kind::Error, None),
             })),
             _ => {}
         }
         let space = d.path.clone();
-        v.push(it("Co zajmuje miejsce?", "grid", move |s| crate::navigate(s, &format!("ofp:space|{space}"), true)));
+        v.push(it(crate::tr("Co zajmuje miejsce?"), "grid", move |s| crate::navigate(s, &format!("ofp:space|{space}"), true)));
         if d.kind == "fixed" || d.kind == "removable" {
             let l = d.letter.clone();
-            v.push(it("Oczyszczanie dysku", "trash", move |_| drives::cleanup(&l)));
+            v.push(it(crate::tr("Oczyszczanie dysku"), "trash", move |_| drives::cleanup(&l)));
             let l = d.letter.clone();
             v.push(it("Formatuj…", "settings", move |s| drives::format_dialog(crate::hwnd(s), &l)).danger());
-            v.push(it("Zarządzaj funkcją BitLocker", "settings", |_| drives::bitlocker()));
+            v.push(it(crate::tr("Zarządzaj funkcją BitLocker"), "settings", |_| drives::bitlocker()));
         }
         let props = d.path.clone();
-        v.push(it("Właściwości", "info", move |s| {
+        v.push(it(crate::tr("Właściwości"), "info", move |s| {
             powerdesk_core::shell::show_properties(crate::hwnd(s), &props);
         }));
-        v.push(it("Mapuj dysk sieciowy…", "network", |s| drives::map_dialog(crate::hwnd(s))));
+        v.push(it(crate::tr("Mapuj dysk sieciowy…"), "network", |s| drives::map_dialog(crate::hwnd(s))));
     }
-    v.push(it("Terminal tutaj", "terminal", move |_| terminal(&path)));
+    v.push(it(crate::tr("Terminal tutaj"), "terminal", move |_| terminal(&path)));
     show(s, v, x, y);
 }
 
@@ -850,11 +850,11 @@ pub fn saved_menu(s: &Shared, id: String, x: f32, y: f32) {
     show(
         s,
         vec![
-            it("Uruchom", "search", move |s| crate::run_saved(s, &a, false)),
-            it("Uruchom w nowej karcie", "plus", move |s| crate::run_saved(s, &b, true)),
+            it(crate::tr("Uruchom"), "search", move |s| crate::run_saved(s, &a, false)),
+            it(crate::tr("Uruchom w nowej karcie"), "plus", move |s| crate::run_saved(s, &b, true)),
             sep(),
-            it("Zmień nazwę", "edit", move |s| crate::rename_saved(s, &d)),
-            it("Usuń", "trash", move |s| crate::remove_saved(s, &c)).danger(),
+            it(crate::tr("Zmień nazwę"), "edit", move |s| crate::rename_saved(s, &d)),
+            it(crate::tr("Usuń"), "trash", move |s| crate::remove_saved(s, &c)).danger(),
         ],
         x,
         y,
@@ -870,29 +870,29 @@ pub fn tab_menu(s: &Shared, i: usize, x: f32, y: f32) {
     };
     let others = s.borrow().tabs.iter().enumerate().any(|(j, t)| j != i && !t.pinned);
     let can_reopen = !s.borrow().closed.is_empty();
-    let mut v = vec![it("Nowa karta", "plus", |s| crate::new_tab(s)).kbd("Ctrl+T")];
+    let mut v = vec![it(crate::tr("Nowa karta"), "plus", |s| crate::new_tab(s)).kbd("Ctrl+T")];
     if !viewer {
-        v.push(it("Duplikuj kartę", "copy", move |s| crate::new_tab_at(s, &path, true)));
+        v.push(it(crate::tr("Duplikuj kartę"), "copy", move |s| crate::new_tab_at(s, &path, true)));
     }
     v.push(sep());
     if !viewer {
-        v.push(it(if pinned { "Odepnij kartę" } else { "Przypnij kartę" }, "pin", move |s| crate::pin_tab(s, i)));
+        v.push(it(if pinned { crate::tr("Odepnij kartę") } else { crate::tr("Przypnij kartę") }, "pin", move |s| crate::pin_tab(s, i)));
     }
-    v.push(it("Przywróć zamkniętą kartę", "refresh", |s| crate::reopen_closed(s)).kbd("Ctrl+Shift+T"));
+    v.push(it(crate::tr("Przywróć zamkniętą kartę"), "refresh", |s| crate::reopen_closed(s)).kbd("Ctrl+Shift+T"));
     if !can_reopen {
         v.pop();
     }
     v.push(sep());
-    let mut close = it("Zamknij kartę", "close", move |s| crate::close_tab(s, i)).kbd("Ctrl+W");
+    let mut close = it(crate::tr("Zamknij kartę"), "close", move |s| crate::close_tab(s, i)).kbd("Ctrl+W");
     if !closable {
         close = close.disabled();
     }
     v.push(close);
     if others {
-        v.push(it("Zamknij pozostałe karty", "close", move |s| crate::close_others(s, i)));
+        v.push(it(crate::tr("Zamknij pozostałe karty"), "close", move |s| crate::close_others(s, i)));
     }
     if right {
-        v.push(it("Zamknij karty po prawej", "close", move |s| crate::close_right(s, i)));
+        v.push(it(crate::tr("Zamknij karty po prawej"), "close", move |s| crate::close_right(s, i)));
     }
     show(s, v, x, y);
 }

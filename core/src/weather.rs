@@ -21,23 +21,23 @@ pub fn kind(code: i64) -> u8 {
 /// Opis pogody po polsku (kody WMO).
 pub fn describe(code: i64) -> &'static str {
     match code {
-        0 => "Bezchmurnie",
-        1 => "Przeważnie słonecznie",
-        2 => "Częściowe zachmurzenie",
-        3 => "Pochmurno",
-        45 | 48 => "Mgła",
-        51 | 53 | 55 => "Mżawka",
-        56 | 57 => "Marznąca mżawka",
-        61 | 63 => "Deszcz",
-        65 => "Ulewa",
-        66 | 67 => "Marznący deszcz",
-        71 | 73 => "Śnieg",
-        75 => "Intensywny śnieg",
-        77 => "Ziarna śniegu",
-        80..=82 => "Przelotny deszcz",
-        85 | 86 => "Przelotny śnieg",
-        95 => "Burza",
-        96..=99 => "Burza z gradem",
+        0 => crate::lang::tr("Bezchmurnie"),
+        1 => crate::lang::tr("Przeważnie słonecznie"),
+        2 => crate::lang::tr("Częściowe zachmurzenie"),
+        3 => crate::lang::tr("Pochmurno"),
+        45 | 48 => crate::lang::tr("Mgła"),
+        51 | 53 | 55 => crate::lang::tr("Mżawka"),
+        56 | 57 => crate::lang::tr("Marznąca mżawka"),
+        61 | 63 => crate::lang::tr("Deszcz"),
+        65 => crate::lang::tr("Ulewa"),
+        66 | 67 => crate::lang::tr("Marznący deszcz"),
+        71 | 73 => crate::lang::tr("Śnieg"),
+        75 => crate::lang::tr("Intensywny śnieg"),
+        77 => crate::lang::tr("Ziarna śniegu"),
+        80..=82 => crate::lang::tr("Przelotny deszcz"),
+        85 | 86 => crate::lang::tr("Przelotny śnieg"),
+        95 => crate::lang::tr("Burza"),
+        96..=99 => crate::lang::tr("Burza z gradem"),
         _ => "",
     }
 }
@@ -96,7 +96,7 @@ fn enc(s: &str) -> String {
 /// Pogoda dla miejscowości (nazwa po polsku albo w innym języku).
 pub fn fetch(city: &str) -> Result<Weather, String> {
     let g = get(&format!("https://geocoding-api.open-meteo.com/v1/search?name={}&count=1&language=pl&format=json", enc(city.trim())))?;
-    let place = g["results"].get(0).ok_or_else(|| format!("Nie znaleziono miejscowości „{city}”"))?;
+    let place = g["results"].get(0).ok_or_else(|| crate::trf!("Nie znaleziono miejscowości „{city}”"))?;
     let (lat, lon) = (place["latitude"].as_f64().unwrap_or(0.0), place["longitude"].as_f64().unwrap_or(0.0));
     let f = get(&format!(
         "https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,weather_code,wind_speed_10m,apparent_temperature,relative_humidity_2m&hourly=temperature_2m&daily=weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset&timezone=auto&forecast_days=7"

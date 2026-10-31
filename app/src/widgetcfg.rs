@@ -108,26 +108,26 @@ struct Opts {
 
 fn opts(kind: &str) -> Opts {
     let none = (0, "", "");
-    let zone = (1, "Strefa czasowa", "Lokalna – np. Tokio, Londyn, Europe/Paris");
-    let city = (1, "Miejscowość", "Wspólna z menu widżetu – np. Kraków");
+    let zone = (1, crate::tr("Strefa czasowa"), "Lokalna – np. Tokio, Londyn, Europe/Paris");
+    let city = (1, crate::tr("Miejscowość"), crate::tr("Wspólna z menu widżetu – np. Kraków"));
     let o = |variants: &'static [&'static str]| Opts { variants, time: false, temp: false, src: none };
     match kind {
-        "clock" => Opts { variants: &["Klasyczny", "Minimalny", "Pionowy"], time: true, temp: false, src: zone },
-        "analog" => Opts { variants: &["Kreski", "Minimalny", "Cyfry"], time: true, temp: false, src: zone },
-        "weather" => Opts { variants: &["Pełny", "Duża temperatura"], time: false, temp: true, src: city },
-        "forecast" => Opts { variants: &["Dni", "Wykres 24 h"], time: false, temp: true, src: city },
-        "folder" => Opts { variants: &["Lista", "Siatka"], time: false, temp: false, src: (2, "Folder", "Pobrane") },
-        "calendar" => o(&["Miesiąc", "Dzień", "Tydzień"]),
-        "system" | "drives" | "progress" => o(&["Paski", "Kręgi"]),
-        "cpu" | "ram" | "gpu" => o(&["Wykres", "Słupki", "Krąg"]),
-        "network" => o(&["Wykres", "Liczby"]),
-        "battery" => o(&["Krąg", "Bateria"]),
-        "media" => o(&["Okładka obok", "Okładka w tle"]),
-        "photos" | "daypic" => o(&["Wypełnij", "Dopasuj"]),
-        "recent" | "favorites" => o(&["Lista", "Siatka"]),
-        "launcher" => o(&["Siatka", "Lista"]),
-        "stopwatch" | "timer" => o(&["Krąg", "Cyfry"]),
-        "quote" => o(&["Cytat", "Przysłowie"]),
+        "clock" => Opts { variants: &[crate::tr("Klasyczny"), crate::tr("Minimalny"), crate::tr("Pionowy")], time: true, temp: false, src: zone },
+        "analog" => Opts { variants: &[crate::tr("Kreski"), crate::tr("Minimalny"), crate::tr("Cyfry")], time: true, temp: false, src: zone },
+        "weather" => Opts { variants: &[crate::tr("Pełny"), crate::tr("Duża temperatura")], time: false, temp: true, src: city },
+        "forecast" => Opts { variants: &[crate::tr("Dni"), crate::tr("Wykres 24 h")], time: false, temp: true, src: city },
+        "folder" => Opts { variants: &[crate::tr("Lista"), crate::tr("Siatka")], time: false, temp: false, src: (2, crate::tr("Folder"), crate::tr("Pobrane")) },
+        "calendar" => o(&[crate::tr("Miesiąc"), crate::tr("Dzień"), crate::tr("Tydzień")]),
+        "system" | "drives" | "progress" => o(&[crate::tr("Paski"), crate::tr("Kręgi")]),
+        "cpu" | "ram" | "gpu" => o(&[crate::tr("Wykres"), crate::tr("Słupki"), crate::tr("Krąg")]),
+        "network" => o(&[crate::tr("Wykres"), crate::tr("Liczby")]),
+        "battery" => o(&[crate::tr("Krąg"), crate::tr("Bateria")]),
+        "media" => o(&[crate::tr("Okładka obok"), crate::tr("Okładka w tle")]),
+        "photos" | "daypic" => o(&[crate::tr("Wypełnij"), crate::tr("Dopasuj")]),
+        "recent" | "favorites" => o(&[crate::tr("Lista"), crate::tr("Siatka")]),
+        "launcher" => o(&[crate::tr("Siatka"), crate::tr("Lista")]),
+        "stopwatch" | "timer" => o(&[crate::tr("Krąg"), crate::tr("Cyfry")]),
+        "quote" => o(&[crate::tr("Cytat"), crate::tr("Przysłowie")]),
         _ => o(&[]),
     }
 }
@@ -192,14 +192,14 @@ fn fill(g: &WidgetEdit, kind: &str, cfg: &WidgetCfg) {
     g.set_src_kind(o.src.0);
     g.set_src_label(o.src.1.into());
     let hint = match kind {
-        "weather" | "forecast" => format!("Wspólna: {}", crate::widgetfeeds::city()),
+        "weather" | "forecast" => powerdesk_core::trf!("Wspólna: {}", crate::widgetfeeds::city()),
         "folder" => dirs::download_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| o.src.2.to_string()),
         _ => o.src.2.to_string(),
     };
     g.set_src_hint(hint.into());
     g.set_src(cfg.source.clone().into());
     let note = if group(kind) == Some("zone") && !cfg.source.trim().is_empty() && key(kind, cfg).is_empty() {
-        "Nieznana strefa – pokazuję czas lokalny"
+        crate::tr("Nieznana strefa – pokazuję czas lokalny")
     } else {
         ""
     };
@@ -265,7 +265,7 @@ fn pick_folder() {
     let Some((_, cfg)) = read(t) else { return };
     let cur = if cfg.source.is_empty() { dirs::download_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_default() } else { cfg.source.clone() };
     let mut picked = None;
-    crate::with_state(|s| picked = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Folder widżetu", Some(cur.as_str())));
+    crate::with_state(|s| picked = powerdesk_core::shell::pick_folder(crate::hwnd(s), crate::tr("Folder widżetu"), Some(cur.as_str())));
     if let Some(p) = picked {
         with_editor(t, |g| g.set_src(p.clone().into()));
         changed();

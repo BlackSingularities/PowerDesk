@@ -62,25 +62,25 @@ fn all(s: &Shared) -> Vec<Cmd> {
     };
     let files = !special;
     let mut v = vec![
-        cmd("Nowa karta", "Karty", "plus", "Ctrl+T", crate::new_tab),
-        cmd("Zamknij kartę", "Karty", "close", "Ctrl+W", |s| {
+        cmd(crate::tr("Nowa karta"), crate::tr("Karty"), "plus", "Ctrl+T", crate::new_tab),
+        cmd(crate::tr("Zamknij kartę"), crate::tr("Karty"), "close", "Ctrl+W", |s| {
             let i = s.borrow().active;
             crate::close_tab(s, i);
         }),
-        cmd(if pinned { "Odepnij kartę" } else { "Przypnij kartę" }, "Karty", "pin", "", |s| {
+        cmd(if pinned { crate::tr("Odepnij kartę") } else { crate::tr("Przypnij kartę") }, crate::tr("Karty"), "pin", "", |s| {
             let i = s.borrow().active;
             crate::pin_tab(s, i);
         }),
-        cmd(if split { "Jeden panel" } else { "Podziel na dwa panele" }, "Karty", "split", "Ctrl+\\", crate::toggle_split),
+        cmd(if split { "Jeden panel" } else { crate::tr("Podziel na dwa panele") }, crate::tr("Karty"), "split", "Ctrl+\\", crate::toggle_split),
     ];
     if closed {
-        v.push(cmd("Przywróć zamkniętą kartę", "Karty", "refresh", "Ctrl+Shift+T", crate::reopen_closed));
+        v.push(cmd(crate::tr("Przywróć zamkniętą kartę"), crate::tr("Karty"), "refresh", "Ctrl+Shift+T", crate::reopen_closed));
     }
-    v.push(cmd("Lista", "Widok", "list", "Ctrl+1", |s| crate::set_view(s, View::List)));
-    v.push(cmd("Siatka", "Widok", "grid", "Ctrl+2", |s| crate::set_view(s, View::Grid)));
-    v.push(cmd("Galeria", "Widok", "gallery", "Ctrl+3", |s| crate::set_view(s, View::Gallery)));
+    v.push(cmd(crate::tr("Lista"), crate::tr("Widok"), "list", "Ctrl+1", |s| crate::set_view(s, View::List)));
+    v.push(cmd(crate::tr("Siatka"), crate::tr("Widok"), "grid", "Ctrl+2", |s| crate::set_view(s, View::Grid)));
+    v.push(cmd(crate::tr("Galeria"), crate::tr("Widok"), "gallery", "Ctrl+3", |s| crate::set_view(s, View::Gallery)));
     let _ = view;
-    v.push(cmd(if hidden { "Ukryj pliki ukryte" } else { "Pokaż pliki ukryte" }, "Widok", "eye", "Ctrl+H", |s| {
+    v.push(cmd(if hidden { crate::tr("Ukryj pliki ukryte") } else { crate::tr("Pokaż pliki ukryte") }, crate::tr("Widok"), "eye", "Ctrl+H", |s| {
         {
             let mut b = s.borrow_mut();
             b.prefs.show_hidden = !b.prefs.show_hidden;
@@ -88,13 +88,13 @@ fn all(s: &Shared) -> Vec<Cmd> {
         }
         crate::refresh(s);
     }));
-    v.push(cmd(if side_mini { "Rozwiń panel boczny" } else { "Zwiń panel boczny" }, "Widok", "sidebar", "Ctrl+B", crate::toggle_side_mini));
-    v.push(cmd("Panel podglądu", "Widok", "eye", "Alt+P", crate::preview::toggle));
-    v.push(cmd("Półka", "Widok", "archive", "", crate::shelf::toggle));
-    v.push(cmd(if s.borrow().prefs.terminal_open { "Ukryj terminal" } else { "Pokaż terminal" }, "Widok", "terminal", "Ctrl+`", crate::termview::toggle));
-    v.push(cmd("Ustawienia", "Program", "settings", "Ctrl+,", crate::settings::open));
-    v.push(cmd("Synchronizacja", "Program", "sync", "", crate::syncview::open));
-    v.push(cmd(if sizes { "Nie licz rozmiarów folderów" } else { "Licz rozmiary folderów" }, "Widok", "drive", "", |s| {
+    v.push(cmd(if side_mini { crate::tr("Rozwiń panel boczny") } else { crate::tr("Zwiń panel boczny") }, crate::tr("Widok"), "sidebar", "Ctrl+B", crate::toggle_side_mini));
+    v.push(cmd(crate::tr("Panel podglądu"), crate::tr("Widok"), "eye", "Alt+P", crate::preview::toggle));
+    v.push(cmd(crate::tr("Półka"), crate::tr("Widok"), "archive", "", crate::shelf::toggle));
+    v.push(cmd(if s.borrow().prefs.terminal_open { crate::tr("Ukryj terminal") } else { crate::tr("Pokaż terminal") }, crate::tr("Widok"), "terminal", "Ctrl+`", crate::termview::toggle));
+    v.push(cmd(crate::tr("Ustawienia"), crate::tr("Program"), "settings", "Ctrl+,", crate::settings::open));
+    v.push(cmd(crate::tr("Synchronizacja"), crate::tr("Program"), "sync", "", crate::syncview::open));
+    v.push(cmd(if sizes { crate::tr("Nie licz rozmiarów folderów") } else { crate::tr("Licz rozmiary folderów") }, crate::tr("Widok"), "drive", "", |s| {
         {
             let mut b = s.borrow_mut();
             b.prefs.folder_sizes = !b.prefs.folder_sizes;
@@ -103,43 +103,43 @@ fn all(s: &Shared) -> Vec<Cmd> {
         crate::refresh(s);
     }));
     for (label, key) in [
-        ("Nazwa", SortKey::Name),
-        ("Rozmiar", SortKey::Size),
-        ("Data modyfikacji", SortKey::Modified),
-        ("Typ", SortKey::Type),
+        (crate::tr("Nazwa"), SortKey::Name),
+        (crate::tr("Rozmiar"), SortKey::Size),
+        (crate::tr("Data modyfikacji"), SortKey::Modified),
+        (crate::tr("Typ"), SortKey::Type),
     ] {
-        v.push(cmd(format!("Sortuj po: {label}"), "Sortowanie", "sort", "", move |s| crate::set_sort(s, key)));
+        v.push(cmd(powerdesk_core::trf!("Sortuj po: {label}"), crate::tr("Sortowanie"), "sort", "", move |s| crate::set_sort(s, key)));
     }
-    for (label, key) in [("bez grup", GroupKey::None), ("po nazwie", GroupKey::Name), ("po dacie", GroupKey::Modified), ("po typie", GroupKey::Kind)] {
-        v.push(cmd(format!("Grupuj: {label}"), "Sortowanie", "grid", "", move |s| crate::set_group(s, key)));
+    for (label, key) in [(crate::tr("bez grup"), GroupKey::None), (crate::tr("po nazwie"), GroupKey::Name), (crate::tr("po dacie"), GroupKey::Modified), (crate::tr("po typie"), GroupKey::Kind)] {
+        v.push(cmd(format!("Grupuj: {label}"), crate::tr("Sortowanie"), "grid", "", move |s| crate::set_group(s, key)));
     }
     if files {
-        v.push(cmd("Nowy folder", "Pliki", "folderPlus", "Ctrl+Shift+N", |s| crate::create(s, true)));
-        v.push(cmd("Nowy plik tekstowy", "Pliki", "filePlus", "", |s| crate::create(s, false)));
+        v.push(cmd(crate::tr("Nowy folder"), crate::tr("Pliki"), "folderPlus", "Ctrl+Shift+N", |s| crate::create(s, true)));
+        v.push(cmd(crate::tr("Nowy plik tekstowy"), crate::tr("Pliki"), "filePlus", "", |s| crate::create(s, false)));
         if clip::has_files() {
-            v.push(cmd("Wklej", "Pliki", "paste", "Ctrl+V", |s| crate::menus::paste(s, None)));
+            v.push(cmd(crate::tr("Wklej"), crate::tr("Pliki"), "paste", "Ctrl+V", |s| crate::menus::paste(s, None)));
         }
-        v.push(cmd("Odśwież", "Pliki", "refresh", "F5", |s| crate::load(s, true)));
-        v.push(cmd("Zajętość i porządki w tym folderze", "Pliki", "grid", "", crate::spaceview::open_here));
-        v.push(cmd("Zaznacz wszystko", "Pliki", "check", "Ctrl+A", crate::select_all));
-        v.push(cmd("Właściwości", "Pliki", "info", "Alt+Enter", |s| crate::command(s, "props")));
-        v.push(cmd("Folder wyżej", "Nawigacja", "up", "Alt+↑", crate::up));
+        v.push(cmd(crate::tr("Odśwież"), crate::tr("Pliki"), "refresh", "F5", |s| crate::load(s, true)));
+        v.push(cmd(crate::tr("Zajętość i porządki w tym folderze"), crate::tr("Pliki"), "grid", "", crate::spaceview::open_here));
+        v.push(cmd(crate::tr("Zaznacz wszystko"), crate::tr("Pliki"), "check", "Ctrl+A", crate::select_all));
+        v.push(cmd(crate::tr("Właściwości"), crate::tr("Pliki"), "info", "Alt+Enter", |s| crate::command(s, "props")));
+        v.push(cmd(crate::tr("Folder wyżej"), crate::tr("Nawigacja"), "up", "Alt+↑", crate::up));
     }
     if has_sel {
-        v.push(cmd("Kopiuj", "Zaznaczenie", "copy", "Ctrl+C", |s| crate::command(s, "copy")));
-        v.push(cmd("Wytnij", "Zaznaczenie", "cut", "Ctrl+X", |s| crate::command(s, "cut")));
-        v.push(cmd("Zmień nazwę", "Zaznaczenie", "edit", "F2", crate::start_rename));
-        v.push(cmd("Masowa zmiana nazw", "Zaznaczenie", "edit", "", crate::bulk::open));
-        v.push(cmd("Do Kosza", "Zaznaczenie", "trash", "Delete", |s| crate::command(s, "trash")));
-        v.push(cmd("Dodaj na półkę", "Zaznaczenie", "archive", "Ctrl+Shift+S", crate::shelf::shortcut));
-        v.push(cmd("Skopiuj ścieżkę", "Zaznaczenie", "link", "Ctrl+Shift+C", |s| {
+        v.push(cmd(crate::tr("Kopiuj"), crate::tr("Zaznaczenie"), "copy", "Ctrl+C", |s| crate::command(s, "copy")));
+        v.push(cmd(crate::tr("Wytnij"), crate::tr("Zaznaczenie"), "cut", "Ctrl+X", |s| crate::command(s, "cut")));
+        v.push(cmd(crate::tr("Zmień nazwę"), crate::tr("Zaznaczenie"), "edit", "F2", crate::start_rename));
+        v.push(cmd(crate::tr("Masowa zmiana nazw"), crate::tr("Zaznaczenie"), "edit", "", crate::bulk::open));
+        v.push(cmd(crate::tr("Do Kosza"), crate::tr("Zaznaczenie"), "trash", crate::tr("Delete"), |s| crate::command(s, "trash")));
+        v.push(cmd(crate::tr("Dodaj na półkę"), crate::tr("Zaznaczenie"), "archive", "Ctrl+Shift+S", crate::shelf::shortcut));
+        v.push(cmd(crate::tr("Skopiuj ścieżkę"), crate::tr("Zaznaczenie"), "link", "Ctrl+Shift+C", |s| {
             let sel = crate::selected_paths(s);
             let _ = clip::set_text(&sel.iter().map(|p| format!("\"{p}\"")).collect::<Vec<_>>().join("
 "));
         }));
     }
     if searching {
-        v.push(cmd("Zakończ wyszukiwanie", "Nawigacja", "close", "Esc", crate::clear_search));
+        v.push(cmd(crate::tr("Zakończ wyszukiwanie"), crate::tr("Nawigacja"), "close", crate::tr("Esc"), crate::clear_search));
     }
     v
 }
@@ -159,39 +159,39 @@ fn places(s: &Shared, query: &str) -> Vec<Cmd> {
     // Wpisana ścieżka – pierwsza na liście, gdy istnieje.
     let typed = query.trim().trim_matches('"');
     if (typed.contains(':') || typed.starts_with("\\\\")) && std::path::Path::new(typed).is_dir() {
-        add(&mut v, typed.to_string(), "Wpisana ścieżka", "fwd", typed.to_string());
+        add(&mut v, typed.to_string(), crate::tr("Wpisana ścieżka"), "fwd", typed.to_string());
     }
     // Podfoldery otwartego folderu.
     {
         let b = s.borrow();
         let t = &b.tabs[b.active];
         for e in t.entries.iter().filter(|e| e.dir).take(400) {
-            add(&mut v, e.name.clone(), "W tym folderze", "folder", e.path.clone());
+            add(&mut v, e.name.clone(), crate::tr("W tym folderze"), "folder", e.path.clone());
         }
     }
     let known: [(&str, Option<std::path::PathBuf>, &str); 7] = [
-        ("Katalog domowy", dirs::home_dir(), "home"),
-        ("Pulpit", dirs::desktop_dir(), "desktop"),
-        ("Pobrane", dirs::download_dir(), "download"),
-        ("Dokumenty", dirs::document_dir(), "doc"),
-        ("Obrazy", dirs::picture_dir(), "image"),
-        ("Wideo", dirs::video_dir(), "video"),
-        ("Muzyka", dirs::audio_dir(), "music"),
+        (crate::tr("Katalog domowy"), dirs::home_dir(), "home"),
+        (crate::tr("Pulpit"), dirs::desktop_dir(), "desktop"),
+        (crate::tr("Pobrane"), dirs::download_dir(), "download"),
+        (crate::tr("Dokumenty"), dirs::document_dir(), "doc"),
+        (crate::tr("Obrazy"), dirs::picture_dir(), "image"),
+        (crate::tr("Wideo"), dirs::video_dir(), "video"),
+        (crate::tr("Muzyka"), dirs::audio_dir(), "music"),
     ];
     for (name, p, icon) in known {
         let Some(p) = p.filter(|p| p.is_dir()) else { continue };
-        add(&mut v, name.to_string(), "Szybki dostęp", icon, p.to_string_lossy().to_string());
+        add(&mut v, name.to_string(), crate::tr("Szybki dostęp"), icon, p.to_string_lossy().to_string());
     }
     {
         let b = s.borrow();
         for d in b.drives.iter().filter(|d| d.online) {
-            let name = if d.label.is_empty() { format!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
+            let name = if d.label.is_empty() { powerdesk_core::trf!("Dysk ({})", d.letter) } else { format!("{} ({})", d.label, d.letter) };
             let icon = match d.kind.as_str() {
                 "removable" => "usb",
                 "network" => "network",
                 _ => "drive",
             };
-            add(&mut v, name, "Dyski", icon, d.path.clone());
+            add(&mut v, name, crate::tr("Dyski"), icon, d.path.clone());
         }
         // Historia karty – od ostatnio odwiedzonych.
         let t = &b.tabs[b.active];
@@ -200,11 +200,11 @@ fn places(s: &Shared, query: &str) -> Vec<Cmd> {
                 continue;
             }
             let name = std::path::Path::new(p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
-            add(&mut v, name, "Historia", "back", p.clone());
+            add(&mut v, name, crate::tr("Historia"), "back", p.clone());
         }
         // Zapisane wyszukiwania są w panelu bocznym – tu dajemy ich korzenie.
         for q in b.prefs.saved_searches.iter() {
-            add(&mut v, q.name.clone(), "Zapisane", "search", q.root.clone());
+            add(&mut v, q.name.clone(), crate::tr("Zapisane"), "search", q.root.clone());
         }
     }
     v
@@ -231,7 +231,7 @@ fn show(s: &Shared, mode: Mode) {
         let g = ui.global::<Palette>();
         g.set_query("".into());
         g.set_sel(0);
-        g.set_hint(if mode == Mode::Places { "Wpisz nazwę folderu albo ścieżkę…".into() } else { "Wpisz polecenie…".into() });
+        g.set_hint(if mode == Mode::Places { crate::tr("Wpisz nazwę folderu albo ścieżkę…").into() } else { crate::tr("Wpisz polecenie…").into() });
         g.set_open(true);
     }
     render(s, "");

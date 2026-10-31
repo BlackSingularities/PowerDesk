@@ -109,7 +109,7 @@ export component PlayerBar inherits Rectangle {
             y: (parent.height - self.height) / 2;
             dark: root.dark;
             icon: PlayerState.playing ? Icons.pause : Icons.play;
-            tip: PlayerState.playing ? "Wstrzymaj (spacja)" : "Odtwórz (spacja)";
+            tip: PlayerState.playing ? @tr("Wstrzymaj (spacja)") : @tr("Odtwórz (spacja)");
             clicked => {
                 PlayerState.toggle();
             }
@@ -133,7 +133,7 @@ export component PlayerBar inherits Rectangle {
             y: (parent.height - self.height) / 2;
             dark: root.dark;
             icon: PlayerState.muted || PlayerState.volume == 0 ? Icons.mute : Icons.volume;
-            tip: PlayerState.muted ? "Włącz dźwięk (M)" : "Wycisz (M)";
+            tip: PlayerState.muted ? @tr("Włącz dźwięk (M)") : @tr("Wycisz (M)");
             clicked => {
                 PlayerState.toggle-mute();
             }

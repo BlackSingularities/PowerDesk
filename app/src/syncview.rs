@@ -116,9 +116,9 @@ pub fn on_status(s: &Shared) {
 
 fn mode_label(m: Mode) -> &'static str {
     match m {
-        Mode::Mirror => "kopia lustrzana",
+        Mode::Mirror => crate::tr("kopia lustrzana"),
         Mode::TwoWay => "dwukierunkowa",
-        Mode::Backup => "kopia zapasowa",
+        Mode::Backup => crate::tr("kopia zapasowa"),
     }
 }
 
@@ -128,35 +128,35 @@ fn ago(ms: i64) -> String {
     }
     let mins = (sync::now_ms() - ms).max(0) / 60_000;
     match mins {
-        0 => "przed chwilą".into(),
-        1..=59 => format!("{mins} min temu"),
-        60..=1439 => format!("{} godz. temu", mins / 60),
-        _ => format!("{} dni temu", mins / 1440),
+        0 => crate::tr("przed chwilą").into(),
+        1..=59 => powerdesk_core::trf!("{mins} min temu"),
+        60..=1439 => powerdesk_core::trf!("{} godz. temu", mins / 60),
+        _ => powerdesk_core::trf!("{} dni temu", mins / 1440),
     }
 }
 
 fn counts_text(c: &Counts) -> String {
     let mut parts = Vec::new();
     if c.to_target > 0 {
-        parts.push(format!("{} do celu", c.to_target));
+        parts.push(powerdesk_core::trf!("{} do celu", c.to_target));
     }
     if c.to_source > 0 {
-        parts.push(format!("{} do źródła", c.to_source));
+        parts.push(powerdesk_core::trf!("{} do źródła", c.to_source));
     }
     if c.del_target > 0 {
-        parts.push(format!("{} usunięć w celu", c.del_target));
+        parts.push(powerdesk_core::trf!("{} usunięć w celu", c.del_target));
     }
     if c.del_source > 0 {
-        parts.push(format!("{} usunięć w źródle", c.del_source));
+        parts.push(powerdesk_core::trf!("{} usunięć w źródle", c.del_source));
     }
     if c.conflicts > 0 {
-        parts.push(format!("{} konfliktów", c.conflicts));
+        parts.push(powerdesk_core::trf!("{} konfliktów", c.conflicts));
     }
     if c.errors > 0 {
-        parts.push(format!("{} błędów", c.errors));
+        parts.push(powerdesk_core::trf!("{} błędów", c.errors));
     }
     if parts.is_empty() {
-        return "bez zmian".into();
+        return crate::tr("bez zmian").into();
     }
     if c.bytes > 0 {
         parts.push(fmt::size(c.bytes));
@@ -167,32 +167,32 @@ fn counts_text(c: &Counts) -> String {
 fn card(p: &Profile, st: &Status) -> SyncCard {
     let busy = matches!(st.state.as_str(), "scanning" | "syncing");
     let (tone, state) = if !p.enabled {
-        (0, "Wstrzymana".to_string())
+        (0, crate::tr("Wstrzymana").to_string())
     } else {
         match st.state.as_str() {
-            "scanning" => (2, "Porównuję foldery…".into()),
-            "syncing" => (2, "Synchronizuję…".into()),
-            "offline" => (0, "Cel odłączony".into()),
-            "confirm" => (3, "Czeka na potwierdzenie".into()),
-            "error" => (3, format!("Błąd: {}", st.last_result)),
-            _ if st.last_sync == 0 => (1, "Czeka na pierwsze porównanie".into()),
-            _ => (1, "Aktualna".into()),
+            "scanning" => (2, crate::tr("Porównuję foldery…").into()),
+            "syncing" => (2, crate::tr("Synchronizuję…").into()),
+            "offline" => (0, crate::tr("Cel odłączony").into()),
+            "confirm" => (3, crate::tr("Czeka na potwierdzenie").into()),
+            "error" => (3, powerdesk_core::trf!("Błąd: {}", st.last_result)),
+            _ if st.last_sync == 0 => (1, crate::tr("Czeka na pierwsze porównanie").into()),
+            _ => (1, crate::tr("Aktualna").into()),
         }
     };
     let detail = match st.state.as_str() {
         "offline" => {
-            let pend = if st.pending > 0 { format!(" · czeka zmian: {}", st.pending) } else { String::new() };
+            let pend = if st.pending > 0 { powerdesk_core::trf!(" · czeka zmian: {}", st.pending) } else { String::new() };
             format!("widziany {}{pend}", ago(st.last_seen))
         }
-        "error" => format!("ostatnia udana {}", ago(st.last_sync)),
-        _ if st.last_sync > 0 => format!("ostatnio {} · {}", ago(st.last_sync), counts_text(&st.last_counts)),
+        "error" => powerdesk_core::trf!("ostatnia udana {}", ago(st.last_sync)),
+        _ if st.last_sync > 0 => powerdesk_core::trf!("ostatnio {} · {}", ago(st.last_sync), counts_text(&st.last_counts)),
         _ => String::new(),
     };
     let confirm = st
         .needs_confirm
         .as_ref()
         .filter(|_| st.state == "confirm")
-        .map(|c| format!("Ochrona przed masowym usunięciem: synchronizacja usunęłaby {} plików w celu i {} w źródle. Sprawdź podgląd i potwierdź, jeśli to zamierzone.", c.del_target, c.del_source))
+        .map(|c| powerdesk_core::trf!("Ochrona przed masowym usunięciem: synchronizacja usunęłaby {} plików w celu i {} w źródle. Sprawdź podgląd i potwierdź, jeśli to zamierzone.", c.del_target, c.del_source))
         .unwrap_or_default();
     let target = if st.connected && !st.resolved_target.is_empty() { st.resolved_target.clone() } else { p.target.path.clone() };
     let target = if !p.target.label.is_empty() && !p.target.network { format!("{target}  ({})", p.target.label) } else { target };
@@ -280,7 +280,7 @@ fn pick(s: &Shared, title: &str, current: SharedString) -> Option<String> {
 pub fn pick_source(s: &Shared) {
     let mut cur = SharedString::new();
     with_ui(s, |g| cur = g.get_e_source());
-    if let Some(p) = pick(s, "Folder źródłowy", cur) {
+    if let Some(p) = pick(s, crate::tr("Folder źródłowy"), cur) {
         let name = std::path::Path::new(&p).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
         with_ui(s, |g| {
             if g.get_e_name().is_empty() {
@@ -294,7 +294,7 @@ pub fn pick_source(s: &Shared) {
 pub fn pick_target(s: &Shared) {
     let mut cur = SharedString::new();
     with_ui(s, |g| cur = g.get_e_target());
-    if let Some(p) = pick(s, "Folder docelowy (dysk zewnętrzny albo sieciowy)", cur) {
+    if let Some(p) = pick(s, crate::tr("Folder docelowy (dysk zewnętrzny albo sieciowy)"), cur) {
         with_ui(s, |g| g.set_e_target(p.into()));
     }
 }
@@ -344,9 +344,9 @@ pub fn remove(s: &Shared, id: String) {
     let name = profile(&id).map(|p| if p.name.is_empty() { p.source } else { p.name }).unwrap_or_default();
     crate::transfers::confirm(
         s,
-        "Usunąć synchronizację?",
-        &format!("„{name}” przestanie się synchronizować. Pliki w źródle i w celu zostaną bez zmian."),
-        "Usuń",
+        crate::tr("Usunąć synchronizację?"),
+        &powerdesk_core::trf!("„{name}” przestanie się synchronizować. Pliki w źródle i w celu zostaną bez zmian."),
+        crate::tr("Usuń"),
         true,
         std::rc::Rc::new(move |s| {
             sync::delete_profile(&id);
@@ -370,7 +370,7 @@ pub fn toggle(s: &Shared, id: &str) {
 pub fn preview(s: &Shared, id: String) {
     let name = profile(&id).map(|p| if p.name.is_empty() { p.source } else { p.name }).unwrap_or_default();
     with_ui(s, |g| {
-        g.set_preview_title(format!("Podgląd: {name}").into());
+        g.set_preview_title(powerdesk_core::trf!("Podgląd: {name}").into());
         g.set_preview_summary("".into());
         g.set_preview_items(ModelRc::default());
         g.set_preview_loading(true);
@@ -384,7 +384,7 @@ pub fn preview(s: &Shared, id: String) {
                     g.set_preview_loading(false);
                     match res {
                         Ok(p) => {
-                            let more = if p.items.len() >= 500 { " · pokazano pierwsze 500" } else { "" };
+                            let more = if p.items.len() >= 500 { crate::tr(" · pokazano pierwsze 500") } else { "" };
                             g.set_preview_summary(format!("{}{more}", counts_text(&p.counts)).into());
                             let items: Vec<SharedString> = p.items.into_iter().map(Into::into).collect();
                             g.set_preview_items(ModelRc::new(VecModel::from(items)));

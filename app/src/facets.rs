@@ -41,14 +41,14 @@ fn is_media(k: Kind) -> bool {
 /// Grupa filtra po identyfikatorze.
 fn group_of(id: &str) -> &'static str {
     match id.split_once(':').map(|x| x.0).unwrap_or("") {
-        "fmt" => "Format",
-        "or" => "Kadr",
-        "res" => "Rozdzielczość",
-        "dur" => "Długość",
-        "vres" => "Jakość",
-        "doc" => "Rodzaj",
-        "size" => "Rozmiar",
-        _ => "Data",
+        "fmt" => crate::tr("Format"),
+        "or" => crate::tr("Kadr"),
+        "res" => crate::tr("Rozdzielczość"),
+        "dur" => crate::tr("Długość"),
+        "vres" => crate::tr("Jakość"),
+        "doc" => crate::tr("Rodzaj"),
+        "size" => crate::tr("Rozmiar"),
+        _ => crate::tr("Data"),
     }
 }
 
@@ -134,11 +134,11 @@ fn defs_for(files: &[&Entry]) -> Vec<(String, String)> {
 
     let d = |id: &str, l: &str| (id.to_string(), l.to_string());
     if share(&[Kind::Image, Kind::Raw]) >= 0.3 {
-        defs.extend([d("or:land", "Poziome"), d("or:port", "Pionowe"), d("or:sq", "Kwadratowe"), d("or:pano", "Panoramy"), d("res:big", "20 Mpx+")]);
+        defs.extend([d("or:land", crate::tr("Poziome")), d("or:port", crate::tr("Pionowe")), d("or:sq", crate::tr("Kwadratowe")), d("or:pano", crate::tr("Panoramy")), d("res:big", crate::tr("20 Mpx+"))]);
     }
     let vids = share(&[Kind::Video]);
     if vids >= 0.15 {
-        defs.extend([d("dur:short", "Do 1 min"), d("dur:mid", "1–10 min"), d("dur:long", "Ponad 10 min"), d("vres:4k", "4K"), d("vres:hd", "Full HD")]);
+        defs.extend([d("dur:short", crate::tr("Do 1 min")), d("dur:mid", crate::tr("1–10 min")), d("dur:long", crate::tr("Ponad 10 min")), d("vres:4k", "4K"), d("vres:hd", crate::tr("Full HD"))]);
     }
     if share(&[Kind::Pdf, Kind::Doc, Kind::Sheet, Kind::Slides, Kind::Text]) >= 0.3 {
         for (_, key, label) in DOC_KINDS {
@@ -146,9 +146,9 @@ fn defs_for(files: &[&Entry]) -> Vec<(String, String)> {
         }
     }
     if vids >= 0.15 || share(&[Kind::Archive, Kind::App, Kind::Other]) >= 0.3 {
-        defs.push(d("size:big", "Duże (100 MB+)"));
+        defs.push(d("size:big", crate::tr("Duże (100 MB+)")));
     }
-    defs.extend([d("date:today", "Dziś"), d("date:week", "7 dni"), d("date:month", "30 dni"), d("date:year", "Ten rok"), d("date:old", "Starsze")]);
+    defs.extend([d("date:today", crate::tr("Dziś")), d("date:week", crate::tr("7 dni")), d("date:month", crate::tr("30 dni")), d("date:year", crate::tr("Ten rok")), d("date:old", crate::tr("Starsze"))]);
     defs
 }
 

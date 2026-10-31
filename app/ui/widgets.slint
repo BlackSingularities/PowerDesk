@@ -224,7 +224,7 @@ export component WidgetBody inherits Rectangle {
             }
             if root.height >= 150px && !cal1.side: Text {
                 horizontal-alignment: center;
-                text: "Tydzień " + WidgetData.week-no;
+                text: @tr("Tydzień ") + WidgetData.week-no;
                 font-size: 10.5px;
                 color: Theme.faint;
             }
@@ -238,12 +238,12 @@ export component WidgetBody inherits Rectangle {
             spacing: 4px;
             WTitle {
                 icon: Icons.check;
-                text: "Przypomnienia";
+                text: @tr("Przypomnienia");
                 extra: "tydz. " + WidgetData.week-no;
                 color: root.acc;
             }
             if WidgetData.rems.length == 0: Text {
-                text: "Nic zaplanowanego";
+                text: @tr("Nic zaplanowanego");
                 font-size: 11.5px;
                 color: Theme.faint;
             }
@@ -283,7 +283,7 @@ export component WidgetBody inherits Rectangle {
             font-size: 11px;
             color: Theme.faint;
         }
-        for n[k] in ["pn", "wt", "śr", "cz", "pt", "so", "nd"]: Text {
+        for n[k] in [@tr("pn"), @tr("wt"), @tr("śr"), @tr("cz"), @tr("pt"), @tr("so"), @tr("nd")]: Text {
             x: root.pad + k * parent.cw;
             y: root.pad + 22px;
             width: parent.cw;
@@ -324,7 +324,7 @@ export component WidgetBody inherits Rectangle {
             extra: "tydz. " + WidgetData.week-no;
             color: root.acc;
         }
-        for n[k] in ["pn", "wt", "śr", "cz", "pt", "so", "nd"]: Text {
+        for n[k] in [@tr("pn"), @tr("wt"), @tr("śr"), @tr("cz"), @tr("pt"), @tr("so"), @tr("nd")]: Text {
             x: root.pad + k * parent.cw;
             y: parent.top;
             width: parent.cw;
@@ -357,12 +357,12 @@ export component WidgetBody inherits Rectangle {
         spacing: root.compact ? 5px : 8px;
         if !root.compact: WTitle {
             icon: Icons.bolt;
-            text: root.title("System") + " · działa " + WidgetData.uptime;
+            text: root.title(@tr("System")) + @tr(" · działa ") + WidgetData.uptime;
             color: root.acc;
         }
         HorizontalLayout {
             Text {
-                text: "Procesor";
+                text: @tr("Procesor");
                 font-size: 11.5px;
                 color: Theme.dim;
                 horizontal-stretch: 1;
@@ -380,7 +380,7 @@ export component WidgetBody inherits Rectangle {
         }
         HorizontalLayout {
             Text {
-                text: "Pamięć";
+                text: @tr("Pamięć");
                 font-size: 11.5px;
                 color: Theme.dim;
                 horizontal-stretch: 1;
@@ -398,7 +398,7 @@ export component WidgetBody inherits Rectangle {
         }
         if WidgetData.gpu-has && root.height >= 220px: HorizontalLayout {
             Text {
-                text: "Grafika";
+                text: @tr("Grafika");
                 font-size: 11.5px;
                 color: Theme.dim;
                 horizontal-stretch: 1;
@@ -433,11 +433,11 @@ export component WidgetBody inherits Rectangle {
             y: root.pad;
             width: root.width - 2 * root.pad;
             icon: Icons.bolt;
-            text: root.title("System");
-            extra: "działa " + WidgetData.uptime;
+            text: root.title(@tr("System"));
+            extra: @tr("działa ") + WidgetData.uptime;
             color: root.acc;
         }
-        for g[k] in [{ name: "Procesor", v: WidgetData.cpu, t: WidgetData.cpu-text }, { name: "Pamięć", v: WidgetData.ram, t: WidgetData.ram-pct }, { name: "Grafika", v: WidgetData.gpu, t: WidgetData.gpu-text }]: Rectangle {
+        for g[k] in [{ name: @tr("Procesor"), v: WidgetData.cpu, t: WidgetData.cpu-text }, { name: @tr("Pamięć"), v: WidgetData.ram, t: WidgetData.ram-pct }, { name: @tr("Grafika"), v: WidgetData.gpu, t: WidgetData.gpu-text }]: Rectangle {
             x: root.pad + k * parent.cw;
             y: parent.top;
             width: parent.cw;
@@ -472,7 +472,7 @@ export component WidgetBody inherits Rectangle {
         cfg: root.cfg;
         acc: root.acc;
         icon: Icons.bolt;
-        title: root.title("Procesor");
+        title: root.title(@tr("Procesor"));
         value: WidgetData.cpu;
         value-text: WidgetData.cpu-text;
         line1: WidgetData.cpu-name;
@@ -487,7 +487,7 @@ export component WidgetBody inherits Rectangle {
         cfg: root.cfg;
         acc: root.acc;
         icon: Icons.grid;
-        title: root.title("Pamięć");
+        title: root.title(@tr("Pamięć"));
         value: WidgetData.ram;
         value-text: WidgetData.ram-pct;
         line1: WidgetData.ram-text;
@@ -502,7 +502,7 @@ export component WidgetBody inherits Rectangle {
         cfg: root.cfg;
         acc: root.acc;
         icon: Icons.grid;
-        title: root.title("Karta graficzna");
+        title: root.title(@tr("Karta graficzna"));
         value: WidgetData.gpu;
         value-text: WidgetData.gpu-text;
         line1: WidgetData.gpu-name;
@@ -511,7 +511,7 @@ export component WidgetBody inherits Rectangle {
         parea: WidgetData.gpu-area;
         hist: WidgetData.gpu-hist;
         available: WidgetData.gpu-has;
-        missing: "Odczyt karty graficznej niedostępny";
+        missing: @tr("Odczyt karty graficznej niedostępny");
     }
 
     // ---------- Dyski ----------
@@ -525,7 +525,7 @@ export component WidgetBody inherits Rectangle {
             y: root.pad;
             width: root.width - 2 * root.pad;
             icon: Icons.drive;
-            text: root.title("Dyski");
+            text: root.title(@tr("Dyski"));
             color: root.acc;
         }
         for d[i] in WidgetData.drives: VerticalLayout {
@@ -570,7 +570,7 @@ export component WidgetBody inherits Rectangle {
             y: root.pad;
             width: root.width - 2 * root.pad;
             icon: Icons.drive;
-            text: root.title("Dyski");
+            text: root.title(@tr("Dyski"));
             color: root.acc;
         }
         for dr[i] in WidgetData.drives: Rectangle {
@@ -614,7 +614,7 @@ export component WidgetBody inherits Rectangle {
             y: root.pad;
             width: root.width - 2 * root.pad;
             icon: Icons.history;
-            text: root.title("Zegary świata");
+            text: root.title(@tr("Zegary świata"));
             color: root.acc;
         }
         for z[i] in WidgetData.zones: HorizontalLayout {
@@ -696,7 +696,7 @@ export component WidgetBody inherits Rectangle {
             spacing: 4px;
             alignment: center;
             Text {
-                text: WidgetData.m-has ? WidgetData.m-title : "Nic nie gra";
+                text: WidgetData.m-has ? WidgetData.m-title : @tr("Nic nie gra");
                 font-size: 13.5px;
                 font-weight: 600;
                 color: med.over ? #ffffff : WidgetData.m-has ? Theme.text : Theme.faint;
@@ -716,7 +716,7 @@ export component WidgetBody inherits Rectangle {
                     size: k == 1 ? 36px : 30px;
                     y: (parent.height - self.height) / 2;
                     icon: k == 1 ? (WidgetData.m-playing ? Icons.pause : Icons.play) : k == 0 ? Icons.back : Icons.fwd;
-                    tip: k == 1 ? (WidgetData.m-playing ? "Wstrzymaj" : "Odtwórz") : k == 0 ? "Poprzedni utwór" : "Następny utwór";
+                    tip: k == 1 ? (WidgetData.m-playing ? @tr("Wstrzymaj") : @tr("Odtwórz")) : k == 0 ? @tr("Poprzedni utwór") : @tr("Następny utwór");
                     primary: k == 1;
                     tint: root.acc;
                     clicked => {
@@ -783,11 +783,11 @@ export component WidgetBody inherits Rectangle {
         spacing: 6px;
         if !root.compact: WTitle {
             icon: Icons.check;
-            text: root.title("Przypomnienia");
+            text: root.title(@tr("Przypomnienia"));
             color: root.acc;
         }
         if WidgetData.rems.length == 0: Text {
-            text: "Brak – prawy przycisk → „Dodaj przypomnienie…”";
+            text: @tr("Brak – prawy przycisk → „Dodaj przypomnienie…”");
             wrap: word-wrap;
             font-size: 11.5px;
             color: Theme.faint;
@@ -828,7 +828,7 @@ export component WidgetBody inherits Rectangle {
         spacing: 6px;
         if !root.compact: WTitle {
             icon: WidgetData.net-kind == 2 ? Icons.ethernet : Icons.wifi;
-            text: root.title("Sieć");
+            text: root.title(@tr("Sieć"));
             extra: WidgetData.net-name;
             color: root.acc;
         }
@@ -837,7 +837,7 @@ export component WidgetBody inherits Rectangle {
             VerticalLayout {
                 horizontal-stretch: 1;
                 Text {
-                    text: "↓ pobieranie";
+                    text: @tr("↓ pobieranie");
                     font-size: 10.5px;
                     color: Theme.dim;
                 }
@@ -851,7 +851,7 @@ export component WidgetBody inherits Rectangle {
             VerticalLayout {
                 horizontal-stretch: 1;
                 Text {
-                    text: "↑ wysyłanie";
+                    text: @tr("↑ wysyłanie");
                     font-size: 10.5px;
                     color: Theme.dim;
                 }
@@ -918,14 +918,14 @@ export component WidgetBody inherits Rectangle {
             y: root.pad;
             width: root.width - 2 * root.pad;
             icon: Icons.paste;
-            text: root.title("Schowek");
-            extra: "klik – skopiuj";
+            text: root.title(@tr("Schowek"));
+            extra: @tr("klik – skopiuj");
             color: root.acc;
         }
         if WidgetData.clips.length == 0: Text {
             x: root.pad;
             y: parent.top;
-            text: "Nic jeszcze nie skopiowano";
+            text: @tr("Nic jeszcze nie skopiowano");
             font-size: 11.5px;
             color: Theme.faint;
         }
@@ -947,7 +947,7 @@ export component WidgetBody inherits Rectangle {
                 vertical-alignment: center;
             }
             cp-ta := TipArea {
-                tip: "Skopiuj ponownie: " + c;
+                tip: @tr("Skopiuj ponownie: ") + c;
                 clicked => {
                     WidgetData.clip-pick(i);
                 }
@@ -963,7 +963,7 @@ export component WidgetBody inherits Rectangle {
             x: root.pad;
             y: parent.top;
             width: root.width - 2 * root.pad;
-            text: "Brak zadań – prawy przycisk → „Dodaj zadanie…”";
+            text: @tr("Brak zadań – prawy przycisk → „Dodaj zadanie…”");
             wrap: word-wrap;
             font-size: 11.5px;
             color: Theme.faint;
@@ -1003,7 +1003,7 @@ export component WidgetBody inherits Rectangle {
                 }
             }
             td-ta := TipArea {
-                tip: t.done ? "Oznacz jako niezrobione" : "Oznacz jako zrobione";
+                tip: t.done ? @tr("Oznacz jako niezrobione") : @tr("Oznacz jako zrobione");
                 clicked => {
                     WidgetData.todo-toggle(i);
                 }
@@ -1021,14 +1021,14 @@ export component WidgetBody inherits Rectangle {
             y: root.pad;
             width: root.width - 2 * root.pad;
             icon: Icons.hash;
-            text: root.title("Kursy NBP");
+            text: root.title(@tr("Kursy NBP"));
             extra: WidgetData.fx-date;
             color: root.acc;
         }
         if WidgetData.fx.length == 0: Text {
             x: root.pad;
             y: parent.top;
-            text: "Pobieranie kursów…";
+            text: @tr("Pobieranie kursów…");
             font-size: 11.5px;
             color: Theme.faint;
         }
@@ -1109,8 +1109,8 @@ export component WidgetBody inherits Rectangle {
         acc: root.acc;
         files: WidgetData.recent;
         icon: Icons.history;
-        title: root.title("Ostatnie pliki");
-        status: "Brak ostatnio otwieranych plików";
+        title: root.title(@tr("Ostatnie pliki"));
+        status: @tr("Brak ostatnio otwieranych plików");
     }
     if !root.mini && root.kind == "favorites": FilesBody {
         width: root.width;
@@ -1119,8 +1119,8 @@ export component WidgetBody inherits Rectangle {
         acc: root.acc;
         files: WidgetData.favs;
         icon: Icons.star;
-        title: root.title("Ulubione");
-        status: "Dodaj foldery do ulubionych w oknie PowerDesk (gwiazdka w panelu bocznym)";
+        title: root.title(@tr("Ulubione"));
+        status: @tr("Dodaj foldery do ulubionych w oknie PowerDesk (gwiazdka w panelu bocznym)");
     }
     if !root.mini && root.kind == "folder": FilesBody {
         width: root.width;
@@ -1138,7 +1138,7 @@ export component WidgetBody inherits Rectangle {
         height: root.height;
         cfg: root.cfg;
         acc: root.acc;
-        title: root.title("Najczęściej używane");
+        title: root.title(@tr("Najczęściej używane"));
     }
     if !root.mini && root.kind == "actions": ActionsBody {
         width: root.width;
@@ -1192,7 +1192,7 @@ export component WidgetBody inherits Rectangle {
         if root.note == "" && !note-in.has-focus: Text {
             x: root.pad;
             y: root.pad;
-            text: root.mini ? "" : root.editable ? "Kliknij i pisz…" : "Pusta notatka";
+            text: root.mini ? "" : root.editable ? @tr("Kliknij i pisz…") : @tr("Pusta notatka");
             font-size: 13px;
             color: Theme.faint;
         }

@@ -109,7 +109,7 @@ pub fn open(_s: &Shared) {
 
 fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffer<Rgba8Pixel>>, bool)>, items: Vec<Entry>) {
     if mons.is_empty() {
-        transfers::toast(s, "Nie udało się odczytać monitorów i tapet", transfers::Kind::Error, None);
+        transfers::toast(s, crate::tr("Nie udało się odczytać monitorów i tapet"), transfers::Kind::Error, None);
         return;
     }
     let look = s.borrow().ui.upgrade().map(|u| crate::settings::look(&u));
@@ -438,7 +438,7 @@ fn wire_widgets(w: &DesktopWindow, n: usize) {
         items.extend(crate::widgetfeeds::config_items(&kind));
         items.push(sep());
         items.extend([
-            it("Usuń widżet", "trash", move |s| {
+            it(crate::tr("Usuń widżet"), "trash", move |s| {
                 if let Some(k) = widget_index(s, n, i) {
                     {
                         let mut b = s.borrow_mut();
@@ -537,10 +537,10 @@ fn with_specials(items: Vec<Entry>, computer: bool, recycle: bool) -> Vec<Entry>
     let special = |name: &str, path: &str| Entry { name: name.into(), path: path.into(), dir: true, size: 0, modified: 0, created: 0, ext: String::new(), hidden: false, system: true, readonly: true, link: false, cloud: false };
     let mut out = Vec::new();
     if computer {
-        out.push(special("Komputer", COMPUTER));
+        out.push(special(crate::tr("Komputer"), COMPUTER));
     }
     if recycle {
-        out.push(special("Kosz", RECYCLE));
+        out.push(special(crate::tr("Kosz"), RECYCLE));
     }
     out.extend(items.into_iter().filter(|e| !virtual_item(&e.path)));
     out
@@ -954,7 +954,7 @@ fn rename_done(s: &Shared, i: usize, name: &str) {
 
 /// Nowy folder albo dokument na pulpicie – od razu w polu zmiany nazwy, w miejscu kliknięcia.
 fn new_item(s: &Shared, folder: bool, at: (f32, f32)) {
-    let name = if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" };
+    let name = if folder { crate::tr("Nowy folder") } else { crate::tr("Nowy dokument tekstowy.txt") };
     place_new(s, ops::create(&desktop_dir(), name, folder), at);
 }
 
@@ -1068,7 +1068,7 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
         (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer, b.prefs.desktop_recycle)
     };
     let can_paste = clip::has_files();
-    let mut new = vec![it("Folder", "folderPlus", move |s| new_item(s, true, at)), it("Dokument tekstowy", "filePlus", move |s| new_item(s, false, at))];
+    let mut new = vec![it(crate::tr("Folder"), "folderPlus", move |s| new_item(s, true, at)), it(crate::tr("Dokument tekstowy"), "filePlus", move |s| new_item(s, false, at))];
     let types = crate::shellnew_types();
     if !types.is_empty() {
         new.push(sep());
@@ -1076,65 +1076,65 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
     for t in types.into_iter().filter(|t| !t.ext.eq_ignore_ascii_case(".txt")) {
         new.push(it(t.name.clone(), "filePlus", move |s| new_typed(s, &t, at)));
     }
-    let mut v = vec![menus::sub("Nowy", "plus", new), sep()];
+    let mut v = vec![menus::sub(crate::tr("Nowy"), "plus", new), sep()];
     if can_paste {
-        v.push(it("Wklej", "paste", paste).kbd("Ctrl+V"));
+        v.push(it(crate::tr("Wklej"), "paste", paste).kbd("Ctrl+V"));
     }
     v.extend([
-        it("Odśwież", "refresh", |_| refresh()).kbd("F5"),
+        it(crate::tr("Odśwież"), "refresh", |_| refresh()).kbd("F5"),
         menus::sub(
-            "Widok",
+            crate::tr("Widok"),
             "grid",
             vec![
-                it("Duże ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 2)).checked(size == 2),
-                it("Średnie ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 1)).checked(size == 1),
-                it("Małe ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 0)).checked(size == 0),
+                it(crate::tr("Duże ikony"), "grid", |s| set_desk(s, |p| p.desktop_icon_size = 2)).checked(size == 2),
+                it(crate::tr("Średnie ikony"), "grid", |s| set_desk(s, |p| p.desktop_icon_size = 1)).checked(size == 1),
+                it(crate::tr("Małe ikony"), "grid", |s| set_desk(s, |p| p.desktop_icon_size = 0)).checked(size == 0),
                 sep(),
-                it("Wyrównaj ikony do siatki", "grid", |s| set_desk(s, |p| p.desktop_free = !p.desktop_free)).checked(!free),
-                it("Pokaż „Komputer”", "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),
-                it("Pokaż Kosz", "trash", |s| set_desk(s, |p| p.desktop_recycle = !p.desktop_recycle)).checked(recycle),
+                it(crate::tr("Wyrównaj ikony do siatki"), "grid", |s| set_desk(s, |p| p.desktop_free = !p.desktop_free)).checked(!free),
+                it(crate::tr("Pokaż „Komputer”"), "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),
+                it(crate::tr("Pokaż Kosz"), "trash", |s| set_desk(s, |p| p.desktop_recycle = !p.desktop_recycle)).checked(recycle),
             ],
         ),
-        it("Uporządkuj ikony", "grid", arrange),
+        it(crate::tr("Uporządkuj ikony"), "grid", arrange),
         menus::sub(
-            "Dodaj widżet",
+            crate::tr("Dodaj widżet"),
             "plus",
             crate::widgets::GROUPS
                 .iter()
                 .map(|&(group, gicon, kinds)| {
-                    let list = kinds.iter().filter_map(|k| crate::widgets::kind(k)).map(|(kind, name, icon, _, _)| it(name, icon, move |s| add_widget(s, win, kind, at.0, at.1))).collect();
-                    menus::sub(group, gicon, list)
+                    let list = kinds.iter().filter_map(|k| crate::widgets::kind(k)).map(|(kind, name, icon, _, _)| it(crate::tr(name), icon, move |s| add_widget(s, win, kind, at.0, at.1))).collect();
+                    menus::sub(crate::tr(group), gicon, list)
                 })
                 .collect(),
         ),
         menus::sub(
-            "Folder przy krawędzi",
+            crate::tr("Folder przy krawędzi"),
             "panel",
-            (0..3u8).map(|k| it(format!("{}…", crate::edgepanels::EDGES[k as usize]), "panel", move |s| crate::edgepanels::pick_and_add(s, win, k))).collect(),
+            (0..3u8).map(|k| it(format!("{}…", crate::tr(crate::edgepanels::EDGES[k as usize])), "panel", move |s| crate::edgepanels::pick_and_add(s, win, k))).collect(),
         ),
         sep(),
-        it("Otwórz folder Pulpit", "folder", |s| crate::open_args(s, vec![desktop_dir()])),
-        menus::sub("Tapeta", "image", {
-            let mut t = vec![it("Własny obraz na tym monitorze…", "image", move |s| {
-                if let Some(p) = powerdesk_core::shell::pick_image(crate::hwnd(s), "Tapeta tego monitora") {
+        it(crate::tr("Otwórz folder Pulpit"), "folder", |s| crate::open_args(s, vec![desktop_dir()])),
+        menus::sub(crate::tr("Tapeta"), "image", {
+            let mut t = vec![it(crate::tr("Własny obraz na tym monitorze…"), "image", move |s| {
+                if let Some(p) = powerdesk_core::shell::pick_image(crate::hwnd(s), crate::tr("Tapeta tego monitora")) {
                     crate::wallpapers::set_for_monitor(win, Some(p));
                 }
             })];
             if crate::wallpapers::has_own(win) {
-                t.push(it("Tapeta jak na pozostałych", "refresh", move |_| crate::wallpapers::set_for_monitor(win, None)));
+                t.push(it(crate::tr("Tapeta jak na pozostałych"), "refresh", move |_| crate::wallpapers::set_for_monitor(win, None)));
             }
             if s_mode() == "slideshow" {
-                t.push(it("Następna tapeta", "fwd", |_| crate::wallpapers::next()));
+                t.push(it(crate::tr("Następna tapeta"), "fwd", |_| crate::wallpapers::next()));
             }
-            t.push(it("Tapeta i personalizacja Windows", "settings", |_| {
+            t.push(it(crate::tr("Tapeta i personalizacja Windows"), "settings", |_| {
                 let _ = open::that_detached("ms-settings:personalization-background");
             }));
             t
         }),
         sep(),
-        it("Ustawienia ekranu", "desktop", |_| powerdesk_core::sysbar::open_settings("display")),
-        it("Personalizuj", "image", |_| powerdesk_core::sysbar::open_settings("personalization")),
-        it("Ustawienia pulpitu", "settings", |s| {
+        it(crate::tr("Ustawienia ekranu"), "desktop", |_| powerdesk_core::sysbar::open_settings("display")),
+        it(crate::tr("Personalizuj"), "image", |_| powerdesk_core::sysbar::open_settings("personalization")),
+        it(crate::tr("Ustawienia pulpitu"), "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_DESKTOP);
             crate::show_window(s);
         }),
@@ -1158,8 +1158,8 @@ fn icon_menu(_s: &Shared, x: f32, y: f32) {
     }
     if sel.len() == 1 && sel[0].path == RECYCLE {
         let (n, _) = powerdesk_core::system::recycle_bin();
-        let mut v = vec![it("Otwórz", "open", open_selected).kbd("Enter"), sep()];
-        let empty = it("Opróżnij Kosz", "trash", |_| {
+        let mut v = vec![it(crate::tr("Otwórz"), "open", open_selected).kbd(crate::tr("Enter")), sep()];
+        let empty = it(crate::tr("Opróżnij Kosz"), "trash", |_| {
             std::thread::spawn(powerdesk_core::system::empty_recycle_bin);
         })
         .danger();
@@ -1167,21 +1167,21 @@ fn icon_menu(_s: &Shared, x: f32, y: f32) {
         if n > 0 {
             v.push(empty);
         }
-        v.push(it("Ukryj na pulpicie", "eye", |s| set_desk(s, |p| p.desktop_recycle = false)));
+        v.push(it(crate::tr("Ukryj na pulpicie"), "eye", |s| set_desk(s, |p| p.desktop_recycle = false)));
         show_menu(0, v, x, y);
         return;
     }
     if sel.len() == 1 && sel[0].path == COMPUTER {
         let v = vec![
-            it("Otwórz", "open", open_selected).kbd("Enter"),
+            it(crate::tr("Otwórz"), "open", open_selected).kbd(crate::tr("Enter")),
             sep(),
-            it("Informacje o systemie", "pc", |_| {
+            it(crate::tr("Informacje o systemie"), "pc", |_| {
                 let _ = open::that_detached("ms-settings:about");
             }),
-            it("Zarządzanie komputerem", "settings", |_| {
+            it(crate::tr("Zarządzanie komputerem"), "settings", |_| {
                 let _ = std::process::Command::new("mmc.exe").arg("compmgmt.msc").spawn();
             }),
-            it("Ukryj na pulpicie", "eye", |s| set_desk(s, |p| p.desktop_computer = false)),
+            it(crate::tr("Ukryj na pulpicie"), "eye", |s| set_desk(s, |p| p.desktop_computer = false)),
         ];
         show_menu(0, v, x, y);
         return;
@@ -1191,38 +1191,38 @@ fn icon_menu(_s: &Shared, x: f32, y: f32) {
         return;
     }
     let one = (sel.len() == 1).then(|| sel[0].clone());
-    let mut v = vec![it("Otwórz", "open", open_selected).kbd("Enter")];
+    let mut v = vec![it(crate::tr("Otwórz"), "open", open_selected).kbd(crate::tr("Enter"))];
     if let Some(e) = one.as_ref().filter(|e| e.dir) {
         let p = e.path.clone();
-        v.push(it("Otwórz w nowej karcie", "plus", move |s| crate::open_args(s, vec![p.clone()])));
+        v.push(it(crate::tr("Otwórz w nowej karcie"), "plus", move |s| crate::open_args(s, vec![p.clone()])));
         // Folder z pulpitu jako wysuwany panel przy krawędzi (jak skrót, tylko rozwijany).
         let p = e.path.clone();
         v.push(menus::sub(
-            "Przypnij do krawędzi",
+            crate::tr("Przypnij do krawędzi"),
             "panel",
             (0..3u8).map(|k| {
                 let p = p.clone();
-                it(crate::edgepanels::EDGES[k as usize], "panel", move |s| crate::edgepanels::add(s, p.clone(), 0, k))
+                it(crate::tr(crate::edgepanels::EDGES[k as usize]), "panel", move |s| crate::edgepanels::add(s, p.clone(), 0, k))
             }).collect(),
         ));
     }
     v.extend([
         sep(),
-        it("Wytnij", "cut", |_| copy(true)).kbd("Ctrl+X"),
-        it("Kopiuj", "copy", |_| copy(false)).kbd("Ctrl+C"),
+        it(crate::tr("Wytnij"), "cut", |_| copy(true)).kbd("Ctrl+X"),
+        it(crate::tr("Kopiuj"), "copy", |_| copy(false)).kbd("Ctrl+C"),
     ]);
     if one.is_some() {
-        v.push(it("Zmień nazwę", "edit", start_rename).kbd("F2"));
+        v.push(it(crate::tr("Zmień nazwę"), "edit", start_rename).kbd("F2"));
     }
     let paths: Vec<String> = sel.iter().map(|e| e.path.clone()).collect();
     let p2 = paths.clone();
     v.extend([
-        it("Dodaj na półkę", "pin", move |s| crate::shelf::add(s, &p2)).kbd("Ctrl+Shift+S"),
+        it(crate::tr("Dodaj na półkę"), "pin", move |s| crate::shelf::add(s, &p2)).kbd("Ctrl+Shift+S"),
         sep(),
-        it("Do Kosza", "trash", trash).kbd("Del").danger(),
+        it(crate::tr("Do Kosza"), "trash", trash).kbd(crate::tr("Del")).danger(),
         sep(),
         // Rzadkie polecenia programów (np. „Wyślij do”) – pełne menu Windows.
-        it("Więcej opcji…", "more", move |_| windows_menu(&paths)),
+        it(crate::tr("Więcej opcji…"), "more", move |_| windows_menu(&paths)),
     ]);
     show_menu(0, v, x, y);
 }

@@ -70,7 +70,7 @@ pub fn check(manual: bool) {
     if BUSY.with(|b| b.replace(true)) {
         return;
     }
-    set_status("Sprawdzanie aktualizacji…".into());
+    set_status(crate::tr("Sprawdzanie aktualizacji…").into());
     std::thread::spawn(move || {
         let res = update::check();
         let _ = slint::invoke_from_event_loop(move || {
@@ -86,28 +86,28 @@ fn found(s: &Shared, res: Result<Option<Release>, String>, manual: bool) {
         Ok(Some(rel)) => {
             let v = rel.version.clone();
             FOUND.with(|f| *f.borrow_mut() = Some(rel));
-            set_status(format!("Dostępna wersja {v} (masz {}) · sprawdzono o {when}", update::current()));
+            set_status(powerdesk_core::trf!("Dostępna wersja {v} (masz {}) · sprawdzono o {when}", update::current()));
             if prefs().1 {
                 install(s);
                 return;
             }
             let new = TOLD.with(|t| t.replace(v.clone()) != v);
             if new || manual {
-                crate::notices::add("PowerDesk", "Jest nowa wersja", &format!("Wersja {v} – „Zaktualizuj” w oknie PowerDesk albo Ustawienia → System → Aktualizacje."));
-                transfers::toast(s, format!("Jest nowa wersja PowerDesk: {v} (masz {})", update::current()), Kind::Info, Some(("Zaktualizuj", std::rc::Rc::new(install))));
+                crate::notices::add("PowerDesk", crate::tr("Jest nowa wersja"), &powerdesk_core::trf!("Wersja {v} – „Zaktualizuj” w oknie PowerDesk albo Ustawienia → System → Aktualizacje."));
+                transfers::toast(s, powerdesk_core::trf!("Jest nowa wersja PowerDesk: {v} (masz {})", update::current()), Kind::Info, Some((crate::tr("Zaktualizuj"), std::rc::Rc::new(install))));
             }
         }
         Ok(None) => {
-            set_status(format!("Masz najnowszą wersję ({}) · sprawdzono o {when}", update::current()));
+            set_status(powerdesk_core::trf!("Masz najnowszą wersję ({}) · sprawdzono o {when}", update::current()));
             if manual {
-                transfers::toast(s, format!("Masz najnowszą wersję PowerDesk ({})", update::current()), Kind::Ok, None);
+                transfers::toast(s, powerdesk_core::trf!("Masz najnowszą wersję PowerDesk ({})", update::current()), Kind::Ok, None);
             }
         }
         Err(e) => {
             powerdesk_core::log::error(format!("aktualizacje: {e}"));
-            set_status(format!("Nie udało się sprawdzić ({when}): {e}"));
+            set_status(powerdesk_core::trf!("Nie udało się sprawdzić ({when}): {e}"));
             if manual {
-                transfers::toast(s, format!("Nie udało się sprawdzić aktualizacji: {e}"), Kind::Error, None);
+                transfers::toast(s, powerdesk_core::trf!("Nie udało się sprawdzić aktualizacji: {e}"), Kind::Error, None);
             }
         }
     }
@@ -119,8 +119,8 @@ pub fn install(s: &Shared) {
     if BUSY.with(|b| b.replace(true)) {
         return;
     }
-    transfers::toast(s, format!("Pobieranie PowerDesk {}…", rel.version), Kind::Info, None);
-    set_status(format!("Pobieranie wersji {}…", rel.version));
+    transfers::toast(s, powerdesk_core::trf!("Pobieranie PowerDesk {}…", rel.version), Kind::Info, None);
+    set_status(powerdesk_core::trf!("Pobieranie wersji {}…", rel.version));
     let v = rel.version.clone();
     std::thread::spawn(move || {
         // Postęp do Ustawień – co pełny procent, żeby nie zalać pętli zdarzeń.
@@ -141,8 +141,8 @@ pub fn install(s: &Shared) {
                 Ok(()) => crate::quit(s),
                 Err(e) => {
                     powerdesk_core::log::error(format!("aktualizacja: {e}"));
-                    set_status(format!("Aktualizacja nie powiodła się: {e}"));
-                    transfers::toast(s, format!("Aktualizacja nie powiodła się: {e}"), Kind::Error, None);
+                    set_status(powerdesk_core::trf!("Aktualizacja nie powiodła się: {e}"));
+                    transfers::toast(s, powerdesk_core::trf!("Aktualizacja nie powiodła się: {e}"), Kind::Error, None);
                 }
             });
         });

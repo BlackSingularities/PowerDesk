@@ -81,7 +81,7 @@ fn walk(p: &Path, depth: u32, ctx: &mut Ctx) -> Option<Node> {
         }
     }
     if depth > 0 && small_count > 0 {
-        node.children.push(Node { name: format!("{small_count} mniejszych plików"), path: String::new(), size: small_files, files: small_count, dir: false, children: Vec::new() });
+        node.children.push(Node { name: crate::trf!("{small_count} mniejszych plików"), path: String::new(), size: small_files, files: small_count, dir: false, children: Vec::new() });
     }
     node.children.sort_by(|a, b| b.size.cmp(&a.size));
     node.children.truncate(80);
@@ -95,7 +95,7 @@ fn walk(p: &Path, depth: u32, ctx: &mut Ctx) -> Option<Node> {
 pub fn scan(app: &AppHandle, root: &str) -> Result<Node, String> {
     let id = GEN.fetch_add(1, Ordering::SeqCst) + 1;
     let mut ctx = Ctx { app, id, files: 0, bytes: 0, last: Instant::now() };
-    walk(Path::new(root), 4, &mut ctx).ok_or_else(|| "Przerwano".to_string())
+    walk(Path::new(root), 4, &mut ctx).ok_or_else(|| crate::lang::tr("Przerwano").to_string())
 }
 
 pub fn cancel() {
@@ -133,22 +133,22 @@ fn junk_reason(name: &str, md: &std::fs::Metadata) -> Option<String> {
     let n = name.to_lowercase();
     let days = age_days(md);
     if n == "thumbs.db" || n == "ehthumbs.db" {
-        return Some("Pamięć podręczna miniatur Windows – odtworzy się sama".into());
+        return Some(crate::lang::tr("Pamięć podręczna miniatur Windows – odtworzy się sama").into());
     }
     if n == ".ds_store" || (n.starts_with("._") && md.len() <= 4096) {
-        return Some("Pozostałość po macOS".into());
+        return Some(crate::lang::tr("Pozostałość po macOS").into());
     }
     if n.starts_with("~$") && md.len() < 1024 && days >= 1 {
-        return Some("Plik blokady Office po zamkniętym dokumencie".into());
+        return Some(crate::lang::tr("Plik blokady Office po zamkniętym dokumencie").into());
     }
     if (n.ends_with(".tmp") || n.ends_with(".temp")) && days >= 7 {
-        return Some(format!("Plik tymczasowy sprzed {days} dni"));
+        return Some(crate::trf!("Plik tymczasowy sprzed {days} dni"));
     }
     if (n.ends_with(".crdownload") || n.ends_with(".part") || n.ends_with(".partial") || n.ends_with(".download")) && days >= 7 {
-        return Some(format!("Nieukończone pobieranie sprzed {days} dni"));
+        return Some(crate::trf!("Nieukończone pobieranie sprzed {days} dni"));
     }
     if md.len() == 0 && days >= 30 && !n.starts_with('.') && !n.ends_with(".ini") && !n.ends_with(".gitkeep") && n != "__init__.py" {
-        return Some(format!("Pusty plik (0 B) sprzed {days} dni"));
+        return Some(crate::trf!("Pusty plik (0 B) sprzed {days} dni"));
     }
     None
 }
@@ -178,7 +178,7 @@ fn find(p: &Path, depth: u32, out: &mut Vec<Junk>, id: u64, deadline: Instant) -
                 let path = de.path().to_string_lossy().to_string();
                 let pre = format!("{path}\\");
                 out.retain(|j| !(j.kind == "empty" && j.path.starts_with(&pre)));
-                out.push(Junk { path, size: 0, kind: "empty", reason: "Pusty folder (także w podfolderach)".into(), modified: ms(&md) });
+                out.push(Junk { path, size: 0, kind: "empty", reason: crate::lang::tr("Pusty folder (także w podfolderach)").into(), modified: ms(&md) });
             } else {
                 empty = false;
             }
@@ -206,7 +206,7 @@ pub fn cleanup_scan(root: &str, include_temp: bool) -> Vec<Junk> {
                     continue;
                 }
                 let size = if md.is_dir() { crate::fsx::dir_size(&de.path().to_string_lossy()).size } else { md.len() };
-                out.push(Junk { path: de.path().to_string_lossy().to_string(), size, kind: "temp", reason: format!("Folder TEMP – nieużywane od {} dni", age_days(&md)), modified: ms(&md) });
+                out.push(Junk { path: de.path().to_string_lossy().to_string(), size, kind: "temp", reason: crate::trf!("Folder TEMP – nieużywane od {} dni", age_days(&md)), modified: ms(&md) });
             }
         }
     }

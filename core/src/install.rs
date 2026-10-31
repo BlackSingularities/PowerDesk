@@ -114,7 +114,7 @@ pub fn run_wait(exe: &Path, args: &str, elevated: bool) -> Result<u32, String> {
         ..Default::default()
     };
     unsafe {
-        ShellExecuteExW(&mut info).map_err(|_| if elevated { "Brak zgody na uprawnienia administratora".to_string() } else { "Nie można uruchomić instalatora".to_string() })?;
+        ShellExecuteExW(&mut info).map_err(|_| if elevated { crate::lang::tr("Brak zgody na uprawnienia administratora").to_string() } else { crate::lang::tr("Nie można uruchomić instalatora").to_string() })?;
         if info.hProcess.is_invalid() {
             return Ok(0);
         }
@@ -136,7 +136,7 @@ pub fn relaunch_elevated(args: &str) -> Result<(), String> {
     if r.0 as isize > 32 {
         Ok(())
     } else {
-        Err("Brak zgody na uprawnienia administratora".into())
+        Err(crate::lang::tr("Brak zgody na uprawnienia administratora").into())
     }
 }
 
@@ -197,16 +197,16 @@ pub fn refresh_entry(version: &str) {
 pub fn install(all_users: bool, version: &str) -> Result<PathBuf, String> {
     let me = std::env::current_exe().map_err(|e| e.to_string())?;
     let dir = install_dir(all_users);
-    std::fs::create_dir_all(&dir).map_err(|e| format!("Nie można utworzyć {}: {e}", dir.display()))?;
+    std::fs::create_dir_all(&dir).map_err(|e| crate::trf!("Nie można utworzyć {}: {e}", dir.display()))?;
     let target = dir.join("powerdesk.exe");
     if !same_file(&me, &target) {
         if target.exists() && std::fs::copy(&me, &target).is_err() {
             let old = dir.join("powerdesk.exe.old");
             let _ = std::fs::remove_file(&old);
-            std::fs::rename(&target, &old).map_err(|e| format!("Nie można zastąpić starej wersji: {e}"))?;
+            std::fs::rename(&target, &old).map_err(|e| crate::trf!("Nie można zastąpić starej wersji: {e}"))?;
             std::fs::copy(&me, &target).map_err(|e| e.to_string())?;
         } else if !target.exists() {
-            std::fs::copy(&me, &target).map_err(|e| format!("Nie można skopiować programu: {e}"))?;
+            std::fs::copy(&me, &target).map_err(|e| crate::trf!("Nie można skopiować programu: {e}"))?;
         }
     }
     make_shortcut(&shortcut(all_users), &target)?;
@@ -251,7 +251,7 @@ pub fn uninstall(remove_settings: bool) -> Result<(), String> {
     let found = installed();
     let all = found.as_ref().is_some_and(|(_, a)| *a);
     if all && !is_admin() {
-        return Err("PowerDesk zainstalowano dla wszystkich użytkowników – deinstalacja wymaga uprawnień administratora".into());
+        return Err(crate::lang::tr("PowerDesk zainstalowano dla wszystkich użytkowników – deinstalacja wymaga uprawnień administratora").into());
     }
     let _ = std::fs::remove_file(shortcut(all));
     let _ = reg(&["delete", &format!(r"{}\{KEY}", hive(all)), "/f"]);

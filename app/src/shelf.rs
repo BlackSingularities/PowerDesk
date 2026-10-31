@@ -51,7 +51,7 @@ pub fn add(s: &Shared, paths: &[String]) {
     s.borrow_mut().shelf.items.extend(added);
     save(s);
     set_open(s, true);
-    transfers::toast(s, format!("Dodano do półki: {what}"), Kind::Ok, None);
+    transfers::toast(s, powerdesk_core::trf!("Dodano do półki: {what}"), Kind::Ok, None);
 }
 
 /// Ctrl+Shift+S: zaznaczone na półkę, a bez zaznaczenia – pokaż albo schowaj półkę.
@@ -139,7 +139,7 @@ fn chosen(s: &Shared) -> Vec<String> {
 pub fn put(s: &Shared, mv: bool) {
     let dest = crate::tab_mut(s, |t| t.path.clone());
     if dest.starts_with("ofp:") {
-        return transfers::toast(s, "Otwórz folder, do którego mają trafić pliki", Kind::Info, None);
+        return transfers::toast(s, crate::tr("Otwórz folder, do którego mają trafić pliki"), Kind::Info, None);
     }
     let items = chosen(s);
     if items.is_empty() {
@@ -221,8 +221,8 @@ pub fn render(s: &Shared) {
     g.set_summary(if n > 0 { format!("{n} · {}", crate::fmt::size(total)).into() } else { "".into() });
     let special = t.special();
     let picked = b.shelf.picked.len();
-    let target = if special { "Otwórz folder docelowy".to_string() } else { format!("Do: {}", t.title()) };
-    g.set_target(if picked > 0 { format!("{target} · wybrane: {picked}") } else { target }.into());
+    let target = if special { crate::tr("Otwórz folder docelowy").to_string() } else { format!("Do: {}", t.title()) };
+    g.set_target(if picked > 0 { powerdesk_core::trf!("{target} · wybrane: {picked}") } else { target }.into());
     g.set_can_put(!special && n > 0);
     // Folderu nie da się przenieść do niego samego ani do jego wnętrza.
     let low = t.path.to_lowercase();

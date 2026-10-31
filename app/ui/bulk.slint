@@ -182,7 +182,7 @@ export component BulkDialog inherits Rectangle {
                     }
                     VerticalLayout {
                         Text {
-                            text: "Zmień nazwy";
+                            text: @tr("Zmień nazwy");
                             font-family: Theme.font;
                             font-size: 17px;
                             font-weight: 600;
@@ -201,7 +201,7 @@ export component BulkDialog inherits Rectangle {
                         width: 340px;
                         spacing: 10px;
                         Field {
-                            label: "Wzorzec nazwy";
+                            label: @tr("Wzorzec nazwy");
                             mono: true;
                             focus-first: true;
                             text <=> Bulk.pattern;
@@ -216,12 +216,12 @@ export component BulkDialog inherits Rectangle {
                             spacing: 5px;
                             alignment: start;
                             for t in [
-                                { t: "{nazwa}", d: "Obecna nazwa" },
-                                { t: "{nr}", d: "Numer kolejny" },
-                                { t: "{data}", d: "Data wykonania (EXIF) lub modyfikacji" },
-                                { t: "{czas}", d: "Godzina" },
-                                { t: "{folder}", d: "Nazwa folderu" },
-                                { t: "{rozmiar}", d: "Wymiary zdjęcia" },
+                                { t: "{nazwa}", d: @tr("Obecna nazwa") },
+                                { t: "{nr}", d: @tr("Numer kolejny") },
+                                { t: "{data}", d: @tr("Data wykonania (EXIF) lub modyfikacji") },
+                                { t: "{czas}", d: @tr("Godzina") },
+                                { t: "{folder}", d: @tr("Nazwa folderu") },
+                                { t: "{rozmiar}", d: @tr("Wymiary zdjęcia") },
                             ]: Chip {
                                 text: t.t;
                                 tip: t.d;
@@ -236,10 +236,10 @@ export component BulkDialog inherits Rectangle {
                             spacing: 5px;
                             alignment: start;
                             for p in [
-                                { l: "Data + numer", p: "{data}_{nr}" },
-                                { l: "Data i godzina", p: "{data} {czas}" },
-                                { l: "Folder + numer", p: "{folder} {nr}" },
-                                { l: "Numer + nazwa", p: "{nr} {nazwa}" },
+                                { l: @tr("Data + numer"), p: "{data}_{nr}" },
+                                { l: @tr("Data i godzina"), p: "{data} {czas}" },
+                                { l: @tr("Folder + numer"), p: "{folder} {nr}" },
+                                { l: @tr("Numer + nazwa"), p: "{nr} {nazwa}" },
                             ]: Chip {
                                 text: p.l;
                                 tip: p.p;
@@ -253,14 +253,14 @@ export component BulkDialog inherits Rectangle {
                         HorizontalLayout {
                             spacing: 8px;
                             Field {
-                                label: "Numer od";
+                                label: @tr("Numer od");
                                 text <=> Bulk.start;
                                 edited => {
                                     Bulk.changed();
                                 }
                             }
                             Field {
-                                label: "Cyfr";
+                                label: @tr("Cyfr");
                                 text <=> Bulk.pad;
                                 edited => {
                                     Bulk.changed();
@@ -268,8 +268,8 @@ export component BulkDialog inherits Rectangle {
                             }
                         }
                         Choice {
-                            label: "Kolejność numeracji";
-                            options: ["Jak na liście", "Nazwa", "Wykonanie", "Modyfikacja"];
+                            label: @tr("Kolejność numeracji");
+                            options: [@tr("Jak na liście"), @tr("Nazwa"), @tr("Wykonanie"), @tr("Modyfikacja")];
                             value <=> Bulk.order;
                             picked => {
                                 Bulk.changed();
@@ -278,8 +278,8 @@ export component BulkDialog inherits Rectangle {
                         HorizontalLayout {
                             spacing: 8px;
                             Field {
-                                label: "Znajdź";
-                                placeholder: "np. DSC0";
+                                label: @tr("Znajdź");
+                                placeholder: @tr("np. DSC0");
                                 mono: true;
                                 text <=> Bulk.find;
                                 edited => {
@@ -287,7 +287,7 @@ export component BulkDialog inherits Rectangle {
                                 }
                             }
                             Field {
-                                label: "Zamień na";
+                                label: @tr("Zamień na");
                                 mono: true;
                                 text <=> Bulk.replace;
                                 edited => {
@@ -301,7 +301,7 @@ export component BulkDialog inherits Rectangle {
                             Chip {
                                 text: ".*";
                                 mono: true;
-                                tip: "Wyrażenie regularne";
+                                tip: @tr("Wyrażenie regularne");
                                 on: Bulk.regex;
                                 clicked => {
                                     Bulk.regex = !Bulk.regex;
@@ -310,7 +310,7 @@ export component BulkDialog inherits Rectangle {
                             }
                             Chip {
                                 text: "Aa";
-                                tip: "Uwzględniaj wielkość liter";
+                                tip: @tr("Uwzględniaj wielkość liter");
                                 on: Bulk.match-case;
                                 clicked => {
                                     Bulk.match-case = !Bulk.match-case;
@@ -324,16 +324,16 @@ export component BulkDialog inherits Rectangle {
                             }
                         }
                         Choice {
-                            label: "Wielkość liter";
-                            options: ["Bez zmian", "małe", "WIELKIE", "Jak W Tytule"];
+                            label: @tr("Wielkość liter");
+                            options: [@tr("Bez zmian"), @tr("małe"), "WIELKIE", @tr("Jak W Tytule")];
                             value <=> Bulk.case-mode;
                             picked => {
                                 Bulk.changed();
                             }
                         }
                         Choice {
-                            label: "Rozszerzenie";
-                            options: ["Bez zmian", ".jpg", ".JPG"];
+                            label: @tr("Rozszerzenie");
+                            options: [@tr("Bez zmian"), ".jpg", ".JPG"];
                             value <=> Bulk.ext-mode;
                             picked => {
                                 Bulk.changed();
@@ -353,7 +353,7 @@ export component BulkDialog inherits Rectangle {
                                 padding-left: 14px;
                                 padding-right: 14px;
                                 Label {
-                                    text: "Podgląd";
+                                    text: @tr("Podgląd");
                                     font-size: 12px;
                                     font-weight: 600;
                                     color: Theme.dim;
@@ -418,7 +418,7 @@ export component BulkDialog inherits Rectangle {
                 HorizontalLayout {
                     spacing: 8px;
                     Label {
-                        text: "Ctrl+Z cofa całą operację";
+                        text: @tr("Ctrl+Z cofa całą operację");
                         font-size: 12px;
                         color: Theme.dim;
                     }
@@ -428,7 +428,7 @@ export component BulkDialog inherits Rectangle {
                         border-radius: Theme.r-s;
                         background: bc-ta.has-hover ? Theme.hover : transparent;
                         bc-l := Label {
-                            text: "Anuluj";
+                            text: @tr("Anuluj");
                             color: Theme.dim;
                         }
                         bc-ta := TouchArea {

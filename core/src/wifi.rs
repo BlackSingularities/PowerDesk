@@ -162,18 +162,18 @@ fn profile_xml(net: &WifiNet, password: &str) -> String {
 /// Łączy z siecią: zapisany profil wprost, nowa sieć – najpierw profil (z hasłem, jeśli
 /// zabezpieczona). Wynik połączenia przychodzi później – widać go w `networks()`.
 pub fn connect(ssid: &str, password: Option<&str>) -> Result<(), String> {
-    let w = Wlan::open().ok_or("Brak karty Wi-Fi")?;
-    let net = networks().and_then(|l| l.into_iter().find(|n| n.ssid == ssid)).ok_or("Sieć jest poza zasięgiem")?;
+    let w = Wlan::open().ok_or(crate::lang::tr("Brak karty Wi-Fi"))?;
+    let net = networks().and_then(|l| l.into_iter().find(|n| n.ssid == ssid)).ok_or(crate::lang::tr("Sieć jest poza zasięgiem"))?;
     let profile = match password {
         Some(pass) => {
             if net.secured && !(8..=63).contains(&pass.chars().count()) {
-                return Err("Hasło musi mieć od 8 do 63 znaków".into());
+                return Err(crate::lang::tr("Hasło musi mieć od 8 do 63 znaków").into());
             }
             let xml = HSTRING::from(profile_xml(&net, pass));
             let mut reason = 0u32;
             let r = unsafe { WlanSetProfile(w.h, &w.iface, 0, &xml, PCWSTR::null(), true, None, &mut reason) };
             if r != 0 {
-                return Err(format!("Nie udało się zapisać sieci (błąd {r}, powód {reason})"));
+                return Err(crate::trf!("Nie udało się zapisać sieci (błąd {r}, powód {reason})"));
             }
             net.ssid.clone()
         }
@@ -182,7 +182,7 @@ pub fn connect(ssid: &str, password: Option<&str>) -> Result<(), String> {
             // Otwarta sieć bez profilu – zapisujemy profil bez hasła.
             return connect(ssid, Some(""));
         }
-        None => return Err("Podaj hasło sieci".into()),
+        None => return Err(crate::lang::tr("Podaj hasło sieci").into()),
     };
     let name = HSTRING::from(profile);
     let params = WLAN_CONNECTION_PARAMETERS {
@@ -195,7 +195,7 @@ pub fn connect(ssid: &str, password: Option<&str>) -> Result<(), String> {
     };
     let r = unsafe { WlanConnect(w.h, &w.iface, &params, None) };
     if r != 0 {
-        return Err(format!("Nie udało się połączyć (błąd {r})"));
+        return Err(crate::trf!("Nie udało się połączyć (błąd {r})"));
     }
     Ok(())
 }

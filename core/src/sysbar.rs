@@ -272,7 +272,7 @@ pub fn app_volumes() -> Vec<AppVolume> {
         }
         let (level, muted) = unsafe { (vol.GetMasterVolume().unwrap_or(1.0), vol.GetMute().map(|m| m.as_bool()).unwrap_or(false)) };
         let (name, exe) = if pid == 0 {
-            ("Dźwięki systemowe".to_string(), String::new())
+            (crate::lang::tr("Dźwięki systemowe").to_string(), String::new())
         } else {
             let exe = exe_of_pid(pid);
             // Nazwy sesji w stylu „@%SystemRoot%\…” to odnośniki do zasobów – bierzemy program.

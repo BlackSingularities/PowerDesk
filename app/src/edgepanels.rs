@@ -165,7 +165,7 @@ pub fn add(s: &Shared, folder: String, monitor: usize, edge: u8) {
 
 /// Wybór folderu i nowy panel przy krawędzi `edge` monitora `monitor`.
 pub fn pick_and_add(s: &Shared, monitor: usize, edge: u8) {
-    if let Some(f) = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Folder przy krawędzi pulpitu", None) {
+    if let Some(f) = powerdesk_core::shell::pick_folder(crate::hwnd(s), crate::tr("Folder przy krawędzi pulpitu"), None) {
         add(s, f, monitor, edge);
     }
 }
@@ -318,38 +318,38 @@ fn context(s: &Shared, n: usize, p: usize, x: f32, y: f32) {
     let cur = current(s, p);
     let monitors = crate::desktop::windows().len();
     let mut v = vec![
-        it("Otwórz w oknie PowerDesk", "fullscreen", move |s| crate::open_args(s, vec![cur.clone()])),
+        it(crate::tr("Otwórz w oknie PowerDesk"), "fullscreen", move |s| crate::open_args(s, vec![cur.clone()])),
         sep(),
         menus::sub(
-            "Krawędź",
+            crate::tr("Krawędź"),
             "panel",
-            (0..3u8).map(|k| it(EDGES[k as usize], "panel", move |s| edit(s, p, |e| e.edge = k)).checked(e.edge == k)).collect(),
+            (0..3u8).map(|k| it(crate::tr(EDGES[k as usize]), "panel", move |s| edit(s, p, |e| e.edge = k)).checked(e.edge == k)).collect(),
         ),
     ];
     if monitors > 1 {
         v.push(menus::sub(
-            "Monitor",
+            crate::tr("Monitor"),
             "desktop",
-            (0..monitors).map(|m| it(format!("Monitor {}", m + 1), "desktop", move |s| edit(s, p, |e| e.monitor = m)).checked(e.monitor == m)).collect(),
+            (0..monitors).map(|m| it(powerdesk_core::trf!("Monitor {}", m + 1), "desktop", move |s| edit(s, p, |e| e.monitor = m)).checked(e.monitor == m)).collect(),
         ));
     }
     v.extend([
         menus::sub(
-            "Szerokość",
+            crate::tr("Szerokość"),
             "split",
             [220.0f32, 300.0, 400.0, 520.0, 680.0].into_iter().map(|px| it(format!("{px} px"), "split", move |s| edit(s, p, |e| e.width = px)).checked((e.width - px).abs() < 1.0)).collect(),
         ),
-        it("Przesuń wcześniej", "arrowUp", move |s| shift(s, p, false)),
-        it("Przesuń dalej", "arrowDown", move |s| shift(s, p, true)),
-        it("Zmień folder…", "folder", move |s| {
+        it(crate::tr("Przesuń wcześniej"), "arrowUp", move |s| shift(s, p, false)),
+        it(crate::tr("Przesuń dalej"), "arrowDown", move |s| shift(s, p, true)),
+        it(crate::tr("Zmień folder…"), "folder", move |s| {
             let start = pref(s, p).map(|e| e.folder).unwrap_or_default();
-            if let Some(f) = powerdesk_core::shell::pick_folder(crate::hwnd(s), "Folder przy krawędzi pulpitu", Some(&start)) {
+            if let Some(f) = powerdesk_core::shell::pick_folder(crate::hwnd(s), crate::tr("Folder przy krawędzi pulpitu"), Some(&start)) {
                 P.with(|x| x.borrow_mut().cur.remove(&p));
                 edit(s, p, |e| e.folder = f);
             }
         }),
         sep(),
-        it("Usuń panel", "trash", move |s| remove(s, p)).danger(),
+        it(crate::tr("Usuń panel"), "trash", move |s| remove(s, p)).danger(),
     ]);
     menus::show_in(w.window(), v, x, y);
 }
