@@ -1,5 +1,9 @@
 # Zmiany
 
+## 1.1.1
+
+- Pulpit: przeciąganie ikon (jednej i kilku zaznaczonych) płynnie za kursorem – przesunięcie liczone od punktu chwycenia w oknie, nie od jadącej ikony (ikony skakały i lądowały nie tam).
+
 ## 1.1.0
 
 - Dymki paska i zasobnika: rozmiar dymka liczony zapasowo z długości tekstu (wcześniej w schowanym oknie wychodził na kilka pikseli i dymka nie było widać).

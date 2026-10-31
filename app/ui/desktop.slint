@@ -87,6 +87,10 @@ export component DesktopWindow inherits Window {
     property <bool> just-dragged;
     property <length> drag-dx;
     property <length> drag-dy;
+    /// Punkt chwycenia w oknie pulpitu – przesunięcie liczymy od niego, nie od ikony, która
+    /// jedzie razem z kursorem (inaczej przesunięcie się znosiło i ikony skakały).
+    property <length> press-wx;
+    property <length> press-wy;
     property <bool> click-ctrl;
     property <bool> click-shift;
     // Ramka zaznaczania.
@@ -168,6 +172,8 @@ export component DesktopWindow inherits Window {
             pointer-event(e) => {
                 if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
                     root.just-dragged = false;
+                    root.press-wx = self.absolute-position.x + self.mouse-x;
+                    root.press-wy = self.absolute-position.y + self.mouse-y;
                     root.click-ctrl = e.modifiers.control;
                     root.click-shift = e.modifiers.shift;
                     fs.focus();
@@ -196,8 +202,8 @@ export component DesktopWindow inherits Window {
                         root.dragging = true;
                     }
                     if (root.dragging) {
-                        root.drag-dx = self.mouse-x - self.pressed-x;
-                        root.drag-dy = self.mouse-y - self.pressed-y;
+                        root.drag-dx = self.absolute-position.x + self.mouse-x - root.press-wx;
+                        root.drag-dy = self.absolute-position.y + self.mouse-y - root.press-wy;
                     }
                 }
             }
