@@ -1618,15 +1618,9 @@ export component TaskbarWindow inherits Window {
         }
 
         // Pokaż pulpit – wąski pasek przy prawej krawędzi, jak w Windows 10.
+        // Bez kreski – cienka linia przy zegarze wyglądała jak krzyżyk; pole widać pod kursorem.
         Rectangle {
             width: 8px;
-            Rectangle {
-                x: 2px;
-                width: 1px;
-                height: 60%;
-                y: (parent.height - self.height) / 2;
-                background: Theme.line;
-            }
             background: sd-ta.has-hover ? Theme.hover : transparent;
             sd-ta := TipArea {
                 tip: "Pokaż pulpit";

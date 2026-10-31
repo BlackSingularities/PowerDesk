@@ -2033,7 +2033,13 @@ fn tip(win: &slint::Window, text: &str, x: f32, _y: f32) {
             let Some(w) = t.as_ref() else { return };
             w.set_text(text.clone().into());
             let s = w.window().scale_factor();
-            let (tw, th) = ((w.get_want_w() * s) as i32, (w.get_want_h() * s) as i32);
+            // Miara tekstu bywa zerowa w schowanym oknie (nie było jeszcze klatki) – wtedy dymek miał
+            // kilka pikseli i nie było go widać. Zapasowo szerokość z liczby znaków.
+            let guess_w = (text.chars().count().min(64) as f32 * 6.6 + 20.0).min(440.0);
+            let (lw, lh) = (w.get_want_w(), w.get_want_h());
+            let lw = if lw < 30.0 { guess_w } else { lw };
+            let lh = if lh < 20.0 { 26.0 } else { lh };
+            let (tw, th) = ((lw * s) as i32, (lh * s) as i32);
             let (mx, mw) = monitor_under_cursor().map(|(o, m, _)| (o.0, m.0)).unwrap_or((0, 1920));
             let tx = (ax - tw / 2).clamp(mx + 4, (mx + mw - tw - 4).max(mx + 4));
             let ty = top - th - (6.0 * s) as i32;
