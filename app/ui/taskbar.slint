@@ -979,12 +979,12 @@ export component ThumbWindow inherits Window {
                 }
             }
         }
-        // Miejsce podglądu (8, 34, 204×118).
+        // Miejsce podglądu (8, 30, 204×122) – obraz przy górze, tuż pod tytułem.
         Rectangle {
             x: 8px;
-            y: 34px;
+            y: 30px;
             width: parent.width - 16px;
-            height: parent.height - 42px;
+            height: parent.height - 38px;
             border-radius: Theme.r-s;
             clip: true;
             if c.has-shot: Image {
@@ -992,6 +992,7 @@ export component ThumbWindow inherits Window {
                 height: parent.height;
                 source: c.shot;
                 image-fit: contain;
+                vertical-alignment: top;
                 image-rendering: smooth;
             }
             if !c.has-shot && c.has-img: Image {
