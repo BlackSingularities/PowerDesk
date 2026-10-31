@@ -302,3 +302,18 @@ pub fn init_watch(app: crate::events::AppHandle) {
         })
         .ok();
 }
+
+/// Urządzenia przenośne w „Ten komputer” (telefon, aparat przez MTP): nazwa i ścieżka powłoki.
+/// Nie są dyskami z literą – otwiera je okno powłoki Windows. PowerShell – wywoływać w tle.
+pub fn portable() -> Vec<(String, String)> {
+    use std::os::windows::process::CommandExt;
+    let script = "[Console]::OutputEncoding=[Text.Encoding]::UTF8;\
+        (New-Object -ComObject Shell.Application).Namespace(17).Items() | Where-Object { -not $_.IsFileSystem -and $_.Path -like '*usb#*' } | ForEach-Object { $_.Name + '|' + $_.Path }";
+    let Ok(out) = std::process::Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-Command", script]).creation_flags(0x0800_0000).output() else { return Vec::new() };
+    String::from_utf8_lossy(&out.stdout).lines().filter_map(|l| l.trim().split_once('|').map(|(n, p)| (n.to_string(), p.to_string()))).collect()
+}
+
+/// Otwiera urządzenie przenośne w oknie powłoki Windows.
+pub fn open_portable(path: &str) {
+    let _ = std::process::Command::new("explorer.exe").arg(path).spawn();
+}

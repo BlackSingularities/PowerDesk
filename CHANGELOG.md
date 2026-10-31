@@ -15,6 +15,8 @@
 - Pulpit: menu „Nowy” z typami plików zarejestrowanymi przez programy (Word, Excel, obrazy…), także w oknie folderów („Inne typy”); „Ustawienia ekranu” i „Personalizuj” w menu pulpitu.
 - Pasek: najechanie na „Pokaż pulpit” po chwili pokazuje pulpit przez przezroczyste okna.
 - Ustawienia → Pulpit: potrząśnięcie oknem minimalizuje pozostałe (przełącznik).
+- Szukanie w treści plików: filtr `zawiera:"tekst"` – przez indeks Windows (także Word i PDF), w folderach spoza indeksu przegląda pliki tekstowe.
+- Panel boczny: sekcja „Urządzenia” z telefonami i aparatami podłączonymi przez USB (MTP).
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 

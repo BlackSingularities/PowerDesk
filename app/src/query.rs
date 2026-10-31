@@ -15,6 +15,8 @@ pub struct Parsed {
     pub test: Option<Test>,
     /// Rozpoznane filtry – do pokazania w interfejsie.
     pub chips: Vec<String>,
+    /// `zawiera:` – szukanie w treści plików (indeks Windows).
+    pub content: Option<String>,
 }
 
 enum TypeSel {
@@ -121,13 +123,32 @@ pub const HINTS: [(&str, &str); 10] = [
     ("data:tydzień", "W ostatnim tygodniu"),
     ("data:2024", "W roku 2024"),
     ("ext:jpg,png", "Rozszerzenia"),
+    ("zawiera:\"tekst\"", "Pliki zawierające tekst (indeks Windows – także Word, PDF)"),
 ];
 
 pub fn parse(q: &str) -> Parsed {
     let mut words: Vec<&str> = Vec::new();
     let mut tests: Vec<Test> = Vec::new();
     let mut chips = Vec::new();
-    for tok in q.split_whitespace() {
+    // `zawiera:"dwa słowa"` albo `zawiera:słowo` – reszta zapytania to nazwa i filtry.
+    let mut content = None;
+    let mut rest = q.to_string();
+    for key in ["zawiera:", "treść:", "content:"] {
+        if let Some(at) = rest.to_lowercase().find(key) {
+            let after = &rest[at + key.len()..];
+            let (val, end) = match after.strip_prefix('"') {
+                Some(r) => r.find('"').map_or((r, after.len()), |e| (&r[..e], e + 2)),
+                None => after.find(char::is_whitespace).map_or((after, after.len()), |e| (&after[..e], e)),
+            };
+            if !val.trim().is_empty() {
+                chips.push(format!("zawiera: {}", val.trim()));
+                content = Some(val.trim().to_string());
+            }
+            rest = format!("{}{}", &rest[..at], &after[end..]);
+            break;
+        }
+    }
+    for tok in rest.split_whitespace() {
         let Some((key, val)) = tok.split_once(':').filter(|(k, v)| !k.is_empty() && !v.is_empty() && k.chars().all(char::is_alphabetic)) else {
             words.push(tok);
             continue;
@@ -196,7 +217,7 @@ pub fn parse(q: &str) -> Parsed {
         }
     }
     let test: Option<Test> = if tests.is_empty() { None } else { Some(Box::new(move |e| tests.iter().all(|t| t(e)))) };
-    Parsed { text: words.join(" "), test, chips }
+    Parsed { text: words.join(" "), test, chips, content }
 }
 
 #[cfg(test)]

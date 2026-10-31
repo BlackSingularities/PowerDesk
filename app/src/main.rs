@@ -414,6 +414,7 @@ fn main() -> Result<(), slint::PlatformError> {
     ensure_integration();
     updates::start();
     load_shellnew();
+    watch_portable();
     // Synchronizacja rusza w tle chwilę po starcie, żeby nie opóźniać pierwszego okna.
     let s3 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
@@ -564,6 +565,7 @@ fn wire(ui: &MainWindow, st: &Shared) {
     ui.on_navigate(move |p| match p.strip_prefix(SAVED) {
         Some(id) => run_saved(&s, id, false),
         None if p == ADD_NET => add_network_place(&s),
+        None if p.starts_with(DEVICE) => drives::open_portable(&p[DEVICE.len()..]),
         None => navigate(&s, p.as_str(), true),
     });
     let s = st.clone();
@@ -2686,7 +2688,11 @@ fn start_search(s: &Shared, q: &str) {
         return;
     }
     // Słowa idą do wyszukiwarki, filtry (typ:, rozmiar:, data:…) sprawdzamy przy odbiorze wyników.
-    let id = fsx::search(Core, root, query::parse(q).text, hidden);
+    let parsed = query::parse(q);
+    let id = match parsed.content {
+        Some(text) => fsx::search_content(Core, root, text, parsed.text, hidden),
+        None => fsx::search(Core, root, parsed.text, hidden),
+    };
     tab_mut(s, |t| {
         t.filter.clear();
         t.selected.clear();
@@ -3234,6 +3240,7 @@ fn side_key(s: &Shared, key: &str) {
             match p.strip_prefix(SAVED) {
                 Some(id) => run_saved(s, id, false),
                 None if p == ADD_NET => add_network_place(s),
+                None if p.starts_with(DEVICE) => drives::open_portable(&p[DEVICE.len()..]),
                 None => navigate(s, &p, true),
             }
             return;
@@ -3471,6 +3478,13 @@ fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec
         });
     }
     // Dodane lokalizacje (\\serwer\udział) i na końcu pozycja do dodawania kolejnych.
+    // Telefony i aparaty (MTP) – bez litery dysku, otwiera je okno powłoki Windows.
+    let mut first_dev = true;
+    for (name, path) in PORTABLE.with(|p| p.borrow().clone()) {
+        let mut item = side_item(&mut first_dev, "Urządzenia", name, ic("usb"), format!("{DEVICE}{path}"), current);
+        item.tip = "Telefon albo aparat podłączony przez USB – zdjęcia i pliki".into();
+        v.push(item);
+    }
     for p in places {
         let name = p.trim_start_matches('\\').replace('\\', " › ");
         v.push(side_item(&mut first_net, "Sieć", name, ic("network"), p.clone(), current));
@@ -3483,6 +3497,32 @@ fn side_items(current: &str, drives: &[drives::Drive], places: &[String]) -> Vec
 
 /// Pozycja „Dodaj lokalizację…” w sekcji Sieć.
 pub const ADD_NET: &str = "ofp:addnet";
+
+/// Urządzenie przenośne w panelu bocznym (po prefiksie – ścieżka powłoki).
+pub const DEVICE: &str = "ofp:device:";
+
+thread_local! {
+    /// Podłączone telefony i aparaty (MTP).
+    static PORTABLE: RefCell<Vec<(String, String)>> = const { RefCell::new(Vec::new()) };
+    static PORTABLE_TIMER: slint::Timer = slint::Timer::default();
+}
+
+/// Odczyt urządzeń przenośnych w tle – przy starcie i co 15 s (podłączenie telefonu).
+pub fn watch_portable() {
+    fn scan() {
+        std::thread::spawn(|| {
+            let list = drives::portable();
+            let _ = slint::invoke_from_event_loop(move || {
+                let changed = PORTABLE.with(|p| p.replace(list.clone()) != list);
+                if changed {
+                    with_state(render_side);
+                }
+            });
+        });
+    }
+    scan();
+    PORTABLE_TIMER.with(|t| t.start(slint::TimerMode::Repeated, std::time::Duration::from_secs(15), scan));
+}
 
 /// Okno z polem na ścieżkę UNC; sprawdzamy ją w tle (udział może długo nie odpowiadać).
 pub fn add_network_place(s: &Shared) {

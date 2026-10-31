@@ -579,3 +579,88 @@ pub fn recent_files(dirs: &[String], days: u64, limit: usize) -> Vec<Entry> {
     out.truncate(limit);
     out
 }
+
+/// Szukanie w treści plików przez indeks Windows (Windows Search – także dokumenty Office i PDF,
+/// dzięki filtrom systemu). `text` – szukana fraza, `query` – dodatkowo słowa w nazwie.
+/// Wyniki przychodzą tym samym zdarzeniem „search” co zwykłe szukanie. Foldery spoza indeksu
+/// nie dają wyników – wtedy przeglądamy pliki tekstowe sami (do 4 MB).
+pub fn search_content(app: AppHandle, root: String, text: String, query: String, include_hidden: bool) -> u64 {
+    let id = SEARCH_GEN.fetch_add(1, Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        let m = matcher(&query);
+        let mut items = Vec::new();
+        let mut scanned = 0u64;
+        for p in index_query(&root, &text) {
+            if SEARCH_GEN.load(Ordering::SeqCst) != id {
+                return;
+            }
+            scanned += 1;
+            let path = PathBuf::from(&p);
+            let Ok(md) = std::fs::metadata(&path) else { continue };
+            let hidden = md.file_attributes() & (ATTR_HIDDEN | ATTR_SYSTEM) != 0;
+            let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            if (!hidden || include_hidden) && m(&name) {
+                items.push(entry_from(&path, &md));
+            }
+        }
+        if items.is_empty() {
+            items = grep(&root, &text, &m, include_hidden, id, &mut scanned);
+        }
+        let _ = app.emit("search", SearchBatch { id, items, done: true, scanned });
+    });
+    id
+}
+
+/// Ścieżki z indeksu Windows pod `root` z plikami zawierającymi `text` (przez ADODB w PowerShell).
+fn index_query(root: &str, text: &str) -> Vec<String> {
+    use std::os::windows::process::CommandExt;
+    let scope = format!("file:{}", root.trim_end_matches('\').replace('\', "/")).replace('\'', "''");
+    let phrase = text.replace(['"', '\''], " ");
+    let script = format!(
+        "$ErrorActionPreference='Stop';[Console]::OutputEncoding=[Text.Encoding]::UTF8;\
+         $c=New-Object -ComObject ADODB.Connection;$c.Open(\"Provider=Search.CollatorDSO;Extended Properties='Application=Windows';\");\
+         $r=$c.Execute(\"SELECT TOP 2000 System.ItemPathDisplay FROM SYSTEMINDEX WHERE SCOPE='{scope}' AND FREETEXT('{phrase}')\");\
+         while(-not $r.EOF){{$r.Fields.Item(0).Value;$r.MoveNext()}}"
+    );
+    let Ok(out) = std::process::Command::new("powershell").args(["-NoProfile", "-NonInteractive", "-Command", &script]).creation_flags(0x0800_0000).output() else { return Vec::new() };
+    String::from_utf8_lossy(&out.stdout).lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect()
+}
+
+/// Zapas bez indeksu: pliki tekstowe (do 4 MB, bez zer w treści) zawierające `text`.
+fn grep(root: &str, text: &str, m: &impl Fn(&str) -> bool, include_hidden: bool, id: u64, scanned: &mut u64) -> Vec<Entry> {
+    let needle = text.to_lowercase();
+    let mut out = Vec::new();
+    let mut stack = vec![PathBuf::from(root)];
+    while let Some(dir) = stack.pop() {
+        if SEARCH_GEN.load(Ordering::SeqCst) != id || out.len() >= 2000 {
+            break;
+        }
+        let Ok(rd) = std::fs::read_dir(&dir) else { continue };
+        for de in rd.flatten() {
+            *scanned += 1;
+            let Ok(md) = de.metadata() else { continue };
+            let attrs = md.file_attributes();
+            if attrs & (ATTR_HIDDEN | ATTR_SYSTEM) != 0 && !include_hidden {
+                continue;
+            }
+            if md.is_dir() {
+                if attrs & ATTR_REPARSE == 0 {
+                    stack.push(de.path());
+                }
+                continue;
+            }
+            let name = de.file_name().to_string_lossy().to_string();
+            if md.len() > 4 << 20 || !m(&name) {
+                continue;
+            }
+            let Ok(bytes) = std::fs::read(de.path()) else { continue };
+            if bytes.iter().take(8000).any(|&b| b == 0) {
+                continue;
+            }
+            if String::from_utf8_lossy(&bytes).to_lowercase().contains(&needle) {
+                out.push(entry_from(&de.path(), &md));
+            }
+        }
+    }
+    out
+}
