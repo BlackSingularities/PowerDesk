@@ -1,0 +1,734 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, TipArea } from "components.slint";
+
+/// Dzień w widżecie kalendarza (siatka 7×6 od poniedziałku).
+export struct WDay {
+    day: int,
+    /// Dzień bieżącego miesiąca (inne – przygaszone).
+    cur: bool,
+    today: bool,
+}
+
+/// Dysk w widżecie dysków.
+export struct WDrive {
+    name: string,
+    used: float,
+    detail: string,
+}
+
+/// Zegar w innej strefie czasowej.
+export struct WZone {
+    city: string,
+    time: string,
+    /// Różnica względem czasu lokalnego („+6 h”, „jutro”).
+    note: string,
+}
+
+/// Dzień prognozy pogody.
+export struct WFc {
+    name: string,
+    kind: int,
+    hi: string,
+    lo: string,
+}
+
+/// Przypomnienie: kiedy i co.
+export struct WRem {
+    when: string,
+    text: string,
+    soon: bool,
+}
+
+/// Ustawienia jednego widżetu („Dostosuj…”) – widgetcfg.rs zamienia je z zapisu.
+export struct WCfg {
+    /// Akcent widżetu; przezroczysty – akcent motywu.
+    accent: color,
+    /// Krycie tła (0–1).
+    alpha: float,
+    /// 0 – karta, 1 – szkło, 2 – w kolorze akcentu, 3 – bez tła.
+    style: int,
+    /// Układ treści (lista zależna od rodzaju).
+    variant: int,
+    h12: bool,
+    seconds: bool,
+    fahrenheit: bool,
+    /// Własny tytuł (pusty – domyślny).
+    title: string,
+    /// Miejsce danych tego widżetu w tablicach `clk`, `wx`, `folders` (wg strefy, miejscowości, folderu).
+    slot: int,
+}
+
+/// Widżet na pulpicie (miejsce i rozmiar wolne) albo w kafelku Startu.
+export struct WidgetItem {
+    kind: string,
+    note: string,
+    x: length,
+    y: length,
+    w: length,
+    h: length,
+    cfg: WCfg,
+}
+
+/// Zegar jednej strefy: godzina w obu formatach, kąty wskazówek i data.
+export struct WClock {
+    t24: string,
+    t12: string,
+    /// Godzina (24 h i 12 h) i minuty osobno – układ pionowy.
+    hh24: string,
+    hh12: string,
+    mm: string,
+    ampm: string,
+    sec: string,
+    /// Kąty wskazówek w stopniach (0 – godzina 12).
+    ha: float,
+    ma: float,
+    sa: float,
+    weekday: string,
+    date: string,
+    /// Miasto strefy (pusto – czas lokalny) i różnica („+6 h”).
+    city: string,
+    note: string,
+}
+
+/// Dzień prognozy z temperaturami jako liczbami (°C) – °F przelicza widżet.
+export struct WDayFc {
+    name: string,
+    kind: int,
+    hi: float,
+    lo: float,
+}
+
+/// Pogoda jednej miejscowości.
+export struct WWx {
+    ok: bool,
+    status: string,
+    city: string,
+    temp: float,
+    feels: float,
+    desc: string,
+    kind: int,
+    wind: string,
+    humidity: string,
+    sunrise: string,
+    sunset: string,
+    days: [WDayFc],
+    /// Temperatury na 24 godziny, ich zakres i godzina pierwszej.
+    hours: [float],
+    hmin: float,
+    hmax: float,
+    hour0: int,
+    /// Wykres godzinowy (ścieżki 0–100) oraz zakres temperatur prognozy dni.
+    hline: string,
+    harea: string,
+    dmin: float,
+    dmax: float,
+}
+
+/// Plik albo folder w widżetach ostatnich plików, ulubionych i folderu.
+export struct WFile {
+    name: string,
+    path: string,
+    detail: string,
+    dir: bool,
+    has-icon: bool,
+    icon: image,
+}
+
+/// Zawartość folderu dla widżetu folderu.
+export struct WFolder {
+    name: string,
+    path: string,
+    status: string,
+    files: [WFile],
+}
+
+/// Aplikacja w widżecie aplikacji (najczęściej uruchamiane).
+export struct WApp {
+    name: string,
+    path: string,
+    has-icon: bool,
+    icon: image,
+}
+
+/// Wiersz widżetu postępu (dzień, tydzień, miesiąc, rok).
+export struct WProg {
+    name: string,
+    frac: float,
+    text: string,
+}
+
+/// Zadanie na liście.
+export struct WTodo {
+    text: string,
+    done: bool,
+}
+
+/// Kurs waluty: kod, wartość w zł i zmiana od poprzedniej tabeli (+/−).
+export struct WFx {
+    code: string,
+    value: string,
+    change: string,
+    up: bool,
+}
+
+/// Dane wspólne dla wszystkich widżetów okna – odświeża widgets.rs co sekundę.
+export global WidgetData {
+    in-out property <string> time;
+    in-out property <string> seconds;
+    /// Część minuty, która minęła (0–1) – pasek sekund zegara.
+    in-out property <float> sec-frac;
+    in-out property <string> weekday;
+    in-out property <string> date;
+    in-out property <string> month;
+    in-out property <int> day;
+    in-out property <[WDay]> days;
+    in-out property <float> cpu;
+    in-out property <float> ram;
+    in-out property <string> cpu-text;
+    in-out property <string> ram-text;
+    in-out property <string> uptime;
+    /// Zużycie procesora z ostatnich 40 odczytów (0–1).
+    in-out property <[float]> cpu-hist;
+    in-out property <[WDrive]> drives;
+    // Zegary świata.
+    in-out property <[WZone]> zones;
+    // Pogoda wg miejscowości i zegary wg strefy (miejsce – `WCfg.slot`).
+    in-out property <[WWx]> wx;
+    in-out property <[WClock]> clk;
+    // Co teraz gra.
+    in-out property <bool> m-has;
+    in-out property <string> m-title;
+    in-out property <string> m-artist;
+    in-out property <bool> m-playing;
+    /// Przyciski: 0 – poprzedni, 1 – odtwórz/wstrzymaj, 2 – następny.
+    callback media(int);
+    // Zdjęcia z folderu.
+    in-out property <bool> p-has;
+    in-out property <image> p-img;
+    in-out property <string> p-name;
+    in-out property <string> p-status;
+    // Przypomnienia (najbliższe).
+    in-out property <[WRem]> rems;
+    // Sieć: prędkości i historia pobierania (0–1 względem najwyższej).
+    in-out property <string> net-down;
+    in-out property <string> net-up;
+    in-out property <[float]> net-hist;
+    // Schowek: ostatnie teksty; klik – z powrotem do schowka.
+    in-out property <[string]> clips;
+    callback clip-pick(int);
+    // Zadania: tekst i czy zrobione; klik – przełącza.
+    in-out property <[WTodo]> todos;
+    callback todo-toggle(int);
+    // Kursy walut NBP i data tabeli.
+    in-out property <[WFx]> fx;
+    in-out property <string> fx-date;
+    // Odliczanie: do czego, duża liczba z jednostką, reszta.
+    in-out property <string> cd-label;
+    in-out property <string> cd-big;
+    in-out property <string> cd-unit;
+    in-out property <string> cd-rest;
+    // Okładka i program bieżącego utworu.
+    in-out property <bool> m-cover-has;
+    in-out property <image> m-cover;
+    in-out property <string> m-app;
+    // Procesor i pamięć – szczegóły i historia pamięci.
+    in-out property <string> cpu-name;
+    in-out property <string> cpu-mhz;
+    in-out property <string> cpu-cores;
+    in-out property <[float]> ram-hist;
+    in-out property <string> ram-free;
+    in-out property <string> ram-pct;
+    in-out property <string> ram-total;
+    // Wykresy (ścieżki 0–100 × 0–100): linia i wypełnienie.
+    in-out property <string> cpu-line;
+    in-out property <string> cpu-area;
+    in-out property <string> ram-line;
+    in-out property <string> ram-area;
+    in-out property <string> gpu-line;
+    in-out property <string> gpu-area;
+    in-out property <string> net-line;
+    in-out property <string> net-area;
+    in-out property <string> net-up-line;
+
+    // Karta graficzna.
+    in-out property <bool> gpu-has;
+    in-out property <string> gpu-name;
+    in-out property <float> gpu;
+    in-out property <string> gpu-text;
+    in-out property <float> vram;
+    in-out property <string> vram-text;
+    in-out property <string> gpu-temp;
+    in-out property <[float]> gpu-hist;
+    // Bateria.
+    in-out property <bool> bat-has;
+    in-out property <float> bat;
+    in-out property <bool> bat-charging;
+    in-out property <string> bat-text;
+    // Połączenie: 0 – brak, 1 – Wi‑Fi, 2 – kabel; nazwa, siła sygnału (0–1), widoczne sieci.
+    in-out property <int> net-kind;
+    in-out property <string> net-name;
+    in-out property <float> wifi-signal;
+    in-out property <int> wifi-count;
+    in-out property <[float]> net-up-hist;
+    // Głośność.
+    in-out property <float> vol;
+    in-out property <bool> vol-muted;
+    callback vol-set(float);
+    callback vol-mute();
+    // Ostatnie pliki, ulubione, foldery (wg `WCfg.slot`) i aplikacje.
+    in-out property <[WFile]> recent;
+    in-out property <[WFile]> favs;
+    in-out property <[WFolder]> folders;
+    in-out property <[WApp]> apps;
+    /// Otwarcie pliku albo folderu (ścieżka, czy folder).
+    callback open-file(string, bool);
+    callback launch(string);
+    /// Szybka akcja (identyfikator z widgettools.rs).
+    callback action(string);
+    // Stoper: czas, setne, stan, część minuty i okrążenia; 0 – start/stop, 1 – okrążenie/zeruj.
+    in-out property <string> sw-text;
+    in-out property <string> sw-cs;
+    in-out property <bool> sw-run;
+    in-out property <float> sw-frac;
+    in-out property <[string]> sw-laps;
+    callback sw(int);
+    // Minutnik: pozostały i ustawiony czas, stan, koniec i część, która została; 0 – start/pauza, 1 – zeruj.
+    in-out property <string> tm-text;
+    in-out property <string> tm-total;
+    in-out property <bool> tm-run;
+    in-out property <bool> tm-done;
+    in-out property <float> tm-frac;
+    callback tm(int);
+    /// Nowy czas minutnika w minutach.
+    callback tm-set(int);
+    // Kalkulator: działanie i wynik na żywo; klawisz – znak albo „C”, „⌫”, „=”.
+    in-out property <string> calc-expr;
+    in-out property <string> calc-result;
+    callback calc-key(string);
+    // Cytat i przysłowie dnia.
+    in-out property <string> quote;
+    in-out property <string> quote-by;
+    in-out property <string> proverb;
+    // Obraz dnia (Bing).
+    in-out property <bool> bing-has;
+    in-out property <image> bing-img;
+    // Faza księżyca (0 – nów, 0,5 – pełnia), nazwa, oświetlenie i najbliższa pełnia albo nów.
+    in-out property <float> moon;
+    in-out property <string> moon-name;
+    in-out property <string> moon-light;
+    in-out property <string> moon-next;
+    // Postęp dnia, tygodnia, miesiąca i roku.
+    in-out property <[WProg]> prog;
+    // Komputer: nazwa i system.
+    in-out property <string> sys-host;
+    in-out property <string> sys-os;
+    // Wiersz kalendarza z dzisiejszym dniem (0–5) i numer tygodnia.
+    in-out property <int> today-row;
+    in-out property <string> week-no;
+
+    /// Widżety z przyciskami w środku – na pulpicie chwyta się je za górny pasek,
+    /// w Starcie przyjmują kliknięcia zamiast kafelka.
+    public pure function interactive(k: string) -> bool {
+        return k == "note" || k == "media" || k == "todo" || k == "clipboard" || k == "calc" || k == "stopwatch" || k == "timer" || k == "volume" || k == "launcher" || k == "actions" || k == "recent" || k == "favorites" || k == "folder";
+    }
+}
+
+/// Ikona pogody rysowana kształtami (bez czcionek z emoji): słońce, chmura, deszcz, śnieg, burza, mgła.
+export component WeatherIcon inherits Rectangle {
+    in property <int> kind;
+    in property <length> size: 40px;
+    width: root.size;
+    height: root.size;
+    property <bool> sun: root.kind == 0 || root.kind == 1;
+    property <bool> cloud: root.kind >= 1;
+    // Słońce: tarcza i promienie (przy częściowym zachmurzeniu – mniejsze, w rogu).
+    if root.sun: Rectangle {
+        property <length> r: root.kind == 0 ? root.size * 0.24 : root.size * 0.18;
+        property <length> cx: root.kind == 0 ? root.size / 2 : root.size * 0.36;
+        property <length> cy: root.kind == 0 ? root.size / 2 : root.size * 0.34;
+        for a in [0, 45, 90, 135, 180, 225, 270, 315]: Rectangle {
+            x: parent.cx + cos(a * 1deg) * parent.r * 1.55 - self.width / 2;
+            y: parent.cy + sin(a * 1deg) * parent.r * 1.55 - self.height / 2;
+            width: root.size * 0.07;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: #f5b83d;
+        }
+        Rectangle {
+            x: parent.cx - parent.r;
+            y: parent.cy - parent.r;
+            width: parent.r * 2;
+            height: self.width;
+            border-radius: parent.r;
+            background: #f5b83d;
+        }
+    }
+    // Chmura: trzy koła i podstawa.
+    if root.cloud: Rectangle {
+        property <color> c: root.kind == 6 ? #8a8f99 : root.kind >= 4 ? #b4bac4 : #e6e9ee;
+        property <length> base: root.kind >= 4 ? root.size * 0.58 : root.size * 0.72;
+        Rectangle {
+            x: root.size * 0.16;
+            y: parent.base - root.size * 0.22;
+            width: root.size * 0.7;
+            height: root.size * 0.22;
+            border-radius: self.height / 2;
+            background: parent.c;
+        }
+        Rectangle {
+            x: root.size * 0.24;
+            y: parent.base - root.size * 0.36;
+            width: root.size * 0.28;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: parent.c;
+        }
+        Rectangle {
+            x: root.size * 0.4;
+            y: parent.base - root.size * 0.46;
+            width: root.size * 0.36;
+            height: self.width;
+            border-radius: self.width / 2;
+            background: parent.c;
+        }
+    }
+    // Opady: krople albo płatki; burza – błyskawica; mgła – poziome kreski.
+    if root.kind == 4 || root.kind == 5: Rectangle {
+        for k in [0, 1, 2]: Rectangle {
+            x: root.size * (0.3 + k * 0.17);
+            y: root.size * (0.66 + mod(k, 2) * 0.08);
+            width: root.kind == 5 ? root.size * 0.08 : root.size * 0.05;
+            height: root.kind == 5 ? self.width : root.size * 0.14;
+            border-radius: self.width / 2;
+            background: root.kind == 5 ? #ffffff : #4f8cff;
+        }
+    }
+    if root.kind == 6: Path {
+        x: root.size * 0.38;
+        y: root.size * 0.56;
+        width: root.size * 0.24;
+        height: root.size * 0.38;
+        viewbox-width: 6;
+        viewbox-height: 10;
+        commands: "M 4 0 L 0 6 L 3 6 L 2 10 L 6 4 L 3 4 Z";
+        fill: #f5b83d;
+    }
+    if root.kind == 3: Rectangle {
+        for k in [0, 1, 2]: Rectangle {
+            x: root.size * (0.14 + mod(k, 2) * 0.08);
+            y: root.size * (0.3 + k * 0.18);
+            width: root.size * 0.64;
+            height: root.size * 0.06;
+            border-radius: self.height / 2;
+            background: #c9ced6;
+        }
+    }
+}
+
+/// Pasek zajętości: tło, wypełnienie w kolorze akcentu (czerwone powyżej 90%).
+export component Meter inherits Rectangle {
+    in property <float> value;
+    in property <color> tint: Theme.accent;
+    /// Bez czerwieni przy zapełnieniu (np. bateria, postęp roku).
+    in property <bool> plain;
+    height: 6px;
+    border-radius: self.height / 2;
+    background: Theme.line-strong;
+    Rectangle {
+        x: 0;
+        width: parent.width * max(0, min(1, root.value));
+        height: parent.height;
+        border-radius: parent.border-radius;
+        background: root.value > 0.9 && !root.plain ? #e5484d : root.tint;
+        animate width { duration: 400ms; easing: ease-out; }
+    }
+}
+
+/// Mały nagłówek widżetu: ikona i nazwa.
+export component WTitle inherits HorizontalLayout {
+    in property <string> icon;
+    in property <string> text;
+    /// Tekst po prawej (np. procent, data tabeli).
+    in property <string> extra;
+    in property <color> color: Theme.dim;
+    height: 18px;
+    spacing: 6px;
+    Icon {
+        y: (parent.height - self.height) / 2;
+        commands: root.icon;
+        size: 13px;
+        color: root.color;
+    }
+    Text {
+        horizontal-stretch: 1;
+        text: root.text;
+        font-size: 11px;
+        font-weight: 600;
+        color: Theme.dim;
+        vertical-alignment: center;
+        overflow: elide;
+    }
+    if root.extra != "": Text {
+        text: root.extra;
+        font-size: 11px;
+        color: Theme.faint;
+        vertical-alignment: center;
+    }
+}
+
+/// Pierścień postępu (0–1) z torem w tle; treść w środku – dzieci elementu.
+/// Rysowany w pikselach (`fit: preserve`), żeby grubość była równa na każdym rozmiarze.
+export component Ring inherits Rectangle {
+    in property <float> value;
+    in property <color> tint: Theme.accent;
+    in property <color> track: Theme.line-strong;
+    in property <length> thickness: 6px;
+    property <length> side: min(self.width, self.height);
+    property <float> c: self.side / 2px;
+    property <float> r: max(1, self.c - self.thickness / 2px);
+    property <float> v: max(0.0005, min(0.9995, self.value));
+    Path {
+        x: (root.width - root.side) / 2;
+        y: (root.height - root.side) / 2;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        fill: transparent;
+        stroke: root.track;
+        stroke-width: root.thickness;
+        commands: "M " + root.c + " " + (root.c - root.r) + " A " + root.r + " " + root.r + " 0 1 1 " + root.c + " " + (root.c + root.r) + " A " + root.r + " " + root.r + " 0 1 1 " + root.c + " " + (root.c - root.r);
+    }
+    if root.value > 0.002: Path {
+        x: (root.width - root.side) / 2;
+        y: (root.height - root.side) / 2;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        fill: transparent;
+        stroke: root.tint;
+        stroke-width: root.thickness;
+        stroke-line-cap: round;
+        commands: "M " + root.c + " " + (root.c - root.r) + " A " + root.r + " " + root.r + " 0 " + (root.v > 0.5 ? 1 : 0) + " 1 " + (root.c + root.r * sin(root.v * 360deg)) + " " + (root.c - root.r * cos(root.v * 360deg));
+    }
+    @children
+}
+
+/// Wykres z historii: linia i wypełnienie pod nią (ścieżki 0–100 × 0–100 liczy widgetlive.rs).
+export component Spark inherits Rectangle {
+    in property <string> line;
+    in property <string> area;
+    in property <color> tint: Theme.accent;
+    if root.area != "": Path {
+        width: root.width;
+        height: root.height;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        fit: fill;
+        commands: root.area;
+        fill: @linear-gradient(180deg, root.tint.with-alpha(0.38) 0%, root.tint.with-alpha(0.03) 100%);
+        stroke: transparent;
+        stroke-width: 0;
+    }
+    if root.line != "": Path {
+        width: root.width;
+        height: root.height;
+        viewbox-width: 100;
+        viewbox-height: 100;
+        fit: fill;
+        commands: root.line;
+        fill: transparent;
+        stroke: root.tint;
+        stroke-width: 1.6px;
+        stroke-line-join: round;
+        stroke-line-cap: round;
+    }
+}
+
+/// Wykres słupkowy z historii (wartości 0–1, najnowsza po prawej).
+export component Bars inherits Rectangle {
+    in property <[float]> values;
+    in property <color> tint: Theme.accent;
+    property <float> n: max(1, self.values.length);
+    for v[i] in root.values: Rectangle {
+        x: i * root.width / root.n;
+        width: max(1px, root.width / root.n - 1px);
+        height: max(1px, v * root.height);
+        y: root.height - self.height;
+        border-radius: 1px;
+        background: root.tint.with-alpha(0.3 + v * 0.6);
+    }
+}
+
+/// Tarcza księżyca w danej fazie (0 – nów, 0,5 – pełnia; przybywa z prawej).
+export component MoonDisc inherits Rectangle {
+    in property <float> phase;
+    property <length> side: min(self.width, self.height);
+    property <float> c: self.side / 2px;
+    property <float> p: self.phase - floor(self.phase);
+    property <float> rx: max(0.01, self.c * abs(cos(self.p * 360deg)));
+    property <bool> waxing: self.p < 0.5;
+    property <int> term: self.waxing ? (self.p < 0.25 ? 0 : 1) : (self.p < 0.75 ? 0 : 1);
+    Rectangle {
+        x: (root.width - root.side) / 2;
+        y: (root.height - root.side) / 2;
+        width: root.side;
+        height: root.side;
+        border-radius: root.side / 2;
+        background: #30333a;
+    }
+    Path {
+        x: (root.width - root.side) / 2;
+        y: (root.height - root.side) / 2;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        fill: #f1ead2;
+        stroke: transparent;
+        stroke-width: 0;
+        commands: "M " + root.c + " 0 A " + root.c + " " + root.c + " 0 0 " + (root.waxing ? 1 : 0) + " " + root.c + " " + (2 * root.c) + " A " + root.rx + " " + root.c + " 0 0 " + root.term + " " + root.c + " 0 Z";
+    }
+}
+
+/// Tarcza zegara analogowego: kąty wskazówek w stopniach; styl 0 – kreski, 1 – minimalny, 2 – cyfry.
+export component AnalogFace inherits Rectangle {
+    in property <float> ha;
+    in property <float> ma;
+    in property <float> sa;
+    in property <bool> seconds: true;
+    in property <int> style;
+    in property <color> tint: Theme.accent;
+    property <length> side: min(self.width, self.height);
+    property <length> ox: (self.width - self.side) / 2;
+    property <length> oy: (self.height - self.side) / 2;
+    property <float> c: self.side / 2px;
+    Rectangle {
+        x: root.ox;
+        y: root.oy;
+        width: root.side;
+        height: root.side;
+        border-radius: root.side / 2;
+        background: root.style == 1 ? transparent : Theme.card;
+        border-width: 1px;
+        border-color: root.style == 1 ? Theme.line-strong : Theme.line;
+    }
+    for k in 12: Path {
+        property <float> r1: mod(k, 3) == 0 ? root.c * 0.74 : root.c * 0.82;
+        x: root.ox;
+        y: root.oy;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        visible: root.style == 0 || (root.style == 1 && mod(k, 3) == 0);
+        fill: transparent;
+        stroke: mod(k, 3) == 0 ? Theme.text : Theme.faint;
+        stroke-width: mod(k, 3) == 0 ? max(1.5px, root.side * 0.022) : max(1px, root.side * 0.011);
+        stroke-line-cap: round;
+        commands: "M " + (root.c + self.r1 * sin(k * 30deg)) + " " + (root.c - self.r1 * cos(k * 30deg)) + " L " + (root.c + root.c * 0.9 * sin(k * 30deg)) + " " + (root.c - root.c * 0.9 * cos(k * 30deg));
+    }
+    if root.style == 2: Rectangle {
+        for k in 12: Text {
+            x: root.ox + root.side / 2 + root.side * 0.37 * sin(k * 30deg) - self.width / 2;
+            y: root.oy + root.side / 2 - root.side * 0.37 * cos(k * 30deg) - self.height / 2;
+            text: k == 0 ? 12 : k;
+            font-size: max(8px, root.side * 0.085);
+            color: mod(k, 3) == 0 ? Theme.text : Theme.dim;
+        }
+    }
+    // Wskazówki: godzinowa, minutowa, sekundowa (w kolorze akcentu) i środek.
+    Path {
+        x: root.ox;
+        y: root.oy;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        fill: transparent;
+        stroke: Theme.text;
+        stroke-width: max(2.5px, root.side * 0.04);
+        stroke-line-cap: round;
+        commands: "M " + root.c + " " + root.c + " L " + (root.c + root.c * 0.5 * sin(root.ha * 1deg)) + " " + (root.c - root.c * 0.5 * cos(root.ha * 1deg));
+    }
+    Path {
+        x: root.ox;
+        y: root.oy;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        fill: transparent;
+        stroke: Theme.text;
+        stroke-width: max(1.8px, root.side * 0.026);
+        stroke-line-cap: round;
+        commands: "M " + root.c + " " + root.c + " L " + (root.c + root.c * 0.74 * sin(root.ma * 1deg)) + " " + (root.c - root.c * 0.74 * cos(root.ma * 1deg));
+    }
+    if root.seconds: Path {
+        x: root.ox;
+        y: root.oy;
+        width: root.side;
+        height: root.side;
+        fit: preserve;
+        fill: transparent;
+        stroke: root.tint;
+        stroke-width: max(1px, root.side * 0.011);
+        stroke-line-cap: round;
+        commands: "M " + (root.c - root.c * 0.16 * sin(root.sa * 1deg)) + " " + (root.c + root.c * 0.16 * cos(root.sa * 1deg)) + " L " + (root.c + root.c * 0.84 * sin(root.sa * 1deg)) + " " + (root.c - root.c * 0.84 * cos(root.sa * 1deg));
+    }
+    Rectangle {
+        x: root.ox + root.side / 2 - self.width / 2;
+        y: root.oy + root.side / 2 - self.height / 2;
+        width: max(5px, root.side * 0.05);
+        height: self.width;
+        border-radius: self.width / 2;
+        background: root.seconds ? root.tint : Theme.text;
+    }
+}
+
+/// Okrągły przycisk z ikoną i podpowiedzią (stoper, minutnik, multimedia, głośność).
+export component RoundButton inherits Rectangle {
+    in property <string> icon;
+    in property <string> tip;
+    in property <bool> primary;
+    in property <color> tint: Theme.accent;
+    in property <length> size: 30px;
+    callback clicked;
+    width: self.size;
+    height: self.size;
+    border-radius: self.size / 2;
+    background: self.primary ? (rb-ta.pressed ? root.tint.darker(0.2) : root.tint) : rb-ta.pressed ? Theme.press : rb-ta.has-hover ? Theme.hover : Theme.card;
+    Icon {
+        commands: root.icon;
+        size: root.size * 0.5;
+        color: root.primary ? Theme.on-accent : Theme.text;
+    }
+    rb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Przycisk z napisem (kalkulator, minutnik, szybkie akcje).
+export component KeyButton inherits Rectangle {
+    in property <string> text;
+    in property <string> tip;
+    in property <bool> strong;
+    in property <color> tint: Theme.accent;
+    in property <length> font-size: 14px;
+    callback clicked;
+    border-radius: Theme.r-s;
+    background: self.strong ? (kb-ta.pressed ? root.tint.darker(0.2) : root.tint) : kb-ta.pressed ? Theme.press : kb-ta.has-hover ? Theme.hover : Theme.card;
+    Text {
+        text: root.text;
+        font-size: root.font-size;
+        color: root.strong ? Theme.on-accent : Theme.text;
+        horizontal-alignment: center;
+        vertical-alignment: center;
+    }
+    kb-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+

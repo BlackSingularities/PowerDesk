@@ -47,3 +47,20 @@ pub fn command(c: Cmd) {
         let _ = op.get();
     }
 }
+
+/// Okładka bieżącego utworu (zakodowany obraz, zwykle PNG albo JPEG) – wołać z wątku w tle.
+pub fn cover() -> Option<Vec<u8>> {
+    use windows::Storage::Streams::DataReader;
+    let s = session()?;
+    let props = s.TryGetMediaPropertiesAsync().ok()?.get().ok()?;
+    let stream = props.Thumbnail().ok()?.OpenReadAsync().ok()?.get().ok()?;
+    let size = stream.Size().ok()? as u32;
+    if size == 0 || size > 16 << 20 {
+        return None;
+    }
+    let reader = DataReader::CreateDataReader(&stream.GetInputStreamAt(0).ok()?).ok()?;
+    reader.LoadAsync(size).ok()?.get().ok()?;
+    let mut buf = vec![0u8; size as usize];
+    reader.ReadBytes(&mut buf).ok()?;
+    Some(buf)
+}

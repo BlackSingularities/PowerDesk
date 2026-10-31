@@ -1,6 +1,7 @@
-//! Dane widżetów z ustawieniami: zegary świata (strefy), pogoda (miejscowość), co teraz gra,
-//! zdjęcia z folderu i przypomnienia. Ustawienia są wspólne dla wszystkich widżetów danego
-//! rodzaju (prefs) – zmienia je menu widżetu (`config_items`).
+//! Dane widżetów z ustawieniami: zegary świata (strefy), domyślna miejscowość pogody, co teraz
+//! gra, zdjęcia z folderu i przypomnienia. Ustawienia są wspólne dla wszystkich widżetów danego
+//! rodzaju (prefs) – zmienia je menu widżetu (`config_items`); własne ustawienia pojedynczego
+//! widżetu (strefa, miejscowość, wygląd) – widgetcfg.rs. Pogodę pobiera widgetlive.rs.
 
 use std::cell::RefCell;
 use std::path::PathBuf;
@@ -9,13 +10,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use chrono::{Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Timelike};
 use powerdesk_core::nowplaying::{self, Cmd, Playing};
-use powerdesk_core::weather::{self, Weather};
 use slint::{ModelRc, VecModel};
 
 use crate::menus::{it, Item};
 use crate::model::Reminder;
 use crate::transfers::{self, Kind};
-use crate::{Shared, WFc, WRem, WZone, WidgetData};
+use crate::{Shared, WRem, WZone, WidgetData};
 
 /// Strefy, gdy użytkownik nie wybrał własnych.
 pub const DEFAULT_ZONES: [&str; 3] = ["Europe/London", "America/New_York", "Asia/Tokyo"];
@@ -49,12 +49,12 @@ const CITIES: [(&str, &str); 24] = [
     ("Pacific/Auckland", "Auckland"),
 ];
 
-fn city_of(zone: &str) -> String {
+pub fn city_of(zone: &str) -> String {
     CITIES.iter().find(|c| c.0 == zone).map(|c| c.1.to_string()).unwrap_or_else(|| zone.rsplit('/').next().unwrap_or(zone).replace('_', " "))
 }
 
 /// Strefa z wpisu użytkownika: nazwa strefy (Europe/Paris) albo polska nazwa miasta z listy.
-fn zone_of(entry: &str) -> Option<String> {
+pub fn zone_of(entry: &str) -> Option<String> {
     let e = entry.trim();
     if e.parse::<chrono_tz::Tz>().is_ok() {
         return Some(e.to_string());
@@ -65,8 +65,6 @@ fn zone_of(entry: &str) -> Option<String> {
 
 #[derive(Default)]
 struct Feeds {
-    weather: Option<Result<Weather, String>>,
-    weather_city: String,
     playing: Option<Playing>,
     photos: Vec<PathBuf>,
     photo_folder: String,
@@ -102,7 +100,7 @@ fn zones() -> Vec<String> {
     }
 }
 
-fn city() -> String {
+pub fn city() -> String {
     prefs(|p| p.weather_city.clone()).filter(|c| !c.trim().is_empty()).unwrap_or_else(|| DEFAULT_CITY.into())
 }
 
@@ -111,18 +109,6 @@ fn photo_folder() -> String {
 }
 
 // ---------- Pobieranie w tle ----------
-
-fn refresh_weather() {
-    let c = city();
-    F.with(|f| f.borrow_mut().weather_city = c.clone());
-    std::thread::spawn(move || {
-        let w = weather::fetch(&c);
-        let _ = slint::invoke_from_event_loop(move || {
-            F.with(|f| f.borrow_mut().weather = Some(w));
-            crate::widgets::push_all();
-        });
-    });
-}
 
 fn refresh_media() {
     if MEDIA_BUSY.swap(true, Ordering::SeqCst) {
@@ -139,6 +125,7 @@ fn refresh_media() {
                 c
             });
             if changed {
+                crate::widgetlive::media_changed(F.with(|f| f.borrow().playing.clone()));
                 crate::widgets::push_all();
             }
         });
@@ -316,20 +303,17 @@ fn fire_due(s: &Shared) {
 // ---------- Odświeżanie i dane ----------
 
 /// Co sekundę (`n` – licznik): przypomnienia; co 2 s – multimedia; co 15 s – zdjęcie;
-/// co 30 min – pogoda; zmiana miejscowości albo folderu – od razu.
+/// zmiana folderu – od razu.
 /// Pobieranie tylko dla widżetów, które gdzieś stoją (`used`); przypomnienia – zawsze.
 pub fn tick(n: u32, used: &std::collections::HashSet<String>) {
     crate::with_state(fire_due);
     if n % 2 == 0 && used.contains("media") {
         refresh_media();
     }
-    let (fresh_w, city_changed, folder_changed, no_photos) = F.with(|f| {
+    let (folder_changed, no_photos) = F.with(|f| {
         let f = f.borrow();
-        (f.weather.is_none(), f.weather_city != city(), f.photo_folder != photo_folder(), f.photo_folder.is_empty())
+        (f.photo_folder != photo_folder(), f.photo_folder.is_empty())
     });
-    if used.contains("weather") && (fresh_w || city_changed || n % 1800 == 0) {
-        refresh_weather();
-    }
     if used.contains("photos") {
         if no_photos || folder_changed || n % 600 == 0 {
             refresh_photos_list();
@@ -363,36 +347,6 @@ pub fn apply(g: &WidgetData) {
     g.set_zones(ModelRc::new(VecModel::from(z)));
     F.with(|f| {
         let f = f.borrow();
-        match &f.weather {
-            Some(Ok(w)) => {
-                g.set_w_ok(true);
-                g.set_w_city(w.place.clone().into());
-                g.set_w_temp(format!("{:.0}°", w.temp).into());
-                g.set_w_desc(weather::describe(w.code).into());
-                g.set_w_kind(weather::kind(w.code) as i32);
-                g.set_w_wind(format!("{:.0} km/h", w.wind).into());
-                const DAYS: [&str; 7] = ["pn", "wt", "śr", "cz", "pt", "so", "nd"];
-                let fc: Vec<WFc> = w
-                    .days
-                    .iter()
-                    .skip(1)
-                    .take(4)
-                    .map(|d| {
-                        let name = NaiveDate::parse_from_str(&d.date, "%Y-%m-%d").map(|x| DAYS[x.weekday().num_days_from_monday() as usize]).unwrap_or("");
-                        WFc { name: name.into(), kind: weather::kind(d.code) as i32, hi: format!("{:.0}°", d.max).into(), lo: format!("{:.0}°", d.min).into() }
-                    })
-                    .collect();
-                g.set_w_days(ModelRc::new(VecModel::from(fc)));
-            }
-            Some(Err(e)) => {
-                g.set_w_ok(false);
-                g.set_w_status(format!("Pogoda niedostępna: {e}").into());
-            }
-            None => {
-                g.set_w_ok(false);
-                g.set_w_status("Pobieranie pogody…".into());
-            }
-        }
         match &f.playing {
             Some(p) => {
                 g.set_m_has(true);
@@ -453,8 +407,8 @@ pub fn config_items(kind: &str) -> Vec<Item> {
                 }),
             );
         })],
-        "weather" => vec![
-            it("Zmień miejscowość…", "cloud", |s| {
+        "weather" | "forecast" => vec![
+            it("Zmień wspólną miejscowość…", "cloud", |s| {
                 crate::show_window(s);
                 transfers::prompt(
                     s,
@@ -464,13 +418,12 @@ pub fn config_items(kind: &str) -> Vec<Item> {
                     Rc::new(|_, text| {
                         let t = text.trim().to_string();
                         edit_prefs(|p| p.weather_city = t);
-                        F.with(|f| f.borrow_mut().weather = None);
-                        refresh_weather();
+                        crate::widgetlive::refresh_weather_all();
                         crate::widgets::push_all();
                     }),
                 );
             }),
-            it("Odśwież pogodę", "refresh", |_| refresh_weather()),
+            it("Odśwież pogodę", "refresh", |_| crate::widgetlive::refresh_weather_all()),
         ],
         "photos" => vec![
             it("Wybierz folder ze zdjęciami…", "folder", |s| {

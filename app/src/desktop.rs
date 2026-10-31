@@ -154,6 +154,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffe
         w.on_refresh(refresh);
         wire_widgets(&w, n);
         crate::edgepanels::wire(&w, n);
+        crate::widgetcfg::wire(&w.global::<crate::WidgetEdit>());
         crate::widgets::apply(&w.global::<crate::WidgetData>());
         if own {
             w.set_fit(0);
@@ -281,11 +282,35 @@ fn render_widgets(s: &Shared) {
             let items: Vec<WidgetItem> = all
                 .iter()
                 .filter(|x| x.monitor == n || (n == 0 && x.monitor >= d.windows.len()))
-                .map(|x| WidgetItem { kind: x.kind.clone().into(), note: x.note.clone().into(), x: x.x, y: x.y, w: x.w, h: x.h })
+                .map(|x| WidgetItem { kind: x.kind.clone().into(), note: x.note.clone().into(), x: x.x, y: x.y, w: x.w, h: x.h, cfg: crate::widgetcfg::to_slint(&x.kind, &x.cfg) })
                 .collect();
             w.set_widgets(ModelRc::new(VecModel::from(items)));
         }
     });
+}
+
+/// Przerysowanie widżetów wszystkich monitorów (po zmianie ustawień widżetu).
+pub fn refresh_widgets() {
+    crate::with_state(render_widgets);
+}
+
+/// Okno pulpitu monitora `n`, jeśli jest.
+pub fn with_window(n: usize, f: impl FnOnce(&DesktopWindow)) {
+    D.with(|d| {
+        if let Some(w) = d.borrow().windows.get(n) {
+            f(w);
+        }
+    });
+}
+
+/// Rozmiar okna monitora `n` w pikselach logicznych.
+fn logical_size(n: usize) -> (f32, f32) {
+    let mut out = (1920.0, 1080.0);
+    with_window(n, |w| {
+        let s = w.window().size().to_logical(w.window().scale_factor());
+        out = (s.width, s.height);
+    });
+    out
 }
 
 /// Numer widżetu w ustawieniach z numeru w modelu okna `n`.
@@ -328,10 +353,13 @@ fn wire_widgets(w: &DesktopWindow, n: usize) {
     w.on_widget_context(move |i, x, y| {
         let i = i as usize;
         let kind = widget_kind(n, i);
-        let mut items = crate::widgetfeeds::config_items(&kind);
-        if !items.is_empty() {
-            items.push(sep());
-        }
+        let mut items = vec![it("Dostosuj…", "settings", move |s| {
+            if let Some(k) = widget_index(s, n, i) {
+                crate::widgetcfg::open(crate::widgetcfg::Target::Desk { win: n, index: k }, x, y, logical_size(n));
+            }
+        })];
+        items.extend(crate::widgetfeeds::config_items(&kind));
+        items.push(sep());
         items.extend([
             it("Usuń widżet", "trash", move |s| {
                 if let Some(k) = widget_index(s, n, i) {
@@ -365,7 +393,7 @@ fn add_widget(s: &Shared, n: usize, kind: &str, x: f32, y: f32) {
     let (w, h) = crate::widgets::KINDS.iter().find(|k| k.0 == kind).map_or((240.0, 160.0), |k| k.4);
     {
         let mut b = s.borrow_mut();
-        b.prefs.desktop_widgets.push(crate::model::DeskWidget { kind: kind.to_string(), note: String::new(), monitor: n, x: snap(x), y: snap(y), w, h });
+        b.prefs.desktop_widgets.push(crate::model::DeskWidget { kind: kind.to_string(), note: String::new(), monitor: n, x: snap(x), y: snap(y), w, h, cfg: Default::default() });
         b.prefs.save();
     }
     render_widgets(s);
@@ -935,7 +963,13 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
         menus::sub(
             "Dodaj widżet",
             "plus",
-            crate::widgets::KINDS.iter().map(|&(kind, name, icon, _, _)| it(name, icon, move |s| add_widget(s, win, kind, at.0, at.1))).collect(),
+            crate::widgets::GROUPS
+                .iter()
+                .map(|&(group, gicon, kinds)| {
+                    let list = kinds.iter().filter_map(|k| crate::widgets::kind(k)).map(|(kind, name, icon, _, _)| it(name, icon, move |s| add_widget(s, win, kind, at.0, at.1))).collect();
+                    menus::sub(group, gicon, list)
+                })
+                .collect(),
         ),
         menus::sub(
             "Folder przy krawędzi",

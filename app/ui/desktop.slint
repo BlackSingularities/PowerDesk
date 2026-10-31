@@ -24,8 +24,9 @@ export struct DeskIcon {
 /// Pulpit na jednym monitorze (desktop.rs): tapeta z ustawień Windows i ikony w siatce.
 /// Zaznaczanie kliknięciem, z Ctrl i Shift oraz ramką; przeciąganie przenosi zaznaczone
 /// ikony na inne miejsca; menu w stylu PowerDesk. Okno jest dzieckiem Progman (desktop.rs).
-import { WidgetBody, WidgetItem } from "widgets.slint";
 import { EdgePanelView, EdgePanel } from "edgepanel.slint";
+import { WidgetBody, WidgetItem, WidgetData } from "widgets.slint";
+import { WidgetConfigPanel, TipBubble } from "wconfig.slint";
 
 export component DesktopWindow inherits Window {
     no-frame: true;
@@ -316,10 +317,10 @@ export component DesktopWindow inherits Window {
         width: max(120px, wd.w + self.dw);
         height: max(80px, wd.h + self.dh);
         drop-shadow-blur: 18px;
-        drop-shadow-color: #00000055;
+        drop-shadow-color: wd.cfg.style == 3 ? transparent : #00000055;
         border-radius: Theme.r;
-        // Notatka i multimedia mają w środku pole albo przyciski – chwyta się je za górny pasek.
-        property <bool> grab-bar: wd.kind == "note" || wd.kind == "media" || wd.kind == "todo" || wd.kind == "clipboard";
+        // Widżety z polem albo przyciskami w środku – chwyta się je za górny pasek.
+        property <bool> grab-bar: WidgetData.interactive(wd.kind);
         mv-ta := TouchArea {
             height: parent.grab-bar ? 22px : parent.height;
             y: 0;
@@ -346,6 +347,7 @@ export component DesktopWindow inherits Window {
             height: parent.height;
             kind: wd.kind;
             note: wd.note;
+            cfg: wd.cfg;
             // Poza notatką treść nie łapie myszy – przeciąganie działa w całym widżecie.
             note-edited(txt) => {
                 root.widget-note(i, txt);
@@ -458,6 +460,12 @@ export component DesktopWindow inherits Window {
         border-color: Theme.accent;
     }
 
+    // Panel „Dostosuj…” widżetu – nad treścią pulpitu, pod menu.
+    WidgetConfigPanel {
+        width: root.width;
+        height: root.height;
+    }
+
     menu := MenuPopup {
         x: root.menu-x;
         y: root.menu-y;
@@ -480,6 +488,11 @@ export component DesktopWindow inherits Window {
             root.key(e.text, e.modifiers.control, e.modifiers.shift);
             accept
         }
+    }
+
+    TipBubble {
+        width: root.width;
+        height: root.height;
     }
 
     init => {

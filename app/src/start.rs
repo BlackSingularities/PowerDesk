@@ -146,10 +146,19 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
         }
     });
     w.on_tiles_context(|x, y| {
-        // Płaska lista: podmenu wyszłoby poza okno Startu (menu rysuje się w jego obrębie).
-        let add: Vec<Item> = crate::widgets::KINDS
+        // Bez podmenu (wyszłoby poza okno Startu): grupa otwiera w tym miejscu listę swoich widżetów.
+        let add: Vec<Item> = crate::widgets::GROUPS
             .iter()
-            .map(|&(kind, name, icon, size, _)| it(format!("Dodaj widżet: {name}"), icon, move |_| edit_groups(|gs| tiles::add_widget(gs, kind, size))))
+            .map(|&(group, icon, kinds)| {
+                it(format!("Dodaj widżet: {group}…"), icon, move |_| {
+                    let list: Vec<Item> = kinds
+                        .iter()
+                        .filter_map(|k| crate::widgets::kind(k))
+                        .map(|(kind, name, icon, size, _)| it(name, icon, move |_| edit_groups(|gs| tiles::add_widget(gs, kind, size))))
+                        .collect();
+                    slint::Timer::single_shot(Duration::ZERO, move || show_menu(list, x, y));
+                })
+            })
             .collect();
         show_menu(add, x, y);
     });
@@ -220,6 +229,7 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     powerdesk_core::taskwin::activate(hwnd);
     w.invoke_focus_search();
     crate::widgets::apply(&w.global::<crate::WidgetData>());
+    crate::widgetcfg::wire(&w.global::<crate::WidgetEdit>());
     START.with(|s| *s.borrow_mut() = Some(Start { w, shown: Vec::new(), menu: Vec::new() }));
     render();
     preload();
@@ -257,6 +267,7 @@ fn has_focus() -> bool {
 pub fn close() {
     SHOW_HIDDEN.with(|h| h.set(false));
     FOLDER.with(|f| f.set(None));
+    crate::widgetcfg::start_closed();
     if let Some(s) = START.with(|s| s.borrow_mut().take()) {
         CLOSED.with(|c| c.set(Some((SEARCH.with(|m| m.get()), std::time::Instant::now()))));
         let _ = s.w.hide();
@@ -307,7 +318,7 @@ fn groups() -> Vec<StartGroup> {
 }
 
 /// Zmiana grup: zapis i przerysowanie. Otwarty folder, który zniknął, się zamyka.
-fn edit_groups(f: impl FnOnce(&mut Vec<StartGroup>)) {
+pub fn edit_groups(f: impl FnOnce(&mut Vec<StartGroup>)) {
     let mut gs = groups();
     f(&mut gs);
     if let Some((g, t)) = FOLDER.with(|x| x.get()) {
@@ -415,6 +426,17 @@ fn launch_tile(i: usize) {
             }
             "media" => crate::widgetfeeds::media(1),
             "photos" => crate::widgetfeeds::next_photo(),
+            "cpu" | "ram" | "gpu" | "pcinfo" => {
+                let _ = std::process::Command::new("taskmgr.exe").spawn();
+            }
+            "battery" => powerdesk_core::sysbar::open_settings("batterysaver"),
+            "wifi" | "network" => powerdesk_core::sysbar::open_settings("network-status"),
+            "volume" => powerdesk_core::sysbar::open_settings("sound"),
+            "calc" => {
+                let _ = std::process::Command::new("calc.exe").spawn();
+            }
+            "stopwatch" => crate::widgettools::stopwatch(0),
+            "timer" => crate::widgettools::timer(0),
             _ => {}
         }
         return;
@@ -461,6 +483,13 @@ fn tile_menu(i: usize, x: f32, y: f32) {
                 })
             }));
         }
+        items.push(it("Dostosuj…", "settings", move |_| {
+            let size = START.with(|s| s.borrow().as_ref().map(|s| {
+                let l = s.w.window().size().to_logical(s.w.window().scale_factor());
+                (l.width, l.height)
+            }));
+            crate::widgetcfg::open(crate::widgetcfg::Target::Start(at), x, y, size.unwrap_or((660.0, 640.0)));
+        }));
         items.extend(crate::widgetfeeds::config_items(&pin.widget));
         items.push(size_menu(at, pin.size));
         items.push(sep());
@@ -615,6 +644,7 @@ fn render() {
                     minis: ModelRc::new(VecModel::from(minis)),
                     widget: pin.widget.clone().into(),
                     note: pin.note.clone().into(),
+                    cfg: crate::widgetcfg::to_slint(&pin.widget, &pin.cfg),
                 })
             })
             .collect();

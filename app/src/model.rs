@@ -1010,6 +1010,35 @@ pub struct StartPin {
     /// Widżet zamiast aplikacji (rodzaj z widgets.rs) i treść notatki.
     pub widget: String,
     pub note: String,
+    /// Wygląd i źródło danych widżetu („Dostosuj…”).
+    pub cfg: WidgetCfg,
+}
+
+/// Ustawienia jednego widżetu (pulpit i kafelek Startu): wygląd, układ, format i źródło danych.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
+pub struct WidgetCfg {
+    /// Kolor akcentu „#rrggbb”; pusty – akcent motywu.
+    pub accent: String,
+    /// Krycie tła w procentach (0–100).
+    pub alpha: f32,
+    /// 0 – karta, 1 – szkło, 2 – w kolorze akcentu, 3 – bez tła.
+    pub style: u8,
+    /// Układ treści – lista zależy od rodzaju (widgetcfg.rs).
+    pub variant: u8,
+    pub h12: bool,
+    pub seconds: bool,
+    pub fahrenheit: bool,
+    /// Własny tytuł; pusty – nazwa rodzaju.
+    pub title: String,
+    /// Źródło danych: strefa czasowa, miejscowość albo folder (pusty – domyślne).
+    pub source: String,
+}
+
+impl Default for WidgetCfg {
+    fn default() -> Self {
+        WidgetCfg { accent: String::new(), alpha: 86.0, style: 0, variant: 0, h12: false, seconds: true, fahrenheit: false, title: String::new(), source: String::new() }
+    }
 }
 
 /// Zadanie w widżecie zadań.
@@ -1039,6 +1068,7 @@ pub struct DeskWidget {
     pub y: f32,
     pub w: f32,
     pub h: f32,
+    pub cfg: WidgetCfg,
 }
 
 impl StartPin {

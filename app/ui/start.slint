@@ -2,7 +2,8 @@ import { Theme } from "theme.slint";
 import { Icons } from "icons.slint";
 import { Icon, TipArea } from "components.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
-import { WidgetBody } from "widgets.slint";
+import { WidgetBody, WCfg, WidgetData } from "widgets.slint";
+import { WidgetConfigPanel, TipBubble } from "wconfig.slint";
 
 /// Wiersz listy aplikacji: litera (nagłówek grupy) albo aplikacja.
 export struct StartRow {
@@ -34,6 +35,8 @@ export struct StartTile {
     /// Widżet (rodzaj) zamiast aplikacji i treść notatki.
     widget: string,
     note: string,
+    /// Ustawienia widżetu („Dostosuj…”).
+    cfg: WCfg,
 }
 
 /// Nagłówek grupy kafelków (nazwa do wpisania jak w Windows 10).
@@ -444,7 +447,7 @@ export component StartWindow inherits Window {
                         root.group-rename(g, self.text);
                     }
                 }
-                for t[i] in root.tiles: Rectangle {
+                for t[i] in root.tiles: tile := Rectangle {
                     x: t.x;
                     y: t.y;
                     width: t.w;
@@ -453,11 +456,14 @@ export component StartWindow inherits Window {
                     background: tl-ta.has-hover ? Theme.hover : Theme.card;
                     opacity: root.drag-index == i ? 0.4 : 1;
                     property <length> icon: t.size == 1 ? 24px : t.size == 3 ? 48px : 32px;
-                    if t.widget != "": WidgetBody {
+                    // Widżet z przyciskami (średni i większy) leży nad kafelkiem i sam przyjmuje kliknięcia.
+                    property <bool> live: t.widget != "" && t.size != 1 && WidgetData.interactive(t.widget) && t.widget != "note";
+                    if t.widget != "" && !tile.live: WidgetBody {
                         width: parent.width;
                         height: parent.height;
                         kind: t.widget;
                         note: t.note;
+                        cfg: t.cfg;
                         editable: false;
                     }
                     if t.widget == "" && !t.folder && t.has-img: Image {
@@ -523,12 +529,21 @@ export component StartWindow inherits Window {
                             }
                         }
                     }
+                    if tile.live: WidgetBody {
+                        width: parent.width;
+                        height: parent.height;
+                        kind: t.widget;
+                        note: t.note;
+                        cfg: t.cfg;
+                        editable: false;
+                    }
                     // Pisanie w notatce (z menu kafelka) – pole nad kafelkiem, Esc albo klik obok kończy.
                     if root.editing == i: WidgetBody {
                         width: parent.width;
                         height: parent.height;
                         kind: "note";
                         note: t.note;
+                        cfg: { alpha: 1, seconds: true };
                         editable: true;
                         note-edited(txt) => {
                             root.tile-note(i, txt);
@@ -573,6 +588,11 @@ export component StartWindow inherits Window {
         }
     }
 
+    WidgetConfigPanel {
+        width: root.width;
+        height: root.height;
+    }
+
     menu := MenuPopup {
         x: root.menu-x;
         y: root.menu-y;
@@ -581,5 +601,10 @@ export component StartWindow inherits Window {
         chosen(i) => {
             root.menu-chosen(i);
         }
+    }
+
+    TipBubble {
+        width: root.width;
+        height: root.height;
     }
 }
