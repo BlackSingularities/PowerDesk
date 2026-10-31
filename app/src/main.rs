@@ -5,6 +5,7 @@ mod archives;
 mod bulk;
 mod desktop;
 mod dragdrop;
+mod edgepanels;
 mod taskbar;
 mod taskview;
 mod start;

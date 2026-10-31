@@ -153,6 +153,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffe
         }
         w.on_refresh(refresh);
         wire_widgets(&w, n);
+        crate::edgepanels::wire(&w, n);
         crate::widgets::apply(&w.global::<crate::WidgetData>());
         if own {
             w.set_fit(0);
@@ -170,6 +171,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffe
     });
     render(s);
     render_widgets(s);
+    crate::edgepanels::render(s);
     crate::widgets::start();
     crate::wallpapers::start_timer();
     // Okno systemowe powstaje dopiero w pętli zdarzeń – styl (bez paska zadań i Alt+Tab)
@@ -258,6 +260,11 @@ pub fn set_wallpaper(n: usize, buf: Option<SharedPixelBuffer<Rgba8Pixel>>, own: 
             w.set_fit(0);
         }
     });
+}
+
+/// Okna pulpitu w ich kolejności (panele folderów przy krawędziach).
+pub fn windows() -> Vec<DesktopWindow> {
+    D.with(|d| d.borrow().windows.iter().map(|w| w.clone_strong()).collect())
 }
 
 /// Okna pulpitu (widżety odświeżają ich dane).
@@ -396,6 +403,7 @@ fn wire_icons(s: &Shared, w: &DesktopWindow) {
 
 pub fn close() {
     WATCH.with(|t| t.stop());
+    crate::edgepanels::clear();
     let ws = D.with(|d| {
         let mut d = d.borrow_mut();
         d.sel.clear();
@@ -458,7 +466,7 @@ fn layout(items: &[Entry], saved: &std::collections::HashMap<String, (i32, i32)>
 }
 
 /// Nazwa jak na pulpicie Windows: skróty bez .lnk / .url.
-fn label(e: &Entry) -> String {
+pub fn label(e: &Entry) -> String {
     let low = e.name.to_lowercase();
     if !e.dir && (low.ends_with(".lnk") || low.ends_with(".url")) {
         e.name[..e.name.len() - 4].to_string()
@@ -534,6 +542,9 @@ fn render(s: &Shared) {
 
 /// Miniatury i ikony dochodzą w tle – przerysowujemy, gdy trafiły ikony z pulpitu.
 pub fn thumbs_arrived(paths: &HashSet<String>) {
+    if is_open() {
+        crate::edgepanels::thumbs_arrived(paths);
+    }
     if is_open() && D.with(|d| d.borrow().items.iter().any(|e| paths.contains(&e.path))) {
         crate::with_state(render);
     }
@@ -926,6 +937,11 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
             "plus",
             crate::widgets::KINDS.iter().map(|&(kind, name, icon, _, _)| it(name, icon, move |s| add_widget(s, win, kind, at.0, at.1))).collect(),
         ),
+        menus::sub(
+            "Folder przy krawędzi",
+            "panel",
+            (0..3u8).map(|k| it(format!("{}…", crate::edgepanels::EDGES[k as usize]), "panel", move |s| crate::edgepanels::pick_and_add(s, win, k))).collect(),
+        ),
         sep(),
         it("Otwórz folder Pulpit", "folder", |s| crate::open_args(s, vec![desktop_dir()])),
         menus::sub("Tapeta", "image", {
@@ -991,6 +1007,16 @@ fn icon_menu(_s: &Shared, x: f32, y: f32) {
     if let Some(e) = one.as_ref().filter(|e| e.dir) {
         let p = e.path.clone();
         v.push(it("Otwórz w nowej karcie", "plus", move |s| crate::open_args(s, vec![p.clone()])));
+        // Folder z pulpitu jako wysuwany panel przy krawędzi (jak skrót, tylko rozwijany).
+        let p = e.path.clone();
+        v.push(menus::sub(
+            "Przypnij do krawędzi",
+            "panel",
+            (0..3u8).map(|k| {
+                let p = p.clone();
+                it(crate::edgepanels::EDGES[k as usize], "panel", move |s| crate::edgepanels::add(s, p.clone(), 0, k))
+            }).collect(),
+        ));
     }
     v.extend([
         sep(),

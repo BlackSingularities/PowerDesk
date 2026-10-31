@@ -2,10 +2,10 @@
 //! domyślny widok, przeglądanie, podgląd, potwierdzenia, skróty i informacje o programie.
 //! Każda zmiana od razu działa i trafia do prefs.json.
 
-use slint::{Color, ComponentHandle, ModelRc, VecModel};
+use slint::{Color, ComponentHandle, Model, ModelRc, VecModel};
 
 use crate::model::{Prefs, View};
-use crate::{SettingsState, Shared, SideSection, SysItem, Theme};
+use crate::{EdgeRow, SettingsState, Shared, SideSection, SysItem, Theme};
 
 pub const TAB: &str = "ofp:settings";
 
@@ -211,6 +211,39 @@ fn render(s: &Shared) {
     g.set_prefs_path(prefs_path().into());
     drop(b);
     render_overlay(s);
+    refresh_edges(s);
+}
+
+/// Lista paneli przy krawędziach; przy tej samej liczbie paneli tylko podmienia wiersze
+/// (przesuwany suwak szerokości nie traci myszy).
+pub fn refresh_edges(s: &Shared) {
+    let rows: Vec<EdgeRow> = s
+        .borrow()
+        .prefs
+        .edge_panels
+        .iter()
+        .map(|e| EdgeRow {
+            name: std::path::Path::new(&e.folder).file_name().map_or_else(|| e.folder.clone(), |n| n.to_string_lossy().to_string()).into(),
+            path: e.folder.clone().into(),
+            monitor: e.monitor as i32,
+            edge: e.edge as i32,
+            width: e.width,
+        })
+        .collect();
+    let monitors = crate::desktop::windows().len().max(1) as i32;
+    with_ui(s, |g| {
+        g.set_edge_monitors(monitors);
+        let model = g.get_edge_rows();
+        if model.row_count() == rows.len() && rows.len() > 0 {
+            for (i, r) in rows.into_iter().enumerate() {
+                if model.row_data(i).as_ref() != Some(&r) {
+                    model.set_row_data(i, r);
+                }
+            }
+        } else {
+            g.set_edge_rows(ModelRc::new(VecModel::from(rows)));
+        }
+    });
 }
 
 /// Zmiana ustawień, zapis i odświeżenie ekranu.
@@ -615,6 +648,16 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         change(&s, |p| p.desktop_icon_size = n.clamp(0, 2) as u8);
         crate::desktop::relayout();
     });
+    let s = st.clone();
+    g.on_edge_add(move |e| crate::edgepanels::pick_and_add(&s, 0, e.clamp(0, 2) as u8));
+    let s = st.clone();
+    g.on_edge_remove(move |i| crate::edgepanels::remove(&s, i as usize));
+    let s = st.clone();
+    g.on_edge_set_edge(move |i, e| crate::edgepanels::edit(&s, i as usize, |p| p.edge = e.clamp(0, 2) as u8));
+    let s = st.clone();
+    g.on_edge_set_monitor(move |i, m| crate::edgepanels::edit(&s, i as usize, |p| p.monitor = m.max(0) as usize));
+    let s = st.clone();
+    g.on_edge_set_width(move |i, w| crate::edgepanels::edit(&s, i as usize, |p| p.width = w.clamp(160.0, 900.0)));
     let s = st.clone();
     g.on_app_quit(move |what| app_quit(&s, what));
     g.on_open_prefs_folder(|| {
