@@ -1,0 +1,302 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, Tip, TipArea } from "components.slint";
+
+/// Element folderu w panelu przy krawędzi.
+export struct EdgeItem {
+    name: string,
+    img: image,
+    has-img: bool,
+    dir: bool,
+}
+
+/// Panel folderu przypięty do krawędzi pulpitu (edgepanels.rs): krawędź (0 – lewa, 1 – prawa,
+/// 2 – górna), odcinek krawędzi (początek i długość), szerokość po wysunięciu, bieżący folder.
+export struct EdgePanel {
+    edge: int,
+    x: length,
+    y: length,
+    len: length,
+    size: length,
+    title: string,
+    path: string,
+    /// Bieżący folder to folder główny panelu.
+    root: bool,
+    items: [EdgeItem],
+}
+
+/// Zwinięty – wąski pasek przy krawędzi; po najechaniu wysuwa się i pokazuje zawartość folderu.
+/// Klik w folder wchodzi w głąb, w plik – otwiera go. Po zjechaniu kursorem chowa się
+/// z opóźnieniem (`collapsed` – Rust wraca wtedy do folderu głównego). Nachodzi na pulpit.
+export component EdgePanelView inherits Rectangle {
+    in property <EdgePanel> data;
+    /// Szerokość okna monitora – do prawej krawędzi.
+    in property <length> area-w;
+    callback open-item(int);
+    /// Boczny przycisk myszy „wstecz” – folder wyżej (bez wychodzenia ponad folder główny).
+    callback up();
+    callback to-root();
+    callback full();
+    callback collapsed();
+    callback resized(length);
+    callback context(length, length);
+
+    property <bool> horiz: root.data.edge == 2;
+    property <length> strip: 6px;
+    property <bool> open;
+    property <bool> resizing;
+    /// Zmiana szerokości w trakcie przeciągania (zapis po puszczeniu).
+    property <length> dsize;
+    property <length> depth: root.open ? clamp(root.data.size + root.dsize, 160px, 900px) : root.strip;
+    property <bool> hot: hover.has-hover || root.resizing;
+
+    x: root.data.edge == 0 ? 0 : root.data.edge == 1 ? root.area-w - root.depth : root.data.x;
+    y: root.horiz ? 0 : root.data.y;
+    width: root.horiz ? root.data.len : root.depth;
+    height: root.horiz ? root.depth : root.data.len;
+    animate x, width, height {
+        duration: root.resizing ? 0ms : 140ms;
+        easing: ease-out;
+    }
+
+    // Krótkie opóźnienie przy wysuwaniu (kursor przejeżdżający przez krawędź) i przy chowaniu.
+    Timer {
+        interval: 140ms;
+        running: root.hot && !root.open;
+        triggered => {
+            root.open = true;
+        }
+    }
+
+    Timer {
+        interval: 450ms;
+        running: root.open && !root.hot;
+        triggered => {
+            root.open = false;
+            root.dsize = 0;
+            root.collapsed();
+        }
+    }
+
+    // Zwinięty: pasek przy krawędzi.
+    if !root.open: Rectangle {
+        border-radius: 3px;
+        background: Theme.popup.with-alpha(0.55);
+        border-width: 1px;
+        border-color: #ffffff40;
+    }
+
+    // Wysunięty: tło po stronie pulpitu zaokrąglone, przy krawędzi ekranu – proste.
+    if root.open: Rectangle {
+        background: Theme.popup;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        border-top-left-radius: root.data.edge == 1 ? Theme.r-l : 0;
+        border-bottom-left-radius: root.data.edge == 1 || root.horiz ? Theme.r-l : 0;
+        border-top-right-radius: root.data.edge == 0 ? Theme.r-l : 0;
+        border-bottom-right-radius: root.data.edge == 0 || root.horiz ? Theme.r-l : 0;
+        drop-shadow-blur: 18px;
+        drop-shadow-color: #00000055;
+    }
+
+    // Cały panel w jednym obszarze – najechanie na elementy w środku też się liczy.
+    hover := TouchArea {
+        pointer-event(e) => {
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
+                root.context(self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
+            }
+            if (e.kind == PointerEventKind.up && e.button == PointerEventButton.back) {
+                root.up();
+            }
+        }
+
+        if root.open: VerticalLayout {
+            width: parent.width;
+            height: parent.height;
+            padding: 8px;
+            padding-left: root.data.edge == 1 ? 12px : 8px;
+            padding-right: root.data.edge == 0 ? 12px : 8px;
+            padding-bottom: root.horiz ? 12px : 8px;
+            spacing: 6px;
+
+            HorizontalLayout {
+                height: 26px;
+                spacing: 6px;
+                Rectangle {
+                    horizontal-stretch: 1;
+                    border-radius: Theme.r-s;
+                    background: !root.data.root && ttl-ta.has-hover ? Theme.hover : transparent;
+                    Text {
+                        x: 6px;
+                        width: parent.width - 12px;
+                        text: root.data.title;
+                        font-family: Theme.font;
+                        font-size: 13px;
+                        font-weight: 600;
+                        color: Theme.text;
+                        vertical-alignment: center;
+                        overflow: elide;
+                    }
+                    ttl-ta := TipArea {
+                        tip: root.data.root ? root.data.path : root.data.path + "\nKliknij, aby wrócić do folderu głównego";
+                        clicked => {
+                            root.to-root();
+                        }
+                    }
+                }
+                Rectangle {
+                    width: 26px;
+                    border-radius: Theme.r-s;
+                    background: fs-ta.pressed ? Theme.press : fs-ta.has-hover ? Theme.hover : transparent;
+                    Icon {
+                        commands: Icons.fullscreen;
+                        size: 14px;
+                        color: fs-ta.has-hover ? Theme.text : Theme.dim;
+                    }
+                    fs-ta := TipArea {
+                        tip: "Otwórz ten folder w oknie PowerDesk";
+                        clicked => {
+                            root.full();
+                        }
+                    }
+                }
+            }
+
+            flick := Flickable {
+                vertical-stretch: 1;
+                content-height: max(self.height, root.data.items.length * 32px);
+                property <string> shown: root.data.path;
+                changed shown => {
+                    self.content-y = 0;
+                }
+                for it[k] in root.data.items: Rectangle {
+                    y: k * 32px;
+                    height: 30px;
+                    border-radius: Theme.r-s;
+                    background: row-ta.pressed ? Theme.press : row-ta.has-hover ? Theme.hover : transparent;
+                    HorizontalLayout {
+                        padding-left: 6px;
+                        padding-right: 6px;
+                        spacing: 8px;
+                        Rectangle {
+                            width: 20px;
+                            if it.has-img: Image {
+                                width: 20px;
+                                height: 20px;
+                                source: it.img;
+                                image-fit: contain;
+                            }
+                            if !it.has-img: Icon {
+                                commands: it.dir ? Icons.folder : Icons.file;
+                                size: 17px;
+                                color: Theme.dim;
+                            }
+                        }
+                        Text {
+                            horizontal-stretch: 1;
+                            text: it.name;
+                            font-family: Theme.font;
+                            font-size: 12.5px;
+                            color: Theme.text;
+                            vertical-alignment: center;
+                            overflow: elide;
+                        }
+                        if it.dir: Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: Icons.chevron;
+                            size: 12px;
+                            color: Theme.faint;
+                        }
+                    }
+                    row-ta := TipArea {
+                        tip: it.dir ? it.name + "\nKliknij, aby wejść do folderu" : it.name + "\nKliknij, aby otworzyć";
+                        clicked => {
+                            root.open-item(k);
+                        }
+                    }
+                }
+            }
+            if root.data.items.length == 0: Text {
+                text: "Pusty folder";
+                font-family: Theme.font;
+                font-size: 12px;
+                color: Theme.faint;
+                horizontal-alignment: center;
+            }
+        }
+
+        // Uchwyt szerokości po stronie pulpitu: przeciąganie zmienia szerokość, zapis po puszczeniu.
+        if root.open: grip := Rectangle {
+            x: root.data.edge == 0 ? parent.width - 6px : 0;
+            y: root.horiz ? parent.height - 6px : 0;
+            width: root.horiz ? parent.width : 6px;
+            height: root.horiz ? 6px : parent.height;
+            Rectangle {
+                width: 4px;
+                height: 4px;
+                border-radius: 2px;
+                background: gr-ta.has-hover || root.resizing ? Theme.dim : transparent;
+            }
+            gr-ta := TipArea {
+                tip: "Przeciągnij, aby zmienić szerokość panelu";
+                mouse-cursor: root.horiz ? MouseCursor.ns-resize : MouseCursor.ew-resize;
+                moved => {
+                    if (self.pressed) {
+                        root.resizing = true;
+                        // Uchwyt jedzie razem z krawędzią – przesunięcie od wciśnięcia to przyrost.
+                        root.dsize = clamp(root.data.size + root.dsize + (root.data.edge == 0 ? self.mouse-x - self.pressed-x : root.data.edge == 1 ? self.pressed-x - self.mouse-x : self.mouse-y - self.pressed-y), 160px, 900px) - root.data.size;
+                    }
+                }
+                pointer-event(e) => {
+                    if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.resizing) {
+                        root.resizing = false;
+                        root.resized(clamp(root.data.size + root.dsize, 160px, 900px));
+                        // Nowa szerokość już w danych panelu (edgepanels.rs podmienia wiersz od razu).
+                        root.dsize = 0;
+                    }
+                }
+            }
+        }
+    }
+
+    // Podpowiedź (okno pulpitu nie rysuje wspólnego dymka) – tylko dla kontrolek tego panelu.
+    property <int> tip-serial: Tip.serial;
+    property <bool> tip-on;
+    property <length> tip-x: Tip.x - self.absolute-position.x;
+    property <length> tip-y: Tip.y - self.absolute-position.y;
+    property <bool> tip-mine: root.open && Tip.text != "" && self.tip-x >= 0 && self.tip-x <= self.width && self.tip-y >= 0 && self.tip-y <= self.height;
+    changed tip-serial => {
+        self.tip-on = false;
+    }
+    Timer {
+        interval: 600ms;
+        running: root.tip-mine && !root.tip-on;
+        triggered => {
+            root.tip-on = true;
+        }
+    }
+
+    if root.tip-mine && root.tip-on: Rectangle {
+        property <length> bw: min(tip-text.preferred-width + 16px, root.width - 16px);
+        x: clamp(root.tip-x - self.bw / 2, 8px, max(8px, root.width - self.bw - 8px));
+        y: root.tip-y + 34px > root.height ? root.tip-y - self.height - 12px : root.tip-y + 20px;
+        width: self.bw;
+        height: tip-text.preferred-height + 10px;
+        border-radius: Theme.r-s;
+        background: Theme.popup-high;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        drop-shadow-blur: 8px;
+        drop-shadow-color: #00000044;
+        tip-text := Text {
+            x: 8px;
+            width: parent.width - 16px;
+            text: Tip.text;
+            font-family: Theme.font;
+            font-size: 11.5px;
+            color: Theme.text;
+            wrap: word-wrap;
+            vertical-alignment: center;
+        }
+    }
+}

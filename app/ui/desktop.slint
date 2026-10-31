@@ -25,6 +25,7 @@ export struct DeskIcon {
 /// Zaznaczanie kliknięciem, z Ctrl i Shift oraz ramką; przeciąganie przenosi zaznaczone
 /// ikony na inne miejsca; menu w stylu PowerDesk. Okno jest dzieckiem Progman (desktop.rs).
 import { WidgetBody, WidgetItem } from "widgets.slint";
+import { EdgePanelView, EdgePanel } from "edgepanel.slint";
 
 export component DesktopWindow inherits Window {
     no-frame: true;
@@ -43,6 +44,15 @@ export component DesktopWindow inherits Window {
     callback widget-resized(int, length, length);
     callback widget-context(int, length, length);
     callback widget-note(int, string);
+    /// Panele folderów przy krawędziach tego monitora (edgepanels.rs).
+    in property <[EdgePanel]> edge-panels;
+    callback edge-open(int, int);
+    callback edge-up(int);
+    callback edge-root(int);
+    callback edge-full(int);
+    callback edge-collapsed(int);
+    callback edge-resized(int, length);
+    callback edge-context(int, length, length);
 
     // Menu (MenuPopup jak w głównym oknie) – pozycje i miejsce podaje desktop.rs.
     in property <[MenuEntry]> menu-entries;
@@ -407,6 +417,33 @@ export component DesktopWindow inherits Window {
                 viewbox-width: 10;
                 viewbox-height: 10;
             }
+        }
+    }
+
+    // Panele folderów przy krawędziach – nad ikonami i widżetami.
+    for ep[i] in root.edge-panels: EdgePanelView {
+        data: ep;
+        area-w: root.width;
+        open-item(k) => {
+            root.edge-open(i, k);
+        }
+        up => {
+            root.edge-up(i);
+        }
+        to-root => {
+            root.edge-root(i);
+        }
+        full => {
+            root.edge-full(i);
+        }
+        collapsed => {
+            root.edge-collapsed(i);
+        }
+        resized(w) => {
+            root.edge-resized(i, w);
+        }
+        context(x, y) => {
+            root.edge-context(i, x, y);
         }
     }
 

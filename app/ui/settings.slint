@@ -16,6 +16,15 @@ export struct SysItem {
     ok: bool,
 }
 
+/// Panel folderu przy krawędzi pulpitu (edgepanels.rs): folder, monitor, krawędź, szerokość.
+export struct EdgeRow {
+    name: string,
+    path: string,
+    monitor: int,
+    edge: int,
+    width: float,
+}
+
 /// Ekran ustawień (SettingsView.svelte) – dane i zapis w settings.rs.
 export global SettingsState {
     in-out property <bool> open;
@@ -119,6 +128,14 @@ export global SettingsState {
     in-out property <bool> desktop-free;
     in-out property <bool> desktop-computer: true;
     callback set-desktop-icon-size(int);
+    /// Foldery przy krawędziach pulpitu i liczba monitorów (okien pulpitu).
+    in-out property <[EdgeRow]> edge-rows;
+    in-out property <int> edge-monitors: 1;
+    callback edge-add(int);
+    callback edge-remove(int);
+    callback edge-set-edge(int, int);
+    callback edge-set-monitor(int, int);
+    callback edge-set-width(int, float);
     /// PowerDesk jest powłoką systemu (zamiast explorer.exe).
     in-out property <bool> shell-mode;
     /// Zakończenie: 0 – uruchom ponownie, 1 – zakończ, 2 – przełącz na Eksplorator (tryb powłoki).
@@ -933,6 +950,117 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.desktop-computer;
                         toggled => {
                             SettingsState.toggle("desktop-computer");
+                        }
+                    }
+                    Label {
+                        text: "Foldery przy krawędziach";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: "Wąski pasek przy brzegu ekranu – po najechaniu wysuwa się z zawartością folderu. Kilka paneli na jednej krawędzi dzieli ją po równo.";
+                        font-size: 11.5px;
+                        color: Theme.faint;
+                        wrap: word-wrap;
+                    }
+                    for r[k] in SettingsState.edge-rows: Rectangle {
+                        border-radius: Theme.r;
+                        background: Theme.card;
+                        height: er-lay.preferred-height;
+                        er-lay := VerticalLayout {
+                            padding: 10px;
+                            spacing: 8px;
+                            HorizontalLayout {
+                                spacing: 8px;
+                                Icon {
+                                    y: (parent.height - self.height) / 2;
+                                    commands: Icons.folder;
+                                    size: 16px;
+                                    color: Theme.dim;
+                                }
+                                Rectangle {
+                                    horizontal-stretch: 1;
+                                    Label {
+                                        width: parent.width;
+                                        text: r.name;
+                                        font-size: 13px;
+                                        font-weight: 600;
+                                    }
+                                    TipArea {
+                                        tip: r.path;
+                                    }
+                                }
+                                SetButton {
+                                    text: "Usuń";
+                                    tip: "Usuń panel z pulpitu (folder zostaje na dysku)";
+                                    danger: true;
+                                    clicked => {
+                                        SettingsState.edge-remove(k);
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                alignment: start;
+                                spacing: 6px;
+                                for name[e] in ["Lewa", "Prawa", "Górna"]: SetButton {
+                                    text: name;
+                                    tip: name + " krawędź ekranu";
+                                    on: r.edge == e;
+                                    clicked => {
+                                        SettingsState.edge-set-edge(k, e);
+                                    }
+                                }
+                                if SettingsState.edge-monitors > 1: Rectangle {
+                                    width: 10px;
+                                }
+                                for m in SettingsState.edge-monitors > 1 ? SettingsState.edge-monitors : 0: SetButton {
+                                    text: "Monitor " + (m + 1);
+                                    tip: "Panel na monitorze " + (m + 1);
+                                    on: r.monitor == m;
+                                    clicked => {
+                                        SettingsState.edge-set-monitor(k, m);
+                                    }
+                                }
+                            }
+                            HorizontalLayout {
+                                spacing: 12px;
+                                Label {
+                                    text: "Szerokość";
+                                    font-size: 12.5px;
+                                    color: Theme.dim;
+                                }
+                                // Suwak w obszarze podpowiedzi – najechanie na niego też ją pokazuje.
+                                TipArea {
+                                    horizontal-stretch: 1;
+                                    tip: "Szerokość wysuniętego panelu – można ją też zmienić, przeciągając jego wewnętrzną krawędź";
+                                    Slider {
+                                        width: parent.width;
+                                        minimum: 160;
+                                        maximum: 900;
+                                        step: 10;
+                                        value: r.width;
+                                        changed(v) => {
+                                            SettingsState.edge-set-width(k, round(v / 10) * 10);
+                                        }
+                                    }
+                                }
+                                Label {
+                                    width: 52px;
+                                    text: round(r.width) + " px";
+                                    font-size: 12.5px;
+                                }
+                            }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 6px;
+                        for name[e] in ["Dodaj z lewej…", "Dodaj z prawej…", "Dodaj u góry…"]: SetButton {
+                            text: name;
+                            tip: "Wybierz folder i przypnij go do " + (e == 0 ? "lewej" : e == 1 ? "prawej" : "górnej") + " krawędzi głównego monitora";
+                            clicked => {
+                                SettingsState.edge-add(e);
+                            }
                         }
                     }
                     Label {
