@@ -1,0 +1,888 @@
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, Label, Tip, TipArea } from "components.slint";
+import { ListView } from "std-widgets.slint";
+
+/// Plik albo folder w oknie wyboru.
+export struct PickRow {
+    name: string,
+    path: string,
+    dir: bool,
+    hidden: bool,
+    date: string,
+    kind: string,
+    size: string,
+    tip: string,
+    icon: image,
+    has-icon: bool,
+    selected: bool,
+    focused: bool,
+}
+
+/// Wiersz siatki – kilka kafelków; `first` to numer pierwszego z nich na liście.
+export struct PickLine {
+    first: int,
+    items: [PickRow],
+}
+
+/// Miejsce w panelu po lewej (albo nagłówek grupy).
+export struct PickPlace {
+    name: string,
+    path: string,
+    icon: string,
+    tip: string,
+    header: bool,
+    current: bool,
+}
+
+/// Pole tekstowe w ramce, z ikoną i podpowiedzią.
+component Field inherits Rectangle {
+    in property <string> placeholder;
+    in property <string> tip;
+    in property <string> icon;
+    in-out property <string> text;
+    callback accepted();
+    callback edited(string);
+    height: 32px;
+    border-radius: Theme.r-s;
+    background: Theme.card;
+    border-width: 1px;
+    border-color: input.has-focus ? Theme.line-strong : Theme.line;
+    TipArea {
+        tip: root.tip;
+        mouse-cursor: MouseCursor.text;
+        clicked => {
+            input.focus();
+        }
+        if root.icon != "": Icon {
+            x: 10px;
+            commands: root.icon;
+            size: 14px;
+            color: Theme.faint;
+        }
+        if input.text == "": Text {
+            x: input.x;
+            width: input.width;
+            text: root.placeholder;
+            color: Theme.faint;
+            font-family: Theme.font;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+            overflow: elide;
+        }
+        input := TextInput {
+            x: root.icon != "" ? 30px : 10px;
+            width: parent.width - self.x - 10px;
+            text <=> root.text;
+            color: Theme.text;
+            font-family: Theme.font;
+            font-size: Theme.font-size;
+            vertical-alignment: center;
+            single-line: true;
+            selection-background-color: Theme.sel-strong;
+            edited => {
+                root.edited(self.text);
+            }
+            accepted => {
+                root.accepted();
+            }
+        }
+    }
+
+    public function focus-input() {
+        input.focus();
+    }
+
+    /// Zaznacza fragment tekstu (przesunięcia w bajtach UTF-8) – nazwa pliku bez rozszerzenia.
+    public function select-range(a: int, b: int) {
+        input.focus();
+        input.set-selection-offsets(a, b);
+    }
+}
+
+/// Przycisk z napisem (OK, Anuluj, Tak, Nie).
+component PButton inherits Rectangle {
+    in property <string> text;
+    in property <string> tip;
+    in property <bool> primary;
+    callback clicked();
+    height: 32px;
+    width: max(96px, label.preferred-width + 28px);
+    border-radius: Theme.r-s;
+    background: root.primary ? (ta.pressed ? Theme.accent.darker(0.2) : ta.has-hover ? Theme.accent.darker(0.1) : Theme.accent) : (ta.pressed ? Theme.press : ta.has-hover ? Theme.hover : Theme.card);
+    border-width: root.primary ? 0 : 1px;
+    border-color: Theme.line;
+    label := Text {
+        text: root.text;
+        color: root.primary ? Theme.on-accent : Theme.text;
+        font-family: Theme.font;
+        font-size: Theme.font-size;
+        font-weight: root.primary ? 600 : 400;
+        vertical-alignment: center;
+        horizontal-alignment: center;
+    }
+    ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Nagłówek kolumny listy – klik sortuje.
+component ColHead inherits Rectangle {
+    in property <string> text;
+    in property <string> tip;
+    in property <bool> active;
+    in property <bool> desc;
+    in property <bool> right;
+    callback clicked();
+    border-radius: Theme.r-xs;
+    background: ta.has-hover ? Theme.hover : transparent;
+    HorizontalLayout {
+        padding-left: 4px;
+        padding-right: 4px;
+        spacing: 4px;
+        alignment: root.right ? end : start;
+        Label {
+            text: root.text;
+            font-size: 12px;
+            color: root.active ? Theme.text : Theme.faint;
+        }
+        if root.active: Icon {
+            y: (parent.height - self.height) / 2;
+            commands: root.desc ? Icons.arrow-down : Icons.arrow-up;
+            size: 11px;
+            color: Theme.dim;
+        }
+    }
+    ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
+/// Okno „Otwórz” / „Zapisz jako” / „Wybierz folder” dla innych programów (picker.rs).
+export component FilePickerWindow inherits Window {
+    preferred-width: 980px;
+    preferred-height: 620px;
+    min-width: 620px;
+    min-height: 400px;
+    background: Theme.bg;
+    default-font-family: Theme.font;
+    title: root.window-title;
+
+    in property <string> window-title: "Otwórz";
+    in property <bool> save;
+    in property <bool> folders-mode;
+    in property <bool> multi;
+    in property <string> ok-label: "Otwórz";
+    in property <string> cancel-label: "Anuluj";
+    in property <string> name-label: "Nazwa pliku:";
+    in property <[PickRow]> rows;
+    in property <[PickLine]> lines;
+    in property <[PickPlace]> places;
+    in property <[string]> filters;
+    in property <bool> can-back;
+    in property <bool> can-forward;
+    in property <bool> can-up;
+    in property <bool> grid;
+    in property <int> sort-col;
+    in property <bool> sort-desc;
+    /// Tekst, gdy lista jest pusta (pusty folder, brak dostępu, wczytywanie).
+    in property <string> empty-text;
+    in-out property <string> path-text;
+    in-out property <string> file-name;
+    in-out property <string> search;
+    in-out property <int> filter-index;
+    /// Komunikat (błąd) z przyciskiem OK.
+    in-out property <string> notice;
+    /// Pytanie Tak/Nie (zastąpienie pliku).
+    in-out property <string> confirm;
+    in-out property <bool> prompt-open;
+    property <bool> filter-open;
+
+    callback back();
+    callback forward();
+    callback up();
+    callback refresh();
+    callback go(string);
+    callback open-place(string);
+    callback row-click(int, bool, bool);
+    callback row-open(int);
+    callback key-nav(int, bool);
+    callback submit();
+    callback cancel();
+    callback filter-picked(int);
+    callback search-edited(string);
+    callback toggle-grid();
+    callback make-folder(string);
+    callback system-dialog();
+    callback sort(int);
+    callback confirm-yes();
+    callback grid-cols(int);
+
+    property <int> cols: max(1, floor((grid-list.visible-width - 12px) / 112px));
+    changed cols => {
+        root.grid-cols(root.cols);
+    }
+
+    public function focus-name(a: int, b: int) {
+        name-field.select-range(a, b);
+    }
+
+    public function focus-list() {
+        keys.focus();
+    }
+
+    /// Przewija listę tak, żeby element `i` był widoczny.
+    public function reveal(i: int) {
+        if (root.grid) {
+            let top = floor(i / root.cols) * 120px;
+            if (top + grid-list.content-y < 0) {
+                grid-list.content-y = -top;
+            } else if (top + 120px + grid-list.content-y > grid-list.visible-height) {
+                grid-list.content-y = grid-list.visible-height - top - 120px;
+            }
+        } else {
+            if (i * 30px + list.content-y < 0) {
+                list.content-y = -i * 30px;
+            } else if ((i + 1) * 30px + list.content-y > list.visible-height) {
+                list.content-y = list.visible-height - (i + 1) * 30px;
+            }
+        }
+    }
+
+    public function scroll-top() {
+        list.content-y = 0;
+        grid-list.content-y = 0;
+    }
+
+    keys := FocusScope {
+        key-pressed(e) => {
+            if (e.text == Key.Escape) {
+                if (root.notice != "" || root.confirm != "" || root.prompt-open || root.filter-open) {
+                    root.notice = "";
+                    root.confirm = "";
+                    root.prompt-open = false;
+                    root.filter-open = false;
+                } else {
+                    root.cancel();
+                }
+                return accept;
+            }
+            if (e.text == Key.F5) {
+                root.refresh();
+                return accept;
+            }
+            if (e.modifiers.alt && e.text == Key.LeftArrow) {
+                root.back();
+                return accept;
+            }
+            if (e.modifiers.alt && e.text == Key.RightArrow) {
+                root.forward();
+                return accept;
+            }
+            if (e.modifiers.alt && e.text == Key.UpArrow) {
+                root.up();
+                return accept;
+            }
+            if (e.text == Key.Backspace) {
+                root.up();
+                return accept;
+            }
+            if (e.text == Key.UpArrow) {
+                root.key-nav(root.grid ? -root.cols : -1, e.modifiers.shift);
+                return accept;
+            }
+            if (e.text == Key.DownArrow) {
+                root.key-nav(root.grid ? root.cols : 1, e.modifiers.shift);
+                return accept;
+            }
+            if (root.grid && e.text == Key.LeftArrow) {
+                root.key-nav(-1, e.modifiers.shift);
+                return accept;
+            }
+            if (root.grid && e.text == Key.RightArrow) {
+                root.key-nav(1, e.modifiers.shift);
+                return accept;
+            }
+            if (e.text == Key.Return) {
+                root.row-open(-1);
+                return accept;
+            }
+            reject
+        }
+
+        VerticalLayout {
+            // Pasek: nawigacja, ścieżka, wyszukiwanie, widok.
+            HorizontalLayout {
+                padding: 8px;
+                spacing: 4px;
+                height: 48px;
+                IconButton {
+                    y: 1px;
+                    icon: Icons.back;
+                    tooltip: "Wstecz (Alt+←)";
+                    enabled: root.can-back;
+                    clicked => {
+                        root.back();
+                    }
+                }
+                IconButton {
+                    y: 1px;
+                    icon: Icons.fwd;
+                    tooltip: "Dalej (Alt+→)";
+                    enabled: root.can-forward;
+                    clicked => {
+                        root.forward();
+                    }
+                }
+                IconButton {
+                    y: 1px;
+                    icon: Icons.arrow-up;
+                    tooltip: "Folder wyżej (Backspace)";
+                    enabled: root.can-up;
+                    clicked => {
+                        root.up();
+                    }
+                }
+                Field {
+                    horizontal-stretch: 1;
+                    icon: Icons.folder;
+                    text <=> root.path-text;
+                    tip: "Ścieżka folderu – wpisz inną i naciśnij Enter";
+                    accepted => {
+                        root.go(self.text);
+                    }
+                }
+                IconButton {
+                    y: 1px;
+                    icon: Icons.refresh;
+                    tooltip: "Odśwież (F5)";
+                    clicked => {
+                        root.refresh();
+                    }
+                }
+                Field {
+                    width: 200px;
+                    icon: Icons.search;
+                    placeholder: "Szukaj w folderze";
+                    tip: "Pokaż tylko pliki i foldery, których nazwa zawiera ten tekst";
+                    text <=> root.search;
+                    edited(t) => {
+                        root.search-edited(t);
+                    }
+                }
+                IconButton {
+                    y: 1px;
+                    icon: root.grid ? Icons.list : Icons.grid;
+                    tooltip: root.grid ? "Widok listy" : "Widok siatki z miniaturami";
+                    clicked => {
+                        root.toggle-grid();
+                    }
+                }
+                IconButton {
+                    y: 1px;
+                    icon: Icons.folder-plus;
+                    tooltip: "Nowy folder w tym miejscu";
+                    clicked => {
+                        root.new-folder-name = "Nowy folder";
+                        root.prompt-open = true;
+                    }
+                }
+                IconButton {
+                    y: 1px;
+                    icon: Icons.app;
+                    tooltip: "Zwykłe okno Windows – tylko dla tego wyboru";
+                    clicked => {
+                        root.system-dialog();
+                    }
+                }
+            }
+
+            HorizontalLayout {
+                vertical-stretch: 1;
+                // Miejsca: szybki dostęp, miejsca programu, dyski.
+                Rectangle {
+                    width: 210px;
+                    background: Theme.panel;
+                    Flickable {
+                        content-height: side.preferred-height;
+                        side := VerticalLayout {
+                            alignment: start;
+                            padding: 8px;
+                            spacing: 1px;
+                            for p in root.places: Rectangle {
+                                height: p.header ? 30px : 30px;
+                                border-radius: Theme.r-s;
+                                background: p.header ? transparent : p.current ? Theme.sel-strong : pa.has-hover ? Theme.hover : transparent;
+                                if p.header: Text {
+                                    x: 10px;
+                                    y: 10px;
+                                    height: 18px;
+                                    text: p.name;
+                                    font-size: 11px;
+                                    font-weight: 600;
+                                    color: Theme.faint;
+                                    vertical-alignment: center;
+                                }
+                                if !p.header: HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 8px;
+                                    spacing: 10px;
+                                    Icon {
+                                        y: (parent.height - self.height) / 2;
+                                        commands: p.icon;
+                                        size: 16px;
+                                        color: p.current ? Theme.text : Theme.dim;
+                                    }
+                                    Label {
+                                        text: p.name;
+                                        color: p.current ? Theme.text : Theme.dim;
+                                    }
+                                }
+                                pa := TipArea {
+                                    enabled: !p.header;
+                                    tip: p.tip;
+                                    clicked => {
+                                        root.open-place(p.path);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Pliki: lista z kolumnami albo siatka.
+                VerticalLayout {
+                    horizontal-stretch: 1;
+                    padding-left: 6px;
+                    padding-right: 6px;
+                    if !root.grid: HorizontalLayout {
+                        height: 28px;
+                        padding-left: 10px;
+                        padding-right: 24px;
+                        spacing: 10px;
+                        Rectangle {
+                            width: 18px;
+                        }
+                        ColHead {
+                            horizontal-stretch: 1;
+                            text: "Nazwa";
+                            tip: "Sortuj według nazwy";
+                            active: root.sort-col == 0;
+                            desc: root.sort-desc;
+                            clicked => {
+                                root.sort(0);
+                            }
+                        }
+                        ColHead {
+                            width: 140px;
+                            text: "Data modyfikacji";
+                            tip: "Sortuj według daty zmiany";
+                            active: root.sort-col == 1;
+                            desc: root.sort-desc;
+                            clicked => {
+                                root.sort(1);
+                            }
+                        }
+                        ColHead {
+                            width: 150px;
+                            text: "Typ";
+                            tip: "Sortuj według typu";
+                            active: root.sort-col == 2;
+                            desc: root.sort-desc;
+                            clicked => {
+                                root.sort(2);
+                            }
+                        }
+                        ColHead {
+                            width: 80px;
+                            right: true;
+                            text: "Rozmiar";
+                            tip: "Sortuj według rozmiaru";
+                            active: root.sort-col == 3;
+                            desc: root.sort-desc;
+                            clicked => {
+                                root.sort(3);
+                            }
+                        }
+                    }
+                    Rectangle {
+                        vertical-stretch: 1;
+                        list := ListView {
+                            visible: !root.grid;
+                            for row[i] in root.rows: Rectangle {
+                                height: 30px;
+                                border-radius: Theme.r-s;
+                                background: row.selected ? Theme.sel-strong : rt.has-hover ? Theme.hover : transparent;
+                                border-width: row.focused && !row.selected ? 1px : 0;
+                                border-color: Theme.line-strong;
+                                HorizontalLayout {
+                                    padding-left: 10px;
+                                    padding-right: 10px;
+                                    spacing: 10px;
+                                    Rectangle {
+                                        width: 18px;
+                                        if row.has-icon: Image {
+                                            source: row.icon;
+                                            width: 18px;
+                                            height: 18px;
+                                            image-fit: contain;
+                                        }
+                                        if !row.has-icon: Icon {
+                                            commands: row.dir ? Icons.folder : Icons.file;
+                                            size: 16px;
+                                            color: Theme.dim;
+                                        }
+                                    }
+                                    Label {
+                                        horizontal-stretch: 1;
+                                        text: row.name;
+                                        opacity: row.hidden ? 0.6 : 1;
+                                    }
+                                    Label {
+                                        width: 140px;
+                                        text: row.date;
+                                        font-size: 12px;
+                                        color: Theme.faint;
+                                    }
+                                    Label {
+                                        width: 150px;
+                                        text: row.kind;
+                                        font-size: 12px;
+                                        color: Theme.faint;
+                                    }
+                                    Label {
+                                        width: 80px;
+                                        text: row.size;
+                                        font-size: 12px;
+                                        color: Theme.faint;
+                                        horizontal-alignment: right;
+                                    }
+                                }
+                                rt := TipArea {
+                                    tip: row.tip;
+                                    pointer-event(e) => {
+                                        if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                            keys.focus();
+                                            root.row-click(i, e.modifiers.control, e.modifiers.shift);
+                                        }
+                                    }
+                                    double-clicked => {
+                                        root.row-open(i);
+                                    }
+                                }
+                            }
+                        }
+                        grid-list := ListView {
+                            visible: root.grid;
+                            for line in root.lines: HorizontalLayout {
+                                height: 120px;
+                                alignment: start;
+                                padding-left: 6px;
+                                spacing: 4px;
+                                for row[j] in line.items: Rectangle {
+                                    width: 108px;
+                                    height: 116px;
+                                    border-radius: Theme.r;
+                                    background: row.selected ? Theme.sel-strong : gt.has-hover ? Theme.hover : transparent;
+                                    border-width: row.focused && !row.selected ? 1px : 0;
+                                    border-color: Theme.line-strong;
+                                    VerticalLayout {
+                                        padding: 6px;
+                                        spacing: 4px;
+                                        Rectangle {
+                                            height: 72px;
+                                            if row.has-icon: Image {
+                                                source: row.icon;
+                                                width: 72px;
+                                                height: 72px;
+                                                image-fit: contain;
+                                            }
+                                            if !row.has-icon: Icon {
+                                                commands: row.dir ? Icons.folder : Icons.file;
+                                                size: 40px;
+                                                color: Theme.dim;
+                                            }
+                                        }
+                                        Text {
+                                            height: 30px;
+                                            text: row.name;
+                                            wrap: word-wrap;
+                                            overflow: elide;
+                                            horizontal-alignment: center;
+                                            font-family: Theme.font;
+                                            font-size: 12px;
+                                            color: Theme.text;
+                                            opacity: row.hidden ? 0.6 : 1;
+                                        }
+                                    }
+                                    gt := TipArea {
+                                        tip: row.tip;
+                                        pointer-event(e) => {
+                                            if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
+                                                keys.focus();
+                                                root.row-click(line.first + j, e.modifiers.control, e.modifiers.shift);
+                                            }
+                                        }
+                                        double-clicked => {
+                                            root.row-open(line.first + j);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        if root.rows.length == 0 && root.empty-text != "": Text {
+                            y: 40px;
+                            width: parent.width;
+                            text: root.empty-text;
+                            horizontal-alignment: center;
+                            font-size: 13px;
+                            color: Theme.faint;
+                        }
+                    }
+                }
+            }
+
+            // Nazwa, filtr typów, przyciski.
+            HorizontalLayout {
+                padding: 10px;
+                spacing: 8px;
+                height: 54px;
+                Text {
+                    text: root.name-label;
+                    vertical-alignment: center;
+                    font-size: Theme.font-size;
+                    color: Theme.dim;
+                }
+                name-field := Field {
+                    horizontal-stretch: 1;
+                    y: 1px;
+                    text <=> root.file-name;
+                    tip: root.folders-mode ? "Nazwa folderu – puste pole wybiera folder, który jest otwarty" : root.multi ? "Nazwa pliku – kilka plików w cudzysłowach albo zaznacz je z Ctrl" : "Nazwa pliku; możesz też wpisać pełną ścieżkę albo wzorzec, np. *.txt";
+                    accepted => {
+                        root.submit();
+                    }
+                }
+                filter-btn := Rectangle {
+                    visible: root.filters.length > 0;
+                    width: root.filters.length > 0 ? 230px : 0;
+                    height: 32px;
+                    y: 1px;
+                    border-radius: Theme.r-s;
+                    background: fa.has-hover ? Theme.hover : Theme.card;
+                    border-width: 1px;
+                    border-color: Theme.line;
+                    HorizontalLayout {
+                        padding-left: 10px;
+                        padding-right: 8px;
+                        spacing: 6px;
+                        Label {
+                            horizontal-stretch: 1;
+                            text: root.filters[root.filter-index];
+                        }
+                        Icon {
+                            y: (parent.height - self.height) / 2;
+                            commands: Icons.chevron-down;
+                            size: 13px;
+                            color: Theme.dim;
+                        }
+                    }
+                    fa := TipArea {
+                        tip: "Rodzaj plików pokazywanych na liście";
+                        clicked => {
+                            root.filter-open = !root.filter-open;
+                        }
+                    }
+                }
+                PButton {
+                    y: 1px;
+                    primary: true;
+                    text: root.ok-label;
+                    tip: root.save ? "Zapisz pod tą nazwą (Enter)" : root.folders-mode ? "Wybierz ten folder (Enter)" : "Otwórz zaznaczone (Enter)";
+                    clicked => {
+                        root.submit();
+                    }
+                }
+                PButton {
+                    y: 1px;
+                    text: root.cancel-label;
+                    tip: "Zamknij bez wyboru (Esc)";
+                    clicked => {
+                        root.cancel();
+                    }
+                }
+            }
+        }
+    }
+
+    // Lista filtrów – nad treścią, klik obok zamyka.
+    if root.filter-open: TouchArea {
+        clicked => {
+            root.filter-open = false;
+        }
+    }
+    if root.filter-open: Rectangle {
+        x: filter-btn.absolute-position.x - root.absolute-position.x;
+        y: filter-btn.absolute-position.y - root.absolute-position.y - self.height - 4px;
+        width: max(filter-btn.width, 300px);
+        height: min(fl.preferred-height + 12px, root.height - 80px);
+        border-radius: Theme.r;
+        background: Theme.popup-high;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-color: Theme.shadow;
+        Flickable {
+            x: 6px;
+            y: 6px;
+            width: parent.width - 12px;
+            height: parent.height - 12px;
+            content-height: fl.preferred-height;
+            fl := VerticalLayout {
+                alignment: start;
+                for f[i] in root.filters: Rectangle {
+                    height: 30px;
+                    border-radius: Theme.r-s;
+                    background: i == root.filter-index ? Theme.sel-strong : fia.has-hover ? Theme.hover : transparent;
+                    Label {
+                        x: 10px;
+                        width: parent.width - 20px;
+                        text: f;
+                    }
+                    fia := TipArea {
+                        tip: "Pokaż pliki tego rodzaju";
+                        clicked => {
+                            root.filter-open = false;
+                            root.filter-index = i;
+                            root.filter-picked(i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Komunikat, pytanie i nazwa nowego folderu – okienka nad treścią.
+    if root.notice != "" || root.confirm != "" || root.prompt-open: Rectangle {
+        background: #00000066;
+        TouchArea { }
+        Rectangle {
+            width: min(440px, root.width - 40px);
+            height: card.preferred-height;
+            border-radius: Theme.r-l;
+            background: Theme.popup-high;
+            border-width: 1px;
+            border-color: Theme.line-strong;
+            drop-shadow-blur: 24px;
+            drop-shadow-offset-y: 8px;
+            drop-shadow-color: Theme.shadow;
+            card := VerticalLayout {
+                padding: 18px;
+                spacing: 14px;
+                Text {
+                    text: root.prompt-open ? "Nazwa nowego folderu" : root.notice != "" ? root.notice : root.confirm;
+                    wrap: word-wrap;
+                    font-family: Theme.font;
+                    font-size: 13px;
+                    color: Theme.text;
+                }
+                if root.prompt-open: nf := Field {
+                    text <=> root.new-folder-name;
+                    tip: "Folder powstanie w otwartym miejscu";
+                    init => {
+                        self.select-range(0, 11);
+                    }
+                    accepted => {
+                        root.prompt-open = false;
+                        root.make-folder(root.new-folder-name);
+                    }
+                }
+                HorizontalLayout {
+                    alignment: end;
+                    spacing: 8px;
+                    if root.notice != "": PButton {
+                        primary: true;
+                        text: "OK";
+                        tip: "Zamknij komunikat";
+                        clicked => {
+                            root.notice = "";
+                        }
+                    }
+                    if root.confirm != "": PButton {
+                        primary: true;
+                        text: "Tak";
+                        tip: "Zastąp istniejący plik";
+                        clicked => {
+                            root.confirm = "";
+                            root.confirm-yes();
+                        }
+                    }
+                    if root.confirm != "": PButton {
+                        text: "Nie";
+                        tip: "Wróć i wybierz inną nazwę";
+                        clicked => {
+                            root.confirm = "";
+                        }
+                    }
+                    if root.prompt-open: PButton {
+                        primary: true;
+                        text: "Utwórz";
+                        tip: "Utwórz folder (Enter)";
+                        clicked => {
+                            root.prompt-open = false;
+                            root.make-folder(root.new-folder-name);
+                        }
+                    }
+                    if root.prompt-open: PButton {
+                        text: "Anuluj";
+                        tip: "Nie twórz folderu (Esc)";
+                        clicked => {
+                            root.prompt-open = false;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Dymek z podpowiedzią – jak w głównym oknie.
+    property <int> tip-shown: -1;
+    property <string> new-folder-name: "Nowy folder";
+    Timer {
+        interval: 600ms;
+        running: Tip.text != "" && root.tip-shown != Tip.serial;
+        triggered => {
+            root.tip-shown = Tip.serial;
+        }
+    }
+    if Tip.text != "" && root.tip-shown == Tip.serial: Rectangle {
+        property <length> below: Tip.y + 22px;
+        x: max(8px, min(Tip.x - 8px, root.width - self.width - 8px));
+        y: self.below + self.height > root.height - 8px ? Tip.y - self.height - 10px : self.below;
+        width: min(tip-text.preferred-width, 340px) + 20px;
+        height: tip-text.preferred-height + 12px;
+        border-radius: Theme.r-s;
+        background: Theme.higher;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-color: Theme.shadow;
+        tip-text := Text {
+            x: 10px;
+            y: 6px;
+            width: parent.width - 20px;
+            text: Tip.text;
+            wrap: word-wrap;
+            font-family: Theme.font;
+            font-size: 12px;
+            color: Theme.text;
+        }
+    }
+}

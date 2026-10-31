@@ -13,6 +13,7 @@ pub mod desktop;
 pub mod dnd;
 pub mod drives;
 pub mod events;
+pub mod filedlg;
 pub mod filemgr;
 pub mod fpsmon;
 pub mod fsx;

@@ -1,5 +1,26 @@
 fn main() {
     test_manifest();
+    embed_dialog();
+}
+
+/// Biblioteka okien „Otwórz”/„Zapisz jako” (skrzynka `dialog`) osadzona w programie – ścieżki do
+/// gotowych plików .dll w zmiennych POWERDESK_DIALOG_DLL64 i POWERDESK_DIALOG_DLL32 (ustawia je
+/// budowa wydania). Bez nich osadzamy puste pliki: program działa, tylko bez tej integracji.
+fn embed_dialog() {
+    let out = std::path::PathBuf::from(std::env::var("OUT_DIR").unwrap());
+    for (var, name) in [("POWERDESK_DIALOG_DLL64", "dialog64.dll"), ("POWERDESK_DIALOG_DLL32", "dialog32.dll")] {
+        println!("cargo:rerun-if-env-changed={var}");
+        let data = match std::env::var(var) {
+            Ok(p) if !p.is_empty() => {
+                println!("cargo:rerun-if-changed={p}");
+                let d = std::fs::read(&p).unwrap_or_else(|e| panic!("{var}={p}: {e}"));
+                assert!(d.starts_with(b"MZ"), "{var}={p}: to nie jest biblioteka .dll");
+                d
+            }
+            _ => Vec::new(),
+        };
+        std::fs::write(out.join(name), data).expect("dialog dll");
+    }
 }
 
 /// Testy linkują kod korzystający z Common Controls 6 (okna dialogowe powłoki), więc bez manifestu

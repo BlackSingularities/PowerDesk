@@ -73,6 +73,20 @@ fn theme_of(p: &Prefs) -> String {
         .unwrap_or_else(|| "system".into())
 }
 
+/// Jasny motyw i akcent z ustawień – dla okien bez głównego okna (wybór pliku dla innych programów).
+pub fn light_accent(p: &Prefs) -> (bool, Color) {
+    let light = match theme_of(p).as_str() {
+        "light" => true,
+        "dark" => false,
+        _ => crate::system_light(),
+    };
+    let accent = match p.accent.as_str() {
+        "system" => powerdesk_core::system::accent_color().and_then(|c| hex(&c)),
+        c => hex(c),
+    };
+    (light, accent.unwrap_or(Color::from_argb_u8(0, 0, 0, 0)))
+}
+
 /// Motyw i akcent na całe okno.
 pub fn apply_look(ui: &crate::MainWindow, p: &Prefs) {
     let light = match theme_of(p).as_str() {
