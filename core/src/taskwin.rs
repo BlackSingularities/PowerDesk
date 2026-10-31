@@ -398,3 +398,18 @@ pub fn is_own(hwnd: isize) -> bool {
     }
     pid == std::process::id()
 }
+
+/// Podgląd pulpitu (Aero Peek): okna programów stają się przezroczyste, widać `desktop` i `bar`.
+/// Nieudokumentowana funkcja DWM (dwmapi.dll, porządkowa 113) – ta sama, której używa pasek
+/// Windows; gdy jej nie ma, nic się nie dzieje.
+pub fn peek(on: bool, desktop: isize, bar: isize) {
+    use windows::core::{w, PCSTR};
+    use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+    type Peek = unsafe extern "system" fn(i32, HWND, HWND, u32, usize) -> i32;
+    unsafe {
+        let Ok(lib) = LoadLibraryW(w!("dwmapi.dll")) else { return };
+        let Some(f) = GetProcAddress(lib, PCSTR(113usize as *const u8)) else { return };
+        let f: Peek = std::mem::transmute(f);
+        f(on as i32, h(desktop), h(bar), 3, 0);
+    }
+}

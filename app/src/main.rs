@@ -413,6 +413,7 @@ fn main() -> Result<(), slint::PlatformError> {
     start_tray();
     ensure_integration();
     updates::start();
+    load_shellnew();
     // Synchronizacja rusza w tle chwilę po starcie, żeby nie opóźniać pierwszego okna.
     let s3 = st.clone();
     slint::Timer::single_shot(std::time::Duration::from_secs(3), move || syncview::start_background(&s3));
@@ -2474,6 +2475,39 @@ pub fn create(s: &Shared, folder: bool) {
 }
 
 /// Tworzy element w bieżącym folderze, zaznacza go i otwiera pole nazwy (jak w Eksploratorze).
+thread_local! {
+    /// Typy z menu „Nowy” (rejestr) – wczytane raz w tle przy starcie.
+    static SHELL_NEW: RefCell<Vec<powerdesk_core::shellnew::NewType>> = const { RefCell::new(Vec::new()) };
+}
+
+pub fn load_shellnew() {
+    std::thread::spawn(|| {
+        let list = powerdesk_core::shellnew::types();
+        let _ = slint::invoke_from_event_loop(move || SHELL_NEW.with(|t| *t.borrow_mut() = list));
+    });
+}
+
+pub fn shellnew_types() -> Vec<powerdesk_core::shellnew::NewType> {
+    SHELL_NEW.with(|t| t.borrow().clone())
+}
+
+/// Nowy plik typu z menu „Nowy” w bieżącym folderze – od razu w polu zmiany nazwy.
+pub fn create_typed(s: &Shared, t: &powerdesk_core::shellnew::NewType) {
+    let dir = tab_mut(s, |t| t.path.clone());
+    if dir.starts_with("ofp:") {
+        transfers::toast(s, "Tu nie można niczego utworzyć – otwórz zwykły folder", transfers::Kind::Info, None);
+        return;
+    }
+    match powerdesk_core::shellnew::create(&dir, t) {
+        Ok(p) => {
+            load(s, true);
+            select_path(s, &p);
+            start_rename(s);
+        }
+        Err(e) => transfers::toast(s, e, transfers::Kind::Error, None),
+    }
+}
+
 pub fn create_named(s: &Shared, name: &str, folder: bool) {
     let Some(p) = make(s, name, folder) else { return };
     load(s, true);

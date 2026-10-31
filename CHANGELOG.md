@@ -12,6 +12,9 @@
 - Pasek: lista szybkiego dostępu – prawy klik na programie pokazuje jego ostatnie pliki (te same listy co pasek Windows) i otwiera je w tym programie, a nad nimi zadania programu (np. „Nowe okno InPrivate” w Edge) i jego własne kategorie.
 - Zasobnik: szybkie ustawienia w okienku sieci – Bluetooth i tryb samolotowy (przełączniki), suwak jasności (ekran laptopa i monitory z DDC/CI), skróty do hotspotu, światła nocnego i oszczędzania baterii.
 - Zasobnik: ikona „Bezpieczne usuwanie sprzętu” przy podłączonym pendrivie – menu z wysuwaniem dysków.
+- Pulpit: menu „Nowy” z typami plików zarejestrowanymi przez programy (Word, Excel, obrazy…), także w oknie folderów („Inne typy”); „Ustawienia ekranu” i „Personalizuj” w menu pulpitu.
+- Pasek: najechanie na „Pokaż pulpit” po chwili pokazuje pulpit przez przezroczyste okna.
+- Ustawienia → Pulpit: potrząśnięcie oknem minimalizuje pozostałe (przełącznik).
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 

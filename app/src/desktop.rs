@@ -901,7 +901,17 @@ fn rename_done(s: &Shared, i: usize, name: &str) {
 /// Nowy folder albo dokument na pulpicie – od razu w polu zmiany nazwy, w miejscu kliknięcia.
 fn new_item(s: &Shared, folder: bool, at: (f32, f32)) {
     let name = if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" };
-    match ops::create(&desktop_dir(), name, folder) {
+    place_new(s, ops::create(&desktop_dir(), name, folder), at);
+}
+
+/// Nowy plik typu z menu „Nowy” (typy zarejestrowane przez programy).
+fn new_typed(s: &Shared, t: &powerdesk_core::shellnew::NewType, at: (f32, f32)) {
+    place_new(s, powerdesk_core::shellnew::create(&desktop_dir(), t), at);
+}
+
+/// Utworzony element w miejscu kliknięcia, od razu w polu zmiany nazwy.
+fn place_new(s: &Shared, made: Result<String, String>, at: (f32, f32)) {
+    match made {
         Ok(path) => {
             let (cw, ch, _) = D.with(|d| d.borrow().cell);
             let cell = (((at.0 - MARGIN) / cw).floor().max(0.0) as i32, ((at.1 - MARGIN) / ch).floor().max(0.0) as i32);
@@ -1004,11 +1014,15 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
         (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer, b.prefs.desktop_recycle)
     };
     let can_paste = clip::has_files();
-    let mut v = vec![
-        it("Nowy folder", "folderPlus", move |s| new_item(s, true, at)),
-        it("Nowy dokument tekstowy", "filePlus", move |s| new_item(s, false, at)),
-        sep(),
-    ];
+    let mut new = vec![it("Folder", "folderPlus", move |s| new_item(s, true, at)), it("Dokument tekstowy", "filePlus", move |s| new_item(s, false, at))];
+    let types = crate::shellnew_types();
+    if !types.is_empty() {
+        new.push(sep());
+    }
+    for t in types.into_iter().filter(|t| !t.ext.eq_ignore_ascii_case(".txt")) {
+        new.push(it(t.name.clone(), "filePlus", move |s| new_typed(s, &t, at)));
+    }
+    let mut v = vec![menus::sub("Nowy", "plus", new), sep()];
     if can_paste {
         v.push(it("Wklej", "paste", paste).kbd("Ctrl+V"));
     }
@@ -1063,6 +1077,9 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
             }));
             t
         }),
+        sep(),
+        it("Ustawienia ekranu", "desktop", |_| powerdesk_core::sysbar::open_settings("display")),
+        it("Personalizuj", "image", |_| powerdesk_core::sysbar::open_settings("personalization")),
         it("Ustawienia pulpitu", "settings", |s| {
             crate::settings::open_section(s, crate::settings::SECTION_DESKTOP);
             crate::show_window(s);

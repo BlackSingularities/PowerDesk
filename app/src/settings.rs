@@ -476,6 +476,14 @@ pub fn toggle(s: &Shared, key: &str) {
             crate::updates::start();
         }
         "update-auto" => change(s, |p| p.update_auto = !p.update_auto),
+        "shake" => {
+            let on = !powerdesk_core::winkey::shake_enabled();
+            if let Err(e) = powerdesk_core::winkey::set_shake(on) {
+                crate::transfers::toast(s, format!("Nie udało się zmienić ustawienia: {e}"), crate::transfers::Kind::Error, None);
+            }
+            with_ui(s, |g| g.set_shake(powerdesk_core::winkey::shake_enabled()));
+            return;
+        }
         "overlay" => {
             crate::overlay::toggle();
             return;
@@ -510,12 +518,14 @@ pub fn render_system(_s: &Shared) {
         let rows = powerdesk_core::integration::status();
         let inst = powerdesk_core::install::installed();
         let here = powerdesk_core::install::running_installed();
+        let shake = powerdesk_core::winkey::shake_enabled();
         let _ = slint::invoke_from_event_loop(move || {
             crate::with_state(|s| {
                 let items: Vec<SysItem> = rows.into_iter().map(|(n, d, ok)| SysItem { name: n.into(), detail: d.into(), ok }).collect();
                 with_ui(s, |g| {
                     g.set_system(ModelRc::new(VecModel::from(items)));
                     g.set_installed(inst.is_some());
+                    g.set_shake(shake);
                     if let Some((exe, all)) = &inst {
                         let who = if *all { "dla wszystkich użytkowników" } else { "dla bieżącego użytkownika" };
                         let note = if here { "" } else { " · działa inna kopia (bez instalacji)" };

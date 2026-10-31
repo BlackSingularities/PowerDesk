@@ -1243,6 +1243,8 @@ export component TaskbarWindow inherits Window {
     callback bar-context(length);
     /// Wąski przycisk na prawym końcu – pokaż pulpit (Win+D).
     callback show-desktop();
+    /// Podgląd pulpitu po najechaniu na „Pokaż pulpit” (włącz / wyłącz).
+    callback peek(bool);
     callback activate(int);
     /// Przypięty przeciągnięty w nowe miejsce: numer przycisku, x upuszczenia w pasie przycisków
     /// i szerokość przycisku z oknami (do wyliczenia miejsca w taskbar.rs).
@@ -1623,7 +1625,26 @@ export component TaskbarWindow inherits Window {
             sd-ta := TipArea {
                 tip: "Pokaż pulpit";
                 clicked => {
+                    root.peek(false);
                     root.show-desktop();
+                }
+            }
+            // Po chwili pod kursorem okna przezroczyste – widać pulpit (jak w Windows).
+            property <bool> hov: sd-ta.has-hover;
+            changed hov => {
+                if (self.hov) {
+                    peek-timer.running = true;
+                } else {
+                    peek-timer.running = false;
+                    root.peek(false);
+                }
+            }
+            peek-timer := Timer {
+                interval: 500ms;
+                running: false;
+                triggered => {
+                    self.running = false;
+                    root.peek(true);
                 }
             }
         }

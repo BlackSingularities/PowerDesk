@@ -47,3 +47,14 @@ pub fn set(on: bool) -> Result<(), String> {
     }
     Ok(())
 }
+
+const ADVANCED: &str = r"HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\Advanced";
+
+/// Potrząśnięcie oknem za pasek tytułu minimalizuje pozostałe (ustawienie Windows; domyślnie wyłączone).
+pub fn shake_enabled() -> bool {
+    reg(&["query", ADVANCED, "/v", "DisallowShaking"]).map(|o| !o.contains("0x1")).unwrap_or(false)
+}
+
+pub fn set_shake(on: bool) -> Result<(), String> {
+    reg(&["add", ADVANCED, "/v", "DisallowShaking", "/t", "REG_DWORD", "/d", if on { "0" } else { "1" }, "/f"]).map(|_| ())
+}

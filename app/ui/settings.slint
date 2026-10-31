@@ -67,6 +67,8 @@ export global SettingsState {
     in-out property <bool> autostart: true;
     /// Okna „Otwórz”/„Zapisz jako” PowerDesk w innych programach.
     in-out property <bool> file-dialogs: true;
+    /// Potrząśnięcie oknem (ustawienie Windows, czytane z rejestru).
+    in-out property <bool> shake;
     /// Aktualizacje: sprawdzanie w tle, instalacja bez pytania, stan i czy jest wersja do instalacji.
     in-out property <bool> update-check: true;
     in-out property <bool> update-auto;
@@ -981,6 +983,15 @@ export component SettingsView inherits Rectangle {
                     Heading {
                         title: "Pulpit";
                         lead: "PowerDesk zastępuje pulpit Windows na każdym monitorze";
+                    }
+                    ToggleRow {
+                        icon: Icons.desktop;
+                        text: "Potrząśnięcie oknem minimalizuje pozostałe";
+                        hint: "Złap okno za pasek tytułu i potrząśnij – reszta okien się chowa, drugie potrząśnięcie je przywraca";
+                        on: SettingsState.shake;
+                        toggled => {
+                            SettingsState.toggle("shake");
+                        }
                     }
                     ToggleRow {
                         icon: Icons.grid;

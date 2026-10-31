@@ -145,6 +145,11 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_start_context(move |x| start_menu(n, x));
         w.on_bar_context(move |x| bar_menu(n, x));
         w.on_show_desktop(taskwin::show_desktop);
+        w.on_peek(move |on| {
+            let desk = crate::desktop::windows().get(n).or(crate::desktop::windows().first()).map(|d| crate::window_hwnd(d.window())).unwrap_or(0);
+            let bar = BARS.with(|b| b.borrow().get(n).map(|b| crate::window_hwnd(b.w.window()))).unwrap_or(0);
+            taskwin::peek(on, desk, bar);
+        });
         w.on_activate(move |i| {
             NO_THUMBS.with(|c| c.set(true));
             close_thumbs();

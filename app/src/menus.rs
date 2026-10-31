@@ -563,6 +563,15 @@ pub fn new_menu(s: &Shared, x: f32, y: f32) {
             file("Inny plik…", "filePlus", "nowy plik"),
         ],
     ));
+    // Typy zarejestrowane przez programy (jak „Nowy” w Eksploratorze).
+    let types = crate::shellnew_types();
+    if !types.is_empty() {
+        v.push(sub(
+            "Inne typy",
+            "filePlus",
+            types.into_iter().map(|t| it(t.name.clone(), "filePlus", move |s| crate::create_typed(s, &t))).collect(),
+        ));
+    }
     if n > 0 {
         v.push(sep());
         v.push(it(format!("Archiwum ZIP z zaznaczonych ({n})"), "archive", |s| crate::archives::zip(s, &crate::selected_paths(s))));
