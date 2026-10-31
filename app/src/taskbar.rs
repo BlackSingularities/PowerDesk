@@ -296,7 +296,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             b'P' => {
                 let _ = std::process::Command::new("DisplaySwitch.exe").spawn();
             }
-            b'K' => uri("ms-settings:connecteddevices"),
+            b'K' => open_cast(),
             // Win+1…9 – n-ty przycisk paska (jak w Windows: przełącza albo uruchamia przypięty).
             b'1'..=b'9' => {
                 let n = (k - b'1') as usize;
@@ -1443,8 +1443,17 @@ fn open_network(bar: usize, x: f32) {
                 let _ = slint::invoke_from_event_loop(move || quick_done(res));
             });
         }
+        "cast" => {
+            slint::Timer::single_shot(Duration::ZERO, close_popup);
+            open_cast();
+        }
+        "project" => {
+            slint::Timer::single_shot(Duration::ZERO, close_popup);
+            let _ = std::process::Command::new("DisplaySwitch.exe").spawn();
+        }
         page => {
             let page = match page {
+                "vpn" => "network-vpn",
                 "bluetooth-settings" => "bluetooth",
                 "hotspot" => "network-mobilehotspot",
                 "nightlight" => "nightlight",
@@ -1466,11 +1475,16 @@ fn open_network(bar: usize, x: f32) {
     });
     load_quick();
     // Okienko 340 px wyśrodkowane nad ikoną (32 px).
-    above_bar(w.window(), spot, 340.0, 580.0, x + 16.0 - 170.0);
+    above_bar(w.window(), spot, 340.0, 644.0, x + 16.0 - 170.0);
     close_on_blur(w.window());
     show_above(w.window());
     POPUP.with(|p| *p.borrow_mut() = Some(Popup::Network(w)));
     rescan();
+}
+
+/// Okienko „Przesyłaj” Windows (wyszukiwanie ekranów bezprzewodowych), jak Win+K.
+fn open_cast() {
+    let _ = open::that_detached("ms-settings-connectabledevices:devicediscovery");
 }
 
 /// Menu „Bezpieczne usuwanie sprzętu”: dyski wymienne do wysunięcia.

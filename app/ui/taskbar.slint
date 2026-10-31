@@ -614,7 +614,7 @@ export component NetworkWindow inherits Window {
     always-on-top: true;
     background: Theme.popup-high;
     preferred-width: 340px;
-    preferred-height: 580px;
+    preferred-height: 644px;
     in property <bool> has-wifi;
     /// Nazwa karty, gdy internet idzie kablem (pusta – brak kabla).
     in property <string> wired;
@@ -697,6 +697,36 @@ export component NetworkWindow inherits Window {
                 tip: "Ustawienia Windows";
                 clicked => {
                     root.quick("settings");
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            QuickTile {
+                icon: Icons.shield;
+                text: "VPN";
+                link: true;
+                tip: "Połączenia VPN – Ustawienia Windows";
+                clicked => {
+                    root.quick("vpn");
+                }
+            }
+            QuickTile {
+                icon: Icons.video;
+                text: "Przesyłaj";
+                link: true;
+                tip: "Przesyłanie obrazu na telewizor lub monitor bezprzewodowy (Win+K)";
+                clicked => {
+                    root.quick("cast");
+                }
+            }
+            QuickTile {
+                icon: Icons.desktop;
+                text: "Projektuj";
+                link: true;
+                tip: "Tryb wyświetlania na drugim ekranie (Win+P)";
+                clicked => {
+                    root.quick("project");
                 }
             }
         }
