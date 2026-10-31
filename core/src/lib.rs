@@ -9,6 +9,7 @@ pub mod capture;
 pub mod clip;
 pub mod compare;
 pub mod cliphist;
+pub mod shellhook;
 pub mod desktop;
 pub mod dnd;
 pub mod drives;

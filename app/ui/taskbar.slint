@@ -42,6 +42,8 @@ export struct TaskButton {
     has-img: bool,
     active: bool,
     minimized: bool,
+    /// Okno programu woła o uwagę (miga jak w Windows).
+    flash: bool,
     /// Okna programu pod tym przyciskiem (0 – przypięty program, który nie działa).
     count: int,
     pinned: bool,
@@ -1008,6 +1010,9 @@ export component ThumbWindow inherits Window {
 /// Pasek zadań PowerDesk na jednym monitorze – zastępuje pasek Windows (ukryty, taskbar.rs),
 /// zarejestrowany jako AppBar, więc okna zmaksymalizowane kończą się nad nim.
 export component TaskbarWindow inherits Window {
+    /// Pas przycisków programów – do trafienia przycisku przy upuszczaniu plików (taskbar.rs).
+    out property <length> lane-x: lane.absolute-position.x + lane.left;
+    out property <length> lane-each: lane.each;
     no-frame: true;
     always-on-top: true;
     title: "PowerDesk – pasek zadań";
@@ -1278,6 +1283,16 @@ export component TaskbarWindow inherits Window {
                 }
                 // Stan programu: tylko aktywne okno ma kreskę w kolorze akcentu – bez kropek
                 // pod uruchomionymi i przypiętymi.
+                // Program woła o uwagę: pomarańczowa kreska pod ikoną, pulsuje.
+                if b.flash && !b.active: Rectangle {
+                    x: (parent.width - self.width) / 2;
+                    y: parent.height - 4px;
+                    width: 24px;
+                    height: 3px;
+                    border-radius: 1.5px;
+                    background: #f7a531;
+                    opacity: 0.55 + 0.45 * abs(sin(animation-tick() / 1ms * 0.36deg));
+                }
                 if b.active && b.count > 0: Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - 4px;

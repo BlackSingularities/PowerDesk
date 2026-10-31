@@ -113,6 +113,10 @@ pub fn open(_s: &Shared) {
     if is_open() {
         return;
     }
+    // Okna wołające o uwagę – przycisk miga od razu, nie dopiero przy następnym obiegu zegara.
+    powerdesk_core::shellhook::start(|| {
+        let _ = slint::invoke_from_event_loop(refresh);
+    });
     std::thread::spawn(|| {
         let mons = data::monitors();
         let _ = slint::invoke_from_event_loop(move || crate::with_state(|s| build(s, mons)));
@@ -201,6 +205,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         });
         w.on_tray_overflow(move |x| open_tray_overflow(n, x));
         let _ = w.show();
+        let _ = powerdesk_core::dnd::register(crate::window_hwnd(w.window()), Box::new(BarDrop { bar: n }));
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, blurred: None, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
@@ -478,6 +483,78 @@ fn launch(exe: &str) {
     let _ = std::process::Command::new(exe).spawn();
 }
 
+/// Przycisk paska pod punktem `x` okna paska (piksele okna) – ten sam układ co w taskbar.slint.
+fn button_at(bar: usize, x: i32) -> Option<usize> {
+    BARS.with(|b| {
+        let b = b.borrow();
+        let bar = b.get(bar)?;
+        let scale = bar.w.window().scale_factor();
+        let (mut left, x, each) = (bar.w.get_lane_x(), x as f32 / scale, bar.w.get_lane_each());
+        for (i, g) in bar.groups.iter().enumerate() {
+            let w = if g.wins.is_empty() { pin_w() } else { each };
+            if x >= left && x < left + w {
+                return Some(i);
+            }
+            left += w + 4.0;
+        }
+        None
+    })
+}
+
+thread_local! {
+    /// Przeciąganie plików nad przyciskiem: pasek, przycisk, od kiedy i czy okno już wysunięte.
+    static DRAG_OVER: Cell<Option<(usize, usize, std::time::Instant, bool)>> = const { Cell::new(None) };
+}
+
+/// Pliki przeciągane na pasek – jak w Windows: przytrzymanie nad programem wysuwa jego okno,
+/// upuszczenie na program bez okien (przypięty) otwiera w nim pliki.
+struct BarDrop {
+    bar: usize,
+}
+
+impl powerdesk_core::dnd::DropHandler for BarDrop {
+    fn over(&self, x: i32, _y: i32, _keys: powerdesk_core::dnd::Keys, _paths: &[String]) -> powerdesk_core::dnd::Effect {
+        use powerdesk_core::dnd::Effect;
+        let Some(i) = button_at(self.bar, x) else {
+            DRAG_OVER.with(|d| d.set(None));
+            return Effect::None;
+        };
+        let now = std::time::Instant::now();
+        let (since, shown) = match DRAG_OVER.with(|d| d.get()) {
+            Some((b, j, t, s)) if b == self.bar && j == i => (t, s),
+            _ => (now, false),
+        };
+        let g = group_at(self.bar, i);
+        let mut shown = shown;
+        if !shown && now.duration_since(since) >= Duration::from_millis(600) {
+            if let Some(top) = g.as_ref().and_then(|g| g.wins.first()) {
+                taskwin::activate(top.hwnd);
+            }
+            shown = true;
+        }
+        DRAG_OVER.with(|d| d.set(Some((self.bar, i, since, shown))));
+        match g {
+            Some(g) if g.wins.is_empty() && !g.exe.is_empty() => Effect::Copy,
+            _ => Effect::None,
+        }
+    }
+
+    fn leave(&self) {
+        DRAG_OVER.with(|d| d.set(None));
+    }
+
+    fn dropped(&self, x: i32, _y: i32, _keys: powerdesk_core::dnd::Keys, paths: &[String]) -> powerdesk_core::dnd::Effect {
+        use powerdesk_core::dnd::Effect;
+        DRAG_OVER.with(|d| d.set(None));
+        let Some(g) = button_at(self.bar, x).and_then(|i| group_at(self.bar, i)) else { return Effect::None };
+        if !g.wins.is_empty() || g.exe.is_empty() {
+            return Effect::None;
+        }
+        let _ = std::process::Command::new(&g.exe).args(paths).spawn();
+        Effect::Copy
+    }
+}
+
 /// Przypięty program bez okien – klik go uruchamia.
 fn click(g: &Group) {
     if g.wins.is_empty() {
@@ -553,6 +630,7 @@ fn app_foreground() -> isize {
 }
 
 fn click_group(group: &[Win]) {
+    group.iter().for_each(|w| powerdesk_core::shellhook::clear(w.hwnd));
     match group {
         [] => {}
         // Jak w Windows: klik w aktywne okno je minimalizuje (widać to, co było pod nim),
@@ -1488,6 +1566,7 @@ fn group(pins: &[String], wins: &[Win], mode: u8, fits: usize) -> Vec<Group> {
 
 fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
     let mut idle = 0;
+    let flashing = powerdesk_core::shellhook::flashing();
     groups
         .iter()
         .map(|g| {
@@ -1503,6 +1582,7 @@ fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
                 img: img.unwrap_or_default(),
                 active: w.is_some_and(|w| w.hwnd == fg),
                 minimized: g.wins.iter().all(|w| w.minimized),
+                flash: g.wins.iter().any(|w| w.hwnd != fg && flashing.contains(&w.hwnd)),
                 count: g.wins.len() as i32,
                 pinned: g.pinned,
                 idle_before,

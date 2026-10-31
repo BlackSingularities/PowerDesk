@@ -7,6 +7,8 @@
 - Pasek: bez kropek pod uruchomionymi i przypiętymi programami (kreska tylko pod aktywnym), ikony nie podskakują pod kursorem.
 - Pasek: klik w aktywny program go minimalizuje (jak w Windows), także gdy fokus przejął sam pasek.
 - Start: lista aplikacji zawsze czytelna – tło nie prześwituje już przy niedziałającym rozmyciu.
+- Pasek: przycisk programu, który woła o uwagę (nowa wiadomość, koniec pobierania), pulsuje pomarańczową kreską, póki go nie otworzysz.
+- Pasek: pliki przeciągnięte nad program – po chwili wysuwa się jego okno; upuszczone na przypięty program bez okien otwierają się w nim.
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 
