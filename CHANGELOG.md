@@ -8,6 +8,8 @@
 - Ikona PowerDesk: sama teczka, bez tła.
 - Okno wyboru folderu: „Wybierz folder” z nazwą bieżącego folderu w polu wybiera ten folder.
 - Galeria: miniatury zamawiane z większym wyprzedzeniem.
+- Ekran „Komputer”: w Ustawieniach → Nowe okno wybór, które sekcje pokazywać.
+- Pulpit: ikona „Komputer” (zamiast „Ten komputer”) z prawdziwą ikoną komputera z Windows.
 
 ## 1.0.11
 

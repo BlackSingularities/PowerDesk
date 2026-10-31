@@ -458,7 +458,7 @@ fn grid(w: &DesktopWindow, (cw, ch, _): (f32, f32, f32)) -> (i32, i32) {
 /// Elementy pulpitu z dysku i ikony wirtualne („Ten komputer”) na początku.
 fn with_specials(mut items: Vec<Entry>, computer: bool) -> Vec<Entry> {
     if computer {
-        items.insert(0, Entry { name: "Ten komputer".into(), path: COMPUTER.into(), dir: true, size: 0, modified: 0, created: 0, ext: String::new(), hidden: false, system: true, readonly: true, link: false, cloud: false });
+        items.insert(0, Entry { name: "Komputer".into(), path: COMPUTER.into(), dir: true, size: 0, modified: 0, created: 0, ext: String::new(), hidden: false, system: true, readonly: true, link: false, cloud: false });
     }
     items
 }
@@ -548,7 +548,9 @@ fn render(s: &Shared) {
             .zip(d.spots.iter())
             .map(|((e, &(col, row)), &(x, y))| {
                 // Zdjęcia i filmy z miniaturą, reszta (skróty, dokumenty) – ikona systemowa.
-                let img = if virtual_item(&e.path) { None } else { crate::thumbs::get(&e.path, px, !fmt::is_media(e)) };
+                // „Komputer” – ikona z powłoki Windows (ta sama co w Eksploratorze, także zmieniona
+                // w ustawieniach ikon pulpitu): ścieżka „::{CLSID}” działa jak zwykła ścieżka.
+                let img = if virtual_item(&e.path) { crate::thumbs::get(&e.path, px, true) } else { crate::thumbs::get(&e.path, px, !fmt::is_media(e)) };
                 DeskIcon {
                     name: if d.renaming.as_deref() == Some(e.path.as_str()) { e.name.clone() } else { label(e) }.into(),
                     path: e.path.clone().into(),
@@ -956,7 +958,7 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
                 it("Małe ikony", "grid", |s| set_desk(s, |p| p.desktop_icon_size = 0)).checked(size == 0),
                 sep(),
                 it("Wyrównaj ikony do siatki", "grid", |s| set_desk(s, |p| p.desktop_free = !p.desktop_free)).checked(!free),
-                it("Pokaż „Ten komputer”", "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),
+                it("Pokaż „Komputer”", "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),
             ],
         ),
         it("Uporządkuj ikony", "grid", arrange),

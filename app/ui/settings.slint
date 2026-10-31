@@ -50,6 +50,9 @@ export global SettingsState {
     /// Jedno kliknięcie otwiera (czyta też widok plików).
     in-out property <bool> single-click;
     in-out property <[SideSection]> side-sections;
+    /// Sekcje ekranu „Komputer” (nagłówek, czy widoczna) i przełączenie po nagłówku.
+    in-out property <[SideSection]> home-sections;
+    callback toggle-home(string);
     callback toggle-side(string);
     /// Krycie tła okna przy Mica/Acrylic w procentach (0 – domyślne).
     in-out property <float> window-opacity;
@@ -714,6 +717,25 @@ export component SettingsView inherits Rectangle {
                             }
                         }
                     }
+                    Label {
+                        text: "Ekran „Komputer”";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    Label {
+                        text: "Sekcje pod dyskami i folderami – wyłączone znikają z ekranu (kolejność zmienisz strzałkami przy nagłówkach)";
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: Theme.faint;
+                    }
+                    for sec in SettingsState.home-sections: ToggleRow {
+                        icon: Icons.pc;
+                        text: sec.name;
+                        on: sec.on;
+                        toggled => {
+                            SettingsState.toggle-home(sec.name);
+                        }
+                    }
                 }
 
                 if SettingsState.section == 2: VerticalLayout {
@@ -945,8 +967,8 @@ export component SettingsView inherits Rectangle {
                     }
                     ToggleRow {
                         icon: Icons.pc;
-                        text: "Ikona „Ten komputer”";
-                        hint: "Na pulpicie – otwiera widok Komputer z dyskami i folderami";
+                        text: "Ikona „Komputer”";
+                        hint: "Na pulpicie, z ikoną komputera z Windows – otwiera widok Komputer z dyskami i folderami";
                         on: SettingsState.desktop-computer;
                         toggled => {
                             SettingsState.toggle("desktop-computer");

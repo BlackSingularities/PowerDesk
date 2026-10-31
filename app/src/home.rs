@@ -24,7 +24,7 @@ const SHOWN: usize = 30;
 const DAYS: usize = 14;
 
 /// Sekcje ekranu pod powitaniem: klucz (w ustawieniach) i nagłówek, w domyślnej kolejności.
-const SECTIONS: [(&str, &str); 6] = [
+pub const SECTIONS: [(&str, &str); 6] = [
     ("overview", "Dyski i system"),
     ("tools", "Narzędzia systemu"),
     ("favorites", "Ulubione"),
@@ -59,10 +59,13 @@ fn order(saved: &[String]) -> Vec<&'static str> {
     v
 }
 
-fn render_sections(s: &Shared) {
+/// Sekcje od nowa (kolejność, zwinięcie, wyłączone w Ustawieniach).
+pub fn render_sections(s: &Shared) {
     let (keys, shut) = {
         let b = s.borrow();
-        (order(&b.prefs.home_order), b.prefs.home_shut.clone())
+        let hidden = &b.prefs.home_hidden;
+        let keys: Vec<&'static str> = order(&b.prefs.home_order).into_iter().filter(|k| !hidden.iter().any(|h| h == k)).collect();
+        (keys, b.prefs.home_shut.clone())
     };
     let n = keys.len();
     let rows: Vec<HomeSection> = keys

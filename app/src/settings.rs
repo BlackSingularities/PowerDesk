@@ -205,6 +205,8 @@ fn render(s: &Shared) {
     g.set_single_click(p.single_click);
     let secs: Vec<SideSection> = SIDE_SECTIONS.iter().map(|n| SideSection { name: (*n).into(), on: !p.side_hidden.iter().any(|h| h == n) }).collect();
     g.set_side_sections(ModelRc::new(VecModel::from(secs)));
+    let home: Vec<SideSection> = crate::home::SECTIONS.iter().map(|(k, t)| SideSection { name: (*t).into(), on: !p.home_hidden.iter().any(|h| h == k) }).collect();
+    g.set_home_sections(ModelRc::new(VecModel::from(home)));
     g.set_window_opacity(p.window_opacity);
     g.set_close_to_tray(p.close_to_tray);
     g.set_autostart_window(p.autostart_window);
@@ -491,6 +493,18 @@ pub fn toggle_side(s: &Shared, name: &str) {
     crate::render_side(s);
 }
 
+/// Sekcja ekranu „Komputer” włączona albo wyłączona (po nagłówku z listy w Ustawieniach).
+pub fn toggle_home(s: &Shared, title: &str) {
+    let Some(key) = crate::home::SECTIONS.iter().find(|(_, t)| *t == title).map(|(k, _)| k.to_string()) else { return };
+    change(s, |p| match p.home_hidden.iter().position(|h| *h == key) {
+        Some(i) => {
+            p.home_hidden.remove(i);
+        }
+        None => p.home_hidden.push(key),
+    });
+    crate::home::render_sections(s);
+}
+
 pub fn set_window_opacity(s: &Shared, v: f32) {
     change(s, |p| p.window_opacity = v.clamp(20.0, 100.0));
     relook(s);
@@ -625,6 +639,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_forget_views(move || forget_views(&s));
     let s = st.clone();
     g.on_toggle_side(move |n| toggle_side(&s, &n));
+    let s = st.clone();
+    g.on_toggle_home(move |n| toggle_home(&s, &n));
     let s = st.clone();
     g.on_set_window_opacity(move |v| set_window_opacity(&s, v));
     let s = st.clone();
