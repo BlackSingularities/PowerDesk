@@ -112,7 +112,7 @@ fn date_range(v: &str) -> Option<(i64, i64)> {
 }
 
 /// Podpowiedzi pokazywane pod polem wyszukiwania.
-pub const HINTS: [(&str, &str); 10] = [
+pub const HINTS: [(&str, &str); 11] = [
     ("typ:zdjęcia", "Tylko zdjęcia"),
     ("typ:wideo", "Tylko filmy"),
     ("typ:dokumenty", "Dokumenty"),
