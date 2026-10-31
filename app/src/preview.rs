@@ -316,7 +316,7 @@ fn one(s: &Shared, gen: u64, e: Entry) {
         }
     });
     // SVG, czcionki i modele 3D – obraz liczony w tle (Windows nie ma dla nich miniatur).
-    if !packed && !e.cloud && matches!(ext.as_str(), "svg" | "ttf" | "otf" | "stl" | "obj") {
+    if !packed && !e.cloud && matches!(ext.as_str(), "svg" | "ttf" | "otf" | "ttc" | "otc" | "stl" | "obj") {
         let p = e.path.clone();
         let w = ((width - 32.0) * scale) as u32;
         let light = s.borrow().ui.upgrade().is_some_and(|u| u.global::<crate::Theme>().get_light());
@@ -325,7 +325,7 @@ fn one(s: &Shared, gen: u64, e: Entry) {
         std::thread::spawn(move || {
             let img = match ext2.as_str() {
                 "svg" => powerdesk_core::render::svg(&p, w),
-                "ttf" | "otf" => powerdesk_core::render::font(&p, w, ink),
+                "ttf" | "otf" | "ttc" | "otc" => powerdesk_core::render::font(&p, w, ink),
                 _ => powerdesk_core::render::model(&p, w, [120, 160, 230]),
             };
             let Some((iw, ih, px)) = img else { return };
