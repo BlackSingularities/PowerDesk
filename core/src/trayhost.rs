@@ -192,7 +192,7 @@ fn wide(s: &[u16]) -> String {
 }
 
 /// HICON na RGBA (kolor z kanałem alfa; stare ikony bez alfy – z maski).
-unsafe fn rgba(icon: HICON) -> Option<(u32, u32, Vec<u8>)> {
+pub(crate) unsafe fn rgba(icon: HICON) -> Option<(u32, u32, Vec<u8>)> {
     let mut info = ICONINFO::default();
     GetIconInfo(icon, &mut info).ok()?;
     let color = info.hbmColor;

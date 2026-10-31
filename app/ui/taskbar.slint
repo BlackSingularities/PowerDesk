@@ -44,6 +44,13 @@ export struct TaskButton {
     minimized: bool,
     /// Okno programu woła o uwagę (miga jak w Windows).
     flash: bool,
+    /// Pasek postępu programu (ITaskbarList3): 0 brak, 1 nieokreślony, 2 zwykły, 3 błąd, 4 wstrzymany.
+    progress-state: int,
+    /// Postęp 0..1.
+    progress: float,
+    /// Plakietka programu na ikonie (np. liczba wiadomości).
+    badge: image,
+    has-badge: bool,
     /// Okna programu pod tym przyciskiem (0 – przypięty program, który nie działa).
     count: int,
     pinned: bool,
@@ -1398,6 +1405,15 @@ export component TaskbarWindow inherits Window {
                             source: b.img;
                             image-rendering: smooth;
                         }
+                        // Plakietka w prawym dolnym rogu ikony, jak w Windows.
+                        if b.has-badge: Image {
+                            x: root.ai * 0.45;
+                            y: (parent.height - root.ai) / 2 + root.ai * 0.45;
+                            width: root.ai * 0.6;
+                            height: root.ai * 0.6;
+                            source: b.badge;
+                            image-rendering: smooth;
+                        }
                         if !b.has-img: Icon {
                             commands: Icons.file;
                             size: root.ai * 0.9;
@@ -1416,6 +1432,23 @@ export component TaskbarWindow inherits Window {
                 // Stan programu: tylko aktywne okno ma kreskę w kolorze akcentu – bez kropek
                 // pod uruchomionymi i przypiętymi.
                 // Program woła o uwagę: pomarańczowa kreska pod ikoną, pulsuje.
+                // Postęp programu (pobieranie, kopiowanie): pasek przez dół przycisku, kolor wg stanu.
+                if b.progress-state > 0: Rectangle {
+                    x: 4px;
+                    y: parent.height - 3px;
+                    width: parent.width - 8px;
+                    height: 3px;
+                    border-radius: 1.5px;
+                    background: Theme.hover;
+                    Rectangle {
+                        property <float> run: mod(animation-tick() / 1ms, 1500) / 1500;
+                        x: b.progress-state == 1 ? (parent.width * 0.7) * self.run : 0px;
+                        width: b.progress-state == 1 ? parent.width * 0.3 : parent.width * clamp(b.progress, 0, 1);
+                        height: parent.height;
+                        border-radius: 1.5px;
+                        background: b.progress-state == 3 ? #e5484d : b.progress-state == 4 ? #f7a531 : #3fb950;
+                    }
+                }
                 if b.flash && !b.active: Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - 4px;

@@ -1743,8 +1743,11 @@ fn group(pins: &[String], wins: &[Win], mode: u8, fits: usize) -> Vec<Group> {
 }
 
 fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
+    use powerdesk_core::shellhook::ProgressState;
     let mut idle = 0;
     let flashing = powerdesk_core::shellhook::flashing();
+    let progress = powerdesk_core::shellhook::progress();
+    let overlays = powerdesk_core::shellhook::overlays();
     groups
         .iter()
         .map(|g| {
@@ -1754,6 +1757,10 @@ fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
             }
             let img = if g.exe.is_empty() { None } else { crate::thumbs::get(&g.exe, px, true) };
             let w = g.wins.iter().find(|w| w.hwnd == fg).or(g.wins.first());
+            // Postęp i plakietka: aktywne okno grupy, inaczej pierwsze, które je zgłosiło.
+            let pick = |has: &dyn Fn(isize) -> bool| w.filter(|w| has(w.hwnd)).or_else(|| g.wins.iter().find(|w| has(w.hwnd))).map(|w| w.hwnd);
+            let prog = pick(&|h| progress.contains_key(&h)).and_then(|h| progress.get(&h).copied());
+            let badge = pick(&|h| overlays.contains_key(&h)).and_then(|h| overlays.get(&h)).map(|(bw, bh, px)| slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *bw, *bh)));
             TaskButton {
                 title: w.map_or_else(|| program_name(&g.exe), |w| w.title.clone()).into(),
                 has_img: img.is_some(),
@@ -1761,6 +1768,16 @@ fn buttons(groups: &[Group], fg: isize, px: u32) -> Vec<TaskButton> {
                 active: w.is_some_and(|w| w.hwnd == fg),
                 minimized: g.wins.iter().all(|w| w.minimized),
                 flash: g.wins.iter().any(|w| w.hwnd != fg && flashing.contains(&w.hwnd)),
+                progress_state: prog.map_or(0, |p| match p.state {
+                    ProgressState::None => 0,
+                    ProgressState::Indeterminate => 1,
+                    ProgressState::Normal => 2,
+                    ProgressState::Error => 3,
+                    ProgressState::Paused => 4,
+                }),
+                progress: prog.map_or(0.0, |p| p.value),
+                has_badge: badge.is_some(),
+                badge: badge.unwrap_or_default(),
                 count: g.wins.len() as i32,
                 pinned: g.pinned,
                 idle_before,

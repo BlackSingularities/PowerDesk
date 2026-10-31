@@ -179,6 +179,7 @@ pub fn swapped() -> bool {
 /// Przywraca pasek i ikony Windows do stanu sprzed podmiany. Bezpieczne do wielokrotnego
 /// wywołania i bez pliku stanu (wtedy tylko pokazuje ukryte elementy).
 pub fn restore() {
+    crate::shellhook::release();
     ACTIVE.store(false, std::sync::atomic::Ordering::SeqCst);
     let file = state_file();
     // Starsze wersje przestawiały pasek na autoukrywanie i zapisywały stan sprzed – oddajemy go.
