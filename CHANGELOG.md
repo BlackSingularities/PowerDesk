@@ -2,6 +2,7 @@
 
 ## 1.1.1
 
+- Pulpit: upuszczanie plików z innych programów (okna folderów, przeglądarka, poczta) – kopiowanie albo przeniesienie na Pulpit jak w Eksploratorze (Ctrl – kopiuj, Shift – przenieś), ikony stają w miejscu upuszczenia.
 - Archiwa ZIP otwierane z innych programów (np. „Otwórz” po pobraniu w przeglądarce, dwuklik) przegląda PowerDesk jak folder; ZIP, 7z i RAR podane w wierszu poleceń też otwierają się od środka.
 - Pasek: przeciąganie zmienia kolejność także uruchomionych programów (nie tylko przypiętych).
 - Okno folderów: zmiana rozmiaru za każdą krawędź i róg (okno bez ramki dostało własne uchwyty), dowolny rozmiar od 360×240; okno „Otwórz”/„Zapisz jako” od 420×300.

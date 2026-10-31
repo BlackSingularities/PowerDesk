@@ -7,6 +7,7 @@
 
 use std::cell::RefCell;
 use std::collections::HashSet;
+use std::path::Path;
 use std::time::Duration;
 
 use powerdesk_core::desktop::{self as data, Fit, Monitor};
@@ -183,6 +184,57 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffe
     WATCH.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(2), watch));
 }
 
+/// Upuszczanie na pulpit z innych programów: kopiowanie albo przeniesienie do folderu Pulpit
+/// (jak w Eksploratorze: Ctrl – kopiuj, Shift – przenieś, między dyskami kopiuj), ikony staną
+/// w miejscu upuszczenia.
+struct DeskDrop {
+    scale: f32,
+}
+
+impl powerdesk_core::dnd::DropHandler for DeskDrop {
+    fn over(&self, _x: i32, _y: i32, keys: powerdesk_core::dnd::Keys, paths: &[String]) -> powerdesk_core::dnd::Effect {
+        use powerdesk_core::dnd::Effect;
+        let dest = desktop_dir();
+        // Pliki, które już leżą na pulpicie, przesuwa sam pulpit (przeciąganie ikon).
+        if paths.iter().all(|p| Path::new(p).parent().is_some_and(|d| d.to_string_lossy().eq_ignore_ascii_case(&dest))) {
+            return Effect::None;
+        }
+        if crate::dragdrop::mode(paths, &dest, keys) == "copy" { Effect::Copy } else { Effect::Move }
+    }
+
+    fn leave(&self) {}
+
+    fn dropped(&self, x: i32, y: i32, keys: powerdesk_core::dnd::Keys, paths: &[String]) -> powerdesk_core::dnd::Effect {
+        use powerdesk_core::dnd::Effect;
+        let e = self.over(x, y, keys, paths);
+        if e == Effect::None {
+            return e;
+        }
+        let dest = desktop_dir();
+        let mode = if e == Effect::Copy { "copy" } else { "move" };
+        let (lx, ly) = (x as f32 / self.scale, y as f32 / self.scale);
+        let paths = paths.to_vec();
+        // Po powrocie z wywołania OLE: miejsca ikon i kopiowanie przez pasek transferów.
+        slint::Timer::single_shot(Duration::from_millis(1), move || {
+            crate::with_state(|s| {
+                let (cw, _, _) = D.with(|d| d.borrow().cell);
+                {
+                    let mut b = s.borrow_mut();
+                    for (k, p) in paths.iter().enumerate() {
+                        let Some(name) = Path::new(p).file_name() else { continue };
+                        let target = Path::new(&dest).join(name).to_string_lossy().to_string();
+                        b.prefs.desktop_xy.insert(key_of(&target), ((lx - cw / 2.0 + k as f32 * 12.0).max(0.0), (ly - 24.0 + k as f32 * 12.0).max(0.0)));
+                    }
+                    b.prefs.save();
+                }
+                crate::transfers::transfer(s, paths, &dest, mode);
+                refresh_soon();
+            })
+        });
+        e
+    }
+}
+
 /// Okna pulpitu jako dzieci Progman, na swoich monitorach; ikony Windows ukryte.
 fn attach() {
     D.with(|d| {
@@ -195,6 +247,8 @@ fn attach() {
             }
             data::hide_from_taskbar(hwnd);
             powerdesk_core::system::no_frame_border(hwnd);
+            // Pliki upuszczane z innych programów (przeglądarka, okna folderów, poczta) trafiają na pulpit.
+            let _ = powerdesk_core::dnd::register(hwnd, Box::new(DeskDrop { scale: w.window().scale_factor() }));
             // Zwykłe okna pod wszystkimi programami – z Eksploratorem tuż nad jego pulpitem (Progman),
             // bez niego na samym dnie. (Warstwa tapety Windows – WorkerW – nie rysuje naszych okien.)
             powerdesk_core::shellmode::keep_at_bottom(hwnd);
