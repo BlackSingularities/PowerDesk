@@ -1,5 +1,13 @@
 # Zmiany
 
+## 1.0.13
+
+- Pasek: grupowanie okien do wyboru – zawsze, gdy pasek jest pełny, nigdy.
+- Pulpit: Kosz z ikoną z Windows (pusty / pełny), otwieranie i „Opróżnij Kosz”; układ ikon zapamiętywany osobno dla każdego ekranu (rozdzielczość, liczba monitorów).
+- Start: motywy Windows 10 (kafelki), Windows 11 (na środku, siatka) i klasyczny.
+- Lista plików: kolumny Autor i Wersja.
+- Ustawienia: wyszukiwarka – zostają sekcje z pasującymi opcjami.
+
 ## 1.0.12
 
 - Pulpit: przeciąganie ikon działa (także niezaznaczonych) i domyślnie w dowolne miejsce.

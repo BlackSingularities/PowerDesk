@@ -20,6 +20,8 @@ use crate::{fmt, transfers, DeskIcon, DesktopWindow, Shared, Theme, WidgetItem};
 const MARGIN: f32 = 8.0;
 /// „Ten komputer” na pulpicie – wirtualna ikona (otwiera widok Komputer PowerDesk).
 pub const COMPUTER: &str = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
+/// Kosz na pulpicie – ikona z Windows (pusty albo pełny), otwiera Kosz, w menu „Opróżnij Kosz”.
+pub const RECYCLE: &str = "::{645FF040-5081-101B-9F08-00AA002F954E}";
 
 /// Pole siatki i rozmiar ikony (piksele logiczne) dla rozmiaru z ustawień: małe, średnie, duże.
 fn dims(size: u8) -> (f32, f32, f32) {
@@ -168,7 +170,7 @@ fn build(s: &Shared, mons: Vec<Monitor>, mut walls: Vec<(Option<SharedPixelBuffe
         d.windows = out;
         d.rects = rects;
         d.defaults = defaults;
-        d.items = with_specials(items, s.borrow().prefs.desktop_computer);
+        d.items = with_specials(items, s.borrow().prefs.desktop_computer, s.borrow().prefs.desktop_recycle);
     });
     render(s);
     render_widgets(s);
@@ -211,7 +213,28 @@ fn attach() {
 
 /// Restart Eksploratora niszczy Progman razem z naszymi oknami – budujemy pulpit od nowa.
 /// Ikony Windows wracają też po zmianie tapety z animacją – chowamy je ponownie.
+/// Kosz był pusty przy ostatnim sprawdzeniu – zmiana podmienia ikonę (pusty / pełny).
+thread_local! {
+    static BIN_EMPTY: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+fn watch_recycle() {
+    if !D.with(|d| d.borrow().items.iter().any(|e| e.path == RECYCLE)) {
+        return;
+    }
+    std::thread::spawn(|| {
+        let empty = powerdesk_core::system::recycle_bin().0 == 0;
+        let _ = slint::invoke_from_event_loop(move || {
+            if BIN_EMPTY.with(|b| b.replace(Some(empty))).is_some_and(|was| was != empty) {
+                crate::thumbs::invalidate(RECYCLE);
+                crate::with_state(render);
+            }
+        });
+    });
+}
+
 fn watch() {
+    watch_recycle();
     // Inny układ monitorów, skala albo tapeta – pulpit i pasek od nowa.
     if SCREEN.with(|c| *c.borrow() != data::screen_signature()) {
         close();
@@ -456,11 +479,22 @@ fn grid(w: &DesktopWindow, (cw, ch, _): (f32, f32, f32)) -> (i32, i32) {
 }
 
 /// Elementy pulpitu z dysku i ikony wirtualne („Ten komputer”) na początku.
-fn with_specials(mut items: Vec<Entry>, computer: bool) -> Vec<Entry> {
+fn with_specials(items: Vec<Entry>, computer: bool, recycle: bool) -> Vec<Entry> {
+    let special = |name: &str, path: &str| Entry { name: name.into(), path: path.into(), dir: true, size: 0, modified: 0, created: 0, ext: String::new(), hidden: false, system: true, readonly: true, link: false, cloud: false };
+    let mut out = Vec::new();
     if computer {
-        items.insert(0, Entry { name: "Komputer".into(), path: COMPUTER.into(), dir: true, size: 0, modified: 0, created: 0, ext: String::new(), hidden: false, system: true, readonly: true, link: false, cloud: false });
+        out.push(special("Komputer", COMPUTER));
     }
-    items
+    if recycle {
+        out.push(special("Kosz", RECYCLE));
+    }
+    out.extend(items.into_iter().filter(|e| !virtual_item(&e.path)));
+    out
+}
+
+/// Ikony wirtualne, które powinny stać na pulpicie (z ustawień).
+fn specials_now(d: &Desk) -> (bool, bool) {
+    (d.items.iter().any(|e| e.path == COMPUTER), d.items.iter().any(|e| e.path == RECYCLE))
 }
 
 fn virtual_item(path: &str) -> bool {
@@ -503,20 +537,49 @@ pub fn label(e: &Entry) -> String {
     }
 }
 
+/// Inny ekran niż przy ostatnim rysowaniu: bieżący układ trafia do zapamiętanych, a dla nowego
+/// ekranu wraca jego układ (albo zostaje bieżący, gdy ten ekran jest nowy).
+fn switch_layout(s: &Shared) {
+    let Some(screen) = D.with(|d| {
+        let d = d.borrow();
+        let w = d.windows.first()?;
+        let size = w.window().size().to_logical(w.window().scale_factor());
+        Some(format!("{}x{}·{}", size.width.round(), size.height.round(), d.windows.len()))
+    }) else {
+        return;
+    };
+    // Wywołujący może trzymać stan – wtedy układ przełączy się przy następnym rysowaniu.
+    let Ok(mut b) = s.try_borrow_mut() else { return };
+    let p = &mut b.prefs;
+    if p.desktop_screen == screen {
+        return;
+    }
+    if !p.desktop_screen.is_empty() {
+        let old = (p.desktop_pos.clone(), p.desktop_xy.clone());
+        p.desktop_layouts.insert(std::mem::take(&mut p.desktop_screen), old);
+    }
+    if let Some((pos, xy)) = p.desktop_layouts.get(&screen).cloned() {
+        p.desktop_pos = pos;
+        p.desktop_xy = xy;
+    }
+    p.desktop_screen = screen;
+    p.save();
+}
+
 fn render(s: &Shared) {
-    let (saved, xy, size, free, computer) = {
+    switch_layout(s);
+    let (saved, xy, size, free, computer, recycle) = {
         let b = s.borrow();
         let p = &b.prefs;
-        (p.desktop_pos.clone(), p.desktop_xy.clone(), p.desktop_icon_size, p.desktop_free, p.desktop_computer)
+        (p.desktop_pos.clone(), p.desktop_xy.clone(), p.desktop_icon_size, p.desktop_free, p.desktop_computer, p.desktop_recycle)
     };
     D.with(|d| {
         let mut d = d.borrow_mut();
         let Some(w) = d.windows.first().map(|w| w.clone_strong()) else { return };
         // „Ten komputer” włączany i wyłączany w ustawieniach – bez czytania pulpitu od nowa.
-        let has = d.items.first().is_some_and(|e| e.path == COMPUTER);
-        if has != computer {
-            let items: Vec<Entry> = std::mem::take(&mut d.items).into_iter().filter(|e| !virtual_item(&e.path)).collect();
-            d.items = with_specials(items, computer);
+        if specials_now(&d) != (computer, recycle) {
+            let items = std::mem::take(&mut d.items);
+            d.items = with_specials(items, computer, recycle);
         }
         let cell = dims(size);
         d.cell = cell;
@@ -589,8 +652,8 @@ fn refresh() {
                 let mut d = d.borrow_mut();
                 let have: HashSet<String> = items.iter().map(|e| e.path.clone()).collect();
                 d.sel.retain(|p| have.contains(p) || virtual_item(p));
-                let computer = d.items.first().is_some_and(|e| e.path == COMPUTER);
-                d.items = with_specials(items, computer);
+                let (computer, recycle) = specials_now(&d);
+                d.items = with_specials(items, computer, recycle);
             });
             crate::with_state(render);
         });
@@ -769,7 +832,9 @@ fn open_item(s: &Shared, i: usize) {
 }
 
 fn open_path(s: &Shared, e: &Entry) {
-    if e.path == COMPUTER {
+    if e.path == RECYCLE {
+        let _ = open::that_detached("shell:RecycleBinFolder");
+    } else if e.path == COMPUTER {
         crate::open_computer(s);
         crate::show_window(s);
     } else if e.dir {
@@ -934,9 +999,9 @@ fn menu_chosen(s: &Shared, i: usize) {
 /// Menu pustego miejsca na monitorze `win` (0 – główny).
 fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
     let at = (x, y);
-    let (free, size, computer) = {
+    let (free, size, computer, recycle) = {
         let b = s.borrow();
-        (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer)
+        (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer, b.prefs.desktop_recycle)
     };
     let can_paste = clip::has_files();
     let mut v = vec![
@@ -959,6 +1024,7 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
                 sep(),
                 it("Wyrównaj ikony do siatki", "grid", |s| set_desk(s, |p| p.desktop_free = !p.desktop_free)).checked(!free),
                 it("Pokaż „Komputer”", "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),
+                it("Pokaż Kosz", "trash", |s| set_desk(s, |p| p.desktop_recycle = !p.desktop_recycle)).checked(recycle),
             ],
         ),
         it("Uporządkuj ikony", "grid", arrange),
@@ -1017,6 +1083,21 @@ fn icon_menu(_s: &Shared, x: f32, y: f32) {
         d.items.iter().filter(|e| d.sel.contains(&e.path)).cloned().collect()
     });
     if sel.is_empty() {
+        return;
+    }
+    if sel.len() == 1 && sel[0].path == RECYCLE {
+        let (n, _) = powerdesk_core::system::recycle_bin();
+        let mut v = vec![it("Otwórz", "open", open_selected).kbd("Enter"), sep()];
+        let empty = it("Opróżnij Kosz", "trash", |_| {
+            std::thread::spawn(powerdesk_core::system::empty_recycle_bin);
+        })
+        .danger();
+        // Pusty Kosz – nie ma czego opróżniać.
+        if n > 0 {
+            v.push(empty);
+        }
+        v.push(it("Ukryj na pulpicie", "eye", |s| set_desk(s, |p| p.desktop_recycle = false)));
+        show_menu(0, v, x, y);
         return;
     }
     if sel.len() == 1 && sel[0].path == COMPUTER {

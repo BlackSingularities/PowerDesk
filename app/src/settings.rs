@@ -181,11 +181,14 @@ fn render(s: &Shared) {
     g.set_tray_all(p.tray_all);
     g.set_taskbar_height(p.taskbar_height.round() as i32);
     g.set_taskbar_icon(p.taskbar_icon.round() as i32);
+    g.set_taskbar_group(p.taskbar_group as i32);
+    g.set_start_style(p.start_style as i32);
     g.set_start_image(p.start_image.clone().into());
     g.set_start_frames(p.start_frames as i32);
     g.set_desktop_icon_size(p.desktop_icon_size as i32);
     g.set_desktop_free(p.desktop_free);
     g.set_desktop_computer(p.desktop_computer);
+    g.set_desktop_recycle(p.desktop_recycle);
     g.set_shell_mode(powerdesk_core::shellmode::active());
     g.set_system_accent(sys);
     g.set_start(match p.start.as_str() {
@@ -294,6 +297,37 @@ pub fn popup_theme(t: &Theme) {
             t.set_accent_override(m.get_accent_override());
             t.set_popup_alpha(m.get_popup_alpha());
         }
+    });
+}
+
+/// Słowa, po których szukanie w ustawieniach znajduje sekcję (w kolejności listy po lewej).
+const SEARCH_WORDS: [&str; 11] = [
+    "wygląd motyw jasny ciemny tryb akcent kolor mica acrylic akryl rozmycie przezroczystość krycie okienka tło okna",
+    "nowe okno start karta folder domowy komputer ekran komputer sekcje dyski narzędzia ulubione aktywność ostatnie pliki",
+    "widok folderów lista siatka galeria miniatury ukryte pliki foldery najpierw rozmiar kolumny zapamiętane widoki",
+    "przeglądanie jedno kliknięcie panel boczny sekcje kosz potwierdzenie podwójne kliknięcie",
+    "podgląd panel podglądu przeglądarka zdjęć exif informacje pdf wideo",
+    "pulpit ikony siatka wyrównanie dowolnie rozmiar ikon komputer kosz tapeta pokaz slajdów bing strefy okien zony widżety panele krawędź",
+    "pasek zadań start przycisk start obraz klatki motyw startu windows 10 windows 11 klasyczny ikony nazwy środek wysokość grupowanie zegar sekundy data zasobnik tray ikony przezroczystość rozmycie pulpity wirtualne monitory",
+    "system eksplorator integracja autostart start z windows zasobnik krzyżyk instalacja odinstaluj aktualizacje zakończ uruchom ponownie wyjście",
+    "skróty klawiszowe klawiatura ctrl alt",
+    "o aplikacji wersja ustawienia plik raport problem dziennik",
+    "nakładka wydajność fps klatki gra tryb gry limit klatek nvidia alt r",
+];
+
+/// Szukanie w ustawieniach: sekcje ze wszystkimi słowami zapytania; pierwsza pasująca się otwiera.
+pub fn search(s: &Shared, q: &str) {
+    let q = crate::palette::fold(q);
+    let words: Vec<&str> = q.split_whitespace().collect();
+    let hits: Vec<bool> = SEARCH_WORDS.iter().map(|w| {
+        let w = crate::palette::fold(w);
+        !words.is_empty() && words.iter().all(|x| w.contains(x))
+    }).collect();
+    with_ui(s, |g| {
+        if let Some(i) = hits.iter().position(|h| *h) {
+            g.set_section(i as i32);
+        }
+        g.set_matches(ModelRc::new(VecModel::from(hits)));
     });
 }
 
@@ -412,13 +446,11 @@ pub fn toggle(s: &Shared, key: &str) {
             });
             crate::taskbar::restyle();
         }
-        "desktop-free" | "desktop-computer" => {
-            change(s, |p| {
-                if key == "desktop-free" {
-                    p.desktop_free = !p.desktop_free;
-                } else {
-                    p.desktop_computer = !p.desktop_computer;
-                }
+        "desktop-free" | "desktop-computer" | "desktop-recycle" => {
+            change(s, |p| match key {
+                "desktop-free" => p.desktop_free = !p.desktop_free,
+                "desktop-computer" => p.desktop_computer = !p.desktop_computer,
+                _ => p.desktop_recycle = !p.desktop_recycle,
             });
             crate::desktop::relayout();
         }
@@ -649,6 +681,16 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         crate::taskbar::restyle();
     });
     let s = st.clone();
+    g.on_set_start_style(move |k| {
+        change(&s, |p| p.start_style = k.clamp(0, 2) as u8);
+        crate::start::close();
+    });
+    let s = st.clone();
+    g.on_set_taskbar_group(move |k| {
+        change(&s, |p| p.taskbar_group = k.clamp(0, 2) as u8);
+        crate::taskbar::restyle();
+    });
+    let s = st.clone();
     g.on_set_taskbar_icon(move |px| {
         change(&s, |p| p.taskbar_icon = (px as f32).clamp(16.0, 48.0));
         crate::taskbar::restyle();
@@ -690,6 +732,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_edge_set_width(move |i, w| crate::edgepanels::edit(&s, i as usize, |p| p.width = w.clamp(160.0, 900.0)));
     let s = st.clone();
     g.on_app_quit(move |what| app_quit(&s, what));
+    let s = st.clone();
+    g.on_search(move |q| search(&s, &q));
     g.on_open_prefs_folder(|| {
         if let Some(d) = dirs::data_dir() {
             let _ = open::that_detached(d.join("PowerDesk"));

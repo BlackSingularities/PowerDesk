@@ -89,6 +89,10 @@ export component StartWindow inherits Window {
     in property <bool> grid;
     /// Samo wyszukiwanie (Win+S): bez lewej kolumny i kafelków, lista na całą szerokość.
     in property <bool> search-only;
+    /// Motyw Startu: 0 – Windows 10 (kafelki), 1 – Windows 11 (na środku, siatka aplikacji),
+    /// 2 – klasyczny (wąska lista jak w Windows 7). Bez kafelków w 1 i 2.
+    in property <int> style;
+    property <bool> tiles-on: !root.search-only && root.style == 0;
     in-out property <string> query;
     /// Przeciągany kafelek (-1 – żaden) i jego podgląd w obszarze kafelków.
     in-out property <int> drag-index: -1;
@@ -194,7 +198,7 @@ export component StartWindow inherits Window {
 
         // Lista aplikacji z polem szukania.
         VerticalLayout {
-            width: root.search-only ? root.width : 290px;
+            width: root.tiles-on ? 290px : root.width - (root.search-only ? 0px : 48px);
             padding: root.search-only ? 12px : 8px;
             spacing: 6px;
             Rectangle {
@@ -359,8 +363,8 @@ export component StartWindow inherits Window {
         // Kafelki: grupy z nazwami, siatka 6 pól po 52 px, przeciąganie z podglądem.
         Rectangle {
             horizontal-stretch: 0;
-            width: root.search-only ? 0px : 6 * 52px + 28px;
-            visible: !root.search-only;
+            width: root.tiles-on ? 6 * 52px + 28px : 0px;
+            visible: root.tiles-on;
             if root.tiles.length == 0 && !root.in-folder: Text {
                 x: 14px;
                 y: 44px;

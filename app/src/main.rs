@@ -83,6 +83,9 @@ pub struct State {
     viewports: [(f32, f32, f32); 2],
     /// Metadane zdjęć i filmów: proporcje w galerii, kolumny Wymiary / Data wykonania / Czas trwania.
     media: HashMap<String, shell::MediaInfo>,
+    /// Autor i wersja plików (kolumny Autor i Wersja) – czytane w tle tylko przy tych kolumnach.
+    docs: HashMap<String, (String, String)>,
+    docs_pending: HashSet<String>,
     media_pending: HashSet<String>,
     /// Rozmiary folderów policzone w tle (klucz: ścieżka małymi literami).
     dir_sizes: HashMap<String, u64>,
@@ -353,6 +356,8 @@ fn main() -> Result<(), slint::PlatformError> {
         split_ratio: 0.5,
         viewports: [(0.0, 900.0, 600.0); 2],
         media: HashMap::new(),
+        docs: HashMap::new(),
+        docs_pending: HashSet::new(),
         media_pending: HashSet::new(),
         dir_sizes: HashMap::new(),
         dir_pending: HashSet::new(),
@@ -1572,8 +1577,47 @@ fn media_redraw(s: &Shared) {
     });
 }
 
+/// Autor i wersja plików – w tle, tylko gdy lista pokazuje te kolumny (pliki w chmurze pomijamy,
+/// żeby nie wymuszać pobierania).
+fn request_docs(s: &Shared) {
+    let todo: Vec<String> = {
+        let mut b = s.borrow_mut();
+        let b = &mut *b;
+        let t = &b.tabs[b.active];
+        if t.view != View::List || !b.prefs.list_cols.iter().any(|c| c.doc()) {
+            return;
+        }
+        let v: Vec<String> = t.items.iter().filter(|e| !e.dir && !e.cloud && !b.docs.contains_key(&e.path) && !b.docs_pending.contains(&e.path)).map(|e| e.path.clone()).collect();
+        for p in &v {
+            b.docs_pending.insert(p.clone());
+        }
+        v
+    };
+    if todo.is_empty() {
+        return;
+    }
+    std::thread::spawn(move || {
+        for chunk in todo.chunks(100) {
+            let res: Vec<(String, (String, String))> = chunk.iter().map(|p| (p.clone(), shell::doc_info(p))).collect();
+            let _ = slint::invoke_from_event_loop(move || {
+                with_state(|s| {
+                    {
+                        let mut b = s.borrow_mut();
+                        for (p, d) in res {
+                            b.docs_pending.remove(&p);
+                            b.docs.insert(p, d);
+                        }
+                    }
+                    render_all(s);
+                })
+            });
+        }
+    });
+}
+
 /// Metadane zdjęć i filmów – partiami w tle (galeria albo kolumny z metadanymi), potem ponowny układ.
 fn request_media(s: &Shared) {
+    request_docs(s);
     let todo: Vec<(String, i64)> = {
         let mut b = s.borrow_mut();
         let b = &mut *b;
@@ -2235,6 +2279,8 @@ fn cells(b: &State, e: &fsx::Entry) -> Vec<SharedString> {
             Col::Dims => m.filter(|m| m.w > 0).map(|m| format!("{} × {}", m.w, m.h)).unwrap_or_default(),
             Col::Taken => m.filter(|m| m.taken > 0).map(|m| fmt::date(m.taken)).unwrap_or_default(),
             Col::Duration => m.filter(|m| m.dur > 0).map(|m| fmt::duration(m.dur)).unwrap_or_default(),
+            Col::Author => b.docs.get(&e.path).map(|d| d.0.clone()).unwrap_or_default(),
+            Col::Version => b.docs.get(&e.path).map(|d| d.1.clone()).unwrap_or_default(),
             Col::Attrs => [(e.readonly, "R"), (e.hidden, "H"), (e.system, "S"), (e.link, "L"), (e.cloud, "C")]
                 .iter()
                 .filter(|(on, _)| *on)

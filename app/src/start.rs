@@ -84,8 +84,20 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     crate::settings::popup_theme(&w.global::<Theme>());
     w.set_user(std::env::var("USERNAME").unwrap_or_default().into());
     w.set_search_only(search);
-    let (lw, lh) = if search { SEARCH_SIZE } else { size() };
+    let style = style();
+    w.set_style(style as i32);
+    let (lw, lh) = match (search, style) {
+        (true, _) => SEARCH_SIZE,
+        (_, 1) => (660.0, 700.0),
+        (_, 2) => (420.0, 620.0),
+        _ => size(),
+    };
     let (pw, ph) = ((lw * scale) as i32, (lh * scale) as i32);
+    // Windows 11 – na środku monitora nad paskiem; pozostałe – od przycisku Start.
+    let x = match (style, crate::taskbar::monitor_under_cursor()) {
+        (1, Some((origin, mon, _))) => origin.0 + (mon.0 - pw) / 2,
+        _ => x,
+    };
     w.window().set_position(PhysicalPosition::new(x, bottom - ph));
     w.window().set_size(PhysicalSize::new(pw as u32, ph as u32));
     w.on_search(|_| render());
@@ -357,7 +369,19 @@ fn toggle_hidden(path: &str) {
 fn grid() -> bool {
     let mut g = false;
     crate::with_state(|s| g = s.borrow().prefs.start_grid);
-    g
+    // Windows 11 – zawsze siatka, klasyczny – zawsze lista.
+    match style() {
+        1 => true,
+        2 => false,
+        _ => g,
+    }
+}
+
+/// Motyw Startu z ustawień (0 – Windows 10, 1 – Windows 11, 2 – klasyczny).
+fn style() -> u8 {
+    let mut v = 0;
+    crate::with_state(|s| v = s.borrow().prefs.start_style);
+    v.min(2)
 }
 
 /// Przełącznik widoku listy: nazwy z małymi ikonami albo same duże ikony.

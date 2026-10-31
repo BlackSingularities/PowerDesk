@@ -396,6 +396,28 @@ pub fn native_menu(hwnd: isize, paths: &[String], x: i32, y: i32, extended: bool
     }
 }
 
+/// Autor i wersja pliku z systemu właściwości Windows (kolumny listy). Puste, gdy ich nie ma.
+pub fn doc_info(path: &str) -> (String, String) {
+    use windows::core::GUID;
+    // System.Author (wiele wartości – Windows łączy je średnikiem) i System.FileVersion.
+    const AUTHOR: PROPERTYKEY = PROPERTYKEY { fmtid: GUID::from_u128(0xF29F85E0_4FF9_1068_AB91_08002B27B3D9), pid: 4 };
+    const VERSION: PROPERTYKEY = PROPERTYKEY { fmtid: GUID::from_u128(0x0CEF7D53_FA64_11D1_A203_0000F81FEDEE), pid: 4 };
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let Ok(store): windows::core::Result<IPropertyStore> = SHGetPropertyStoreFromParsingName(&HSTRING::from(path), None, GPS_BESTEFFORT) else {
+            return (String::new(), String::new());
+        };
+        let text = |key: &PROPERTYKEY| -> String {
+            let Ok(val) = store.GetValue(key) else { return String::new() };
+            let Ok(p) = PSFormatForDisplayAlloc(key, &val, PDFF_DEFAULT) else { return String::new() };
+            let s = p.to_string().unwrap_or_default();
+            CoTaskMemFree(Some(p.0 as *const _));
+            s.trim_matches(|c: char| c == '\u{200e}' || c == '\u{200f}' || c.is_whitespace()).to_string()
+        };
+        (text(&AUTHOR), text(&VERSION))
+    }
+}
+
 #[derive(Serialize, Clone, Copy, Default)]
 pub struct MediaInfo {
     pub w: u32,

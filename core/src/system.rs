@@ -174,6 +174,27 @@ pub fn blur_behind(hwnd: isize, on: bool) {
     }
 }
 
+/// Kosz: liczba elementów i łączny rozmiar (wszystkie dyski).
+pub fn recycle_bin() -> (i64, i64) {
+    use windows::Win32::UI::Shell::{SHQueryRecycleBinW, SHQUERYRBINFO};
+    let mut info = SHQUERYRBINFO { cbSize: std::mem::size_of::<SHQUERYRBINFO>() as u32, ..Default::default() };
+    unsafe {
+        if SHQueryRecycleBinW(windows::core::PCWSTR::null(), &mut info).is_ok() {
+            (info.i64NumItems, info.i64Size)
+        } else {
+            (0, 0)
+        }
+    }
+}
+
+/// Opróżnia Kosz – Windows pyta o potwierdzenie i pokazuje postęp.
+pub fn empty_recycle_bin() {
+    use windows::Win32::UI::Shell::SHEmptyRecycleBinW;
+    unsafe {
+        let _ = SHEmptyRecycleBinW(None, windows::core::PCWSTR::null(), 0);
+    }
+}
+
 /// Okno z przezroczystym tłem: DWM łączy kanał alfa okna z tym, co pod spodem (bez rozmycia).
 pub fn see_through(hwnd: isize) {
     use windows::Win32::Foundation::HWND;

@@ -226,7 +226,7 @@ export component DesktopWindow inherits Window {
                     image-fit: contain;
                 }
                 if !it.has-img: Icon {
-                    commands: it.path == "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}" ? Icons.pc : it.dir ? Icons.folder : Icons.file;
+                    commands: it.path == "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}" ? Icons.pc : it.path == "::{645FF040-5081-101B-9F08-00AA002F954E}" ? Icons.trash : it.dir ? Icons.folder : Icons.file;
                     size: root.icon-size * 0.84;
                     color: #ffffff;
                 }

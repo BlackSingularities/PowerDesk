@@ -392,9 +392,9 @@ pub fn restyle() {
             bar.w.set_show_date(date);
             bar.w.set_bar_h(h);
             bar.w.set_app_icon(icon);
-            if reicon {
-                bar.wins.clear();
-            }
+            // Przyciski od nowa (inny rozmiar ikon, grupowanie, nazwy) przy najbliższym odświeżeniu.
+            let _ = reicon;
+            bar.wins.clear();
             match &start {
                 Some((i, n, aspect)) => {
                     bar.w.set_start_img(i.clone());
@@ -1440,10 +1440,22 @@ fn program_name(exe: &str) -> String {
 
 /// Najpierw przypięte programy (także bez okien), potem okna tego samego programu razem –
 /// grupa stoi tam, gdzie jej pierwsze okno. Okna bez znanego pliku programu zostają osobno.
-fn group(pins: &[String], wins: &[Win]) -> Vec<Group> {
+/// `mode` – grupowanie z ustawień: 0 – zawsze, 1 – gdy przyciski się nie mieszczą (`fits` –
+/// ile zmieści się bez grupowania), 2 – nigdy (każde okno osobno; przypięty bierze swoje pierwsze okno).
+fn group(pins: &[String], wins: &[Win], mode: u8, fits: usize) -> Vec<Group> {
     let mut out: Vec<Group> = pins.iter().map(|p| Group { exe: p.clone(), pinned: true, wins: Vec::new() }).collect();
+    let separate = match mode {
+        2 => true,
+        1 => {
+            // Bez grupowania: przypięte bez okien + każde okno osobno.
+            let idle = pins.iter().filter(|p| !wins.iter().any(|w| w.exe.eq_ignore_ascii_case(p))).count();
+            idle + wins.len() <= fits
+        }
+        _ => false,
+    };
     for w in wins {
-        match out.iter_mut().find(|g| !w.exe.is_empty() && g.exe.eq_ignore_ascii_case(&w.exe)) {
+        let same = |g: &&mut Group| !w.exe.is_empty() && g.exe.eq_ignore_ascii_case(&w.exe) && (!separate || (g.pinned && g.wins.is_empty()));
+        match out.iter_mut().find(same) {
             Some(g) => g.wins.push(w.clone()),
             None => out.push(Group { exe: w.exe.clone(), pinned: false, wins: vec![w.clone()] }),
         }
@@ -1489,6 +1501,7 @@ fn refresh() {
     let now = Local::now();
     let mut pins = Vec::new();
     let (mut opacity, mut clear, mut seconds, mut blur) = (100.0, false, false, true);
+    let (mut grouping, mut labels) = (0u8, true);
     crate::with_state(|s| {
         let b = s.borrow();
         pins = b.prefs.taskbar_pins.clone();
@@ -1496,6 +1509,8 @@ fn refresh() {
         clear = b.prefs.taskbar_clear_desktop;
         seconds = b.prefs.taskbar_seconds;
         blur = b.prefs.taskbar_blur;
+        grouping = b.prefs.taskbar_group;
+        labels = b.prefs.taskbar_labels;
     });
     let (time, date) = (now.format(if seconds { "%H:%M:%S" } else { "%H:%M" }).to_string(), now.format("%d.%m.%Y").to_string());
     BARS.with(|b| {
@@ -1506,7 +1521,11 @@ fn refresh() {
             // Model tylko przy zmianie – inaczej co sekundę migałyby podpowiedzi.
             if wins != bar.wins || fg != bar.fg || pins != bar.pins {
                 let px = (icon_size() * bar.w.window().scale_factor()) as u32;
-                bar.groups = group(&pins, &wins);
+                // Ile przycisków z oknami zmieści się bez grupowania (pas przycisków ≈ monitor bez
+                // Startu, zasobnika i zegara).
+                let lane = bar.mon.0 as f32 / bar.w.window().scale_factor() - 460.0;
+                let each = if labels { 164.0 } else { pin_w() + 4.0 };
+                bar.groups = group(&pins, &wins, grouping, (lane / each).max(1.0) as usize);
                 bar.pins = pins.clone();
                 bar.w.set_buttons(ModelRc::new(VecModel::from(buttons(&bar.groups, fg, px))));
                 bar.w.set_idle(bar.groups.iter().filter(|g| g.wins.is_empty()).count() as i32);

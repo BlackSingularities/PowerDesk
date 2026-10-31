@@ -239,10 +239,13 @@ pub enum Col {
     Taken,
     Duration,
     Attrs,
+    /// Autor (dokumenty, zdjęcia, muzyka) i wersja pliku (programy, biblioteki).
+    Author,
+    Version,
 }
 
 impl Col {
-    pub const ALL: [Col; 9] = [Col::Modified, Col::Created, Col::Type, Col::Ext, Col::Size, Col::Dims, Col::Taken, Col::Duration, Col::Attrs];
+    pub const ALL: [Col; 11] = [Col::Modified, Col::Created, Col::Type, Col::Ext, Col::Size, Col::Dims, Col::Taken, Col::Duration, Col::Attrs, Col::Author, Col::Version];
     pub const DEFAULT: [Col; 3] = [Col::Modified, Col::Type, Col::Size];
     pub fn label(self) -> &'static str {
         match self {
@@ -255,6 +258,8 @@ impl Col {
             Col::Taken => "Data wykonania",
             Col::Duration => "Czas trwania",
             Col::Attrs => "Atrybuty",
+            Col::Author => "Autor",
+            Col::Version => "Wersja",
         }
     }
     pub fn width(self) -> f32 {
@@ -265,6 +270,8 @@ impl Col {
             Col::Size => 86.0,
             Col::Dims => 100.0,
             Col::Attrs => 74.0,
+            Col::Author => 150.0,
+            Col::Version => 110.0,
         }
     }
     /// Klucz sortowania po kliknięciu nagłówka.
@@ -277,7 +284,7 @@ impl Col {
             Col::Taken => Some(SortKey::Taken),
             Col::Duration => Some(SortKey::Duration),
             Col::Dims => Some(SortKey::Dims),
-            Col::Attrs => None,
+            Col::Attrs | Col::Author | Col::Version => None,
         }
     }
     pub fn right(self) -> bool {
@@ -286,6 +293,10 @@ impl Col {
     /// Kolumny, które potrzebują metadanych zdjęć i filmów.
     pub fn media(self) -> bool {
         matches!(self, Col::Dims | Col::Taken | Col::Duration)
+    }
+    /// Kolumny z tekstowych właściwości pliku (czytane w tle przez `shell::doc_info`).
+    pub fn doc(self) -> bool {
+        matches!(self, Col::Author | Col::Version)
     }
 }
 
@@ -882,6 +893,8 @@ pub struct Prefs {
     pub start_size: (f32, f32),
     /// Start: duże ikony w siatce zamiast listy z nazwami.
     pub start_grid: bool,
+    /// Motyw Startu: 0 – Windows 10 (kafelki), 1 – Windows 11 (środek, siatka), 2 – klasyczny.
+    pub start_style: u8,
     /// Widżety na pulpicie.
     pub desktop_widgets: Vec<DeskWidget>,
     /// Ustawienia z OpenFilePower już przeniesione (migrate.rs).
@@ -967,7 +980,16 @@ pub struct Prefs {
     #[serde(default)]
     pub desktop_v2: bool,
     pub desktop_computer: bool,
+    /// Kosz na pulpicie.
+    pub desktop_recycle: bool,
     pub desktop_xy: HashMap<String, (f32, f32)>,
+    /// Układy ikon dla innych ekranów (podpis: rozmiar pulpitu i liczba monitorów) – po zmianie
+    /// rozdzielczości albo podłączeniu monitora wraca układ zapamiętany dla tamtego ekranu.
+    pub desktop_layouts: HashMap<String, (HashMap<String, (i32, i32)>, HashMap<String, (f32, f32)>)>,
+    /// Ekran, dla którego są `desktop_pos` i `desktop_xy`.
+    pub desktop_screen: String,
+    /// Grupowanie okien jednego programu na pasku: 0 – zawsze, 1 – gdy pasek jest pełny, 2 – nigdy.
+    pub taskbar_group: u8,
     /// Wielkość ikon programów na pasku (piksele logiczne, 16–48).
     pub taskbar_icon: f32,
     /// Start razem z Windows (pytanie przy instalacji; wpis w HKCU\…\Run).
@@ -1107,7 +1129,7 @@ pub struct SavedSearch {
 
 impl Default for Prefs {
     fn default() -> Self {
-        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "computer".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), home_hidden: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, desktop_widgets: Vec::new(), migrated_ofp: false, start_v2: true, taskbar_all_monitors: true, vd_button: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), todos: Vec::new(), countdown_label: String::new(), countdown_at: 0, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false, tray_bar: Vec::new(), tray_all: false, tray_init: false, popup_blur: true, taskbar_labels: true, taskbar_center: false, taskbar_height: 48.0, taskbar_seconds: false, taskbar_date: true, taskbar_blur: true, start_image: String::new(), start_frames: 0, desktop_icon_size: 1, desktop_free: true, desktop_v2: true, desktop_computer: true, desktop_xy: HashMap::new(), autostart: true, taskbar_icon: 28.0, edge_panels: Vec::new() }
+        Prefs { folders: HashMap::new(), grid_size: 132.0, gallery_row: 210.0, show_hidden: false, folders_first: true, auto_gallery: true, list_cols: Col::DEFAULT.to_vec(), list_col_w: HashMap::new(), folder_sizes: true, saved_searches: Vec::new(), side_shut: Vec::new(), side_mini: false, shelf: Vec::new(), shelf_open: false, preview_open: false, preview_width: 340.0, viewer_info: false, pinned_tabs: Vec::new(), theme: String::new(), accent: "mono".into(), start: "computer".into(), start_folder: String::new(), default_view: View::List, confirm_trash: false, terminal_open: false, terminal_height: 260.0, window_effect: "none".into(), popup_opacity: 100.0, favorites: Vec::new(), side_width: 248.0, net_places: Vec::new(), home_order: Vec::new(), home_shut: Vec::new(), home_hidden: Vec::new(), desktop_pos: HashMap::new(), taskbar_pins: Vec::new(), start_pins: Vec::new(), start_groups: Vec::new(), start_hidden: Vec::new(), start_size: (660.0, 640.0), start_grid: false, start_style: 0, desktop_widgets: Vec::new(), migrated_ofp: false, start_v2: true, taskbar_all_monitors: true, vd_button: false, zones_on: true, zones_layout: 3, wallpaper_mode: String::new(), wallpaper_folder: String::new(), wallpaper_minutes: 15, wallpaper_monitors: HashMap::new(), app_launches: HashMap::new(), overlay_on: false, overlay_corner: 1, overlay_full: true, game_power: false, fps_limit: 0, world_zones: Vec::new(), weather_city: String::new(), photo_folder: String::new(), reminders: Vec::new(), todos: Vec::new(), countdown_label: String::new(), countdown_at: 0, single_click: false, side_hidden: Vec::new(), window_opacity: 0.0, close_to_tray: true, autostart_window: false, taskbar_opacity: 100.0, taskbar_clear_desktop: false, tray_bar: Vec::new(), tray_all: false, tray_init: false, popup_blur: true, taskbar_labels: true, taskbar_center: false, taskbar_height: 48.0, taskbar_seconds: false, taskbar_date: true, taskbar_blur: true, start_image: String::new(), start_frames: 0, desktop_icon_size: 1, desktop_free: true, desktop_v2: true, desktop_computer: true, desktop_recycle: true, desktop_xy: HashMap::new(), desktop_layouts: HashMap::new(), desktop_screen: String::new(), autostart: true, taskbar_icon: 28.0, taskbar_group: 0, edge_panels: Vec::new() }
     }
 }
 
