@@ -614,7 +614,7 @@ pub fn search_content(app: AppHandle, root: String, text: String, query: String,
 /// Ścieżki z indeksu Windows pod `root` z plikami zawierającymi `text` (przez ADODB w PowerShell).
 fn index_query(root: &str, text: &str) -> Vec<String> {
     use std::os::windows::process::CommandExt;
-    let scope = format!("file:{}", root.trim_end_matches('\').replace('\', "/")).replace('\'', "''");
+    let scope = format!("file:{}", root.trim_end_matches('\\').replace('\\', "/")).replace('\'', "''");
     let phrase = text.replace(['"', '\''], " ");
     let script = format!(
         "$ErrorActionPreference='Stop';[Console]::OutputEncoding=[Text.Encoding]::UTF8;\
