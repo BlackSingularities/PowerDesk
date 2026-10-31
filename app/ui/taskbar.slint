@@ -1379,8 +1379,8 @@ export component TaskbarWindow inherits Window {
                 height: root.ih;
                 // Bez teł i kształtów pod ikoną – stan pokazuje kreska pod spodem (niżej).
                 background: transparent;
-                // Przeciąganie przypiętego: przycisk przygasa, miejsce wybiera puszczenie.
-                property <bool> dragging: tb-ta.pressed && b.pinned && abs(tb-ta.mouse-x - tb-ta.pressed-x) > 8px;
+                // Przeciąganie przycisku (przypiętego i uruchomionego): przycisk przygasa, miejsce wybiera puszczenie.
+                property <bool> dragging: tb-ta.pressed && abs(tb-ta.mouse-x - tb-ta.pressed-x) > 8px;
                 property <bool> was-drag;
                 opacity: self.dragging ? 0.5 : 1;
                 HorizontalLayout {

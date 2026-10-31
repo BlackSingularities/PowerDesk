@@ -592,17 +592,41 @@ fn reorder(bar: usize, from: usize, x: f32, each: f32) {
         }
         left += w + 4.0;
     }
-    crate::with_state(|s| {
-        let mut b = s.borrow_mut();
-        let pins = &mut b.prefs.taskbar_pins;
-        if from >= pins.len() || from == to {
-            return;
-        }
-        let to = to.min(pins.len() - 1);
-        let p = pins.remove(from);
-        pins.insert(to, p);
-        b.prefs.save();
-    });
+    if from == to {
+        return;
+    }
+    let mut npins = 0;
+    crate::with_state(|s| npins = s.borrow().prefs.taskbar_pins.len());
+    if from < npins {
+        // Przypięty – nowe miejsce wśród przypiętych (zapamiętane w ustawieniach).
+        crate::with_state(|s| {
+            let mut b = s.borrow_mut();
+            let pins = &mut b.prefs.taskbar_pins;
+            let to = to.min(pins.len() - 1);
+            let p = pins.remove(from);
+            pins.insert(to, p);
+            b.prefs.save();
+        });
+    } else {
+        // Program bez przypięcia – jego okna przechodzą w kolejności paska przed (albo za)
+        // okna programu, na który go upuszczono; wśród przypiętych staje na początku reszty.
+        let to = to.max(npins);
+        let (Some(moved), Some(target)) = (groups.get(from).cloned(), groups.get(to).cloned()) else { return };
+        BARS.with(|b| {
+            let mut b = b.borrow_mut();
+            let Some(bar) = b.get_mut(bar) else { return };
+            let mine: Vec<isize> = moved.wins.iter().map(|w| w.hwnd).collect();
+            let picked: Vec<Win> = bar.wins.iter().filter(|w| mine.contains(&w.hwnd)).cloned().collect();
+            bar.wins.retain(|w| !mine.contains(&w.hwnd));
+            let anchor = if to > from { target.wins.last() } else { target.wins.first() };
+            let at = anchor.and_then(|a| bar.wins.iter().position(|w| w.hwnd == a.hwnd)).map_or(bar.wins.len(), |i| if to > from { i + 1 } else { i });
+            for (k, w) in picked.into_iter().enumerate() {
+                bar.wins.insert((at + k).min(bar.wins.len()), w);
+            }
+            // Przyciski od nowa przy najbliższym odświeżeniu.
+            bar.fg = -1;
+        });
+    }
     refresh();
 }
 
