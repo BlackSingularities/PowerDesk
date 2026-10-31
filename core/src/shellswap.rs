@@ -122,6 +122,27 @@ fn set_taskbar_state(state: u32) {
     }
 }
 
+const ABS_AUTOHIDE: u32 = 0x1;
+/// Autoukrywanie w trybie powłoki (bez Eksploratora nie ma czego pytać).
+static AUTOHIDE_SHELL: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// Autoukrywanie paska – to samo ustawienie co w Windows (pasek Eksploratora w tle zwalnia
+/// wtedy miejsce na dole ekranu, więc okna sięgają do krawędzi).
+pub fn autohide() -> bool {
+    if explorer_tray().is_none() {
+        return AUTOHIDE_SHELL.load(std::sync::atomic::Ordering::SeqCst);
+    }
+    taskbar_state() & ABS_AUTOHIDE != 0
+}
+
+pub fn set_autohide(on: bool) {
+    AUTOHIDE_SHELL.store(on, std::sync::atomic::Ordering::SeqCst);
+    if explorer_tray().is_some() {
+        let cur = taskbar_state();
+        set_taskbar_state(if on { cur | ABS_AUTOHIDE } else { cur & !ABS_AUTOHIDE });
+    }
+}
+
 /// Ukrywa pasek Windows. Stan zapisujemy tylko za pierwszym razem – ponowne wywołanie
 /// (co sekundę, po restarcie Eksploratora) nie nadpisze go stanem już zmienionym.
 pub fn hide_taskbar() {

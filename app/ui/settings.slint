@@ -130,6 +130,8 @@ export global SettingsState {
     /// Pasek: nazwy okien, środek, sekundy, data, rozmycie, wszystkie ikony zasobnika, wysokość.
     in-out property <bool> taskbar-labels: true;
     in-out property <bool> taskbar-center;
+    /// Autoukrywanie paska (to samo ustawienie co w Windows).
+    in-out property <bool> taskbar-autohide;
     in-out property <bool> taskbar-seconds;
     in-out property <bool> taskbar-date: true;
     in-out property <bool> taskbar-blur: true;
@@ -1308,6 +1310,15 @@ export component SettingsView inherits Rectangle {
                                     SettingsState.toggle("taskbar-labels");
                                 }
                             }
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.grid;
+                        text: "Automatycznie ukrywaj pasek";
+                        hint: "Pasek chowa się pod krawędź ekranu i wysuwa, gdy dotkniesz jej kursorem";
+                        on: SettingsState.taskbar-autohide;
+                        toggled => {
+                            SettingsState.toggle("taskbar-autohide");
                         }
                     }
                     ToggleRow {

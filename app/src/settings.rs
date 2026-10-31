@@ -180,6 +180,7 @@ fn render(s: &Shared) {
     g.set_taskbar_clear_desktop(p.taskbar_clear_desktop);
     g.set_taskbar_labels(p.taskbar_labels);
     g.set_taskbar_center(p.taskbar_center);
+    g.set_taskbar_autohide(crate::taskbar::autohide());
     g.set_taskbar_seconds(p.taskbar_seconds);
     g.set_taskbar_date(p.taskbar_date);
     g.set_taskbar_blur(p.taskbar_blur);
@@ -448,6 +449,10 @@ pub fn toggle(s: &Shared, key: &str) {
         "confirm-trash" => change(s, |p| p.confirm_trash = !p.confirm_trash),
         // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
         "taskbar-clear-desktop" => change(s, |p| p.taskbar_clear_desktop = !p.taskbar_clear_desktop),
+        "taskbar-autohide" => {
+            crate::taskbar::set_autohide(!crate::taskbar::autohide());
+            render(s);
+        }
         "taskbar-labels" | "taskbar-center" | "taskbar-seconds" | "taskbar-date" | "taskbar-blur" | "tray-all" => {
             change(s, |p| match key {
                 "taskbar-labels" => p.taskbar_labels = !p.taskbar_labels,

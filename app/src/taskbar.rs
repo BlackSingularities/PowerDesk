@@ -42,6 +42,10 @@ struct Bar {
     pos: (i32, i32),
     /// Ułożone na dole monitora i ukryte z paska Windows.
     placed: bool,
+    /// Autoukrywanie: pasek zsunięty, widać tylko cienki brzeg przy krawędzi ekranu.
+    hidden: bool,
+    /// Kursor ostatnio nad paskiem (do opóźnienia chowania).
+    seen: std::time::Instant,
     /// Rozmycie pod paskiem włączone (zmieniamy tylko przy zmianie stanu).
     blurred: Option<bool>,
     /// Okna w kolejności pojawiania się na pasku.
@@ -66,6 +70,10 @@ thread_local! {
     /// Ostatnie aktywne okno programu – klik w pasek zabiera mu fokus, zanim dojdzie do `click`.
     static LAST_APP: Cell<isize> = const { Cell::new(0) };
     static TIMER: slint::Timer = slint::Timer::default();
+    /// Autoukrywanie: szybkie sprawdzanie kursora przy dolnej krawędzi.
+    static AUTOHIDE_TIMER: slint::Timer = slint::Timer::default();
+    /// Autoukrywanie włączone (stan paska Windows, czytany co sekundę).
+    static AUTOHIDE: Cell<bool> = const { Cell::new(false) };
     /// Otwarte okienko zasobnika (głośność albo kalendarz).
     static POPUP: RefCell<Option<Popup>> = const { RefCell::new(None) };
     /// Kalendarz: przesunięcie w miesiącach od bieżącego.
@@ -217,7 +225,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.set_main_bar((m.x, m.y) == (0, 0));
         let _ = w.show();
         let _ = powerdesk_core::dnd::register(crate::window_hwnd(w.window()), Box::new(BarDrop { bar: n }));
-        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, blurred: None, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
+        bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, hidden: false, seen: std::time::Instant::now(), blurred: None, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
     }
     BARS.with(|b| *b.borrow_mut() = bars);
     restyle();
@@ -292,9 +300,66 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     // Okno systemowe powstaje dopiero w pętli zdarzeń – ułożenie zaraz po pierwszym obiegu.
     slint::Timer::single_shot(Duration::from_millis(100), refresh);
     TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_secs(1), refresh));
+    AUTOHIDE.with(|a| a.set(powerdesk_core::shellswap::autohide()));
+    AUTOHIDE_TIMER.with(|t| t.start(slint::TimerMode::Repeated, Duration::from_millis(100), autohide_tick));
+}
+
+/// Widoczny brzeg zsuniętego paska (piksele ekranu) – kursor przy krawędzi go wysuwa.
+const PEEK_PX: i32 = 2;
+/// Tyle kursor musi być poza paskiem, zanim pasek się schowa.
+const HIDE_DELAY: Duration = Duration::from_millis(700);
+
+/// Autoukrywanie paska (Ustawienia → Pasek zadań albo menu paska): to samo ustawienie co w Windows.
+pub fn set_autohide(on: bool) {
+    powerdesk_core::shellswap::set_autohide(on);
+    AUTOHIDE.with(|a| a.set(on));
+    BARS.with(|b| {
+        for bar in b.borrow_mut().iter_mut() {
+            bar.hidden = false;
+            bar.seen = std::time::Instant::now();
+            // Obszar roboczy (tryb powłoki) i położenie od nowa.
+            bar.placed = false;
+        }
+    });
+    refresh();
+}
+
+pub fn autohide() -> bool {
+    AUTOHIDE.with(|a| a.get())
+}
+
+/// Wysuwa pasek, gdy kursor dotknie dolnej krawędzi monitora albo jest otwarte okienko paska
+/// (menu, Start, kalendarz, podgląd); chowa po chwili, gdy kursor odejdzie.
+fn autohide_tick() {
+    let on = autohide();
+    let (cx, cy) = taskwin::cursor();
+    let busy = crate::start::is_open() || !menus::pop_hwnd().is_empty() || POPUP.with(|p| p.borrow().is_some()) || THUMBS.with(|t| t.borrow().is_some());
+    let now = std::time::Instant::now();
+    let mut moved = false;
+    BARS.with(|b| {
+        for bar in b.borrow_mut().iter_mut() {
+            let scale = bar.w.window().scale_factor();
+            let h = (height() * scale).round() as i32;
+            let bottom = bar.origin.1 + bar.mon.1;
+            let on_mon = cx >= bar.origin.0 && cx < bar.origin.0 + bar.mon.0;
+            let over = on_mon && cy >= bottom - if bar.hidden { PEEK_PX } else { h } && cy < bottom;
+            if !on || over || busy {
+                bar.seen = now;
+            }
+            let hide = on && now.duration_since(bar.seen) >= HIDE_DELAY;
+            if hide != bar.hidden {
+                bar.hidden = hide;
+                moved = true;
+            }
+        }
+    });
+    if moved {
+        BARS.with(|b| b.borrow_mut().iter_mut().for_each(place));
+    }
 }
 
 pub fn close() {
+    AUTOHIDE_TIMER.with(|t| t.stop());
     close_thumbs();
     close_menu();
     close_popup();
@@ -325,6 +390,7 @@ fn bar_menu(bar: usize, x: f32) {
         sep(),
         it("Same ikony (bez nazw okien)", "grid", |_| edit_bar(|p| p.taskbar_labels = !p.taskbar_labels)).checked(!bar_pref(|p| p.taskbar_labels)),
         it("Przyciski na środku", "grid", |_| edit_bar(|p| p.taskbar_center = !p.taskbar_center)).checked(bar_pref(|p| p.taskbar_center)),
+        it("Automatycznie ukrywaj pasek", "grid", |_| set_autohide(!autohide())).checked(autohide()),
         it("Wszystkie ikony zasobnika na pasku", "grid", |_| edit_tray(|p| p.tray_all = !p.tray_all)).checked(bar_pref(|p| p.tray_all)),
         sep(),
     ];
@@ -1677,10 +1743,12 @@ fn place(bar: &mut Bar) {
     let scale = bar.w.window().scale_factor();
     let h = (height() * scale).round() as i32;
     bar.pos = (bar.origin.0, bar.origin.1 + bar.mon.1 - h);
+    // Zsunięty pasek: okno poniżej krawędzi, nad ekranem tylko brzeg.
+    let y = if bar.hidden { bar.origin.1 + bar.mon.1 - PEEK_PX } else { bar.pos.1 };
     if !bar.placed {
         bar.blurred = None;
         data::hide_from_taskbar(hwnd);
-        bar.w.window().set_position(slint::PhysicalPosition::new(bar.pos.0, bar.pos.1));
+        bar.w.window().set_position(slint::PhysicalPosition::new(bar.pos.0, y));
         bar.w.window().set_size(slint::PhysicalSize::new(bar.mon.0 as u32, h as u32));
         // Tło paska może być półprzezroczyste (krycie z ustawień) – DWM pokazuje, co pod spodem.
         powerdesk_core::system::see_through(hwnd);
@@ -1688,7 +1756,8 @@ fn place(bar: &mut Bar) {
         let (x, y) = bar.origin;
         // Bez Eksploratora nikt nie zostawi miejsca na pasek – obszar roboczy ustawiamy sami.
         if powerdesk_core::shellmode::active() {
-            powerdesk_core::shellmode::set_bar(x, y, x + bar.mon.0, y + bar.mon.1, h);
+            let reserve = if autohide() { PEEK_PX } else { h };
+            powerdesk_core::shellmode::set_bar(x, y, x + bar.mon.0, y + bar.mon.1, reserve);
         }
         if bar.origin == (0, 0) {
             // Zasobnik stoi przy zegarze – przybliżone miejsce dla programów pytających o ikonę.
@@ -1701,7 +1770,7 @@ fn place(bar: &mut Bar) {
     if taskwin::covers(taskwin::foreground(), bar.origin.0, bar.origin.1, bar.mon.0, bar.mon.1) {
         taskwin::place_normal(hwnd);
     } else {
-        taskwin::place_topmost(hwnd, bar.pos.0, bar.pos.1, bar.mon.0, h);
+        taskwin::place_topmost(hwnd, bar.pos.0, y, bar.mon.0, h);
     }
 }
 
@@ -1819,6 +1888,14 @@ fn refresh() {
         labels = b.prefs.taskbar_labels;
     });
     // Język okna, w którym się pisze (pasek nie przejmuje aktywności – ostatni program).
+    // Autoukrywanie mogło się zmienić w Ustawieniach Windows.
+    let ah = powerdesk_core::shellswap::autohide();
+    if AUTOHIDE.with(|a| a.replace(ah)) != ah {
+        BARS.with(|b| b.borrow_mut().iter_mut().for_each(|bar| {
+            bar.hidden = false;
+            bar.placed = false;
+        }));
+    }
     let kbd = powerdesk_core::kbdlayout::current(LAST_APP.with(|l| l.get()));
     let (time, date) = (now.format(if seconds { "%H:%M:%S" } else { "%H:%M" }).to_string(), now.format("%d.%m.%Y").to_string());
     BARS.with(|b| {
