@@ -36,8 +36,9 @@ export component MainWindow inherits Window {
     title: root.window-title;
     icon: @image-url("../icon.png");
     no-frame: true;
-    min-width: 720px;
-    min-height: 480px;
+    // Dowolny rozmiar (jak okna Windows) – tylko tyle, żeby zmieściły się przyciski paska tytułu.
+    min-width: 360px;
+    min-height: 240px;
     preferred-width: 1360px;
     preferred-height: 860px;
     background: Theme.bg;
@@ -145,6 +146,9 @@ export component MainWindow inherits Window {
     callback toggle-maximize;
     callback close-window;
     callback drag;
+    /// Chwycona krawędź albo róg okna bez ramki (0 – góra, 1 – prawo, 2 – dół, 3 – lewo,
+    /// 4 – lewy górny, 5 – prawy górny, 6 – prawy dolny, 7 – lewy dolny).
+    callback resize-edge(int);
     callback navigate(string);
     callback back;
     callback forward;
@@ -985,6 +989,22 @@ export component MainWindow inherits Window {
         running: Tip.text != "" && root.tip-shown != Tip.serial;
         triggered => {
             root.tip-shown = Tip.serial;
+        }
+    }
+    // Uchwyty zmiany rozmiaru: okno bez ramki nie ma krawędzi systemowych (nie przy maksymalizacji
+    // i pełnym ekranie). Pasy 5 px przy krawędziach, rogi 10 px.
+    if !root.is-maximized && !ViewerState.fullscreen: Rectangle {
+        for e in [0, 1, 2, 3, 4, 5, 6, 7]: TouchArea {
+            x: e == 1 || e == 5 || e == 6 ? root.width - (e == 1 ? 5px : 10px) : 0;
+            y: e == 2 || e == 6 || e == 7 ? root.height - (e == 2 ? 5px : 10px) : 0;
+            width: e == 0 || e == 2 ? root.width : e == 1 || e == 3 ? 5px : 10px;
+            height: e == 1 || e == 3 ? root.height : e == 0 || e == 2 ? 5px : 10px;
+            mouse-cursor: e == 0 || e == 2 ? MouseCursor.ns-resize : e == 1 || e == 3 ? MouseCursor.ew-resize : e == 4 || e == 6 ? MouseCursor.nwse-resize : MouseCursor.nesw-resize;
+            pointer-event(ev) => {
+                if (ev.kind == PointerEventKind.down && ev.button == PointerEventButton.left) {
+                    root.resize-edge(e);
+                }
+            }
         }
     }
     if Tip.text != "" && root.tip-shown == Tip.serial: Rectangle {

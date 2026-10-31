@@ -576,6 +576,27 @@ fn wire(ui: &MainWindow, st: &Shared) {
             }
         }
     });
+    ui.on_resize_edge({
+        let w = ui.as_weak();
+        move |e| {
+            use slint::winit_030::winit::window::ResizeDirection as D;
+            let dir = match e {
+                0 => D::North,
+                1 => D::East,
+                2 => D::South,
+                3 => D::West,
+                4 => D::NorthWest,
+                5 => D::NorthEast,
+                6 => D::SouthEast,
+                _ => D::SouthWest,
+            };
+            if let Some(ui) = w.upgrade() {
+                ui.window().with_winit_window(|win| {
+                    let _ = win.drag_resize_window(dir);
+                });
+            }
+        }
+    });
     ui.on_minimize({
         let w = ui.as_weak();
         move || {
