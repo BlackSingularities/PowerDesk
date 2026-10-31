@@ -19,9 +19,15 @@ export global Drag {
 
 /// TouchArea z podpowiedzią po najechaniu; kliknięcie chowa dymek.
 /// `drop` – folder, do którego trafią pliki upuszczone na ten element (pusto – nie przyjmuje).
+/// Dla czytnika ekranu (Narrator) to przycisk z podpowiedzią jako nazwą; „naciśnięcie” z czytnika klika.
 export component TipArea inherits TouchArea {
     in property <string> tip;
     in property <string> drop;
+    accessible-role: button;
+    accessible-label: root.tip;
+    accessible-action-default => {
+        root.clicked();
+    }
     changed has-hover => {
         if (Drag.active) {
             if (self.has-hover && self.drop != "") {

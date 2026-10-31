@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [dependencies]
 powerdesk-core = { path = "../core" }
-slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "backend-winit", "renderer-femtovg", "unstable-winit-030"] }
+slint = { version = "1.18", default-features = false, features = ["std", "compat-1-2", "accessibility", "backend-winit", "renderer-femtovg", "unstable-winit-030"] }
 image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "tiff"] }
 open = "5"
 dirs = "6"

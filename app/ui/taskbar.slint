@@ -1488,6 +1488,8 @@ export component TaskbarWindow inherits Window {
                 }
                 tb-ta := TipArea {
                     tip: b.count == 0 ? b.title + " · przypięty" : "";
+                    // Uruchomione okna nie mają dymka (są podglądy) – nazwa dla czytnika ekranu i tak jest.
+                    accessible-label: b.count == 0 ? b.title + ", przypięty" : b.title + (b.count > 1 ? ", okna: " + b.count : "");
                     clicked => {
                         if (!parent.was-drag) {
                             root.activate(i);
