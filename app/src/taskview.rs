@@ -61,7 +61,7 @@ fn open() {
         t.set_light(l.light);
         t.set_accent_override(l.accent);
     }
-    let own: Vec<isize> = [crate::start::hwnd(), crate::cliphistory::hwnd()].into_iter().flatten().collect();
+    let own: Vec<isize> = [crate::start::hwnd(), crate::cliphistory::hwnd(), crate::overlay::hwnd()].into_iter().flatten().collect();
     let wins: Vec<Win> = taskwin::list().into_iter().filter(|x| !own.contains(&x.hwnd)).collect();
     let prev = taskwin::foreground();
     let (lw, lh) = (mon.0 as f32 / scale, mon.1 as f32 / scale);

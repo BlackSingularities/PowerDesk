@@ -32,6 +32,10 @@ const SKIP: &[&str] = &[
     "System.Photo.FocalLength", "System.Photo.Aperture", "System.Photo.ShutterSpeed", "System.Photo.ExposureTimeNumerator",
     "System.Photo.ExposureTimeDenominator", "System.Photo.FNumberNumerator", "System.Photo.FNumberDenominator", "System.Photo.ApertureNumerator",
     "System.Photo.ApertureDenominator",
+    // Techniczne identyfikatory i duble dat (Windows dokłada je do zwykłych obrazów).
+    "System.ItemPathDisplayNarrow", "System.Media.ClassPrimaryID", "System.Media.ClassSecondaryID", "System.Media.CollectionGroupID",
+    "System.Media.CollectionID", "System.Media.ContentID", "System.Media.UniqueFileIdentifier", "System.Document.DateCreated",
+    "System.Document.DateSaved", "System.ItemDate", "System.DateImported", "System.DateAcquired",
 ];
 
 /// Sekcje jak w MetaView.svelte: (tytuł, ikona, czy klucz należy do sekcji).

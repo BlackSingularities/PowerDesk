@@ -19,6 +19,9 @@
 - Panel boczny: sekcja „Urządzenia” z telefonami i aparatami podłączonymi przez USB (MTP).
 - Strażnik: po awarii pasek i pulpit Windows wracają od razu (zanim wystartuje nowy PowerDesk); gdy PowerDesk zawiśnie na 15 s, pokazuje pasek Windows.
 - Kilka monitorów: przełącznik „Przyciski wszystkich okien na każdym pasku”; przy jednym pasku widać okna ze wszystkich monitorów.
+- Panel szczegółów: długie nazwy i ścieżki zawijają się w panelu (nie rozpychają go, przyciski akcji mają pełną szerokość); bez technicznych identyfikatorów i zdublowanych dat.
+- Otwieranie folderu z innego programu: nietknięta karta startowa zostaje użyta zamiast nowej, widok pokazuje właściwy folder.
+- Nakładka FPS nie jest traktowana jak okno programu (pasek, widok zadań).
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 

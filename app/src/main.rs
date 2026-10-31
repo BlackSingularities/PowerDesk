@@ -179,13 +179,26 @@ fn open_args(s: &Shared, args: Vec<String>) {
         let start = settings::start_path(&s.borrow().prefs);
         new_tab_at(s, &start, true);
     }
+    // Okno najpierw na wierzch – układ liczony przy schowanym oknie pokazywał treść poprzedniej karty.
+    show_window(s);
     for (dir, file) in targets {
-        new_tab_at(s, &dir, true);
+        // Nietknięta karta startowa (nic w niej nie otwierano) – folder trafia do niej, bez nowej karty.
+        if fresh_tab(s) {
+            navigate(s, &dir, true);
+        } else {
+            new_tab_at(s, &dir, true);
+        }
         if let Some(f) = file {
             select_path(s, &f);
         }
     }
-    show_window(s);
+    show_tab(s);
+}
+
+/// Aktywna karta to karta startowa, w której niczego jeszcze nie otwierano.
+fn fresh_tab(s: &Shared) -> bool {
+    let start = settings::start_path(&s.borrow().prefs);
+    tab_mut(s, |t| t.viewer.is_none() && t.search.is_none() && t.history.len() <= 1 && t.path.eq_ignore_ascii_case(&start))
 }
 
 /// Ikona programu do zasobnika.
@@ -269,6 +282,8 @@ fn close_window(s: &Shared) {
 
 /// Koniec programu: pulpit i pasek Windows wracają (strażnik niczego już nie zastanie).
 pub fn quit(_s: &Shared) {
+    // Zwykłe zakończenie do dziennika – odróżnia je od awarii przy zgłoszeniach.
+    powerdesk_core::log::info("zakończenie PowerDesk (quit)");
     start::close();
     cliphistory::close();
     desktop::close();

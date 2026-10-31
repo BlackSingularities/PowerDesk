@@ -871,6 +871,7 @@ fn own_popups() -> Vec<isize> {
     THUMBS.with(|t| out.extend(t.borrow().as_ref().map(|t| crate::window_hwnd(t.w.window()))));
     out.extend(crate::start::hwnd());
     out.extend(crate::cliphistory::hwnd());
+    out.extend(crate::overlay::hwnd());
     out
 }
 

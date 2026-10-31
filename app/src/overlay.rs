@@ -29,6 +29,11 @@ fn prefs<R>(f: impl FnOnce(&crate::model::Prefs) -> R) -> Option<R> {
     out
 }
 
+/// Okno nakładki – pasek, widok zadań i lista okien go pomijają (to nie jest okno programu).
+pub fn hwnd() -> Option<isize> {
+    OV.with(|o| o.borrow().as_ref().map(|w| crate::window_hwnd(w.window())))
+}
+
 pub fn is_open() -> bool {
     OV.with(|o| o.borrow().is_some())
 }
