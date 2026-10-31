@@ -82,6 +82,8 @@ features = [
   "Win32_Graphics_Imaging",
   "Win32_Graphics_Dxgi_Common",
   "Foundation",
+  "Devices_Radios",
+  "Win32_Devices_Display",
   "Data_Pdf",
   "Media_Control",
   "Storage",

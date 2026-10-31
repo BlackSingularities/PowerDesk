@@ -10,6 +10,8 @@
 - Pasek: przycisk programu, który woła o uwagę (nowa wiadomość, koniec pobierania), pulsuje pomarańczową kreską, póki go nie otworzysz.
 - Pasek: pliki przeciągnięte nad program – po chwili wysuwa się jego okno; upuszczone na przypięty program bez okien otwierają się w nim.
 - Pasek: lista szybkiego dostępu – prawy klik na programie pokazuje jego ostatnie pliki (te same listy co pasek Windows) i otwiera je w tym programie, a nad nimi zadania programu (np. „Nowe okno InPrivate” w Edge) i jego własne kategorie.
+- Zasobnik: szybkie ustawienia w okienku sieci – Bluetooth i tryb samolotowy (przełączniki), suwak jasności (ekran laptopa i monitory z DDC/CI), skróty do hotspotu, światła nocnego i oszczędzania baterii.
+- Zasobnik: ikona „Bezpieczne usuwanie sprzętu” przy podłączonym pendrivie – menu z wysuwaniem dysków.
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 

@@ -177,6 +177,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         });
         w.on_network_open(move |x| open_network(n, x));
         w.on_battery_open(|| sysbar::open_settings("batterysaver"));
+        w.on_usb_open(move |x| usb_menu(n, x));
         w.on_calendar_open(move |x| open_calendar(n, x));
         w.on_notices_open(move |x| open_notices(n, x));
         w.on_vd_menu(move |x| vd_menu(n, x));
@@ -1237,12 +1238,111 @@ fn open_network(bar: usize, x: f32) {
         slint::Timer::single_shot(Duration::ZERO, close_popup);
         sysbar::open_settings("network-status");
     });
+    w.on_quick(|name| match name.as_str() {
+        "bluetooth" => {
+            let on = with_network_get(|w| w.get_bt() == 1);
+            std::thread::spawn(move || {
+                let res = powerdesk_core::quick::set_bluetooth(!on);
+                let _ = slint::invoke_from_event_loop(move || quick_done(res));
+            });
+        }
+        "airplane" => {
+            let on = with_network_get(|w| w.get_airplane());
+            std::thread::spawn(move || {
+                let res = powerdesk_core::quick::set_airplane(!on);
+                let _ = slint::invoke_from_event_loop(move || quick_done(res));
+            });
+        }
+        page => {
+            let page = match page {
+                "bluetooth-settings" => "bluetooth",
+                "hotspot" => "network-mobilehotspot",
+                "nightlight" => "nightlight",
+                "batterysaver" => "batterysaver",
+                _ => "",
+            };
+            slint::Timer::single_shot(Duration::ZERO, close_popup);
+            sysbar::open_settings(page);
+        }
+    });
+    // Jasność: suwak wysyła wiele wartości – ustawiamy tylko ostatnią, po krótkiej przerwie.
+    w.on_set_brightness(|v| {
+        BRIGHT.with(|b| b.set(Some((v * 100.0).round() as u32)));
+        slint::Timer::single_shot(Duration::from_millis(150), || {
+            if let Some(level) = BRIGHT.with(|b| b.take()) {
+                std::thread::spawn(move || powerdesk_core::quick::set_brightness(level));
+            }
+        });
+    });
+    load_quick();
     // Okienko 340 px wyśrodkowane nad ikoną (32 px).
-    above_bar(w.window(), spot, 340.0, 440.0, x + 16.0 - 170.0);
+    above_bar(w.window(), spot, 340.0, 580.0, x + 16.0 - 170.0);
     close_on_blur(w.window());
     show_above(w.window());
     POPUP.with(|p| *p.borrow_mut() = Some(Popup::Network(w)));
     rescan();
+}
+
+/// Menu „Bezpieczne usuwanie sprzętu”: dyski wymienne do wysunięcia.
+fn usb_menu(bar: usize, x: f32) {
+    let roots = powerdesk_core::quick::removable();
+    let drives = powerdesk_core::drives::list();
+    let mut items: Vec<Item> = Vec::new();
+    for root in roots {
+        let label = drives.iter().find(|d| d.path.eq_ignore_ascii_case(&root)).map(|d| d.label.clone()).filter(|l| !l.is_empty()).unwrap_or_else(|| "Dysk wymienny".into());
+        let name = format!("Wysuń {label} ({})", root.trim_end_matches('\\'));
+        items.push(it(name, "eject", move |s| {
+            let res = powerdesk_core::drives::eject(0, &root);
+            match res {
+                Ok(()) => crate::transfers::toast(s, format!("Można bezpiecznie odłączyć {}", root.trim_end_matches('\\')), crate::transfers::Kind::Ok, None),
+                Err(e) => crate::transfers::toast(s, format!("Nie udało się wysunąć: {e}"), crate::transfers::Kind::Error, None),
+            }
+            USB.with(|u| u.set(!powerdesk_core::quick::removable().is_empty()));
+            tray_status();
+        }));
+    }
+    if items.is_empty() {
+        return;
+    }
+    show_menu(bar, items, x);
+}
+
+thread_local! {
+    static USB: Cell<bool> = const { Cell::new(false) };
+    /// Jasność czekająca na ustawienie (ostatnia wartość z suwaka).
+    static BRIGHT: Cell<Option<u32>> = const { Cell::new(None) };
+}
+
+fn with_network_get<T: Default>(f: impl FnOnce(&NetworkWindow) -> T) -> T {
+    let mut v = T::default();
+    with_network(|w| v = f(w));
+    v
+}
+
+/// Stan Bluetooth, trybu samolotowego i jasność – w tle (WinRT i WMI bywają wolne).
+fn load_quick() {
+    std::thread::spawn(|| {
+        let (bt, airplane) = powerdesk_core::quick::radio_state();
+        let bright = powerdesk_core::quick::brightness();
+        let _ = slint::invoke_from_event_loop(move || {
+            with_network(|w| {
+                w.set_bt(bt.map_or(-1, |on| on as i32));
+                w.set_airplane(airplane);
+                w.set_brightness(bright.map_or(-1.0, |b| b as f32 / 100.0));
+            })
+        });
+    });
+}
+
+fn quick_done(res: Result<(), String>) {
+    if let Err(e) = res {
+        with_network(|w| w.set_note(e.into()));
+    }
+    load_quick();
+    slint::Timer::single_shot(Duration::from_millis(1500), || {
+        with_network(fill_network);
+        tray_status();
+    });
 }
 
 fn with_network(f: impl FnOnce(&NetworkWindow)) {
@@ -1321,7 +1421,9 @@ fn tray_status() {
     if tick % 5 == 1 || NET.with(|n| n.borrow().is_none()) {
         let net = sysbar::network();
         NET.with(|n| *n.borrow_mut() = Some(net));
+        USB.with(|u| u.set(!powerdesk_core::quick::removable().is_empty()));
     }
+    let usb = USB.with(|u| u.get());
     let net = NET.with(|n| n.borrow().clone()).unwrap_or(sysbar::Net { kind: NetKind::None, name: String::new() });
     BARS.with(|b| {
         for bar in b.borrow().iter() {
@@ -1338,6 +1440,7 @@ fn tray_status() {
             });
             w.set_net_name(net.name.clone().into());
             w.set_has_battery(bat.is_some());
+            w.set_has_usb(usb);
             if let Some(bt) = bat {
                 w.set_battery(bt.percent as i32);
                 w.set_charging(bt.charging);

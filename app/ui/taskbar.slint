@@ -566,12 +566,48 @@ component PopButton inherits Rectangle {
 
 /// Okienko sieci: połączenie przewodowe albo lista sieci Wi-Fi; wybrana sieć rozwija się
 /// z „Połącz” / „Rozłącz” i polem hasła dla nowej zabezpieczonej sieci.
+/// Kafelek szybkich ustawień: włączony – w kolorze akcentu; `link` – otwiera Ustawienia Windows.
+component QuickTile inherits Rectangle {
+    in property <string> icon;
+    in property <string> text;
+    in property <bool> on;
+    in property <bool> link;
+    in property <string> tip;
+    callback clicked();
+    height: 56px;
+    border-radius: Theme.r;
+    background: root.on ? Theme.accent : qt-ta.has-hover ? Theme.hover : Theme.card;
+    VerticalLayout {
+        padding: 6px;
+        spacing: 4px;
+        alignment: center;
+        Icon {
+            commands: root.icon;
+            size: 16px;
+            color: root.on ? white : Theme.text;
+        }
+        Text {
+            horizontal-alignment: center;
+            text: root.text;
+            overflow: elide;
+            font-size: 10.5px;
+            color: root.on ? white : Theme.text;
+        }
+    }
+    qt-ta := TipArea {
+        tip: root.tip;
+        clicked => {
+            root.clicked();
+        }
+    }
+}
+
 export component NetworkWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     background: Theme.popup-high;
     width: 340px;
-    height: 440px;
+    height: 580px;
     in property <bool> has-wifi;
     /// Nazwa karty, gdy internet idzie kablem (pusta – brak kabla).
     in property <string> wired;
@@ -587,9 +623,98 @@ export component NetworkWindow inherits Window {
     callback disconnect();
     callback rescan();
     callback settings();
+    /// Szybkie ustawienia: Bluetooth (-1 – brak karty, 0 – wył., 1 – wł.), tryb samolotowy,
+    /// jasność 0–1 (ujemna – nie da się ustawić). `quick` – kafelek po nazwie.
+    in property <int> bt: -1;
+    in property <bool> airplane;
+    in property <float> brightness: -1;
+    callback quick(string);
+    callback set-brightness(float);
     VerticalLayout {
         padding: 14px;
         spacing: 8px;
+        HorizontalLayout {
+            spacing: 6px;
+            QuickTile {
+                icon: Icons.bluetooth;
+                text: "Bluetooth";
+                on: root.bt == 1;
+                tip: root.bt < 0 ? "Bluetooth niedostępny – klik otwiera ustawienia urządzeń" : root.bt == 1 ? "Wyłącz Bluetooth" : "Włącz Bluetooth";
+                clicked => {
+                    root.quick(root.bt < 0 ? "bluetooth-settings" : "bluetooth");
+                }
+            }
+            QuickTile {
+                icon: Icons.plane;
+                text: "Samolot";
+                on: root.airplane;
+                tip: root.airplane ? "Wyłącz tryb samolotowy" : "Tryb samolotowy – wyłącza Wi-Fi, Bluetooth i sieć komórkową";
+                clicked => {
+                    root.quick("airplane");
+                }
+            }
+            QuickTile {
+                icon: Icons.hotspot;
+                text: "Hotspot";
+                link: true;
+                tip: "Udostępnianie internetu – Ustawienia Windows";
+                clicked => {
+                    root.quick("hotspot");
+                }
+            }
+        }
+        HorizontalLayout {
+            spacing: 6px;
+            QuickTile {
+                icon: Icons.moon;
+                text: "Światło nocne";
+                link: true;
+                tip: "Światło nocne – Ustawienia Windows";
+                clicked => {
+                    root.quick("nightlight");
+                }
+            }
+            QuickTile {
+                icon: Icons.leaf;
+                text: "Oszczędzanie";
+                link: true;
+                tip: "Oszczędzanie baterii – Ustawienia Windows";
+                clicked => {
+                    root.quick("batterysaver");
+                }
+            }
+            QuickTile {
+                icon: Icons.settings;
+                text: "Wszystkie";
+                link: true;
+                tip: "Ustawienia Windows";
+                clicked => {
+                    root.quick("settings");
+                }
+            }
+        }
+        if root.brightness >= 0: HorizontalLayout {
+            height: 28px;
+            spacing: 10px;
+            Icon {
+                y: (parent.height - 16px) / 2;
+                commands: Icons.sun;
+                size: 16px;
+                color: Theme.dim;
+            }
+            Track {
+                y: (parent.height - self.height) / 2;
+                horizontal-stretch: 1;
+                value: root.brightness;
+                changed-by-user(v) => {
+                    root.set-brightness(v);
+                }
+            }
+        }
+        Rectangle {
+            height: 1px;
+            background: Theme.line;
+        }
         HorizontalLayout {
             spacing: 6px;
             Text {
@@ -1063,6 +1188,9 @@ export component TaskbarWindow inherits Window {
     in property <int> net-kind;
     in property <string> net-name;
     in property <bool> has-battery;
+    /// Podłączony dysk wymienny – ikona „Bezpieczne usuwanie sprzętu”.
+    in property <bool> has-usb;
+    callback usb-open(length);
     in property <int> battery;
     in property <bool> charging;
     /// Nieprzeczytane powiadomienia (centrum powiadomień przy zegarze).
@@ -1388,6 +1516,13 @@ export component TaskbarWindow inherits Window {
                 }
                 wheel(d) => {
                     root.volume-wheel(d);
+                }
+            }
+            if root.has-usb: TrayIcon {
+                icon: Icons.usb;
+                tip: "Bezpieczne usuwanie sprzętu";
+                clicked => {
+                    root.usb-open(self.absolute-position.x);
                 }
             }
             if root.has-battery: TrayIcon {
