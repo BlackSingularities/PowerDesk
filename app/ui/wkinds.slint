@@ -1,0 +1,1786 @@
+// Treść widżetów z ustawieniami („Dostosuj…”): każdy rodzaj sam dopasowuje układ do miejsca –
+// mały kafelek (48 px) obsługuje WidgetBody, tutaj: średni (≈100 px), szeroki, duży i dowolny na pulpicie.
+// Listy rysujemy w położeniu bezwzględnym i pokazujemy tyle wierszy, ile się mieści (bez uciętych).
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, TipArea } from "components.slint";
+import { WidgetData, WCfg, WClock, WWx, WFile, WApp, WeatherIcon, Meter, WTitle, Ring, Spark, Bars, MoonDisc, AnalogFace, RoundButton, KeyButton } from "wdata.slint";
+
+/// Wspólne wymiary: mały (wysokość < 120 px) ma mniejsze odstępy i bez nagłówka.
+component Base inherits Rectangle {
+    in property <WCfg> cfg;
+    in property <color> acc: Theme.accent;
+    out property <bool> compact: self.height < 120px;
+    out property <length> pad: self.compact ? 10px : 14px;
+}
+
+// ---------- Zegar cyfrowy ----------
+export component ClockBody inherits Base {
+    property <WClock> c: WidgetData.clk[root.cfg.slot];
+    property <string> t: root.cfg.h12 ? root.c.t12 : root.c.t24;
+    property <bool> show-sec: root.cfg.seconds && !root.compact && root.width >= 150px;
+    property <bool> show-city: root.c.city != "" && root.height >= 110px;
+    property <length> big0: min(self.height * (self.compact ? 0.42 : 0.34), (self.width - 2 * self.pad) / (self.show-sec ? 3.6 : 2.9));
+    property <length> big1: min(self.height * 0.6, (self.width - 2 * self.pad) / 2.8);
+    property <length> big2: min((self.height - 2 * self.pad) / 2.25, (self.width - 2 * self.pad) / 1.3);
+    // Klasyczny: godzina, sekundy, data.
+    if root.cfg.variant == 0: VerticalLayout {
+        padding: root.pad;
+        spacing: 2px;
+        alignment: center;
+        if root.show-city: Text {
+            horizontal-alignment: center;
+            text: root.c.city + (root.c.note != "" ? " · " + root.c.note : "");
+            font-size: 11px;
+            color: root.acc;
+            overflow: elide;
+        }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 4px;
+            Text {
+                text: root.t;
+                font-size: root.big0;
+                font-weight: 300;
+                color: Theme.text;
+            }
+            if root.show-sec || root.cfg.h12: VerticalLayout {
+                alignment: end;
+                padding-bottom: root.big0 * 0.14;
+                if root.cfg.h12: Text {
+                    text: root.c.ampm;
+                    font-size: max(9px, root.big0 * 0.24);
+                    color: Theme.dim;
+                }
+                if root.show-sec: Text {
+                    text: root.c.sec;
+                    font-size: root.big0 * 0.34;
+                    color: Theme.dim;
+                }
+            }
+        }
+        if root.height >= 90px: Text {
+            horizontal-alignment: center;
+            text: root.compact || root.width < 170px ? root.c.weekday : root.c.weekday + ", " + root.c.date;
+            font-size: root.compact ? 11px : 13px;
+            color: Theme.dim;
+            overflow: elide;
+        }
+    }
+    // Minimalny: sama godzina, jak największa.
+    if root.cfg.variant == 1: HorizontalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 4px;
+        Text {
+            vertical-alignment: center;
+            text: root.t;
+            font-size: root.big1;
+            font-weight: 200;
+            color: Theme.text;
+        }
+        if root.cfg.h12: Text {
+            vertical-alignment: center;
+            text: root.c.ampm;
+            font-size: max(9px, root.big1 * 0.22);
+            color: root.acc;
+        }
+    }
+    // Pionowy: godzina nad minutami (minuty w kolorze akcentu).
+    if root.cfg.variant == 2: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: -root.big2 * 0.18;
+        Text {
+            horizontal-alignment: center;
+            text: root.cfg.h12 ? root.c.hh12 : root.c.hh24;
+            font-size: root.big2;
+            font-weight: 600;
+            color: Theme.text;
+        }
+        Text {
+            horizontal-alignment: center;
+            text: root.c.mm;
+            font-size: root.big2;
+            font-weight: 300;
+            color: root.acc;
+        }
+    }
+    // Upływ minuty – cienka linia u dołu.
+    if root.cfg.seconds && root.cfg.variant != 1: Rectangle {
+        x: 0;
+        y: root.height - 3px;
+        width: root.width * root.c.sa / 360;
+        height: 3px;
+        background: root.acc.with-alpha(0.8);
+    }
+}
+
+// ---------- Zegar analogowy ----------
+export component AnalogBody inherits Base {
+    property <WClock> c: WidgetData.clk[root.cfg.slot];
+    property <length> p: min(self.width, self.height) < 120px ? 6px : 12px;
+    property <bool> side: self.width >= self.height * 1.5 && self.width >= 180px;
+    property <bool> below: !self.side && self.height >= self.width * 1.3 && self.height >= 150px;
+    property <length> face: self.side ? min(self.height - 2 * self.p, self.width * 0.5) : self.below ? min(self.width - 2 * self.p, self.height - 2 * self.p - 44px) : min(self.width, self.height) - 2 * self.p;
+    AnalogFace {
+        x: root.side ? root.p : (root.width - root.face) / 2;
+        y: root.side || !root.below ? (root.height - root.face) / 2 : root.p;
+        width: root.face;
+        height: root.face;
+        ha: root.c.ha;
+        ma: root.c.ma;
+        sa: root.c.sa;
+        seconds: root.cfg.seconds;
+        style: root.cfg.variant;
+        color: root.acc;
+    }
+    if root.side: VerticalLayout {
+        x: root.p * 2 + root.face;
+        width: root.width - root.face - 3 * root.p;
+        alignment: center;
+        spacing: 2px;
+        Text {
+            text: root.cfg.h12 ? root.c.t12 + " " + root.c.ampm : root.c.t24;
+            font-size: min(28px, root.height * 0.22);
+            font-weight: 300;
+            color: Theme.text;
+        }
+        Text {
+            text: root.c.city != "" ? root.c.city : root.c.weekday;
+            font-size: 12px;
+            color: root.c.city != "" ? root.acc : Theme.dim;
+            overflow: elide;
+        }
+        Text {
+            text: root.c.city != "" ? root.c.note : root.c.date;
+            font-size: 11px;
+            color: Theme.faint;
+            overflow: elide;
+        }
+    }
+    if root.below: VerticalLayout {
+        x: root.p;
+        y: root.p + root.face;
+        width: root.width - 2 * root.p;
+        height: root.height - root.face - 2 * root.p;
+        alignment: center;
+        Text {
+            horizontal-alignment: center;
+            text: root.cfg.h12 ? root.c.t12 + " " + root.c.ampm : root.c.t24;
+            font-size: 15px;
+            color: Theme.text;
+        }
+        Text {
+            horizontal-alignment: center;
+            text: root.c.city != "" ? root.c.city + " · " + root.c.note : root.c.weekday + ", " + root.c.date;
+            font-size: 11px;
+            color: Theme.dim;
+            overflow: elide;
+        }
+    }
+}
+
+// ---------- Pogoda ----------
+export component WeatherBody inherits Base {
+    property <WWx> w: WidgetData.wx[root.cfg.slot];
+    pure function deg(v: float) -> string {
+        return round(root.cfg.fahrenheit ? v * 9 / 5 + 32 : v) + "°";
+    }
+    if !root.w.ok: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 6px;
+        HorizontalLayout {
+            alignment: center;
+            WeatherIcon {
+                kind: 2;
+                size: 36px;
+            }
+        }
+        Text {
+            horizontal-alignment: center;
+            text: root.w.status != "" ? root.w.status : "Pobieranie pogody…";
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.dim;
+        }
+    }
+    if root.w.ok: VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 10px;
+            WeatherIcon {
+                kind: root.w.kind;
+                size: root.compact ? min(44px, root.height - 2 * root.pad) : root.cfg.variant == 1 ? 64px : 54px;
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: root.deg(root.w.temp);
+                    font-size: root.compact ? 26px : root.cfg.variant == 1 ? 40px : 34px;
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+                Text {
+                    text: root.w.desc;
+                    font-size: 11.5px;
+                    color: Theme.dim;
+                    overflow: elide;
+                }
+                if root.compact && root.width >= 180px: Text {
+                    text: root.w.city;
+                    font-size: 11px;
+                    color: Theme.faint;
+                    overflow: elide;
+                }
+            }
+            if root.cfg.variant == 0 && !root.compact && root.width >= 250px: VerticalLayout {
+                alignment: center;
+                spacing: 2px;
+                for row in ["Odczuwalna " + root.deg(root.w.feels), "Wilgotność " + root.w.humidity, "Wiatr " + root.w.wind]: Text {
+                    horizontal-alignment: right;
+                    text: row;
+                    font-size: 11px;
+                    color: Theme.dim;
+                }
+            }
+        }
+        if !root.compact: Text {
+            text: root.w.city + (root.cfg.variant == 0 && root.width < 250px ? " · wiatr " + root.w.wind : "");
+            font-size: 11px;
+            color: Theme.faint;
+            overflow: elide;
+        }
+        if !root.compact && root.cfg.variant == 0 && root.height >= 210px && root.w.sunrise != "": Text {
+            text: "Wschód " + root.w.sunrise + " · zachód " + root.w.sunset;
+            font-size: 11px;
+            color: Theme.faint;
+            overflow: elide;
+        }
+        // Kolejne dni – tyle, ile zmieści szerokość.
+        if root.height >= 170px: Rectangle {
+            property <int> n: max(1, min(root.w.days.length, floor((root.width - 2 * root.pad) / 46px)));
+            property <length> cw: self.width / self.n;
+            height: 58px;
+            for d[i] in root.w.days: VerticalLayout {
+                x: i * parent.cw;
+                width: parent.cw;
+                visible: i < parent.n;
+                spacing: 2px;
+                Text {
+                    horizontal-alignment: center;
+                    text: d.name;
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    WeatherIcon {
+                        kind: d.kind;
+                        size: 24px;
+                    }
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: root.deg(d.hi) + " " + root.deg(d.lo);
+                    font-size: 10.5px;
+                    color: Theme.text;
+                }
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+        }
+    }
+}
+
+// ---------- Prognoza na kilka dni ----------
+export component ForecastBody inherits Base {
+    in property <string> title;
+    property <WWx> w: WidgetData.wx[root.cfg.slot];
+    pure function deg(v: float) -> string {
+        return round(root.cfg.fahrenheit ? v * 9 / 5 + 32 : v) + "°";
+    }
+    if !root.w.ok: Text {
+        x: root.pad;
+        width: root.width - 2 * root.pad;
+        horizontal-alignment: center;
+        text: root.w.status != "" ? root.w.status : "Pobieranie prognozy…";
+        wrap: word-wrap;
+        font-size: 11.5px;
+        color: Theme.dim;
+    }
+    // Mały kafelek: dni obok siebie.
+    if root.w.ok && root.compact: Rectangle {
+        property <int> n: max(1, min(root.w.days.length, floor((root.width - 2 * root.pad) / 42px)));
+        property <length> cw: (root.width - 2 * root.pad) / self.n;
+        for d[i] in root.w.days: VerticalLayout {
+            x: root.pad + i * parent.cw;
+            y: root.pad;
+            width: parent.cw;
+            height: root.height - 2 * root.pad;
+            visible: i < parent.n;
+            alignment: center;
+            spacing: 2px;
+            Text {
+                horizontal-alignment: center;
+                text: d.name;
+                font-size: 10.5px;
+                color: i == 0 ? root.acc : Theme.dim;
+            }
+            HorizontalLayout {
+                alignment: center;
+                WeatherIcon {
+                    kind: d.kind;
+                    size: min(26px, parent.parent.width - 6px);
+                }
+            }
+            Text {
+                horizontal-alignment: center;
+                text: root.deg(d.hi);
+                font-size: 11px;
+                color: Theme.text;
+            }
+        }
+    }
+    // Dni w wierszach z zakresem temperatur.
+    if root.w.ok && !root.compact && root.cfg.variant == 0: Rectangle {
+        property <length> top: root.pad + 26px;
+        property <length> rh: 26px;
+        property <int> n: max(1, min(root.w.days.length, floor((root.height - self.top - root.pad + 4px) / self.rh)));
+        property <float> span: max(1, root.w.dmax - root.w.dmin);
+        WTitle {
+            x: root.pad;
+            y: root.pad;
+            width: root.width - 2 * root.pad;
+            icon: Icons.cloud;
+            text: root.title != "" ? root.title : root.w.city;
+            extra: root.deg(root.w.temp) + " teraz";
+            color: root.acc;
+        }
+        for d[i] in root.w.days: Rectangle {
+            x: root.pad;
+            y: parent.top + i * parent.rh;
+            width: root.width - 2 * root.pad;
+            height: parent.rh;
+            visible: i < parent.n;
+            property <length> bar-x: 92px;
+            property <length> bar-w: max(20px, self.width - self.bar-x - 40px);
+            Text {
+                x: 0;
+                width: 40px;
+                vertical-alignment: center;
+                text: d.name;
+                font-size: 12px;
+                font-weight: i == 0 ? 600 : 400;
+                color: i == 0 ? root.acc : Theme.text;
+            }
+            WeatherIcon {
+                x: 38px;
+                y: (parent.height - self.height) / 2;
+                kind: d.kind;
+                size: 20px;
+            }
+            Text {
+                x: 60px;
+                width: 28px;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+                text: root.deg(d.lo);
+                font-size: 11.5px;
+                color: Theme.dim;
+            }
+            Rectangle {
+                x: parent.bar-x;
+                y: (parent.height - self.height) / 2;
+                width: parent.bar-w;
+                height: 5px;
+                border-radius: 2.5px;
+                background: Theme.line;
+                Rectangle {
+                    x: parent.width * (d.lo - root.w.dmin) / parent.parent.parent.span;
+                    width: max(6px, parent.width * (d.hi - d.lo) / parent.parent.parent.span);
+                    height: parent.height;
+                    border-radius: parent.border-radius;
+                    background: @linear-gradient(90deg, #5aa9ff 0%, root.acc.mix(#f5b83d, 0.4) 100%);
+                }
+            }
+            Text {
+                x: parent.width - 34px;
+                width: 34px;
+                horizontal-alignment: right;
+                vertical-alignment: center;
+                text: root.deg(d.hi);
+                font-size: 11.5px;
+                color: Theme.text;
+            }
+        }
+    }
+    // Wykres temperatury na 24 godziny.
+    if root.w.ok && !root.compact && root.cfg.variant == 1: VerticalLayout {
+        padding: root.pad;
+        spacing: 4px;
+        WTitle {
+            icon: Icons.cloud;
+            text: root.title != "" ? root.title : root.w.city + " · 24 h";
+            extra: root.deg(root.w.temp);
+            color: root.acc;
+        }
+        HorizontalLayout {
+            vertical-stretch: 1;
+            spacing: 6px;
+            VerticalLayout {
+                width: 30px;
+                Text {
+                    text: root.deg(root.w.hmax);
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+                Rectangle {
+                    vertical-stretch: 1;
+                }
+                Text {
+                    text: root.deg(root.w.hmin);
+                    font-size: 10.5px;
+                    color: Theme.dim;
+                }
+            }
+            Spark {
+                horizontal-stretch: 1;
+                line: root.w.hline;
+                area: root.w.harea;
+                color: root.acc;
+            }
+        }
+        Rectangle {
+            height: 14px;
+            for k in 4: Text {
+                x: 36px + (parent.width - 36px) * k / 4;
+                text: mod(root.w.hour0 + k * 6, 24) + ":00";
+                font-size: 10px;
+                color: Theme.faint;
+            }
+        }
+    }
+}
+
+// ---------- Procesor, pamięć, karta graficzna ----------
+/// Wspólny układ wskaźnika: 0 – wykres liniowy, 1 – słupki, 2 – krąg.
+export component MeterBody inherits Base {
+    in property <string> icon;
+    in property <string> title;
+    in property <float> value;
+    in property <string> value-text;
+    in property <string> line1;
+    in property <string> line2;
+    in property <string> pline;
+    in property <string> parea;
+    in property <[float]> hist;
+    in property <bool> available: true;
+    in property <string> missing;
+    if !root.available: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 6px;
+        HorizontalLayout {
+            alignment: center;
+            Icon {
+                commands: root.icon;
+                size: 26px;
+                color: Theme.faint;
+            }
+        }
+        Text {
+            horizontal-alignment: center;
+            text: root.missing;
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.dim;
+        }
+    }
+    if root.available && root.cfg.variant == 2: mring := Rectangle {
+        property <bool> side: root.width >= root.height * 1.4;
+        property <bool> under: !self.side && root.height >= 150px;
+        property <length> d: self.side ? root.height - 2 * root.pad : min(root.width - 2 * root.pad, root.height - 2 * root.pad - (self.under ? 36px : 0));
+        Ring {
+            x: parent.side ? root.pad : (root.width - parent.d) / 2;
+            y: root.pad;
+            width: parent.d;
+            height: parent.d;
+            value: root.value;
+            color: root.acc;
+            thickness: max(4px, parent.d * 0.08);
+            Text {
+                text: root.value-text;
+                font-size: max(11px, parent.height * 0.2);
+                font-weight: 300;
+                color: Theme.text;
+            }
+        }
+        if mring.side: VerticalLayout {
+            x: root.pad * 2 + parent.d;
+            width: root.width - parent.d - 3 * root.pad;
+            alignment: center;
+            spacing: 2px;
+            WTitle {
+                icon: root.icon;
+                text: root.title;
+                color: root.acc;
+            }
+            Text {
+                text: root.line1;
+                font-size: 11.5px;
+                color: Theme.text;
+                overflow: elide;
+            }
+            Text {
+                text: root.line2;
+                font-size: 11px;
+                color: Theme.faint;
+                overflow: elide;
+            }
+        }
+        if mring.under: VerticalLayout {
+            x: root.pad;
+            y: root.pad + parent.d + 4px;
+            width: root.width - 2 * root.pad;
+            Text {
+                horizontal-alignment: center;
+                text: root.title;
+                font-size: 12px;
+                font-weight: 600;
+                color: Theme.dim;
+                overflow: elide;
+            }
+            Text {
+                horizontal-alignment: center;
+                text: root.line1;
+                font-size: 11px;
+                color: Theme.faint;
+                overflow: elide;
+            }
+        }
+    }
+    if root.available && root.cfg.variant != 2: VerticalLayout {
+        padding: root.pad;
+        spacing: 4px;
+        HorizontalLayout {
+            spacing: 6px;
+            VerticalLayout {
+                horizontal-stretch: 1;
+                WTitle {
+                    icon: root.icon;
+                    text: root.title;
+                    color: root.acc;
+                }
+                if !root.compact && root.line1 != "": Text {
+                    text: root.line1;
+                    font-size: 10.5px;
+                    color: Theme.faint;
+                    overflow: elide;
+                }
+            }
+            Text {
+                text: root.value-text;
+                font-size: root.compact ? 17px : 26px;
+                font-weight: 300;
+                color: Theme.text;
+            }
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            min-height: 12px;
+            if root.cfg.variant == 0: Spark {
+                width: parent.width;
+                height: parent.height;
+                line: root.pline;
+                area: root.parea;
+                color: root.acc;
+            }
+            if root.cfg.variant == 1: Bars {
+                width: parent.width;
+                height: parent.height;
+                values: root.hist;
+                color: root.acc;
+            }
+        }
+        if !root.compact && root.line2 != "": Text {
+            text: root.line2;
+            font-size: 10.5px;
+            color: Theme.faint;
+            overflow: elide;
+        }
+    }
+}
+
+// ---------- Bateria ----------
+export component BatteryBody inherits Base {
+    property <color> tone: WidgetData.bat-charging ? Theme.ok : WidgetData.bat < 0.2 ? #e5484d : root.acc;
+    property <string> pct: round(WidgetData.bat * 100) + "%";
+    if !WidgetData.bat-has: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 4px;
+        HorizontalLayout {
+            alignment: center;
+            Icon {
+                commands: Icons.power;
+                size: 26px;
+                color: root.acc;
+            }
+        }
+        Text {
+            horizontal-alignment: center;
+            text: "Zasilanie sieciowe";
+            font-size: 12px;
+            color: Theme.text;
+        }
+        if root.height >= 110px: Text {
+            horizontal-alignment: center;
+            text: "Ten komputer nie ma baterii";
+            wrap: word-wrap;
+            font-size: 11px;
+            color: Theme.faint;
+        }
+    }
+    // Krąg z procentem.
+    if WidgetData.bat-has && root.cfg.variant == 0: bring := Rectangle {
+        property <bool> side: root.width >= root.height * 1.4;
+        property <length> d: self.side ? root.height - 2 * root.pad : min(root.width - 2 * root.pad, root.height - 2 * root.pad - (root.height >= 140px ? 20px : 0));
+        Ring {
+            x: parent.side ? root.pad : (root.width - parent.d) / 2;
+            y: root.pad;
+            width: parent.d;
+            height: parent.d;
+            value: WidgetData.bat;
+            color: root.tone;
+            thickness: max(4px, parent.d * 0.09);
+            VerticalLayout {
+                alignment: center;
+                if WidgetData.bat-charging: HorizontalLayout {
+                    alignment: center;
+                    Icon {
+                        commands: Icons.bolt;
+                        size: max(10px, parent.parent.parent.height * 0.16);
+                        color: Theme.ok;
+                    }
+                }
+                Text {
+                    horizontal-alignment: center;
+                    text: root.pct;
+                    font-size: max(11px, parent.parent.height * 0.2);
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+            }
+        }
+        if bring.side: VerticalLayout {
+            x: root.pad * 2 + parent.d;
+            width: root.width - parent.d - 3 * root.pad;
+            alignment: center;
+            WTitle {
+                icon: Icons.battery;
+                text: "Bateria";
+                color: root.tone;
+            }
+            Text {
+                text: WidgetData.bat-text;
+                font-size: 12px;
+                color: Theme.text;
+                overflow: elide;
+            }
+        }
+        if !bring.side && root.height >= 140px: Text {
+
+            x: root.pad;
+            y: root.pad + parent.d + 2px;
+            width: root.width - 2 * root.pad;
+            horizontal-alignment: center;
+            text: WidgetData.bat-text;
+            font-size: 11.5px;
+            color: Theme.dim;
+            overflow: elide;
+        }
+    }
+    // Kształt baterii z wypełnieniem.
+    if WidgetData.bat-has && root.cfg.variant == 1: VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        alignment: center;
+        if !root.compact: WTitle {
+            icon: Icons.battery;
+            text: "Bateria";
+            extra: WidgetData.bat-text;
+            color: root.tone;
+        }
+        HorizontalLayout {
+            spacing: 2px;
+            height: min(root.height * 0.4, 64px);
+            Rectangle {
+                horizontal-stretch: 1;
+                border-radius: Theme.r-s;
+                border-width: 2px;
+                border-color: Theme.dim;
+                Rectangle {
+                    x: 4px;
+                    y: 4px;
+                    width: (parent.width - 8px) * max(0.02, min(1, WidgetData.bat));
+                    height: parent.height - 8px;
+                    border-radius: Theme.r-xs;
+                    background: root.tone;
+                    animate width { duration: 400ms; }
+                }
+                HorizontalLayout {
+                    alignment: center;
+                    spacing: 4px;
+                    if WidgetData.bat-charging: Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.bolt;
+                        size: 16px;
+                        color: Theme.text;
+                    }
+                    Text {
+                        vertical-alignment: center;
+                        text: root.pct;
+                        font-size: 16px;
+                        font-weight: 600;
+                        color: Theme.text;
+                    }
+                }
+            }
+            Rectangle {
+                width: 5px;
+                height: parent.height * 0.36;
+                y: (parent.height - self.height) / 2;
+                border-radius: 2px;
+                background: Theme.dim;
+            }
+        }
+        if root.compact: Text {
+            horizontal-alignment: center;
+            text: WidgetData.bat-text;
+            font-size: 11px;
+            color: Theme.dim;
+        }
+    }
+}
+
+// ---------- Połączenie (Wi‑Fi / kabel) ----------
+export component WifiBody inherits Base {
+    property <string> kind-name: WidgetData.net-kind == 1 ? "Wi‑Fi" : WidgetData.net-kind == 2 ? "Ethernet" : "Brak połączenia";
+    property <string> icon: WidgetData.net-kind == 1 ? Icons.wifi : WidgetData.net-kind == 2 ? Icons.ethernet : Icons.wifi-off;
+    VerticalLayout {
+        padding: root.pad;
+        spacing: 6px;
+        HorizontalLayout {
+            spacing: 10px;
+            // Siła sygnału – cztery słupki (kabel: wszystkie).
+            Rectangle {
+                width: root.compact ? 26px : 34px;
+                height: self.width;
+                for k in 4: Rectangle {
+                    property <bool> lit: WidgetData.net-kind == 2 || (WidgetData.net-kind == 1 && WidgetData.wifi-signal * 4 > k);
+                    x: k * parent.width / 4;
+                    width: parent.width / 4 - 2px;
+                    height: parent.height * (k + 1) / 4;
+                    y: parent.height - self.height;
+                    border-radius: 2px;
+                    background: self.lit ? root.acc : Theme.line-strong;
+                }
+            }
+            VerticalLayout {
+                horizontal-stretch: 1;
+                alignment: center;
+                Text {
+                    text: WidgetData.net-kind == 0 ? root.kind-name : WidgetData.net-name;
+                    font-size: root.compact ? 13px : 15px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    overflow: elide;
+                }
+                Text {
+                    text: WidgetData.net-kind == 1 ? root.kind-name + " · sygnał " + round(WidgetData.wifi-signal * 100) + "%" : root.kind-name;
+                    font-size: 11px;
+                    color: Theme.dim;
+                    overflow: elide;
+                }
+            }
+        }
+        if root.height >= 100px: HorizontalLayout {
+            spacing: 12px;
+            for row in [{ label: "↓ pobieranie", value: WidgetData.net-down }, { label: "↑ wysyłanie", value: WidgetData.net-up }]: VerticalLayout {
+                horizontal-stretch: 1;
+                Text {
+                    text: row.label;
+                    font-size: 10.5px;
+                    color: Theme.faint;
+                }
+                Text {
+                    text: row.value;
+                    font-size: 14px;
+                    color: Theme.text;
+                }
+            }
+        }
+        if root.height >= 170px: Spark {
+            vertical-stretch: 1;
+            min-height: 20px;
+            line: WidgetData.net-line;
+            area: WidgetData.net-area;
+            color: root.acc;
+        }
+        if root.height >= 150px && WidgetData.wifi-count > 0: Text {
+            text: "Widoczne sieci Wi‑Fi: " + WidgetData.wifi-count;
+            font-size: 10.5px;
+            color: Theme.faint;
+        }
+    }
+}
+
+// ---------- Głośność ----------
+export component VolumeBody inherits Base {
+    property <string> pct: round(WidgetData.vol * 100) + "%";
+    VerticalLayout {
+        padding: root.pad;
+        spacing: 8px;
+        alignment: center;
+        if !root.compact: WTitle {
+            icon: Icons.volume;
+            text: "Głośność";
+            extra: WidgetData.vol-muted ? "wyciszone" : root.pct;
+            color: root.acc;
+        }
+        HorizontalLayout {
+            spacing: 10px;
+            RoundButton {
+                icon: WidgetData.vol-muted ? Icons.mute : Icons.volume;
+                tip: WidgetData.vol-muted ? "Włącz dźwięk" : "Wycisz";
+                size: root.compact ? 30px : 36px;
+                primary: WidgetData.vol-muted;
+                color: root.acc;
+                clicked => {
+                    WidgetData.vol-mute();
+                }
+            }
+            // Suwak: kliknięcie albo przeciągnięcie ustawia poziom.
+            Rectangle {
+                horizontal-stretch: 1;
+                property <float> v: sl-ta.pressed ? max(0, min(1, sl-ta.mouse-x / self.width)) : WidgetData.vol;
+                Rectangle {
+                    y: (parent.height - self.height) / 2;
+                    height: 6px;
+                    border-radius: 3px;
+                    background: Theme.line-strong;
+                    Rectangle {
+                        x: 0;
+                        width: parent.width * parent.parent.v;
+                        height: parent.height;
+                        border-radius: parent.border-radius;
+                        background: WidgetData.vol-muted ? Theme.faint : root.acc;
+                    }
+                }
+                Rectangle {
+                    x: parent.width * parent.v - self.width / 2;
+                    y: (parent.height - self.height) / 2;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 7px;
+                    background: Theme.text;
+                }
+                sl-ta := TipArea {
+                    tip: "Głośność – kliknij albo przeciągnij";
+                    moved => {
+                        if (self.pressed) {
+                            WidgetData.vol-set(max(0, min(1, self.mouse-x / parent.width)));
+                        }
+                    }
+                    clicked => {
+                        WidgetData.vol-set(max(0, min(1, self.mouse-x / parent.width)));
+                    }
+                }
+            }
+            if root.compact || root.width < 200px: Text {
+                vertical-alignment: center;
+                text: root.pct;
+                font-size: 12px;
+                color: Theme.dim;
+            }
+        }
+    }
+}
+
+// ---------- Pliki: ostatnie, ulubione, folder ----------
+/// Lista (0) albo siatka (1) plików; klik otwiera, nagłówek folderu otwiera sam folder.
+export component FilesBody inherits Base {
+    in property <[WFile]> files;
+    in property <string> icon;
+    in property <string> title;
+    in property <string> status;
+    /// Folder otwierany kliknięciem nagłówka (pusto – nagłówek nic nie otwiera).
+    in property <string> head-path;
+    property <length> top: root.compact ? root.pad : root.pad + 24px;
+    if !root.compact: Rectangle {
+        x: root.pad;
+        y: root.pad;
+        width: root.width - 2 * root.pad;
+        height: 20px;
+        border-radius: Theme.r-xs;
+        background: hd-ta.has-hover && root.head-path != "" ? Theme.hover : transparent;
+        WTitle {
+            x: 2px;
+            width: parent.width - 4px;
+            icon: root.icon;
+            text: root.title;
+            color: root.acc;
+
+        }
+        hd-ta := TipArea {
+            enabled: root.head-path != "";
+            tip: root.head-path != "" ? "Otwórz " + root.head-path : "";
+            clicked => {
+                WidgetData.open-file(root.head-path, true);
+            }
+        }
+    }
+    if root.files.length == 0: Text {
+        x: root.pad;
+        y: root.top;
+        width: root.width - 2 * root.pad;
+        text: root.status;
+        wrap: word-wrap;
+        font-size: 11.5px;
+        color: Theme.faint;
+    }
+    // Lista.
+    if root.cfg.variant == 0: Rectangle {
+        property <length> rh: 26px;
+        property <int> n: floor((root.height - root.top - root.pad + 2px) / self.rh);
+        for f[i] in root.files: Rectangle {
+            x: root.pad - 4px;
+            y: root.top + i * parent.rh;
+            width: root.width - 2 * root.pad + 8px;
+            height: parent.rh - 2px;
+            visible: i < parent.n;
+            border-radius: Theme.r-s;
+            background: fl-ta.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 4px;
+                padding-right: 4px;
+                spacing: 8px;
+                if f.has-icon: Image {
+                    y: (parent.height - self.height) / 2;
+                    width: 18px;
+                    height: 18px;
+                    source: f.icon;
+                }
+                if !f.has-icon: Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: f.dir ? Icons.folder : Icons.file;
+                    size: 16px;
+                    color: Theme.dim;
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: f.name;
+                    font-size: 12px;
+                    color: Theme.text;
+                    overflow: elide;
+                }
+                if root.width >= 230px && f.detail != "": Text {
+                    vertical-alignment: center;
+                    text: f.detail;
+                    font-size: 10.5px;
+                    color: Theme.faint;
+                }
+            }
+            fl-ta := TipArea {
+                tip: f.path;
+                clicked => {
+                    WidgetData.open-file(f.path, f.dir);
+                }
+            }
+        }
+    }
+    // Siatka ikon.
+    if root.cfg.variant == 1: Rectangle {
+        property <int> cols: max(1, floor((root.width - 2 * root.pad) / 70px));
+        property <length> cw: (root.width - 2 * root.pad) / self.cols;
+        property <length> ch: 66px;
+        property <int> rows: max(1, floor((root.height - root.top - root.pad + 4px) / self.ch));
+        for f[i] in root.files: Rectangle {
+            x: root.pad + mod(i, parent.cols) * parent.cw;
+            y: root.top + floor(i / parent.cols) * parent.ch;
+            width: parent.cw - 4px;
+            height: parent.ch - 4px;
+            visible: i < parent.cols * parent.rows;
+            border-radius: Theme.r-s;
+            background: fg-ta.has-hover ? Theme.hover : transparent;
+            if f.has-icon: Image {
+                y: 6px;
+                width: 32px;
+                height: 32px;
+                source: f.icon;
+                image-fit: contain;
+            }
+            if !f.has-icon: Icon {
+                y: 8px;
+                commands: f.dir ? Icons.folder : Icons.file;
+                size: 28px;
+                color: Theme.dim;
+            }
+            Text {
+                x: 3px;
+                y: 42px;
+                width: parent.width - 6px;
+                horizontal-alignment: center;
+                text: f.name;
+                font-size: 10.5px;
+                color: Theme.text;
+                overflow: elide;
+            }
+            fg-ta := TipArea {
+                tip: f.path;
+                clicked => {
+                    WidgetData.open-file(f.path, f.dir);
+                }
+            }
+        }
+    }
+}
+
+// ---------- Aplikacje ----------
+export component LauncherBody inherits Base {
+    in property <string> title;
+    property <length> top: root.compact ? root.pad : root.pad + 24px;
+    if !root.compact: WTitle {
+        x: root.pad;
+        y: root.pad;
+        width: root.width - 2 * root.pad;
+        icon: Icons.app;
+        text: root.title;
+        color: root.acc;
+    }
+    if WidgetData.apps.length == 0: Text {
+        x: root.pad;
+        y: root.top;
+        width: root.width - 2 * root.pad;
+        text: "Uruchamiaj aplikacje z menu Start – najczęściej używane pojawią się tutaj";
+        wrap: word-wrap;
+        font-size: 11.5px;
+        color: Theme.faint;
+    }
+    if root.cfg.variant == 0: lgrid := Rectangle {
+        property <int> cols: max(1, floor((root.width - 2 * root.pad) / 64px));
+        property <length> cw: (root.width - 2 * root.pad) / self.cols;
+        property <bool> labels: root.height >= 110px;
+        property <length> ch: self.labels ? 64px : min(self.cw, root.height - root.top - root.pad);
+        property <int> rows: max(1, floor((root.height - root.top - root.pad + 4px) / self.ch));
+        for a[i] in WidgetData.apps: Rectangle {
+            x: root.pad + mod(i, parent.cols) * parent.cw;
+            y: root.top + floor(i / parent.cols) * parent.ch;
+            width: parent.cw - 4px;
+            height: parent.ch - 4px;
+            visible: i < parent.cols * parent.rows;
+            border-radius: Theme.r-s;
+            background: ap-ta.pressed ? Theme.press : ap-ta.has-hover ? Theme.hover : transparent;
+            if a.has-icon: Image {
+                y: lgrid.labels ? 6px : (parent.height - self.height) / 2;
+                width: 32px;
+                height: 32px;
+                source: a.icon;
+            }
+            if !a.has-icon: Icon {
+                y: lgrid.labels ? 8px : (parent.height - self.height) / 2;
+                commands: Icons.app;
+                size: 28px;
+                color: Theme.dim;
+            }
+            if lgrid.labels: Text {
+                x: 3px;
+                y: 42px;
+                width: parent.width - 6px;
+                horizontal-alignment: center;
+                text: a.name;
+                font-size: 10.5px;
+                color: Theme.text;
+                overflow: elide;
+            }
+            ap-ta := TipArea {
+                tip: "Uruchom " + a.name;
+                clicked => {
+                    WidgetData.launch(a.path);
+                }
+            }
+        }
+    }
+    if root.cfg.variant == 1: Rectangle {
+        property <length> rh: 30px;
+        property <int> n: floor((root.height - root.top - root.pad + 2px) / self.rh);
+        for a[i] in WidgetData.apps: Rectangle {
+            x: root.pad - 4px;
+            y: root.top + i * parent.rh;
+            width: root.width - 2 * root.pad + 8px;
+            height: parent.rh - 2px;
+            visible: i < parent.n;
+            border-radius: Theme.r-s;
+            background: al-ta.has-hover ? Theme.hover : transparent;
+            HorizontalLayout {
+                padding-left: 4px;
+                spacing: 8px;
+                if a.has-icon: Image {
+                    y: (parent.height - self.height) / 2;
+                    width: 20px;
+                    height: 20px;
+                    source: a.icon;
+                }
+                if !a.has-icon: Icon {
+                    y: (parent.height - self.height) / 2;
+                    commands: Icons.app;
+                    size: 18px;
+                    color: Theme.dim;
+                }
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: a.name;
+                    font-size: 12px;
+                    color: Theme.text;
+                    overflow: elide;
+                }
+            }
+            al-ta := TipArea {
+                tip: "Uruchom " + a.name;
+                clicked => {
+                    WidgetData.launch(a.path);
+                }
+            }
+        }
+    }
+}
+
+// ---------- Szybkie akcje ----------
+export component ActionsBody inherits Base {
+    property <[{id: string, name: string, icon: string, tip: string}]> acts: [
+        { id: "lock", name: "Zablokuj", icon: Icons.shield, tip: "Zablokuj komputer (Win+L)" },
+        { id: "sleep", name: "Uśpij", icon: Icons.power, tip: "Uśpij komputer" },
+        { id: "settings", name: "Ustawienia", icon: Icons.settings, tip: "Otwórz Ustawienia Windows" },
+        { id: "taskmgr", name: "Zadania", icon: Icons.bolt, tip: "Menedżer zadań" },
+        { id: "snip", name: "Wycinek", icon: Icons.cut, tip: "Zrzut fragmentu ekranu" },
+        { id: "terminal", name: "Terminal", icon: Icons.terminal, tip: "Otwórz terminal" },
+        { id: "trash", name: "Kosz", icon: Icons.trash, tip: "Otwórz Kosz" },
+        { id: "downloads", name: "Pobrane", icon: Icons.download, tip: "Otwórz folder Pobrane" },
+    ];
+    property <int> cols: max(2, min(4, floor((self.width - 2 * self.pad) / 60px)));
+    property <int> rows: max(1, min(ceil(8 / self.cols), floor((self.height - 2 * self.pad + 6px) / 44px)));
+    property <length> cw: (self.width - 2 * self.pad) / self.cols;
+    property <length> ch: (self.height - 2 * self.pad) / self.rows;
+    property <bool> labels: self.ch >= 52px && self.cw >= 56px;
+    for a[i] in root.acts: Rectangle {
+        x: root.pad + mod(i, root.cols) * root.cw;
+        y: root.pad + floor(i / root.cols) * root.ch;
+        width: root.cw - 6px;
+        height: root.ch - 6px;
+        visible: i < root.cols * root.rows;
+        border-radius: Theme.r;
+        background: ac-ta.pressed ? Theme.press : ac-ta.has-hover ? root.acc.with-alpha(0.22) : Theme.card;
+        Icon {
+            y: root.labels ? (parent.height - 34px) / 2 : (parent.height - self.height) / 2;
+            commands: a.icon;
+            size: min(20px, parent.height * 0.5);
+            color: ac-ta.has-hover ? root.acc : Theme.text;
+        }
+        if root.labels: Text {
+            x: 2px;
+            y: (parent.height - 34px) / 2 + 22px;
+            width: parent.width - 4px;
+            horizontal-alignment: center;
+            text: a.name;
+            font-size: 10.5px;
+            color: Theme.dim;
+            overflow: elide;
+        }
+        ac-ta := TipArea {
+            tip: a.tip;
+            clicked => {
+                WidgetData.action(a.id);
+            }
+        }
+    }
+}
+
+// ---------- Stoper ----------
+export component StopwatchBody inherits Base {
+    property <bool> row: self.compact;
+    // Mały: czas i przyciski obok siebie.
+    if root.row: HorizontalLayout {
+        padding: root.pad;
+        spacing: 8px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: WidgetData.sw-text;
+                font-size: min(28px, (root.width - 90px) / 4.2);
+                font-weight: 300;
+                color: Theme.text;
+            }
+            if root.width >= 150px: Text {
+                text: WidgetData.sw-run ? "Mierzę…" : "Stoper";
+                font-size: 11px;
+                color: Theme.dim;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            RoundButton {
+                icon: WidgetData.sw-run ? Icons.pause : Icons.play;
+                tip: WidgetData.sw-run ? "Zatrzymaj" : "Start";
+                primary: true;
+                color: root.acc;
+                clicked => {
+                    WidgetData.sw(0);
+                }
+            }
+            RoundButton {
+                icon: WidgetData.sw-run ? Icons.plus : Icons.refresh;
+                tip: WidgetData.sw-run ? "Okrążenie" : "Zeruj";
+                clicked => {
+                    WidgetData.sw(1);
+                }
+            }
+        }
+    }
+    if !root.row: VerticalLayout {
+        padding: root.pad;
+        spacing: 8px;
+        WTitle {
+            icon: Icons.history;
+            text: "Stoper";
+            extra: WidgetData.sw-laps.length > 0 ? "okrążeń: " + WidgetData.sw-laps.length : "";
+            color: root.acc;
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            property <length> d: min(self.width, self.height);
+            if root.cfg.variant == 0: Ring {
+                width: parent.d;
+                height: parent.d;
+                value: WidgetData.sw-frac;
+                color: root.acc;
+                thickness: max(3px, parent.d * 0.05);
+                VerticalLayout {
+                    alignment: center;
+                    Text {
+                        horizontal-alignment: center;
+                        text: WidgetData.sw-text;
+                        font-size: parent.parent.width * 0.2;
+                        font-weight: 300;
+                        color: Theme.text;
+                    }
+                    Text {
+                        horizontal-alignment: center;
+                        text: WidgetData.sw-cs;
+                        font-size: parent.parent.width * 0.1;
+                        color: Theme.dim;
+                    }
+                }
+            }
+            if root.cfg.variant == 1: HorizontalLayout {
+                alignment: center;
+                spacing: 2px;
+                Text {
+                    vertical-alignment: center;
+                    text: WidgetData.sw-text;
+                    font-size: min(parent.height * 0.6, parent.width / 4.4);
+                    font-weight: 200;
+                    color: Theme.text;
+                }
+                Text {
+                    vertical-alignment: center;
+                    text: WidgetData.sw-cs;
+                    font-size: min(parent.height * 0.3, parent.width / 9);
+                    color: root.acc;
+                }
+            }
+        }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 10px;
+            RoundButton {
+                icon: WidgetData.sw-run ? Icons.pause : Icons.play;
+                tip: WidgetData.sw-run ? "Zatrzymaj" : "Start";
+                primary: true;
+                size: 36px;
+                color: root.acc;
+                clicked => {
+                    WidgetData.sw(0);
+                }
+            }
+            RoundButton {
+                icon: WidgetData.sw-run ? Icons.plus : Icons.refresh;
+                tip: WidgetData.sw-run ? "Okrążenie" : "Zeruj";
+                size: 36px;
+                clicked => {
+                    WidgetData.sw(1);
+                }
+            }
+        }
+        if root.height >= 280px && WidgetData.sw-laps.length > 0: Rectangle {
+            height: 4 * 18px;
+            for l[i] in WidgetData.sw-laps: Text {
+                y: i * 18px;
+                visible: i < 4;
+                width: parent.width;
+                text: l;
+                font-size: 11.5px;
+                color: i == 0 ? Theme.text : Theme.dim;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// ---------- Minutnik ----------
+export component TimerBody inherits Base {
+    property <color> tone: WidgetData.tm-done ? #e5484d : root.acc;
+    property <bool> presets: !self.compact && self.height >= 200px;
+    if root.compact: HorizontalLayout {
+        padding: root.pad;
+        spacing: 8px;
+        VerticalLayout {
+            horizontal-stretch: 1;
+            alignment: center;
+            Text {
+                text: WidgetData.tm-text;
+                font-size: min(28px, (root.width - 90px) / 3.4);
+                font-weight: 300;
+                color: WidgetData.tm-done ? root.tone : Theme.text;
+            }
+            if root.width >= 150px: Text {
+                text: WidgetData.tm-done ? "Czas minął" : "z " + WidgetData.tm-total;
+                font-size: 11px;
+                color: Theme.dim;
+            }
+        }
+        VerticalLayout {
+            alignment: center;
+            spacing: 4px;
+            RoundButton {
+                icon: WidgetData.tm-run ? Icons.pause : Icons.play;
+                tip: WidgetData.tm-run ? "Wstrzymaj" : "Start";
+                primary: true;
+                color: root.tone;
+                clicked => {
+                    WidgetData.tm(0);
+                }
+            }
+            RoundButton {
+                icon: Icons.refresh;
+                tip: "Zeruj minutnik";
+                clicked => {
+                    WidgetData.tm(1);
+                }
+            }
+        }
+    }
+    if !root.compact: VerticalLayout {
+        padding: root.pad;
+        spacing: 8px;
+        WTitle {
+            icon: Icons.history;
+            text: WidgetData.tm-done ? "Czas minął!" : "Minutnik";
+            extra: WidgetData.tm-total;
+            color: root.tone;
+        }
+        Rectangle {
+            vertical-stretch: 1;
+            property <length> d: min(self.width, self.height);
+            if root.cfg.variant == 0: Ring {
+                width: parent.d;
+                height: parent.d;
+                value: WidgetData.tm-frac;
+                color: root.tone;
+                thickness: max(3px, parent.d * 0.06);
+                Text {
+                    text: WidgetData.tm-text;
+                    font-size: parent.width * 0.22;
+                    font-weight: 300;
+                    color: Theme.text;
+                }
+            }
+            if root.cfg.variant == 1: Text {
+                text: WidgetData.tm-text;
+                font-size: min(parent.height * 0.6, parent.width / 3.6);
+                font-weight: 200;
+                color: WidgetData.tm-done ? root.tone : Theme.text;
+            }
+        }
+        HorizontalLayout {
+            alignment: center;
+            spacing: 10px;
+            RoundButton {
+                icon: WidgetData.tm-run ? Icons.pause : Icons.play;
+                tip: WidgetData.tm-run ? "Wstrzymaj" : "Start";
+                primary: true;
+                size: 36px;
+                color: root.tone;
+                clicked => {
+                    WidgetData.tm(0);
+                }
+            }
+            RoundButton {
+                icon: Icons.refresh;
+                tip: "Zeruj minutnik";
+                size: 36px;
+                clicked => {
+                    WidgetData.tm(1);
+                }
+            }
+        }
+        if root.presets: HorizontalLayout {
+            spacing: 4px;
+            height: 26px;
+            for m in [1, 5, 10, 15, 25, 60]: KeyButton {
+                horizontal-stretch: 1;
+                text: m + " min";
+                tip: "Ustaw minutnik na " + m + " min";
+                font-size: 11px;
+                clicked => {
+                    WidgetData.tm-set(m);
+                }
+            }
+        }
+    }
+}
+
+// ---------- Kalkulator ----------
+export component CalcBody inherits Base {
+    property <[{k: string, tip: string}]> keys: [
+        { k: "C", tip: "Wyczyść" }, { k: "(", tip: "Nawias otwierający" }, { k: ")", tip: "Nawias zamykający" }, { k: "÷", tip: "Dzielenie" },
+        { k: "7", tip: "7" }, { k: "8", tip: "8" }, { k: "9", tip: "9" }, { k: "×", tip: "Mnożenie" },
+        { k: "4", tip: "4" }, { k: "5", tip: "5" }, { k: "6", tip: "6" }, { k: "−", tip: "Odejmowanie" },
+        { k: "1", tip: "1" }, { k: "2", tip: "2" }, { k: "3", tip: "3" }, { k: "+", tip: "Dodawanie" },
+        { k: "0", tip: "0" }, { k: ",", tip: "Przecinek dziesiętny" }, { k: "⌫", tip: "Usuń ostatni znak" }, { k: "=", tip: "Wynik" },
+    ];
+    property <length> disp: self.compact ? self.height - 2 * self.pad : min(64px, self.height * 0.3);
+    property <bool> pad-keys: self.height - self.disp - 2 * self.pad >= 5 * 22px;
+    property <length> kw: (self.width - 2 * self.pad) / 4;
+    property <length> kh: (self.height - self.disp - 3 * self.pad) / 5;
+    // Wyświetlacz: działanie i wynik.
+    Rectangle {
+        x: root.pad;
+        y: root.pad;
+        width: root.width - 2 * root.pad;
+        height: root.disp;
+        border-radius: Theme.r-s;
+        background: Theme.card;
+        VerticalLayout {
+            padding: 6px;
+            alignment: center;
+            Text {
+                horizontal-alignment: right;
+                text: WidgetData.calc-expr != "" ? WidgetData.calc-expr : root.pad-keys ? "0" : "Powiększ widżet, aby liczyć";
+                font-size: 11.5px;
+                color: Theme.dim;
+                overflow: elide;
+            }
+            Text {
+                horizontal-alignment: right;
+                text: WidgetData.calc-result;
+                font-size: min(24px, root.disp * 0.42);
+                font-weight: 300;
+                color: Theme.text;
+                overflow: elide;
+            }
+        }
+    }
+    if root.pad-keys: Rectangle {
+        for key[i] in root.keys: KeyButton {
+            x: root.pad + mod(i, 4) * root.kw;
+            y: root.disp + 2 * root.pad + floor(i / 4) * root.kh;
+            width: root.kw - 4px;
+            height: root.kh - 4px;
+            text: key.k;
+            tip: key.tip;
+            strong: key.k == "=";
+            color: root.acc;
+            font-size: min(16px, root.kh * 0.45);
+            clicked => {
+                WidgetData.calc-key(key.k);
+            }
+        }
+    }
+}
+
+// ---------- Cytat i przysłowie dnia ----------
+export component QuoteBody inherits Base {
+    property <string> text: self.cfg.variant == 1 ? WidgetData.proverb : WidgetData.quote;
+    property <length> fs: max(11px, min(19px, min(self.width, self.height * 1.6) * 0.06));
+    Text {
+        x: root.pad - 2px;
+        y: root.pad - 10px;
+        text: "“";
+        font-size: 44px;
+        color: root.acc.with-alpha(0.6);
+    }
+    VerticalLayout {
+        padding: root.pad;
+        padding-top: root.compact ? root.pad : root.pad + 14px;
+        spacing: 6px;
+        alignment: center;
+        Text {
+            text: root.text;
+            wrap: word-wrap;
+            overflow: elide;
+            vertical-stretch: 1;
+            font-size: root.fs;
+            font-italic: root.cfg.variant == 0;
+            color: Theme.text;
+            vertical-alignment: center;
+        }
+        if root.cfg.variant == 0 && root.height >= 100px: Text {
+            horizontal-alignment: right;
+            text: "— " + WidgetData.quote-by;
+            font-size: 11.5px;
+            color: root.acc;
+            overflow: elide;
+        }
+    }
+}
+
+// ---------- Obraz dnia ----------
+export component DayPicBody inherits Base {
+    if WidgetData.bing-has: Image {
+        width: root.width;
+        height: root.height;
+        source: WidgetData.bing-img;
+        image-fit: root.cfg.variant == 1 ? ImageFit.contain : ImageFit.cover;
+    }
+    if WidgetData.bing-has && root.height >= 120px: Rectangle {
+        y: root.height - 26px;
+        height: 26px;
+        background: @linear-gradient(0deg, #00000099 0%, #00000000 100%);
+        Text {
+            x: 10px;
+            width: parent.width - 20px;
+            text: "Obraz dnia · Bing";
+            font-size: 11px;
+            color: #ffffffdd;
+            overflow: elide;
+            vertical-alignment: center;
+        }
+    }
+    if !WidgetData.bing-has: VerticalLayout {
+        padding: root.pad;
+        alignment: center;
+        spacing: 6px;
+        HorizontalLayout {
+            alignment: center;
+            Icon {
+                commands: Icons.image;
+                size: 28px;
+                color: Theme.faint;
+            }
+        }
+        Text {
+            horizontal-alignment: center;
+            text: "Pobieranie obrazu dnia…";
+            wrap: word-wrap;
+            font-size: 11.5px;
+            color: Theme.dim;
+        }
+    }
+}
+
+// ---------- Księżyc ----------
+export component MoonBody inherits Base {
+    property <bool> side: self.width >= self.height * 1.4;
+    property <bool> under: !self.side && self.height >= 150px;
+    property <length> p: min(self.width, self.height) < 90px ? 8px : self.pad;
+    property <length> d: self.side ? self.height - 2 * self.p : min(self.width - 2 * self.p, self.height - 2 * self.p - (self.under ? 40px : 0));
+    MoonDisc {
+        x: root.side ? root.p : (root.width - root.d) / 2;
+        y: root.p;
+        width: root.d;
+        height: root.d;
+        phase: WidgetData.moon;
+    }
+    if root.side: VerticalLayout {
+        x: root.p * 2 + root.d;
+        width: root.width - root.d - 3 * root.p;
+        alignment: center;
+        spacing: 2px;
+        Text {
+            text: WidgetData.moon-name;
+            font-size: 14px;
+            font-weight: 600;
+            color: Theme.text;
+            overflow: elide;
+        }
+        Text {
+            text: "Oświetlenie " + WidgetData.moon-light;
+            font-size: 11.5px;
+            color: Theme.dim;
+        }
+        Text {
+            text: WidgetData.moon-next;
+            font-size: 11px;
+            color: root.acc;
+            overflow: elide;
+        }
+    }
+    if root.under: VerticalLayout {
+        x: root.p;
+        y: root.p + root.d + 4px;
+        width: root.width - 2 * root.p;
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.moon-name + " · " + WidgetData.moon-light;
+            font-size: 12px;
+            color: Theme.text;
+            overflow: elide;
+        }
+        Text {
+            horizontal-alignment: center;
+            text: WidgetData.moon-next;
+            font-size: 11px;
+            color: root.acc;
+            overflow: elide;
+        }
+    }
+}
+
+// ---------- Postęp czasu ----------
+export component ProgressBody inherits Base {
+    property <length> top: self.compact ? self.pad : self.pad + 24px;
+    if !root.compact: WTitle {
+        x: root.pad;
+        y: root.pad;
+        width: root.width - 2 * root.pad;
+        icon: Icons.history;
+        text: "Postęp czasu";
+        color: root.acc;
+    }
+    if root.cfg.variant == 0: Rectangle {
+        property <length> rh: root.compact ? 20px : 30px;
+        property <int> n: max(1, floor((root.height - root.top - root.pad + 4px) / self.rh));
+        for p[i] in WidgetData.prog: VerticalLayout {
+            x: root.pad;
+            y: root.top + i * parent.rh;
+            width: root.width - 2 * root.pad;
+            height: parent.rh - 4px;
+            visible: i < parent.n;
+            spacing: 3px;
+            alignment: center;
+            HorizontalLayout {
+                Text {
+                    horizontal-stretch: 1;
+                    text: p.name;
+                    font-size: 11.5px;
+                    color: Theme.dim;
+                }
+                Text {
+                    text: p.text;
+                    font-size: 11.5px;
+                    font-weight: 600;
+                    color: Theme.text;
+                }
+            }
+            Meter {
+                height: root.compact ? 4px : 6px;
+                value: p.frac;
+                color: root.acc;
+                plain: true;
+            }
+        }
+    }
+    if root.cfg.variant == 1: Rectangle {
+        property <int> cols: root.width >= root.height * 1.2 || root.compact ? 4 : 2;
+        property <int> rows: self.cols == 4 ? 1 : 2;
+        property <length> cw: (root.width - 2 * root.pad) / self.cols;
+        property <length> ch: (root.height - root.top - root.pad) / self.rows;
+        property <length> d: max(20px, min(self.cw - 6px, self.ch - 18px));
+        for p[i] in WidgetData.prog: Rectangle {
+            x: root.pad + mod(i, parent.cols) * parent.cw;
+            y: root.top + floor(i / parent.cols) * parent.ch;
+            width: parent.cw;
+            height: parent.ch;
+            Ring {
+                y: 0;
+                width: parent.parent.d;
+                height: parent.parent.d;
+                value: p.frac;
+                color: root.acc;
+                thickness: max(3px, self.width * 0.09);
+                Text {
+                    text: p.text;
+                    font-size: max(9px, parent.width * 0.24);
+                    color: Theme.text;
+                }
+            }
+            Text {
+                y: parent.parent.d + 2px;
+                width: parent.width;
+                horizontal-alignment: center;
+                text: p.name;
+                font-size: 10.5px;
+                color: Theme.dim;
+                overflow: elide;
+            }
+        }
+    }
+}
+
+// ---------- Ten komputer ----------
+export component PcInfoBody inherits Base {
+    property <[{label: string, value: string}]> rows: [
+        { label: "Nazwa", value: WidgetData.sys-host },
+        { label: "System", value: WidgetData.sys-os },
+        { label: "Procesor", value: WidgetData.cpu-name },
+        { label: "Rdzenie", value: WidgetData.cpu-cores },
+        { label: "Pamięć", value: WidgetData.ram-total },
+        { label: "Działa", value: WidgetData.uptime },
+    ];
+    property <length> top: self.compact ? self.pad : self.pad + 24px;
+    property <length> rh: 19px;
+    property <int> n: max(1, floor((self.height - self.top - self.pad + 2px) / self.rh));
+    property <length> lw: self.width >= 220px ? 70px : 0;
+    if !root.compact: WTitle {
+        x: root.pad;
+        y: root.pad;
+        width: root.width - 2 * root.pad;
+        icon: Icons.pc;
+        text: WidgetData.sys-host;
+        color: root.acc;
+    }
+    for r[i] in root.rows: Rectangle {
+        x: root.pad;
+        y: root.top + i * root.rh;
+        width: root.width - 2 * root.pad;
+        height: root.rh;
+        visible: i < root.n;
+        if root.lw > 0: Text {
+            x: 0;
+            width: root.lw;
+            vertical-alignment: center;
+            text: r.label;
+            font-size: 11px;
+            color: Theme.faint;
+        }
+        Text {
+            x: root.lw;
+            width: parent.width - root.lw;
+            vertical-alignment: center;
+            text: r.value;
+            font-size: 11.5px;
+            color: Theme.text;
+            overflow: elide;
+        }
+    }
+}

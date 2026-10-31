@@ -1,0 +1,466 @@
+// Panel „Dostosuj…” widżetu (pulpit i Start): nachodzi na treść okna, zmiany działają od razu.
+// Stan i lista opcji dla rodzaju – widgetcfg.rs; każda zmiana woła `changed()`.
+
+import { Theme } from "theme.slint";
+import { Icons } from "icons.slint";
+import { Icon, IconButton, TipArea, Tip } from "components.slint";
+
+export global WidgetEdit {
+    in-out property <bool> open;
+    /// Miejsce panelu w oknie (widgetcfg.rs dopasowuje je do brzegów).
+    in-out property <length> x;
+    in-out property <length> y;
+    in-out property <string> name;
+    in-out property <color> accent;
+    /// Krycie tła 0–1.
+    in-out property <float> alpha: 0.86;
+    in-out property <int> style;
+    in-out property <int> variant;
+    in-out property <[string]> variants;
+    in-out property <bool> has-time;
+    in-out property <bool> h12;
+    in-out property <bool> seconds: true;
+    in-out property <bool> has-temp;
+    in-out property <bool> fahrenheit;
+    in-out property <string> title;
+    /// Źródło danych: 0 – brak, 1 – tekst (strefa, miejscowość), 2 – folder.
+    in-out property <int> src-kind;
+    in-out property <string> src-label;
+    in-out property <string> src-hint;
+    in-out property <string> src;
+    /// Uwaga pod polem źródła (np. nieznana strefa).
+    in-out property <string> src-note;
+    callback changed();
+    callback pick-folder();
+    callback reset();
+    callback close();
+}
+
+/// Przełącznik kilku opcji (styl, układ, format) z podpowiedzią na każdej.
+component Segments inherits Rectangle {
+    in property <[string]> options;
+    in property <int> selected;
+    in property <string> tip-prefix;
+    callback select(int);
+    height: 28px;
+    border-radius: Theme.r-s;
+    background: Theme.card;
+    property <length> w: self.width / max(1, self.options.length);
+    for o[i] in root.options: Rectangle {
+        x: i * root.w + 2px;
+        y: 2px;
+        width: root.w - 4px;
+        height: parent.height - 4px;
+        border-radius: Theme.r-xs;
+        background: i == root.selected ? Theme.sel-strong : sg-ta.has-hover ? Theme.hover : transparent;
+        Text {
+            text: o;
+            font-size: 11.5px;
+            color: i == root.selected ? Theme.text : Theme.dim;
+            overflow: elide;
+        }
+        sg-ta := TipArea {
+            tip: root.tip-prefix + ": " + o;
+            clicked => {
+                root.select(i);
+            }
+        }
+    }
+}
+
+component Caption inherits Text {
+    font-size: 11px;
+    font-weight: 600;
+    color: Theme.faint;
+}
+
+/// Pole tekstowe z przyciskiem „Zastosuj” (Enter też zatwierdza).
+component Field inherits Rectangle {
+    in property <string> text;
+    in property <string> hint;
+    in property <string> tip;
+    callback accepted(string);
+    height: 30px;
+    border-radius: Theme.r-s;
+    background: Theme.card;
+    border-width: 1px;
+    border-color: fl-in.has-focus ? Theme.accent : Theme.line;
+    HorizontalLayout {
+        padding-left: 8px;
+        padding-right: 3px;
+        spacing: 4px;
+        Rectangle {
+            horizontal-stretch: 1;
+            if fl-in.text == "" && !fl-in.has-focus: Text {
+                x: 0;
+                width: parent.width;
+                text: root.hint;
+                font-size: 12px;
+                color: Theme.faint;
+                vertical-alignment: center;
+                overflow: elide;
+            }
+            fl-in := TextInput {
+                text: root.text;
+                single-line: true;
+                font-size: 12px;
+                color: Theme.text;
+                vertical-alignment: center;
+                accepted => {
+                    root.accepted(self.text);
+                }
+            }
+            TipArea {
+                tip: root.tip;
+                mouse-cursor: text;
+                clicked => {
+                    fl-in.focus();
+                }
+            }
+        }
+        IconButton {
+            y: 3px;
+            size: 24px;
+            icon: Icons.check;
+            icon-size: 14px;
+            tooltip: "Zastosuj";
+            clicked => {
+                root.accepted(fl-in.text);
+            }
+        }
+    }
+}
+
+/// Panel ustawień widżetu: rysowany nad treścią, klik obok albo Esc zamyka.
+export component WidgetConfigPanel inherits Rectangle {
+    // Klik poza panelem zamyka.
+    if WidgetEdit.open: TouchArea {
+        clicked => {
+            WidgetEdit.close();
+        }
+    }
+    if WidgetEdit.open: panel := Rectangle {
+        x: WidgetEdit.x;
+        y: WidgetEdit.y;
+        width: 300px;
+        height: lay.preferred-height;
+        border-radius: Theme.r-l;
+        background: Theme.popup-high;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        drop-shadow-blur: 24px;
+        drop-shadow-offset-y: 8px;
+        drop-shadow-color: Theme.shadow;
+        // Klik w tło panelu nie zamyka go.
+        TouchArea { }
+        FocusScope {
+            width: 0;
+            height: 0;
+            init => {
+                self.focus();
+            }
+            key-pressed(e) => {
+                if (e.text == Key.Escape) {
+                    WidgetEdit.close();
+                    return accept;
+                }
+                reject
+            }
+        }
+        lay := VerticalLayout {
+            padding: 14px;
+            spacing: 8px;
+            HorizontalLayout {
+                spacing: 6px;
+                Text {
+                    horizontal-stretch: 1;
+                    vertical-alignment: center;
+                    text: "Dostosuj: " + WidgetEdit.name;
+                    font-size: 13.5px;
+                    font-weight: 600;
+                    color: Theme.text;
+                    overflow: elide;
+                }
+                IconButton {
+                    icon: Icons.close;
+                    size: 26px;
+                    tooltip: "Zamknij (Esc)";
+                    clicked => {
+                        WidgetEdit.close();
+                    }
+                }
+            }
+            Caption {
+                text: "Kolor akcentu";
+            }
+            HorizontalLayout {
+                spacing: 6px;
+                height: 22px;
+                for c[i] in [
+                    { c: #00000000, n: "Jak motyw" },
+                    { c: #4f8cff, n: "Niebieski" },
+                    { c: #2ec4b6, n: "Morski" },
+                    { c: #3ddc84, n: "Zielony" },
+                    { c: #f5b83d, n: "Bursztynowy" },
+                    { c: #ff8a3d, n: "Pomarańczowy" },
+                    { c: #ff5d73, n: "Czerwony" },
+                    { c: #c77dff, n: "Fioletowy" },
+                    { c: #ff7ac6, n: "Różowy" },
+                    { c: #8a8f99, n: "Szary" },
+                ]: Rectangle {
+                    property <bool> on: i == 0 ? WidgetEdit.accent.alpha == 0 : WidgetEdit.accent == c.c;
+                    width: 22px;
+                    height: 22px;
+                    border-radius: 11px;
+                    background: i == 0 ? Theme.accent : c.c;
+                    border-width: self.on ? 2px : sw-ta.has-hover ? 1px : 0;
+                    border-color: Theme.text;
+                    if i == 0: Text {
+                        text: "M";
+                        font-size: 10px;
+                        font-weight: 700;
+                        color: Theme.on-accent;
+                    }
+                    sw-ta := TipArea {
+                        tip: "Akcent: " + c.n;
+                        clicked => {
+                            WidgetEdit.accent = c.c;
+                            WidgetEdit.changed();
+                        }
+                    }
+                }
+            }
+            HorizontalLayout {
+                Caption {
+                    horizontal-stretch: 1;
+                    text: "Krycie tła";
+                }
+                Text {
+                    text: round(WidgetEdit.alpha * 100) + "%";
+                    font-size: 11px;
+                    color: Theme.dim;
+                }
+            }
+            // Suwak krycia: przeciąganie zmienia na żywo, zapis po puszczeniu.
+            Rectangle {
+                height: 18px;
+                Rectangle {
+                    y: 6px;
+                    height: 6px;
+                    border-radius: 3px;
+                    background: @linear-gradient(90deg, Theme.line 0%, Theme.text 100%);
+                }
+                Rectangle {
+                    x: (parent.width - self.width) * WidgetEdit.alpha;
+                    y: 1px;
+                    width: 16px;
+                    height: 16px;
+                    border-radius: 8px;
+                    background: Theme.text;
+                    border-width: 2px;
+                    border-color: Theme.popup-high;
+                }
+                al-ta := TipArea {
+                    tip: "Krycie tła widżetu – przeciągnij";
+                    moved => {
+                        if (self.pressed) {
+                            WidgetEdit.alpha = max(0, min(1, (self.mouse-x - 8px) / (parent.width - 16px)));
+                        }
+                    }
+                    pointer-event(e) => {
+                        if (e.kind == PointerEventKind.down) {
+                            WidgetEdit.alpha = max(0, min(1, (self.mouse-x - 8px) / (parent.width - 16px)));
+                        }
+                        if (e.kind == PointerEventKind.up) {
+                            WidgetEdit.changed();
+                        }
+                    }
+                }
+            }
+            Caption {
+                text: "Styl";
+            }
+            Segments {
+                options: ["Karta", "Szkło", "Akcent", "Bez tła"];
+                selected: WidgetEdit.style;
+                tip-prefix: "Styl";
+                select(i) => {
+                    WidgetEdit.style = i;
+                    WidgetEdit.changed();
+                }
+            }
+            if WidgetEdit.variants.length > 0: Caption {
+                text: "Układ";
+            }
+            if WidgetEdit.variants.length > 0: Segments {
+                options: WidgetEdit.variants;
+                selected: WidgetEdit.variant;
+                tip-prefix: "Układ";
+                select(i) => {
+                    WidgetEdit.variant = i;
+                    WidgetEdit.changed();
+                }
+            }
+            if WidgetEdit.has-time: Caption {
+                text: "Format czasu";
+            }
+            if WidgetEdit.has-time: HorizontalLayout {
+                spacing: 8px;
+                Segments {
+                    horizontal-stretch: 1;
+                    options: ["24 h", "12 h"];
+                    selected: WidgetEdit.h12 ? 1 : 0;
+                    tip-prefix: "Format";
+                    select(i) => {
+                        WidgetEdit.h12 = i == 1;
+                        WidgetEdit.changed();
+                    }
+                }
+                Segments {
+                    horizontal-stretch: 1;
+                    options: ["Sekundy", "Bez sekund"];
+                    selected: WidgetEdit.seconds ? 0 : 1;
+                    tip-prefix: "Sekundy";
+                    select(i) => {
+                        WidgetEdit.seconds = i == 0;
+                        WidgetEdit.changed();
+                    }
+                }
+            }
+            if WidgetEdit.has-temp: Caption {
+                text: "Jednostka temperatury";
+            }
+            if WidgetEdit.has-temp: Segments {
+                options: ["°C – Celsjusz", "°F – Fahrenheit"];
+                selected: WidgetEdit.fahrenheit ? 1 : 0;
+                tip-prefix: "Jednostka";
+                select(i) => {
+                    WidgetEdit.fahrenheit = i == 1;
+                    WidgetEdit.changed();
+                }
+            }
+            if WidgetEdit.src-kind > 0: Caption {
+                text: WidgetEdit.src-label;
+            }
+            if WidgetEdit.src-kind == 1: Field {
+                text: WidgetEdit.src;
+                hint: WidgetEdit.src-hint;
+                tip: WidgetEdit.src-label + " – Enter zatwierdza";
+                accepted(t) => {
+                    WidgetEdit.src = t;
+                    WidgetEdit.changed();
+                }
+            }
+            if WidgetEdit.src-note != "": Text {
+                text: WidgetEdit.src-note;
+                wrap: word-wrap;
+                font-size: 11px;
+                color: Theme.warn;
+            }
+            if WidgetEdit.src-kind == 2: Rectangle {
+                height: 30px;
+                border-radius: Theme.r-s;
+                background: pf-ta.has-hover ? Theme.hover : Theme.card;
+                HorizontalLayout {
+                    padding-left: 8px;
+                    padding-right: 8px;
+                    spacing: 8px;
+                    Icon {
+                        y: (parent.height - self.height) / 2;
+                        commands: Icons.folder;
+                        size: 15px;
+                        color: Theme.dim;
+                    }
+                    Text {
+                        horizontal-stretch: 1;
+                        vertical-alignment: center;
+                        text: WidgetEdit.src != "" ? WidgetEdit.src : WidgetEdit.src-hint;
+                        font-size: 12px;
+                        color: WidgetEdit.src != "" ? Theme.text : Theme.faint;
+                        overflow: elide;
+                    }
+                    Text {
+                        vertical-alignment: center;
+                        text: "Zmień…";
+                        font-size: 11.5px;
+                        color: Theme.dim;
+                    }
+                }
+                pf-ta := TipArea {
+                    tip: "Wybierz folder pokazywany w widżecie";
+                    clicked => {
+                        WidgetEdit.pick-folder();
+                    }
+                }
+            }
+            Caption {
+                text: "Tytuł";
+            }
+            Field {
+                text: WidgetEdit.title;
+                hint: "Domyślny";
+                tip: "Własny tytuł widżetu – Enter zatwierdza, puste przywraca domyślny";
+                accepted(t) => {
+                    WidgetEdit.title = t;
+                    WidgetEdit.changed();
+                }
+            }
+            HorizontalLayout {
+                alignment: end;
+                padding-top: 2px;
+                Rectangle {
+                    width: rs-t.preferred-width + 20px;
+                    height: 28px;
+                    border-radius: Theme.r-s;
+                    background: rs-ta.has-hover ? Theme.hover : Theme.card;
+                    rs-t := Text {
+                        text: "Przywróć domyślne";
+                        font-size: 12px;
+                        color: Theme.text;
+                    }
+                    rs-ta := TipArea {
+                        tip: "Przywróć domyślny wygląd i źródło tego widżetu";
+                        clicked => {
+                            WidgetEdit.reset();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Dymek podpowiedzi w oknach bez własnego (pulpit, Start) – po 0,6 s bez ruchu, zawsze w oknie.
+export component TipBubble inherits Rectangle {
+    property <int> shown: -1;
+    Timer {
+        interval: 600ms;
+        running: Tip.text != "" && root.shown != Tip.serial;
+        triggered => {
+            root.shown = Tip.serial;
+        }
+    }
+    if Tip.text != "" && root.shown == Tip.serial: Rectangle {
+        property <length> below: Tip.y - root.absolute-position.y + 22px;
+        x: max(8px, min(Tip.x - root.absolute-position.x - 8px, root.width - self.width - 8px));
+        y: self.below + self.height > root.height - 8px ? Tip.y - root.absolute-position.y - self.height - 10px : self.below;
+        width: min(tb-text.preferred-width, 340px) + 20px;
+        height: tb-text.preferred-height + 12px;
+        border-radius: Theme.r-s;
+        background: Theme.higher;
+        border-width: 1px;
+        border-color: Theme.line-strong;
+        drop-shadow-blur: 16px;
+        drop-shadow-offset-y: 6px;
+        drop-shadow-color: Theme.shadow;
+        tb-text := Text {
+            x: 10px;
+            y: 6px;
+            width: parent.width - 20px;
+            text: Tip.text;
+            wrap: word-wrap;
+            font-size: 12px;
+            color: Theme.text;
+        }
+    }
+}
