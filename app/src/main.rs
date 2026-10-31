@@ -2476,7 +2476,6 @@ pub fn create(s: &Shared, folder: bool) {
     create_named(s, if folder { "Nowy folder" } else { "Nowy dokument tekstowy.txt" }, folder);
 }
 
-/// Tworzy element w bieżącym folderze, zaznacza go i otwiera pole nazwy (jak w Eksploratorze).
 thread_local! {
     /// Typy z menu „Nowy” (rejestr) – wczytane raz w tle przy starcie.
     static SHELL_NEW: RefCell<Vec<powerdesk_core::shellnew::NewType>> = const { RefCell::new(Vec::new()) };
@@ -2510,6 +2509,7 @@ pub fn create_typed(s: &Shared, t: &powerdesk_core::shellnew::NewType) {
     }
 }
 
+/// Tworzy element w bieżącym folderze, zaznacza go i otwiera pole nazwy (jak w Eksploratorze).
 pub fn create_named(s: &Shared, name: &str, folder: bool) {
     let Some(p) = make(s, name, folder) else { return };
     load(s, true);
