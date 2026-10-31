@@ -112,22 +112,22 @@ fn opts(kind: &str) -> Opts {
     let city = (1, crate::tr("Miejscowość"), crate::tr("Wspólna z menu widżetu – np. Kraków"));
     let o = |variants: &'static [&'static str]| Opts { variants, time: false, temp: false, src: none };
     match kind {
-        "clock" => Opts { variants: &[crate::tr("Klasyczny"), crate::tr("Minimalny"), crate::tr("Pionowy")], time: true, temp: false, src: zone },
-        "analog" => Opts { variants: &[crate::tr("Kreski"), crate::tr("Minimalny"), crate::tr("Cyfry")], time: true, temp: false, src: zone },
-        "weather" => Opts { variants: &[crate::tr("Pełny"), crate::tr("Duża temperatura")], time: false, temp: true, src: city },
-        "forecast" => Opts { variants: &[crate::tr("Dni"), crate::tr("Wykres 24 h")], time: false, temp: true, src: city },
-        "folder" => Opts { variants: &[crate::tr("Lista"), crate::tr("Siatka")], time: false, temp: false, src: (2, crate::tr("Folder"), crate::tr("Pobrane")) },
-        "calendar" => o(&[crate::tr("Miesiąc"), crate::tr("Dzień"), crate::tr("Tydzień")]),
-        "system" | "drives" | "progress" => o(&[crate::tr("Paski"), crate::tr("Kręgi")]),
-        "cpu" | "ram" | "gpu" => o(&[crate::tr("Wykres"), crate::tr("Słupki"), crate::tr("Krąg")]),
-        "network" => o(&[crate::tr("Wykres"), crate::tr("Liczby")]),
-        "battery" => o(&[crate::tr("Krąg"), crate::tr("Bateria")]),
-        "media" => o(&[crate::tr("Okładka obok"), crate::tr("Okładka w tle")]),
-        "photos" | "daypic" => o(&[crate::tr("Wypełnij"), crate::tr("Dopasuj")]),
-        "recent" | "favorites" => o(&[crate::tr("Lista"), crate::tr("Siatka")]),
-        "launcher" => o(&[crate::tr("Siatka"), crate::tr("Lista")]),
-        "stopwatch" | "timer" => o(&[crate::tr("Krąg"), crate::tr("Cyfry")]),
-        "quote" => o(&[crate::tr("Cytat"), crate::tr("Przysłowie")]),
+        "clock" => Opts { variants: &["Klasyczny", "Minimalny", "Pionowy"], time: true, temp: false, src: zone },
+        "analog" => Opts { variants: &["Kreski", "Minimalny", "Cyfry"], time: true, temp: false, src: zone },
+        "weather" => Opts { variants: &["Pełny", "Duża temperatura"], time: false, temp: true, src: city },
+        "forecast" => Opts { variants: &["Dni", "Wykres 24 h"], time: false, temp: true, src: city },
+        "folder" => Opts { variants: &["Lista", "Siatka"], time: false, temp: false, src: (2, "Folder", "Pobrane") },
+        "calendar" => o(&["Miesiąc", "Dzień", "Tydzień"]),
+        "system" | "drives" | "progress" => o(&["Paski", "Kręgi"]),
+        "cpu" | "ram" | "gpu" => o(&["Wykres", "Słupki", "Krąg"]),
+        "network" => o(&["Wykres", "Liczby"]),
+        "battery" => o(&["Krąg", "Bateria"]),
+        "media" => o(&["Okładka obok", "Okładka w tle"]),
+        "photos" | "daypic" => o(&["Wypełnij", "Dopasuj"]),
+        "recent" | "favorites" => o(&["Lista", "Siatka"]),
+        "launcher" => o(&["Siatka", "Lista"]),
+        "stopwatch" | "timer" => o(&["Krąg", "Cyfry"]),
+        "quote" => o(&["Cytat", "Przysłowie"]),
         _ => o(&[]),
     }
 }
@@ -182,7 +182,7 @@ fn fill(g: &WidgetEdit, kind: &str, cfg: &WidgetCfg) {
     g.set_alpha((cfg.alpha / 100.0).clamp(0.0, 1.0));
     g.set_style(cfg.style as i32);
     g.set_variant((cfg.variant as usize).min(o.variants.len().saturating_sub(1)) as i32);
-    g.set_variants(ModelRc::new(VecModel::from(o.variants.iter().map(|v| SharedString::from(*v)).collect::<Vec<_>>())));
+    g.set_variants(ModelRc::new(VecModel::from(o.variants.iter().map(|v| SharedString::from(crate::tr(*v))).collect::<Vec<_>>())));
     g.set_has_time(o.time);
     g.set_h12(cfg.h12);
     g.set_seconds(cfg.seconds);
