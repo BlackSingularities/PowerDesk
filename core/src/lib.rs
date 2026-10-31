@@ -10,6 +10,7 @@ pub mod clip;
 pub mod compare;
 pub mod cliphist;
 pub mod shellhook;
+pub mod jumplist;
 pub mod desktop;
 pub mod dnd;
 pub mod drives;

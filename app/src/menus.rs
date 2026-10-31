@@ -33,6 +33,11 @@ pub fn sep() -> Item {
     Item { label: String::new(), icon: "", kbd: "", checked: false, danger: false, disabled: false, sep: true, act: None, sub: Vec::new() }
 }
 
+/// Nagłówek grupy w menu (nieczynny napis, np. „Ostatnie” na liście szybkiego dostępu).
+pub fn header(label: impl Into<String>) -> Item {
+    Item { disabled: true, act: None, ..it(label, "", |_| {}) }
+}
+
 pub fn sub(label: &str, icon: &'static str, items: Vec<Item>) -> Item {
     Item { sub: items, act: None, ..it(label, icon, |_| {}) }
 }

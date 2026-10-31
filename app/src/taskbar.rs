@@ -659,9 +659,31 @@ fn click_group(group: &[Win]) {
 
 /// Prawy przycisk na przycisku – menu PowerDesk nad paskiem. Przy kilku oknach programu
 /// najpierw lista okien do wyboru, potem polecenia dla całej grupy.
+/// Lista szybkiego dostępu: ostatnie pliki programu (jak na pasku Windows), otwierane tym programem.
+fn jump_items(hwnd: Option<isize>, exe: &str) -> Vec<Item> {
+    if exe.is_empty() {
+        return Vec::new();
+    }
+    let files = powerdesk_core::jumplist::recent(hwnd, exe, 10);
+    if files.is_empty() {
+        return Vec::new();
+    }
+    let mut items = vec![crate::menus::header("Ostatnie")];
+    for f in files {
+        let name = std::path::Path::new(&f).file_name().map_or_else(|| f.clone(), |n| n.to_string_lossy().to_string());
+        let icon = if std::path::Path::new(&f).is_dir() { "folder" } else { "file" };
+        let exe = exe.to_string();
+        items.push(it(name, icon, move |_| {
+            let _ = std::process::Command::new(&exe).arg(&f).spawn();
+        }));
+    }
+    items.push(sep());
+    items
+}
+
 fn context(bar: usize, i: usize, x: f32, _y: f32) {
     let Some(g) = group_at(bar, i) else { return };
-    let mut items = Vec::new();
+    let mut items = jump_items(g.wins.first().map(|w| w.hwnd), &g.exe);
     let pin_item = |exe: String| {
         if pinned(&exe) {
             it("Odepnij od paska", "pin", move |_| toggle_pin(&exe))
