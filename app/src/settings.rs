@@ -217,6 +217,7 @@ fn render(s: &Shared) {
     g.set_file_dialogs(p.file_dialogs);
     g.set_update_check(p.update_check);
     g.set_update_auto(p.update_auto);
+    g.set_taskbar_buttons_all(p.taskbar_buttons_all);
     let (text, ready) = crate::updates::status();
     g.set_update_status(text.into());
     g.set_update_ready(ready);
@@ -476,6 +477,8 @@ pub fn toggle(s: &Shared, key: &str) {
             crate::updates::start();
         }
         "update-auto" => change(s, |p| p.update_auto = !p.update_auto),
+        // Pasek czyta ustawienie przy każdym odświeżeniu.
+        "taskbar-buttons-all" => change(s, |p| p.taskbar_buttons_all = !p.taskbar_buttons_all),
         "shake" => {
             let on = !powerdesk_core::winkey::shake_enabled();
             if let Err(e) = powerdesk_core::winkey::set_shake(on) {

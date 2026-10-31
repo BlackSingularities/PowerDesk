@@ -15,7 +15,7 @@ use std::path::PathBuf;
 
 use windows::core::{w, BOOL};
 use windows::Win32::Foundation::{HWND, LPARAM, RECT};
-use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, INFINITE, PROCESS_SYNCHRONIZE};
+use windows::Win32::System::Threading::{OpenProcess, WaitForSingleObject, PROCESS_SYNCHRONIZE};
 use windows::Win32::UI::Shell::{SHAppBarMessage, ABM_GETSTATE, ABM_SETSTATE, APPBARDATA};
 use windows::Win32::UI::WindowsAndMessaging::{
     EnumWindows, FindWindowExW, FindWindowW, GetClassNameW, GetWindowRect, IsWindow, IsWindowVisible, SetParent, SetWindowPos, ShowWindow, HWND_TOP, SWP_NOACTIVATE, SWP_SHOWWINDOW,
@@ -280,6 +280,26 @@ fn hook_taskbar() {
     });
 }
 
+/// Czy któreś widoczne okno procesu `pid` nie odpowiada (Windows uznaje je za zawieszone po 5 s).
+fn hung(pid: u32) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{EnumWindows, GetWindowThreadProcessId, IsHungAppWindow};
+    unsafe extern "system" fn each(w: HWND, lp: LPARAM) -> BOOL {
+        let (pid, found) = &mut *(lp.0 as *mut (u32, bool));
+        let mut owner = 0u32;
+        GetWindowThreadProcessId(w, Some(&mut owner));
+        if owner == *pid && IsWindowVisible(w).as_bool() && IsHungAppWindow(w).as_bool() {
+            *found = true;
+            return BOOL(0);
+        }
+        BOOL(1)
+    }
+    let mut data = (pid, false);
+    unsafe {
+        let _ = EnumWindows(Some(each), LPARAM(&mut data as *mut _ as isize));
+    }
+    data.1
+}
+
 /// Uruchamia strażnika: osobny proces, który po końcu tego (także po awarii) przywraca Windows.
 pub fn spawn_guard() {
     if let Ok(exe) = std::env::current_exe() {
@@ -295,7 +315,25 @@ pub fn guard(pid: u32) {
     use windows::Win32::UI::WindowsAndMessaging::{GetSystemMetrics, SM_SHUTTINGDOWN};
     unsafe {
         if let Ok(p) = OpenProcess(PROCESS_SYNCHRONIZE, false, pid) {
-            WaitForSingleObject(p, INFINITE);
+            // Co 3 s sprawdzamy, czy PowerDesk nie zawisł: okna nie odpowiadają od 15 s – pokazujemy
+            // pasek Windows, żeby dało się dalej pracować (PowerDesk po odwieszeniu schowa go sam).
+            let mut hung_since: Option<std::time::Instant> = None;
+            let mut shown = false;
+            while WaitForSingleObject(p, 3000) == windows::Win32::Foundation::WAIT_TIMEOUT {
+                if hung(pid) {
+                    let since = *hung_since.get_or_insert_with(std::time::Instant::now);
+                    if !shown && since.elapsed() >= std::time::Duration::from_secs(15) {
+                        crate::log::error("PowerDesk nie odpowiada – pokazuję pasek Windows");
+                        for b in system_bars() {
+                            let _ = ShowWindow(b, SW_SHOWNA);
+                        }
+                        shown = true;
+                    }
+                } else {
+                    hung_since = None;
+                    shown = false;
+                }
+            }
             let _ = windows::Win32::Foundation::CloseHandle(p);
         }
         if GetSystemMetrics(SM_SHUTTINGDOWN) != 0 {
@@ -313,6 +351,8 @@ pub fn guard(pid: u32) {
     if !crashed {
         return;
     }
+    // Najpierw pasek i pulpit Windows – bez czekania na start nowego PowerDesk ekran nie zostaje pusty.
+    restore();
     if crate::shellmode::count_crash() {
         if let Ok(exe) = std::env::current_exe() {
             let _ = std::process::Command::new(exe).arg(crate::autostart::FLAG).spawn();

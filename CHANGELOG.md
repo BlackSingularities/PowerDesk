@@ -17,6 +17,8 @@
 - Ustawienia → Pulpit: potrząśnięcie oknem minimalizuje pozostałe (przełącznik).
 - Szukanie w treści plików: filtr `zawiera:"tekst"` – przez indeks Windows (także Word i PDF), w folderach spoza indeksu przegląda pliki tekstowe.
 - Panel boczny: sekcja „Urządzenia” z telefonami i aparatami podłączonymi przez USB (MTP).
+- Strażnik: po awarii pasek i pulpit Windows wracają od razu (zanim wystartuje nowy PowerDesk); gdy PowerDesk zawiśnie na 15 s, pokazuje pasek Windows.
+- Kilka monitorów: przełącznik „Przyciski wszystkich okien na każdym pasku”; przy jednym pasku widać okna ze wszystkich monitorów.
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 

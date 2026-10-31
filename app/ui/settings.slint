@@ -100,6 +100,8 @@ export global SettingsState {
     // Tapety: tryb (0 – Windows, 1 – pokaz slajdów, 2 – Bing), folder, co ile minut.
     in-out property <bool> vd-button;
     in-out property <bool> taskbar-all;
+    /// Przyciski wszystkich okien na każdym pasku.
+    in-out property <bool> taskbar-buttons-all;
     in-out property <bool> zones-on;
     in-out property <int> zones-layout;
     callback set-zones-layout(int);
@@ -1508,6 +1510,15 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.taskbar-all;
                         toggled => {
                             SettingsState.toggle("taskbar-all");
+                        }
+                    }
+                    if SettingsState.taskbar-all: ToggleRow {
+                        icon: Icons.desktop;
+                        text: "Przyciski wszystkich okien na każdym pasku";
+                        hint: "Wyłączone – przycisk okna jest na pasku monitora, na którym leży okno (przenosi się razem z oknem)";
+                        on: SettingsState.taskbar-buttons-all;
+                        toggled => {
+                            SettingsState.toggle("taskbar-buttons-all");
                         }
                     }
                     ToggleRow {

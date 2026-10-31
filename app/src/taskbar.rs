@@ -1752,9 +1752,10 @@ fn refresh() {
     let now = Local::now();
     let mut pins = Vec::new();
     let (mut opacity, mut clear, mut seconds, mut blur) = (100.0, false, false, true);
-    let (mut grouping, mut labels) = (0u8, true);
+    let (mut grouping, mut labels, mut everywhere) = (0u8, true, false);
     crate::with_state(|s| {
         let b = s.borrow();
+        everywhere = b.prefs.taskbar_buttons_all;
         pins = b.prefs.taskbar_pins.clone();
         opacity = b.prefs.taskbar_opacity;
         clear = b.prefs.taskbar_clear_desktop;
@@ -1765,9 +1766,11 @@ fn refresh() {
     });
     let (time, date) = (now.format(if seconds { "%H:%M:%S" } else { "%H:%M" }).to_string(), now.format("%d.%m.%Y").to_string());
     BARS.with(|b| {
+        // Jeden pasek pokazuje wszystkie okna (także z monitorów bez paska).
+        let single = b.borrow().len() <= 1;
         for bar in b.borrow_mut().iter_mut() {
             place(bar);
-            let mine: Vec<Win> = all.iter().filter(|w| w.monitor == bar.origin).cloned().collect();
+            let mine: Vec<Win> = all.iter().filter(|w| single || everywhere || w.monitor == bar.origin).cloned().collect();
             let wins = keep_order(&bar.wins, mine);
             // Model tylko przy zmianie – inaczej co sekundę migałyby podpowiedzi.
             if wins != bar.wins || fg != bar.fg || pins != bar.pins {
