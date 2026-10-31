@@ -63,6 +63,8 @@ struct Group {
 
 thread_local! {
     static BARS: RefCell<Vec<Bar>> = const { RefCell::new(Vec::new()) };
+    /// Ostatnie aktywne okno programu – klik w pasek zabiera mu fokus, zanim dojdzie do `click`.
+    static LAST_APP: Cell<isize> = const { Cell::new(0) };
     static TIMER: slint::Timer = slint::Timer::default();
     /// Otwarte okienko zasobnika (głośność albo kalendarz).
     static POPUP: RefCell<Option<Popup>> = const { RefCell::new(None) };
@@ -538,12 +540,33 @@ fn toggle_pin(exe: &str) {
 /// Klik w przycisk: jedno okno – jak na pasku Windows (przełącz / zminimalizuj). Kilka okien –
 /// gdy aktywne jest jedno z nich, przechodzi do następnego w kolejności z paska; inaczej
 /// wysuwa to, które było ostatnio na wierzchu.
+/// Okno programu, które jest „aktywne” z punktu widzenia paska: bieżące, a gdy fokus ma sam
+/// pasek (albo inne okienko PowerDesk) – ostatnie aktywne okno programu.
+fn app_foreground() -> isize {
+    let fg = taskwin::foreground();
+    let known = BARS.with(|b| b.borrow().iter().any(|b| b.groups.iter().any(|g| g.wins.iter().any(|w| w.hwnd == fg))));
+    if known {
+        fg
+    } else {
+        LAST_APP.with(|l| l.get())
+    }
+}
+
 fn click_group(group: &[Win]) {
     match group {
         [] => {}
-        [one] => taskwin::click(one.hwnd),
+        // Jak w Windows: klik w aktywne okno je minimalizuje (widać to, co było pod nim),
+        // w inne – przywraca i wysuwa na wierzch.
+        [one] => {
+            if one.hwnd == app_foreground() && !taskwin::is_minimized(one.hwnd) {
+                taskwin::minimize(one.hwnd);
+                LAST_APP.with(|l| l.set(0));
+            } else {
+                taskwin::activate(one.hwnd);
+            }
+        }
         _ => {
-            let fg = taskwin::foreground();
+            let fg = app_foreground();
             if let Some(i) = group.iter().position(|w| w.hwnd == fg) {
                 taskwin::activate(group[(i + 1) % group.len()].hwnd);
             } else {
@@ -1498,6 +1521,9 @@ fn refresh() {
     let own = own_popups();
     let all: Vec<Win> = taskwin::list().into_iter().filter(|w| !own.contains(&w.hwnd)).collect();
     let fg = taskwin::foreground();
+    if all.iter().any(|w| w.hwnd == fg) {
+        LAST_APP.with(|l| l.set(fg));
+    }
     let now = Local::now();
     let mut pins = Vec::new();
     let (mut opacity, mut clear, mut seconds, mut blur) = (100.0, false, false, true);

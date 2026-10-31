@@ -148,6 +148,10 @@ pub fn click(hwnd: isize) {
     }
 }
 
+pub fn is_minimized(hwnd: isize) -> bool {
+    unsafe { IsIconic(h(hwnd)).as_bool() }
+}
+
 /// Przywraca (jeśli zminimalizowane) i wysuwa na wierzch – bez przełączania jak `click`.
 pub fn activate(hwnd: isize) {
     let w = h(hwnd);

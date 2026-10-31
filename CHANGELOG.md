@@ -5,6 +5,8 @@
 - Aktualizacje w Ustawieniach → System: automatyczne sprawdzanie (włącz/wyłącz), opcjonalne pobieranie i instalacja bez pytania, stan z postępem pobierania, „Sprawdź teraz” i „Pobierz i zainstaluj”; zapasowo bezpośrednio z GitHuba.
 - Okna „Otwórz” i „Zapisz jako”: przełącznik w Ustawieniach → System (wyłączone – okna Windows); widać w nich foldery przypięte w PowerDesk.
 - Pasek: bez kropek pod uruchomionymi i przypiętymi programami (kreska tylko pod aktywnym), ikony nie podskakują pod kursorem.
+- Pasek: klik w aktywny program go minimalizuje (jak w Windows), także gdy fokus przejął sam pasek.
+- Start: lista aplikacji zawsze czytelna – tło nie prześwituje już przy niedziałającym rozmyciu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 
 ## 1.0.13

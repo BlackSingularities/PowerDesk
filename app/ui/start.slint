@@ -72,7 +72,9 @@ export component StartWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     title: "PowerDesk – Start";
-    background: Theme.popup-high;
+    // Lista aplikacji musi być czytelna także wtedy, gdy rozmycie pod okienkiem nie działa
+    // (wtedy prześwitywały ostre napisy z okien pod Startem) – krycie co najmniej 92%.
+    background: (Theme.light ? #ececee : #161616).with-alpha(max(Theme.popup-alpha, 0.92));
     width: 660px;
     height: 640px;
 
