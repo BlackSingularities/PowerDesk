@@ -495,6 +495,45 @@ fn click(i: i32, ctrl: bool, shift: bool) {
     }
 }
 
+thread_local! {
+    /// Wpisywany początek nazwy i chwila ostatniej litery.
+    static TYPED: RefCell<(String, Option<std::time::Instant>)> = const { RefCell::new((String::new(), None)) };
+}
+
+/// Pisanie na liście przeskakuje do pasującej nazwy (kolejne litery w ciągu 0,8 s wydłużają
+/// początek, ta sama litera chodzi po kolejnych) – jak w oknach Windows.
+fn type_ahead(k: slint::SharedString) {
+    // Klawisze specjalne Slinta leżą w obszarze prywatnym U+F700–U+F8FF.
+    if k.chars().count() != 1 || k.chars().any(|c| c.is_control() || (0xF700..=0xF8FF).contains(&(c as u32))) {
+        return;
+    }
+    let typed = TYPED.with(|t| {
+        let mut t = t.borrow_mut();
+        if t.1.is_none_or(|at| at.elapsed() > std::time::Duration::from_millis(800)) {
+            t.0.clear();
+        }
+        t.0.push_str(&k.to_lowercase());
+        t.1 = Some(std::time::Instant::now());
+        t.0.clone()
+    });
+    let found = peek(|p| {
+        let n = p.shown.len();
+        if n == 0 {
+            return None;
+        }
+        let f = p.focus.unwrap_or(n - 1);
+        let start = if typed.chars().count() == 1 { f + 1 } else { f };
+        (0..n).map(|k| (start + k) % n).find(|&i| p.entry(i).is_some_and(|e| e.name.to_lowercase().starts_with(&typed)))
+    })
+    .flatten();
+    if let Some(i) = found {
+        click(i as i32, false, false);
+        if let Some(ui) = ui() {
+            ui.invoke_reveal(i as i32);
+        }
+    }
+}
+
 fn key_nav(delta: i32, shift: bool) {
     let Some((to, n)) = peek(|p| (p.focus.map(|f| f as i32 + delta).unwrap_or(if delta > 0 { 0 } else { p.shown.len() as i32 - 1 }), p.shown.len())) else { return };
     if n == 0 {
@@ -972,6 +1011,7 @@ fn wire(w: &FilePickerWindow) {
     w.on_row_click(click);
     w.on_row_open(open_row);
     w.on_key_nav(key_nav);
+    w.on_type_ahead(type_ahead);
     w.on_submit(accept);
     w.on_cancel(cancel);
     w.on_system_dialog(|| answer(json!({ "result": "fallback" })));

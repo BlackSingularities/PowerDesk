@@ -213,6 +213,8 @@ export component FilePickerWindow inherits Window {
     callback row-click(int, bool, bool);
     callback row-open(int);
     callback key-nav(int, bool);
+    /// Litera na liście – skok do najbliższego pliku o tej nazwie (jak w Windows).
+    callback type-ahead(string);
     callback submit();
     callback cancel();
     callback filter-picked(int);
@@ -311,6 +313,10 @@ export component FilePickerWindow inherits Window {
             }
             if (e.text == Key.Return) {
                 root.row-open(-1);
+                return accept;
+            }
+            if (!e.modifiers.control && !e.modifiers.alt && !e.modifiers.meta && e.text != "") {
+                root.type-ahead(e.text);
                 return accept;
             }
             reject

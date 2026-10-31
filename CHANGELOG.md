@@ -1,5 +1,9 @@
 # Zmiany
 
+## 1.0.15
+
+- Okna „Otwórz”/„Zapisz jako”: litera na liście przenosi do najbliższego pliku na tę literę (kolejne litery – dłuższy początek nazwy), jak w Windows.
+
 ## 1.0.14
 
 - Aktualizacje w Ustawieniach → System: automatyczne sprawdzanie (włącz/wyłącz), opcjonalne pobieranie i instalacja bez pytania, stan z postępem pobierania, „Sprawdź teraz” i „Pobierz i zainstaluj”; zapasowo bezpośrednio z GitHuba.
