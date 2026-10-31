@@ -1875,7 +1875,7 @@ fn render_chrome(s: &Shared) {
     ui.set_special(t.special());
     ui.set_can_back(t.h_index > 0 || t.search.is_some());
     ui.set_can_forward(t.h_index + 1 < t.history.len());
-    ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path, &b.drives))));
+    ui.set_crumbs(ModelRc::new(VecModel::from(crumbs(&t.path, &b.drives, &t.title()))));
     ui.set_view(t.view.index());
     ui.set_gallery_ok(t.view == View::Gallery || mostly_media(t));
     ui.set_sort_name(t.sort == SortKey::Name);
@@ -3100,9 +3100,10 @@ fn tab_icon(t: &Tab) -> SharedString {
 }
 
 /// Okruszki: Dysk (C:) → Users → redzi.
-fn crumbs(path: &str, drives: &[drives::Drive]) -> Vec<Crumb> {
+fn crumbs(path: &str, drives: &[drives::Drive], title: &str) -> Vec<Crumb> {
+    // Widoki PowerDesk (Komputer, Ustawienia, biblioteki, przeglądarka…) – ich nazwa w pasku adresu.
     if path.starts_with("ofp:") {
-        return Vec::new();
+        return vec![Crumb { name: title.into(), path: path.into() }];
     }
     let mut v = Vec::new();
     let mut acc = PathBuf::new();

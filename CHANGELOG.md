@@ -4,6 +4,13 @@
 
 - Okna „Otwórz”/„Zapisz jako”: litera na liście przenosi do najbliższego pliku na tę literę (kolejne litery – dłuższy początek nazwy), jak w Windows.
 
+## 1.0.16
+
+- Zasobnik: strzałka ukrytych ikon stoi stale – przeciągnięta ikona trafia pod nią po upuszczeniu na strzałce (z zapasem), zasobnik nie przeskakuje w trakcie.
+- Zasobnik: dymki z nazwą ikon programów (obrazy ikon nie są już podmieniane przy każdym odświeżeniu).
+- Okienko głośności: rozwinięcie listy urządzeń bez przeskoku (położenie i rozmiar jednym ruchem).
+- Pasek adresu: nazwa widoku (Komputer, Ustawienia, biblioteki, przeglądarka zdjęć) zamiast pustego pola.
+
 ## 1.0.14
 
 - Aktualizacje w Ustawieniach → System: automatyczne sprawdzanie (włącz/wyłącz), opcjonalne pobieranie i instalacja bez pytania, stan z postępem pobierania, „Sprawdź teraz” i „Pobierz i zainstaluj”; zapasowo bezpośrednio z GitHuba.

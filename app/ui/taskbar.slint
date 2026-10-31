@@ -1473,8 +1473,11 @@ export component TaskbarWindow inherits Window {
             padding-bottom: (root.bar-h - root.ih) / 2;
             // Ukryte ikony: strzałka w górę jak w Windows – okienko nad nią. W trakcie
             // przeciągania ikony jest zawsze – puszczona na niej ikona trafia do ukrytych.
-            property <bool> arrow-on: root.tray-hidden > 0 || root.tray-all || root.tray-drag-x >= 0;
-            property <bool> over-arrow: root.tray-drag-x >= arrow.absolute-position.x && root.tray-drag-x < arrow.absolute-position.x + arrow.width;
+            // Strzałka stoi zawsze, gdy są ikony programów: pojawiając się dopiero przy
+            // przeciąganiu, przestawiała cały zasobnik pod kursorem i nie dało się w nią trafić.
+            property <bool> arrow-on: root.tray-hidden > 0 || root.tray-all || root.tray-apps.length > 0 || root.tray-drag-x >= 0;
+            // Pole trafienia szersze od samej strzałki (po 8 px z każdej strony).
+            property <bool> over-arrow: root.tray-drag-x >= arrow.absolute-position.x - 8px && root.tray-drag-x < arrow.absolute-position.x + arrow.width + 8px;
             arrow := TrayIcon {
                 visible: parent.arrow-on;
                 width: parent.arrow-on ? 28px : 0px;
@@ -1496,7 +1499,7 @@ export component TaskbarWindow inherits Window {
                     root.tray-drag-x = x;
                 }
                 dropped(dx, at) => {
-                    root.tray-app-drop(a.id, dx, at >= arrow.absolute-position.x && at < arrow.absolute-position.x + arrow.width);
+                    root.tray-app-drop(a.id, dx, at >= arrow.absolute-position.x - 8px && at < arrow.absolute-position.x + arrow.width + 8px);
                 }
             }
             TrayIcon {

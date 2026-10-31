@@ -809,8 +809,15 @@ fn above_bar(win: &slint::Window, (pos, origin, mon, scale): Spot, width: f32, h
     let (pw, ph) = ((width * scale) as i32, (height * scale) as i32);
     let sx = (pos.0 + (x * scale) as i32).clamp(origin.0 + 4, (origin.0 + mon.0 - pw - 4).max(origin.0 + 4));
     let sy = pos.1 - ph - (6.0 * scale) as i32;
-    win.set_position(PhysicalPosition::new(sx, sy));
+    // Otwarte okienko (np. rozwijana lista urządzeń) – położenie i rozmiar jednym ruchem:
+    // osobno okno najpierw podskakiwało w górę, a dopiero potem rosło.
+    if win.is_visible() {
+        taskwin::set_rect(crate::window_hwnd(win), sx, sy, pw, ph);
+    } else {
+        win.set_position(PhysicalPosition::new(sx, sy));
+    }
     win.set_size(PhysicalSize::new(pw as u32, ph as u32));
+    win.request_redraw();
 }
 
 /// Pokazuje okienko bez przycisku na pasku Windows i z fokusem (jego utrata je zamyka).
@@ -1808,13 +1815,36 @@ fn refresh() {
 
 /// Ikona zasobnika do Slint. Bez własnej podpowiedzi – nazwa programu.
 fn tray_app(i: &powerdesk_core::trayhost::Icon) -> TrayApp {
-    let tip = if i.tip.trim().is_empty() { program_name(&i.exe) } else { i.tip.trim().to_string() };
-    TrayApp {
-        key: i.key().into(),
-        id: i.id().into(),
-        tip: tip.into(),
-        img: i.image.as_ref().map(|(w, h, px)| slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *w, *h))).unwrap_or_default(),
+    let mut tip = if i.tip.trim().is_empty() { program_name(&i.exe) } else { i.tip.trim().to_string() };
+    if tip.trim().is_empty() {
+        tip = "Program w zasobniku".into();
     }
+    TrayApp { key: i.key().into(), id: i.id().into(), tip: tip.into(), img: tray_image(i) }
+}
+
+thread_local! {
+    /// Obraz ikony zasobnika na identyfikator – ten sam obiekt, dopóki piksele się nie zmienią.
+    /// Nowy obraz przy każdym odświeżeniu podmieniał wiersz pod kursorem i dymek z nazwą znikał.
+    static TRAY_IMG: RefCell<std::collections::HashMap<String, (u64, slint::Image)>> = RefCell::new(std::collections::HashMap::new());
+}
+
+fn tray_image(i: &powerdesk_core::trayhost::Icon) -> slint::Image {
+    use std::hash::{Hash, Hasher};
+    let Some((w, h, px)) = i.image.as_ref() else { return slint::Image::default() };
+    let mut hs = std::collections::hash_map::DefaultHasher::new();
+    (w, h, px).hash(&mut hs);
+    let sum = hs.finish();
+    TRAY_IMG.with(|c| {
+        let mut c = c.borrow_mut();
+        match c.get(&i.id()) {
+            Some((s, img)) if *s == sum => img.clone(),
+            _ => {
+                let img = slint::Image::from_rgba8(slint::SharedPixelBuffer::clone_from_slice(px, *w, *h));
+                c.insert(i.id(), (sum, img.clone()));
+                img
+            }
+        }
+    })
 }
 
 /// Ikony programów: przypięte (w kolejności z ustawień) na pasku głównego monitora, reszta
