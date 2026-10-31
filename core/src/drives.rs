@@ -200,6 +200,59 @@ fn remembered() -> Vec<(String, String)> {
     out
 }
 
+/// Otoczenie sieciowe: `None` – komputery w grupie roboczej/domenie (`\\NAZWA`), `Some("\\NAZWA")` –
+/// foldery udostępnione przez ten komputer (`\\NAZWA\udział`). Blokuje (sieć) – nawet kilka sekund.
+/// Nowsze Windows bez usługi Przeglądarka komputerów mogą nie zwrócić żadnego komputera;
+/// udziały znanego komputera działają zawsze.
+pub fn network(server: Option<&str>) -> Result<Vec<String>, String> {
+    use windows::Win32::NetworkManagement::WNet::{RESOURCETYPE_ANY, RESOURCE_CONTEXT, RESOURCE_GLOBALNET};
+    // RESOURCEDISPLAYTYPE_SERVER i RESOURCEDISPLAYTYPE_SHARE.
+    const SERVER: u32 = 2;
+    const SHARE: u32 = 3;
+    let mut out = Vec::new();
+    unsafe {
+        let remote = server.map(|s| HSTRING::from(s.trim_end_matches('\\')));
+        let mut nr = NETRESOURCEW::default();
+        let (scope, kind) = match &remote {
+            Some(r) => {
+                nr.lpRemoteName = PWSTR(r.as_ptr() as *mut _);
+                (RESOURCE_GLOBALNET.0, RESOURCETYPE_DISK.0)
+            }
+            None => (RESOURCE_CONTEXT.0, RESOURCETYPE_ANY.0),
+        };
+        let mut h = Default::default();
+        let r = WNetOpenEnumW(NET_RESOURCE_SCOPE(scope), NET_RESOURCE_TYPE(kind), WNET_OPEN_ENUM_USAGE(0), if remote.is_some() { Some(&nr as *const NETRESOURCEW) } else { None }, &mut h);
+        if r != NO_ERROR {
+            return Err(win_err(r.0));
+        }
+        let want = if remote.is_some() { SHARE } else { SERVER };
+        let mut buf = vec![0u8; 64 * 1024];
+        loop {
+            let mut count = u32::MAX;
+            let mut size = buf.len() as u32;
+            let r: WIN32_ERROR = WNetEnumResourceW(h, &mut count, buf.as_mut_ptr() as *mut _, &mut size);
+            if r == ERROR_MORE_DATA {
+                buf.resize(size as usize + 1024, 0);
+                continue;
+            }
+            if r != NO_ERROR {
+                break;
+            }
+            let items = std::slice::from_raw_parts(buf.as_ptr() as *const NETRESOURCEW, count as usize);
+            for it in items.iter().filter(|it| it.dwDisplayType == want) {
+                let rn = it.lpRemoteName.to_string().unwrap_or_default();
+                if !rn.is_empty() {
+                    out.push(rn);
+                }
+            }
+        }
+        let _ = WNetCloseEnum(h);
+    }
+    out.sort_by_key(|s| s.to_lowercase());
+    out.dedup();
+    Ok(out)
+}
+
 /// Mapuje udział sieciowy. Gdy potrzebne są dane logowania, Windows sam pokazuje
 /// swoje okno – aplikacja nigdy nie widzi hasła.
 pub fn map(hwnd: isize, letter: Option<String>, remote: &str, persistent: bool) -> Result<String, String> {

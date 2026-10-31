@@ -464,6 +464,9 @@ impl Tab {
         if self.path == "ofp:sync" {
             return "Synchronizacja".into();
         }
+        if self.path == crate::NET {
+            return "Sieć".into();
+        }
         if let Some(n) = crate::library_name(&self.path) {
             return n;
         }

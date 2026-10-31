@@ -251,6 +251,7 @@ const TOOLS: [(&str, &str, &str, &str, &str); 27] = [
     ("Właściwości systemu", "Nazwa, wydajność, ochrona", "pc", "sys:sysdm.cpl", "sysdm.cpl"),
     ("Zmienne środowiskowe", "PATH i inne zmienne", "code", "sys:sysdm.cpl", "!env"),
     ("Połączenia sieciowe", "Karty sieciowe", "network", "sys:ncpa.cpl", "ncpa.cpl"),
+    ("Sieć", "Komputery i foldery udostępnione", "network", "sys:ncpa.cpl", "!net"),
     ("Mapuj dysk sieciowy", "Udział sieciowy jako litera dysku", "link", "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}", "!map"),
     ("Dźwięk", "Urządzenia odtwarzania i nagrywania", "volume", "sys:mmsys.cpl", "mmsys.cpl"),
     ("Opcje zasilania", "Plany zasilania i uśpienie", "power", "sys:powercfg.cpl", "powercfg.cpl"),
@@ -278,6 +279,7 @@ fn tool_icon_path(src: &str) -> String {
 /// Uruchamia narzędzie z kafelka (klucz – polecenie z `TOOLS`).
 pub fn run_tool(s: &Shared, key: &str) {
     match key {
+        "!net" => crate::navigate(s, crate::NET, true),
         "!map" | "map" => powerdesk_core::drives::map_dialog(crate::hwnd(s)),
         "!rel" => {
             let _ = std::process::Command::new("perfmon.exe").arg("/rel").spawn();

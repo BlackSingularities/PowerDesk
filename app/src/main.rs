@@ -1393,7 +1393,7 @@ fn navigate(s: &Shared, path: &str, push: bool) {
     if path.len() == 2 && path.ends_with(':') {
         path.push('\\');
     }
-    if !path.starts_with("ofp:") && !Path::new(&path).is_dir() && !archives::browsing(&path) {
+    if !path.starts_with("ofp:") && !net_server(&path) && !Path::new(&path).is_dir() && !archives::browsing(&path) {
         // Ścieżka do pliku: otwieramy jego folder.
         match Path::new(&path).parent().filter(|p| p.is_dir()) {
             Some(parent) => path = parent.to_string_lossy().to_string(),
@@ -1518,7 +1518,11 @@ fn load(s: &Shared, keep_selection: bool) {
         t.generation += 1;
         t.path.clone()
     });
-    let res = if let Some(folders) = library_folders(&path) {
+    let res = if path == NET {
+        list_network(None)
+    } else if net_server(&path) {
+        list_network(Some(&path))
+    } else if let Some(folders) = library_folders(&path) {
         list_library(&folders)
     } else {
         match powerdesk_core::archive::split(&path).filter(|_| !path.starts_with("ofp:")) {
@@ -3386,6 +3390,38 @@ thread_local! {
 
 /// Ścieżka karty z całą biblioteką: „ofp:lib|<plik .library-ms>”.
 pub const LIB: &str = "ofp:lib|";
+/// Otoczenie sieciowe: komputery w sieci lokalnej (zwykła lista folderów, jak biblioteka).
+pub const NET: &str = "ofp:lib|net";
+
+/// `\\KOMPUTER` bez dalszej ścieżki – lista jego folderów udostępnionych.
+fn net_server(path: &str) -> bool {
+    path.strip_prefix(r"\\").is_some_and(|rest| !rest.is_empty() && !rest.trim_end_matches('\\').contains('\\'))
+}
+
+/// Komputery w sieci albo udziały komputera jako foldery.
+fn list_network(server: Option<&str>) -> Result<Vec<fsx::Entry>, String> {
+    let names = drives::network(server)?;
+    if names.is_empty() && server.is_none() {
+        return Err(r"Nie znaleziono komputerów w sieci. Wpisz w pasku adresu \\NAZWA komputera, żeby zobaczyć jego foldery udostępnione.".into());
+    }
+    Ok(names
+        .into_iter()
+        .map(|p| fsx::Entry {
+            name: p.trim_start_matches('\\').rsplit('\\').next().unwrap_or_default().to_string(),
+            path: p,
+            dir: true,
+            size: 0,
+            modified: 0,
+            created: 0,
+            ext: String::new(),
+            hidden: false,
+            system: false,
+            readonly: false,
+            link: false,
+            cloud: false,
+        })
+        .collect())
+}
 
 fn with_library<R>(path: &str, f: impl FnOnce(&powerdesk_core::library::Library) -> R) -> Option<R> {
     let file = path.strip_prefix(LIB)?;
