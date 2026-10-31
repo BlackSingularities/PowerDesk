@@ -345,6 +345,10 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
             v.push(it("Otwórz za pomocą…", "app", move |s| {
                 shell::open_with(crate::hwnd(s), &p);
             }));
+            if ["exe", "bat", "cmd", "msi", "lnk"].iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
+                let p = e.path.clone();
+                v.push(it("Uruchom jako administrator", "shield", move |s| verb(s, &p, "runas", "uruchomić jako administrator")));
+            }
             // Obrazy płyt i dysków wirtualnych – podłączenie jako dysk (jak „Zamontuj” w Eksploratorze).
             if ["iso", "img", "vhd", "vhdx"].iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
                 let p = e.path.clone();

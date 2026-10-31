@@ -403,6 +403,12 @@ export component VolumeWindow inherits Window {
     in property <bool> muted;
     in property <[AppVol]> apps;
     in property <[OutDev]> outputs;
+    /// Mikrofon (has-mic false – brak): poziom nagrywania 0–1 i wyciszenie.
+    in property <bool> has-mic;
+    in property <float> mic;
+    in property <bool> mic-muted;
+    callback set-mic(float);
+    callback toggle-mic();
     /// Lista urządzeń rozwinięta (wysokość okienka zmienia taskbar.rs).
     in property <bool> devices-open;
     callback toggle-devices();
@@ -493,6 +499,18 @@ export component VolumeWindow inherits Window {
             }
             mute => {
                 root.toggle-mute();
+            }
+        }
+        if root.has-mic: VolRow {
+            name: root.mic-muted ? "Mikrofon (wyciszony)" : "Mikrofon";
+            system: true;
+            level: root.mic;
+            muted: root.mic-muted;
+            set(v) => {
+                root.set-mic(v);
+            }
+            mute => {
+                root.toggle-mic();
             }
         }
         if root.apps.length > 0: Text {
@@ -635,6 +653,8 @@ export component NetworkWindow inherits Window {
     in property <int> bt: -1;
     in property <bool> airplane;
     in property <float> brightness: -1;
+    /// Tryb zasilania: -1 – niedostępny, 0 – oszczędny, 1 – zrównoważony, 2 – wydajny.
+    in property <int> power-mode: -1;
     callback quick(string);
     callback set-brightness(float);
     VerticalLayout {
@@ -690,13 +710,22 @@ export component NetworkWindow inherits Window {
                     root.quick("batterysaver");
                 }
             }
-            QuickTile {
+            if root.power-mode < 0: QuickTile {
                 icon: Icons.settings;
                 text: "Wszystkie";
                 link: true;
                 tip: "Ustawienia Windows";
                 clicked => {
                     root.quick("settings");
+                }
+            }
+            if root.power-mode >= 0: QuickTile {
+                icon: Icons.power;
+                text: root.power-mode == 0 ? "Oszczędny" : root.power-mode == 2 ? "Wydajny" : "Zrównoważony";
+                on: root.power-mode == 2;
+                tip: "Tryb zasilania – klik przełącza: oszczędny → zrównoważony → wydajny";
+                clicked => {
+                    root.quick("power-mode");
                 }
             }
         }

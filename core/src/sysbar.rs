@@ -2,7 +2,7 @@
 //! połączenie sieciowe i bateria. Odczyty są szybkie – pasek pyta co kilka sekund.
 
 use windows::Win32::Media::Audio::Endpoints::IAudioEndpointVolume;
-use windows::Win32::Media::Audio::{eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
+use windows::Win32::Media::Audio::{eCapture, eCommunications, eMultimedia, eRender, IMMDeviceEnumerator, MMDeviceEnumerator};
 use windows::Win32::NetworkManagement::IpHelper::{GetAdaptersAddresses, GAA_FLAG_INCLUDE_GATEWAYS, GAA_FLAG_SKIP_ANYCAST, GAA_FLAG_SKIP_MULTICAST, IF_TYPE_IEEE80211, IP_ADAPTER_ADDRESSES_LH};
 use windows::Win32::NetworkManagement::Ndis::IfOperStatusUp;
 use windows::Win32::System::Com::{CoCreateInstance, CoInitializeEx, CLSCTX_ALL, COINIT_APARTMENTTHREADED};
@@ -22,6 +22,38 @@ fn endpoint() -> Option<IAudioEndpointVolume> {
         let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
         let dev = en.GetDefaultAudioEndpoint(eRender, eMultimedia).ok()?;
         dev.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None).ok()
+    }
+}
+
+/// Domyślny mikrofon (rola „komunikacja” – ten, którego używają komunikatory, jak w Windows).
+fn mic_endpoint() -> Option<IAudioEndpointVolume> {
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+        let en: IMMDeviceEnumerator = CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
+        let dev = en.GetDefaultAudioEndpoint(eCapture, eCommunications).ok()?;
+        dev.Activate::<IAudioEndpointVolume>(CLSCTX_ALL, None).ok()
+    }
+}
+
+/// Mikrofon: poziom nagrywania i wyciszenie; None – brak mikrofonu.
+pub fn mic() -> Option<Volume> {
+    let ep = mic_endpoint()?;
+    unsafe { Some(Volume { level: ep.GetMasterVolumeLevelScalar().ok()?, muted: ep.GetMute().ok()?.as_bool() }) }
+}
+
+pub fn set_mic_volume(level: f32) {
+    if let Some(ep) = mic_endpoint() {
+        unsafe {
+            let _ = ep.SetMasterVolumeLevelScalar(level.clamp(0.0, 1.0), std::ptr::null());
+        }
+    }
+}
+
+pub fn set_mic_mute(muted: bool) {
+    if let Some(ep) = mic_endpoint() {
+        unsafe {
+            let _ = ep.SetMute(muted, std::ptr::null());
+        }
     }
 }
 

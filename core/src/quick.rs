@@ -120,3 +120,41 @@ pub fn removable() -> Vec<String> {
         .filter(|root| unsafe { GetDriveTypeW(&windows::core::HSTRING::from(root.as_str())) } == 2)
         .collect()
 }
+
+/// Tryb zasilania Windows (Ustawienia → Zasilanie): 0 – najlepsza wydajność energetyczna,
+/// 1 – zrównoważony, 2 – najlepsza wydajność. Nakładki planu z powrprof.dll (bez publicznego
+/// nagłówka, ale stabilne od Windows 10 1709 – tak przełącza też suwak baterii).
+const POWER_MODES: [u128; 3] = [0x961cc777_2547_4f9d_8174_7d86181b8a7a, 0, 0xded574b5_45a0_4f42_8737_46345c09c238];
+
+type GetOverlay = unsafe extern "system" fn(*mut windows::core::GUID) -> u32;
+type SetOverlay = unsafe extern "system" fn(*const windows::core::GUID) -> u32;
+
+fn powrprof(name: windows::core::PCSTR) -> Option<unsafe extern "system" fn() -> isize> {
+    use windows::Win32::System::LibraryLoader::{GetProcAddress, LoadLibraryW};
+    unsafe {
+        let lib = LoadLibraryW(windows::core::w!("powrprof.dll")).ok()?;
+        GetProcAddress(lib, name)
+    }
+}
+
+/// Bieżący tryb zasilania (None – system go nie obsługuje).
+pub fn power_mode() -> Option<u8> {
+    let f = powrprof(windows::core::s!("PowerGetEffectiveOverlayScheme"))?;
+    let get: GetOverlay = unsafe { std::mem::transmute(f) };
+    let mut g = windows::core::GUID::zeroed();
+    if unsafe { get(&mut g) } != 0 {
+        return None;
+    }
+    let v = g.to_u128();
+    Some(POWER_MODES.iter().position(|&m| m == v).unwrap_or(1) as u8)
+}
+
+pub fn set_power_mode(mode: u8) -> Result<(), String> {
+    let f = powrprof(windows::core::s!("PowerSetActiveOverlayScheme")).ok_or("Tryb zasilania niedostępny")?;
+    let set: SetOverlay = unsafe { std::mem::transmute(f) };
+    let g = windows::core::GUID::from_u128(POWER_MODES[mode.min(2) as usize]);
+    match unsafe { set(&g) } {
+        0 => Ok(()),
+        e => Err(format!("Nie udało się zmienić trybu zasilania (kod {e})")),
+    }
+}

@@ -1131,6 +1131,19 @@ fn open_volume(bar: usize, x: f32) {
         slint::Timer::single_shot(Duration::ZERO, close_popup);
         sysbar::open_settings("sound");
     });
+    let mic = sysbar::mic();
+    if let Some(m) = mic {
+        w.set_has_mic(true);
+        w.set_mic(m.level);
+        w.set_mic_muted(m.muted);
+    }
+    w.on_set_mic(|v| sysbar::set_mic_volume(v));
+    w.on_toggle_mic(|| {
+        if let Some(m) = sysbar::mic() {
+            sysbar::set_mic_mute(!m.muted);
+            with_volume(|w| w.set_mic_muted(!m.muted));
+        }
+    });
     let px = (20.0 * w.window().scale_factor()) as u32;
     let apps = app_rows(px);
     w.on_app_volume(|pid, v| {
@@ -1145,7 +1158,7 @@ fn open_volume(bar: usize, x: f32) {
     // Wysokość: głośność ogólna, nagłówek „Aplikacje” i wiersze miksera, odnośnik.
     let n = apps.len() as f32;
     // Urządzenie (32 + odstęp), głośność ogólna, aplikacje, odnośnik.
-    let height = 28.0 + 38.0 + 36.0 + if n > 0.0 { 6.0 + 24.0 + n * 50.0 } else { 0.0 } + 6.0 + 24.0;
+    let height = 28.0 + 38.0 + 36.0 + if mic.is_some() { 50.0 } else { 0.0 } + if n > 0.0 { 6.0 + 24.0 + n * 50.0 } else { 0.0 } + 6.0 + 24.0;
     w.set_apps(ModelRc::new(VecModel::from(apps)));
     fill_outputs(&w);
     w.on_toggle_devices(|| {
@@ -1443,6 +1456,13 @@ fn open_network(bar: usize, x: f32) {
                 let _ = slint::invoke_from_event_loop(move || quick_done(res));
             });
         }
+        "power-mode" => {
+            let next = ((with_network_get(|w| w.get_power_mode()).max(0) + 1) % 3) as u8;
+            std::thread::spawn(move || {
+                let res = powerdesk_core::quick::set_power_mode(next);
+                let _ = slint::invoke_from_event_loop(move || quick_done(res));
+            });
+        }
         "cast" => {
             slint::Timer::single_shot(Duration::ZERO, close_popup);
             open_cast();
@@ -1528,11 +1548,13 @@ fn load_quick() {
     std::thread::spawn(|| {
         let (bt, airplane) = powerdesk_core::quick::radio_state();
         let bright = powerdesk_core::quick::brightness();
+        let power = powerdesk_core::quick::power_mode();
         let _ = slint::invoke_from_event_loop(move || {
             with_network(|w| {
                 w.set_bt(bt.map_or(-1, |on| on as i32));
                 w.set_airplane(airplane);
                 w.set_brightness(bright.map_or(-1.0, |b| b as f32 / 100.0));
+                w.set_power_mode(power.map_or(-1, |m| m as i32));
             })
         });
     });
