@@ -38,6 +38,18 @@ thread_local! {
     static CACHE: RefCell<Cache> = RefCell::new(Cache::default());
 }
 
+/// Zapomina obrazy pliku (np. ikona Kosza pustego / pełnego) – następne `get` pobierze nowe.
+pub fn invalidate(path: &str) {
+    shell::invalidate(path);
+    CACHE.with(|c| {
+        let mut c = c.borrow_mut();
+        c.map.retain(|k, _| k.0 != path);
+        c.order.retain(|k| k.0 != path);
+        c.missing.retain(|k| k.0 != path);
+        c.failed.retain(|k, _| k.0 != path);
+    });
+}
+
 /// Miniatura, jeśli już jest; w przeciwnym razie zamawia ją i zwraca `None`
 /// (po dotarciu widok przerysuje się sam).
 pub fn get(path: &str, px: u32, icon_only: bool) -> Option<Image> {
