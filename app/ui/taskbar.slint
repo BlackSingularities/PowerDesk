@@ -1253,9 +1253,8 @@ export component TaskbarWindow inherits Window {
                     Rectangle {
                         width: root.ai;
                         if b.has-img: Image {
-                            // Pod kursorem ikona lekko się unosi (zamiast podświetlonego tła).
-                            y: (parent.height - root.ai) / 2 - (tb-ta.has-hover ? 1px : 0px);
-                            animate y { duration: 120ms; }
+                            // Ikona stoi w miejscu – bez podskoku pod kursorem.
+                            y: (parent.height - root.ai) / 2;
                             width: root.ai;
                             height: root.ai;
                             source: b.img;
@@ -1276,17 +1275,15 @@ export component TaskbarWindow inherits Window {
                         color: b.minimized ? Theme.faint : Theme.text;
                     }
                 }
-                // Stan programu: uruchomiony – kropka, kilka okien – dłuższa, aktywny – kreska
-                // w kolorze akcentu; przypięty bez okien – kropka tylko pod kursorem.
-                if b.count > 0 || tb-ta.has-hover: Rectangle {
+                // Stan programu: tylko aktywne okno ma kreskę w kolorze akcentu – bez kropek
+                // pod uruchomionymi i przypiętymi.
+                if b.active && b.count > 0: Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - 4px;
-                    width: b.active ? 16px : b.count > 1 ? 10px : 6px;
+                    width: 16px;
                     height: 3px;
                     border-radius: 1.5px;
-                    background: b.active ? Theme.accent : Theme.dim;
-                    opacity: b.count == 0 ? 0.5 : b.minimized && !b.active ? 0.7 : 1;
-                    animate width { duration: 150ms; }
+                    background: Theme.accent;
                 }
                 // Przy oknach podpowiedź zastępują podglądy (jak w Windows).
                 property <bool> hov: tb-ta.has-hover;

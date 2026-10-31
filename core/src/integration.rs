@@ -33,7 +33,7 @@ fn file_dialogs_detail() -> &'static str {
 /// w Windows nie zmienia – foldery dalej otwiera Eksplorator (gdyby plik zniknął albo był
 /// podmieniany, Windows zostałby z martwymi skojarzeniami). Zwraca Ok bez zmian, gdy to nie instalacja.
 /// `autostart` – start z Windows (pytanie przy instalacji, przełącznik w Ustawieniach → System).
-pub fn ensure(autostart: bool) -> Result<(), String> {
+pub fn ensure(autostart: bool, file_dialogs: bool) -> Result<(), String> {
     if !crate::install::running_installed() {
         return Ok(());
     }
@@ -56,7 +56,12 @@ pub fn ensure(autostart: bool) -> Result<(), String> {
         keep(filemgr::set_menu(true));
     }
     // Okna plików: wypakowanie nowej wersji biblioteki i wpisy – co start, tanie, gdy nic się nie zmieniło.
-    keep(filedlg::ensure());
+    // Wyłączone w Ustawieniach – zdejmujemy wpisy, programy mają okna Windows.
+    if file_dialogs {
+        keep(filedlg::ensure());
+    } else if filedlg::enabled() {
+        keep(filedlg::remove());
+    }
     if autostart::enabled() != autostart {
         keep(autostart::set(autostart));
     }

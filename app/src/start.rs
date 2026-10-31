@@ -234,16 +234,20 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
         }
         slint::winit_030::EventResult::Propagate
     });
+    // Treść gotowa przed pokazaniem – okno nie mignie puste i nie zmieni układu tuż po otwarciu.
+    crate::widgets::apply(&w.global::<crate::WidgetData>());
+    crate::widgetcfg::wire(&w.global::<crate::WidgetEdit>());
+    START.with(|s| *s.borrow_mut() = Some(Start { w: w.clone_strong(), shown: Vec::new(), menu: Vec::new() }));
+    render();
     let _ = w.show();
     let hwnd = crate::window_hwnd(w.window());
+    // winit przy pierwszym pokazaniu potrafi przesunąć okno (domyślne położenie, inna skala) –
+    // stawiamy je jeszcze raz dokładnie nad paskiem, jednym ruchem.
+    powerdesk_core::taskwin::set_rect(hwnd, x, bottom - ph, pw, ph);
     powerdesk_core::desktop::hide_from_taskbar(hwnd);
     crate::taskbar::popup_look(hwnd);
     powerdesk_core::taskwin::activate(hwnd);
     w.invoke_focus_search();
-    crate::widgets::apply(&w.global::<crate::WidgetData>());
-    crate::widgetcfg::wire(&w.global::<crate::WidgetEdit>());
-    START.with(|s| *s.borrow_mut() = Some(Start { w, shown: Vec::new(), menu: Vec::new() }));
-    render();
     preload();
 }
 

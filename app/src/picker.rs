@@ -734,7 +734,7 @@ fn cancel() {
 
 // ---------- Miejsca ----------
 
-fn quick_places(req: &Req) -> Vec<Place> {
+fn quick_places(req: &Req, pinned: &[String]) -> Vec<Place> {
     let mut v = vec![Place { name: "Szybki dostęp".into(), path: String::new(), icon: "", tip: String::new(), header: true }];
     let known = [
         ("Pulpit", dirs::desktop_dir(), "desktop"),
@@ -749,6 +749,15 @@ fn quick_places(req: &Req) -> Vec<Place> {
         if let Some(d) = dir.filter(|d| d.is_dir()) {
             let path = display(&d);
             v.push(Place { name: name.into(), tip: path.clone(), path, icon: icons::icon(icon), header: false });
+        }
+    }
+    // Przypięte w PowerDesk (panel boczny → Przypięte) – te same co w oknie folderów.
+    let pinned: Vec<&String> = pinned.iter().filter(|p| Path::new(p.as_str()).is_dir()).collect();
+    if !pinned.is_empty() {
+        v.push(Place { name: "Przypięte".into(), path: String::new(), icon: "", tip: String::new(), header: true });
+        for p in pinned {
+            let name = Path::new(p.as_str()).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| p.clone());
+            v.push(Place { name, path: p.clone(), icon: icons::icon("pin"), tip: p.clone(), header: false });
         }
     }
     let own: Vec<&String> = req.places.iter().filter(|p| Path::new(p).is_dir()).collect();
@@ -843,7 +852,7 @@ pub fn run() {
     ui.set_rows(ModelRc::from(rows.clone()));
     ui.set_lines(ModelRc::from(lines.clone()));
     MODELS.with(|m| *m.borrow_mut() = Some((rows, lines)));
-    let places = quick_places(&req);
+    let places = quick_places(&req, &prefs.favorites);
     P.with(|p| {
         *p.borrow_mut() = Some(Picker {
             hidden: prefs.show_hidden || req.hidden,

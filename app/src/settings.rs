@@ -9,7 +9,7 @@ use crate::{EdgeRow, SettingsState, Shared, SideSection, SysItem, Theme};
 
 pub const TAB: &str = "ofp:settings";
 
-fn with_ui(s: &Shared, f: impl FnOnce(&SettingsState)) {
+pub(crate) fn with_ui(s: &Shared, f: impl FnOnce(&SettingsState)) {
     if let Some(ui) = s.borrow().ui.upgrade() {
         f(&ui.global::<SettingsState>());
     }
@@ -214,6 +214,12 @@ fn render(s: &Shared) {
     g.set_close_to_tray(p.close_to_tray);
     g.set_autostart_window(p.autostart_window);
     g.set_autostart(p.autostart);
+    g.set_file_dialogs(p.file_dialogs);
+    g.set_update_check(p.update_check);
+    g.set_update_auto(p.update_auto);
+    let (text, ready) = crate::updates::status();
+    g.set_update_status(text.into());
+    g.set_update_ready(ready);
     g.set_wall_mode(match p.wallpaper_mode.as_str() {
         "slideshow" => 1,
         "bing" => 2,
@@ -309,7 +315,7 @@ const SEARCH_WORDS: [&str; 11] = [
     "podgląd panel podglądu przeglądarka zdjęć exif informacje pdf wideo",
     "pulpit ikony siatka wyrównanie dowolnie rozmiar ikon komputer kosz tapeta pokaz slajdów bing strefy okien zony widżety panele krawędź",
     "pasek zadań start przycisk start obraz klatki motyw startu windows 10 windows 11 klasyczny ikony nazwy środek wysokość grupowanie zegar sekundy data zasobnik tray ikony przezroczystość rozmycie pulpity wirtualne monitory",
-    "system eksplorator integracja autostart start z windows zasobnik krzyżyk instalacja odinstaluj aktualizacje zakończ uruchom ponownie wyjście",
+    "system eksplorator integracja autostart start z windows zasobnik okna otwórz zapisz jako dialog pobieranie wersja krzyżyk instalacja odinstaluj aktualizacje zakończ uruchom ponownie wyjście",
     "skróty klawiszowe klawiatura ctrl alt",
     "o aplikacji wersja ustawienia plik raport problem dziennik",
     "nakładka wydajność fps klatki gra tryb gry limit klatek nvidia alt r",
@@ -461,6 +467,15 @@ pub fn toggle(s: &Shared, key: &str) {
             change(s, |p| p.autostart = !p.autostart);
             crate::ensure_integration();
         }
+        "file-dialogs" => {
+            change(s, |p| p.file_dialogs = !p.file_dialogs);
+            crate::ensure_integration();
+        }
+        "update-check" => {
+            change(s, |p| p.update_check = !p.update_check);
+            crate::updates::start();
+        }
+        "update-auto" => change(s, |p| p.update_auto = !p.update_auto),
         "overlay" => {
             crate::overlay::toggle();
             return;
@@ -587,6 +602,8 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_set_theme(move |i| set_theme(&s, i));
     g.on_repair_integration(crate::ensure_integration);
     g.on_install(crate::setup::install_from_settings);
+    g.on_update_check_now(|| crate::updates::check(true));
+    g.on_update_install(|| crate::with_state(crate::updates::install));
     let s = st.clone();
     g.on_set_fps_limit(move |f| {
         let fps = f.max(0) as u32;

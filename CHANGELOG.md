@@ -1,5 +1,12 @@
 # Zmiany
 
+## 1.0.14
+
+- Aktualizacje w Ustawieniach → System: automatyczne sprawdzanie (włącz/wyłącz), opcjonalne pobieranie i instalacja bez pytania, stan z postępem pobierania, „Sprawdź teraz” i „Pobierz i zainstaluj”; zapasowo bezpośrednio z GitHuba.
+- Okna „Otwórz” i „Zapisz jako”: przełącznik w Ustawieniach → System (wyłączone – okna Windows); widać w nich foldery przypięte w PowerDesk.
+- Pasek: bez kropek pod uruchomionymi i przypiętymi programami (kreska tylko pod aktywnym), ikony nie podskakują pod kursorem.
+- Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
+
 ## 1.0.13
 
 - Pasek: grupowanie okien do wyboru – zawsze, gdy pasek jest pełny, nigdy.

@@ -65,6 +65,15 @@ export global SettingsState {
     in-out property <bool> autostart-window;
     /// Start razem z Windows.
     in-out property <bool> autostart: true;
+    /// Okna „Otwórz”/„Zapisz jako” PowerDesk w innych programach.
+    in-out property <bool> file-dialogs: true;
+    /// Aktualizacje: sprawdzanie w tle, instalacja bez pytania, stan i czy jest wersja do instalacji.
+    in-out property <bool> update-check: true;
+    in-out property <bool> update-auto;
+    in-out property <string> update-status;
+    in-out property <bool> update-ready;
+    callback update-check-now;
+    callback update-install;
     /// Zastąpienie Eksploratora – stan poszczególnych elementów (z rejestru).
     in-out property <[SysItem]> system;
     callback repair-integration;
@@ -1534,6 +1543,15 @@ export component SettingsView inherits Rectangle {
                             SettingsState.toggle("autostart-window");
                         }
                     }
+                    ToggleRow {
+                        icon: Icons.folder;
+                        text: "Okna „Otwórz” i „Zapisz jako” PowerDesk";
+                        hint: "W innych programach zamiast okien Windows – z przypiętymi folderami. Wyłączone – zwykłe okna Windows";
+                        on: SettingsState.file-dialogs;
+                        toggled => {
+                            SettingsState.toggle("file-dialogs");
+                        }
+                    }
                     for it in SettingsState.system: Rectangle {
                         height: 56px;
                         border-radius: Theme.r;
@@ -1629,6 +1647,53 @@ export component SettingsView inherits Rectangle {
                                         SettingsState.install(true);
                                     }
                                 }
+                            }
+                        }
+                    }
+                    Label {
+                        text: "Aktualizacje";
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    ToggleRow {
+                        icon: Icons.refresh;
+                        text: "Sprawdzaj aktualizacje automatycznie";
+                        hint: "Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba";
+                        on: SettingsState.update-check;
+                        toggled => {
+                            SettingsState.toggle("update-check");
+                        }
+                    }
+                    if SettingsState.update-check: ToggleRow {
+                        icon: Icons.refresh;
+                        text: "Pobieraj i instaluj bez pytania";
+                        hint: "Znaleziona wersja pobiera się w tle (z kontrolą sumy SHA-256) i PowerDesk uruchamia się ponownie. Wyłączone – powiadomienie z przyciskiem „Zaktualizuj”";
+                        on: SettingsState.update-auto;
+                        toggled => {
+                            SettingsState.toggle("update-auto");
+                        }
+                    }
+                    Label {
+                        text: SettingsState.update-status;
+                        wrap: word-wrap;
+                        font-size: 12px;
+                        color: Theme.dim;
+                    }
+                    HorizontalLayout {
+                        alignment: start;
+                        spacing: 8px;
+                        SetButton {
+                            text: "Sprawdź teraz";
+                            tip: "Szuka nowej wersji PowerDesk";
+                            clicked => {
+                                SettingsState.update-check-now();
+                            }
+                        }
+                        if SettingsState.update-ready: SetButton {
+                            text: "Pobierz i zainstaluj";
+                            tip: "Pobiera nową wersję, sprawdza sumę kontrolną i uruchamia PowerDesk ponownie";
+                            clicked => {
+                                SettingsState.update-install();
                             }
                         }
                     }
