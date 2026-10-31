@@ -438,6 +438,11 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
         v.push(it("Uprawnienia (Zabezpieczenia)…", "settings", move |s| {
             shell::show_properties_page(crate::hwnd(s), &p, "Zabezpieczenia");
         }));
+        // Kopie z punktów przywracania i Historii plików – zakładka Windows (przywracanie i podgląd).
+        let p = e.path.clone();
+        v.push(it("Przywróć poprzednie wersje…", "history", move |s| {
+            shell::show_properties_page(crate::hwnd(s), &p, "Poprzednie wersje");
+        }));
     }
     v.push(sep());
     let p2 = ps.clone();
