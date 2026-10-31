@@ -67,6 +67,8 @@ export global SettingsState {
     in-out property <bool> autostart: true;
     /// Okna „Otwórz”/„Zapisz jako” PowerDesk w innych programach.
     in-out property <bool> file-dialogs: true;
+    /// Zamknięte okno pamięta karty.
+    in-out property <bool> remember-tabs;
     /// Potrząśnięcie oknem (ustawienie Windows, czytane z rejestru).
     in-out property <bool> shake;
     /// Aktualizacje: sprawdzanie w tle, instalacja bez pytania, stan i czy jest wersja do instalacji.
@@ -1545,6 +1547,15 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.close-to-tray;
                         toggled => {
                             SettingsState.toggle("close-to-tray");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.folder;
+                        text: "Pamiętaj karty po zamknięciu okna";
+                        hint: "Wyłączone – po zamknięciu okna folderów następne otwarcie (Ustawienia, folder z innego programu) pokazuje tylko to, co otwierasz; przypięte karty zostają";
+                        on: SettingsState.remember-tabs;
+                        toggled => {
+                            SettingsState.toggle("remember-tabs");
                         }
                     }
                     ToggleRow {

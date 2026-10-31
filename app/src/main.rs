@@ -196,7 +196,7 @@ fn open_args(s: &Shared, args: Vec<String>) {
 }
 
 /// Aktywna karta to karta startowa, w której niczego jeszcze nie otwierano.
-fn fresh_tab(s: &Shared) -> bool {
+pub fn fresh_tab(s: &Shared) -> bool {
     let start = settings::start_path(&s.borrow().prefs);
     tab_mut(s, |t| t.viewer.is_none() && t.search.is_none() && t.history.len() <= 1 && t.path.eq_ignore_ascii_case(&start))
 }
@@ -275,9 +275,35 @@ fn close_window(s: &Shared) {
     match s.borrow().ui.upgrade() {
         Some(ui) if to_tray => {
             let _ = ui.hide();
+            // Domyślnie zamknięte okno zapomina karty: następne otwarcie (Ustawienia, folder z innego
+            // programu, Win+E) pokazuje tylko to, co otwierasz. Przypięte karty zostają.
+            if !s.borrow().prefs.remember_tabs {
+                forget_tabs(s);
+            }
         }
         _ => quit(s),
     }
+}
+
+/// Zostają tylko przypięte karty, a bez nich – jedna nietknięta karta startowa (kolejne
+/// otwarcie trafia do niej, zamiast dokładać kartę obok).
+fn forget_tabs(s: &Shared) {
+    if tab_mut(s, |t| t.search.as_ref().is_some_and(|x| x.running)) {
+        fsx::cancel_search();
+    }
+    viewer::close(s);
+    let start = settings::start_path(&s.borrow().prefs);
+    {
+        let mut b = s.borrow_mut();
+        b.tabs.retain(|t| t.pinned);
+        if b.tabs.is_empty() {
+            b.tabs.push(Tab::new(&start));
+        }
+        b.active = 0;
+        b.focused = 0;
+        b.panes = vec![0];
+    }
+    show_tab(s);
 }
 
 /// Koniec programu: pulpit i pasek Windows wracają (strażnik niczego już nie zastanie).

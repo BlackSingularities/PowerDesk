@@ -2,6 +2,8 @@
 
 ## 1.1.0
 
+- Okno folderów: po zamknięciu domyślnie zapomina karty – następne otwarcie (Ustawienia, folder z innego programu) pokazuje tylko to, co otwierasz; przełącznik „Pamiętaj karty po zamknięciu okna” w Ustawieniach → System.
+- Kilka monitorów: zasobnik i powiadomienia tylko na pasku głównego monitora, na pozostałych sam zegar.
 - Nowa linia wersji: zbiera zmiany z wydań 1.0.14–1.0.16 (aktualizacje w programie, lista szybkiego dostępu, szybkie ustawienia, menu „Nowy”, szukanie w treści, strażnik i inne – szczegóły niżej).
 
 ## 1.0.16

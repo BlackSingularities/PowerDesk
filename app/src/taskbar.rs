@@ -210,6 +210,7 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             }
         });
         w.on_tray_overflow(move |x| open_tray_overflow(n, x));
+        w.set_main_bar((m.x, m.y) == (0, 0));
         let _ = w.show();
         let _ = powerdesk_core::dnd::register(crate::window_hwnd(w.window()), Box::new(BarDrop { bar: n }));
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, blurred: None, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });

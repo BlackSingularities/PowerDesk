@@ -1188,6 +1188,8 @@ export component TaskbarWindow inherits Window {
     in property <int> net-kind;
     in property <string> net-name;
     in property <bool> has-battery;
+    /// Pasek głównego monitora – tylko on ma zasobnik i powiadomienia; pozostałe sam zegar.
+    in property <bool> main-bar: true;
     /// Podłączony dysk wymienny – ikona „Bezpieczne usuwanie sprzętu”.
     in property <bool> has-usb;
     callback usb-open(length);
@@ -1464,8 +1466,8 @@ export component TaskbarWindow inherits Window {
         }
 
         // Zasobnik: sieć, głośność, bateria – jak w Windows, tuż przed zegarem; ikony 40 px
-        // wyśrodkowane w pionie w pasku 48 px (jak zegar).
-        HorizontalLayout {
+        // wyśrodkowane w pionie w pasku 48 px (jak zegar). Tylko na pasku głównego monitora.
+        if root.main-bar: HorizontalLayout {
             horizontal-stretch: 0;
             alignment: center;
             spacing: 0px;
@@ -1548,9 +1550,10 @@ export component TaskbarWindow inherits Window {
             }
         }
 
-        // Centrum powiadomień – z licznikiem nieprzeczytanych.
+        // Centrum powiadomień – z licznikiem nieprzeczytanych (tylko na głównym monitorze).
         nt := Rectangle {
-            width: 30px;
+            visible: root.main-bar;
+            width: root.main-bar ? 30px : 0px;
             height: root.ih;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.r;

@@ -29,6 +29,11 @@ pub fn open(s: &Shared) {
             }
             crate::show_tab(s);
         }
+        // Nietknięta karta startowa (np. po zamknięciu okna) – Ustawienia w niej, bez drugiej karty.
+        None if crate::fresh_tab(s) => {
+            crate::tab_mut(s, |t| *t = crate::model::Tab::new(TAB));
+            crate::show_tab(s);
+        }
         None => crate::new_tab_at(s, TAB, true),
     }
 }
@@ -217,6 +222,7 @@ fn render(s: &Shared) {
     g.set_file_dialogs(p.file_dialogs);
     g.set_update_check(p.update_check);
     g.set_update_auto(p.update_auto);
+    g.set_remember_tabs(p.remember_tabs);
     g.set_taskbar_buttons_all(p.taskbar_buttons_all);
     let (text, ready) = crate::updates::status();
     g.set_update_status(text.into());
@@ -477,6 +483,7 @@ pub fn toggle(s: &Shared, key: &str) {
             crate::updates::start();
         }
         "update-auto" => change(s, |p| p.update_auto = !p.update_auto),
+        "remember-tabs" => change(s, |p| p.remember_tabs = !p.remember_tabs),
         // Pasek czyta ustawienie przy każdym odświeżeniu.
         "taskbar-buttons-all" => change(s, |p| p.taskbar_buttons_all = !p.taskbar_buttons_all),
         "shake" => {
