@@ -231,7 +231,7 @@ fn ic(name: &str) -> slint::SharedString {
 /// Narzędzia systemu: nazwa, opis, ikona liniowa (zanim dotrze systemowa), źródło ikony
 /// systemowej (`sys:` – plik w System32, `app:` – aplikacja z menu Start) i polecenie
 /// (ShellExecute; `!map`, `!env`, `!rel` – obsługiwane osobno).
-const TOOLS: [(&str, &str, &str, &str, &str); 27] = [
+const TOOLS: [(&str, &str, &str, &str, &str); 28] = [
     ("Ustawienia Windows", "Wszystkie ustawienia systemu", "settings", SETTINGS_APP, "ms-settings:"),
     ("Informacje o systemie", "Wersja, sprzęt, nazwa komputera", "info", "sys:msinfo32.exe", "msinfo32.exe"),
     ("Aplikacje", "Instalowanie i odinstalowywanie", "app", "sys:appwiz.cpl", "ms-settings:appsfeatures"),
