@@ -1,21 +1,22 @@
 # Zmiany
 
-## 1.0.15
+## 1.1.0
 
-- Okna „Otwórz”/„Zapisz jako”: litera na liście przenosi do najbliższego pliku na tę literę (kolejne litery – dłuższy początek nazwy), jak w Windows.
+- Nowa linia wersji: zbiera zmiany z wydań 1.0.14–1.0.16 (aktualizacje w programie, lista szybkiego dostępu, szybkie ustawienia, menu „Nowy”, szukanie w treści, strażnik i inne – szczegóły niżej).
 
-## 1.0.17
+## 1.0.16
 
 - Start: zmiana rozmiaru w górę i w dół działa – treść wypełnia całe okno (wcześniej zostawała w 660×640, a reszta prześwitywała); przezroczystość okienek znów z ustawień.
 - Start: kafelki i widżety we wszystkich motywach (Windows 11 i klasyczny – szersze okno).
 - Pasek adresu: strzałka szybkich miejsc przy ikonie (Komputer, Pulpit, Dokumenty, dyski…), jak w Eksploratorze.
-
-## 1.0.16
-
 - Zasobnik: strzałka ukrytych ikon stoi stale – przeciągnięta ikona trafia pod nią po upuszczeniu na strzałce (z zapasem), zasobnik nie przeskakuje w trakcie.
 - Zasobnik: dymki z nazwą ikon programów (obrazy ikon nie są już podmieniane przy każdym odświeżeniu).
 - Okienko głośności: rozwinięcie listy urządzeń bez przeskoku (położenie i rozmiar jednym ruchem).
 - Pasek adresu: nazwa widoku (Komputer, Ustawienia, biblioteki, przeglądarka zdjęć) zamiast pustego pola.
+
+## 1.0.15
+
+- Okna „Otwórz”/„Zapisz jako”: litera na liście przenosi do najbliższego pliku na tę literę (kolejne litery – dłuższy początek nazwy), jak w Windows.
 
 ## 1.0.14
 
