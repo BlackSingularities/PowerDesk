@@ -209,13 +209,13 @@ pub fn offer_install(args: &[String]) -> Option<i32> {
             _ => Some(0),
         };
     }
+    // Bez trybu przenośnego: pobrany plik to instalator – instaluje albo kończy.
     match ask(
-        "Zainstalować PowerDesk?\n\nTak – zainstaluj w Program Files dla wszystkich użytkowników (Windows zapyta o uprawnienia administratora)\nNie – uruchom bez instalacji\n\nPo instalacji PowerDesk zastąpi Eksplorator: pulpit, pasek zadań i menu Start, a aktualizacje będą instalować się w tym samym miejscu.",
-        Ask::YesNoCancel,
+        "Zainstalować PowerDesk?\n\nPowerDesk zainstaluje się w Program Files (Windows zapyta o uprawnienia administratora) i zastąpi Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu.",
+        Ask::YesNo,
     ) {
         Answer::Yes => Some(install_flow(true, false, false, true)),
-        Answer::No => None,
-        Answer::Other => Some(0),
+        _ => Some(0),
     }
 }
 

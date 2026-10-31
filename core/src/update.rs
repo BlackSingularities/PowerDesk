@@ -136,38 +136,17 @@ pub fn marker() -> PathBuf {
     dir().join("updating.txt")
 }
 
-/// Skrypt: czeka na koniec tego procesu, podmienia .exe (stary zostaje jako .old) i uruchamia
-/// nowy (strażnik w tym czasie tylko czeka na zdjęcie znacznika).
-/// Po wywołaniu program powinien się zakończyć.
-pub fn apply(new_exe: &std::path::Path) -> Result<(), String> {
-    use std::os::windows::process::CommandExt;
-    let me = std::env::current_exe().map_err(|e| e.to_string())?;
-    let me_s = me.to_string_lossy();
-    let old = format!("{me_s}.old");
-    let pid = std::process::id();
-    let mark = marker();
-    std::fs::write(&mark, pid.to_string()).map_err(|e| e.to_string())?;
-    let start = format!("start \"\" \"{me_s}\" {}", crate::autostart::FLAG);
-    let script = format!(
-        "@echo off\r\n:wait\r\ntasklist /fi \"PID eq {pid}\" | find \"{pid}\" >nul && (timeout /t 1 /nobreak >nul & goto wait)\r\n\
-         del /f /q \"{old}\" 2>nul\r\nmove /y \"{me_s}\" \"{old}\" >nul\r\ncopy /y \"{new}\" \"{me_s}\" >nul || move /y \"{old}\" \"{me_s}\" >nul\r\n\
-         del /f /q \"{mark}\"\r\n{start}\r\n",
-        new = new_exe.to_string_lossy(),
-        mark = mark.to_string_lossy(),
-    );
-    let bat = dir().join("update").join("apply.cmd");
-    std::fs::write(&bat, script).map_err(|e| e.to_string())?;
-    std::process::Command::new("cmd").arg("/c").arg(&bat).creation_flags(0x0800_0000).spawn().map_err(|e| e.to_string())?;
-    Ok(())
-}
-
 /// Zainstalowany PowerDesk: pobrany instalator instaluje nową wersję w tym samym miejscu
 /// (dla wszystkich użytkowników – z UAC) i czeka, aż skończy. Potem skrypt po zamknięciu tego
 /// procesu uruchamia zainstalowaną kopię (strażnik powłoki w tym czasie czeka na znacznik).
 /// Po wywołaniu program powinien się zakończyć.
 pub fn apply_installer(setup: &std::path::Path) -> Result<(), String> {
     use std::os::windows::process::CommandExt;
-    let Some((exe, all)) = crate::install::installed() else { return apply(setup) };
+    // Bez instalacji (np. kopia z budowania) – zwykły instalator, który sam zaproponuje instalację.
+    let Some((exe, all)) = crate::install::installed() else {
+        std::process::Command::new(setup).spawn().map_err(|e| e.to_string())?;
+        return Ok(());
+    };
     let args = format!("{} {} {}", crate::install::INSTALL_FLAG, crate::install::UPDATE_FLAG, if all { crate::install::ALL_USERS_FLAG } else { "" });
     let elevated = all && !crate::install::is_admin();
     match crate::install::run_wait(setup, args.trim(), elevated)? {

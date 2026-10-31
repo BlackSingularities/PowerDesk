@@ -1,8 +1,8 @@
 # Zmiany
 
-## Następna wersja
+## 1.0.11
 
-- Instalator jako jedyny plik wydania (`PowerDesk-Setup-<wersja>.exe`): instalacja w Program Files z uprawnieniami administratora, kolejne wersje i aktualizacje z programu w tym samym miejscu; pytanie o start z Windows.
+- Instalator jako jedyny plik wydania (`PowerDesk-Setup-<wersja>.exe`), bez trybu przenośnego: instalacja w Program Files z uprawnieniami administratora, kolejne wersje i aktualizacje z programu w tym samym miejscu; pytanie o start z Windows.
 - Pasek zadań: większe ikony programów (16–48 px), tryb samych ikon, przyciski na środku, wysokość 36–72 px, sekundy i data w zegarze, rozmycie, przezroczystość z 3% tła, ciaśniejszy zasobnik, przeciąganie ikon zasobnika na strzałkę.
 - Własny przycisk Start z pliku (klatki: zwykły, pod kursorem, wciśnięty, otwarty).
 - Win+S – osobne wyszukiwanie; Start i wyszukiwanie przełączają się i zamykają nawzajem.
@@ -10,6 +10,7 @@
 - Pulpit: dowolne układanie ikon albo siatka, trzy rozmiary ikon, „Ten komputer”, czytelniejsze podpisy na jasnych tapetach.
 - Płynne przewijanie widoku plików i galerii, płynne przejścia między zdjęciami.
 - Zakończenie PowerDesk tylko w Ustawieniach → System.
+- Panele folderów przy krawędziach pulpitu (każdy monitor osobno), 21 nowych widżetów z panelem „Dostosuj”, okna „Otwórz” i „Zapisz jako” w innych programach z PowerDesk.
 
 ## 1.0.10
 

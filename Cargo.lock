@@ -3707,7 +3707,7 @@ dependencies = [
 
 [[package]]
 name = "powerdesk"
-version = "1.0.10"
+version = "1.0.11"
 dependencies = [
  "chrono",
  "chrono-tz",
