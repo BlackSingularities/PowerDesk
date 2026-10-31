@@ -45,6 +45,18 @@ pub fn add(source: &str, title: &str, text: &str) {
     popup(&n);
 }
 
+/// Powiadomienie, które Windows już pokazał (toast innego programu): tylko historia i licznik, bez dymka.
+pub fn add_quiet(source: &str, title: &str, text: &str) {
+    let n = Notice { time: Local::now(), source: source.to_string(), title: title.to_string(), text: text.to_string() };
+    LIST.with(|l| {
+        let mut l = l.borrow_mut();
+        l.push_front(n);
+        l.truncate(MAX);
+    });
+    UNREAD.with(|u| u.set(u.get() + 1));
+    crate::taskbar::notices_changed();
+}
+
 /// Wiersze do okienka historii (najnowsze pierwsze).
 pub fn rows() -> Vec<NoticeRow> {
     let today = Local::now().date_naive();

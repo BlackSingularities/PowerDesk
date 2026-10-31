@@ -237,6 +237,10 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
     powerdesk_core::trayhost::on_balloon(|title, text| {
         let _ = slint::invoke_from_event_loop(move || crate::notices::add("Program w zasobniku", &title, &text));
     });
+    // Toasty innych programów pokazuje Windows – do historii trafia ich kopia.
+    powerdesk_core::winnotify::start(|app, title, text| {
+        let _ = slint::invoke_from_event_loop(move || crate::notices::add_quiet(if app.is_empty() { "Windows" } else { &app }, &title, &text));
+    });
     powerdesk_core::trayhost::start(|| {
         let _ = slint::invoke_from_event_loop(tray_apps);
     });

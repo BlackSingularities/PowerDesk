@@ -57,5 +57,6 @@ pub mod update;
 pub mod trayhost;
 pub mod vdesk;
 pub mod weather;
+pub mod winnotify;
 pub mod wifi;
 pub mod winkey;

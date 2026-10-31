@@ -89,5 +89,9 @@ features = [
   "Media_Control",
   "Storage",
   "Storage_Streams",
+  "Foundation_Collections",
+  "ApplicationModel",
+  "UI_Notifications",
+  "UI_Notifications_Management",
 ]
 
