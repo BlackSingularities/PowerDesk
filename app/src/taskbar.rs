@@ -664,11 +664,24 @@ fn jump_items(hwnd: Option<isize>, exe: &str) -> Vec<Item> {
     if exe.is_empty() {
         return Vec::new();
     }
-    let files = powerdesk_core::jumplist::recent(hwnd, exe, 10);
-    if files.is_empty() {
-        return Vec::new();
+    let mut items = Vec::new();
+    // Zadania i własne kategorie programu (np. „Nowe okno InPrivate”), w kolejności z jego listy.
+    let mut cat: Option<String> = None;
+    for t in powerdesk_core::jumplist::tasks(exe) {
+        if cat.as_deref() != Some(t.category.as_str()) {
+            items.push(crate::menus::header(if t.category.is_empty() { "Zadania".to_string() } else { t.category.clone() }));
+            cat = Some(t.category.clone());
+        }
+        let (path, args) = (t.path.clone(), t.args.clone());
+        items.push(it(t.title, "open", move |_| {
+            use std::os::windows::process::CommandExt;
+            let _ = std::process::Command::new(&path).raw_arg(&args).spawn();
+        }));
     }
-    let mut items = vec![crate::menus::header("Ostatnie")];
+    let files = powerdesk_core::jumplist::recent(hwnd, exe, 10);
+    if !files.is_empty() {
+        items.push(crate::menus::header("Ostatnie"));
+    }
     for f in files {
         let name = std::path::Path::new(&f).file_name().map_or_else(|| f.clone(), |n| n.to_string_lossy().to_string());
         let icon = if std::path::Path::new(&f).is_dir() { "folder" } else { "file" };
@@ -677,7 +690,9 @@ fn jump_items(hwnd: Option<isize>, exe: &str) -> Vec<Item> {
             let _ = std::process::Command::new(&exe).arg(&f).spawn();
         }));
     }
-    items.push(sep());
+    if !items.is_empty() {
+        items.push(sep());
+    }
     items
 }
 

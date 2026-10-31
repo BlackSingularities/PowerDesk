@@ -9,7 +9,7 @@
 - Start: lista aplikacji zawsze czytelna – tło nie prześwituje już przy niedziałającym rozmyciu.
 - Pasek: przycisk programu, który woła o uwagę (nowa wiadomość, koniec pobierania), pulsuje pomarańczową kreską, póki go nie otworzysz.
 - Pasek: pliki przeciągnięte nad program – po chwili wysuwa się jego okno; upuszczone na przypięty program bez okien otwierają się w nim.
-- Pasek: lista szybkiego dostępu – prawy klik na programie pokazuje jego ostatnie pliki (te same listy co pasek Windows) i otwiera je w tym programie.
+- Pasek: lista szybkiego dostępu – prawy klik na programie pokazuje jego ostatnie pliki (te same listy co pasek Windows) i otwiera je w tym programie, a nad nimi zadania programu (np. „Nowe okno InPrivate” w Edge) i jego własne kategorie.
 - Podgląd okna na pasku: obraz okna tuż pod tytułem, bez pustego odstępu.
 - Start: otwiera się od razu w docelowym miejscu i rozmiarze, bez przeskoku.
 
