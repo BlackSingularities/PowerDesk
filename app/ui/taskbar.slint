@@ -152,8 +152,9 @@ component TrayAppIcon inherits Rectangle {
             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.dragging) {
                 root.dragging = false;
                 root.was-drag = true;
-                root.drag-at(-1px);
+                // Najpierw upuszczenie – strzałka musi jeszcze stać, żeby rozpoznać upuszczenie na niej.
                 root.dropped(self.mouse-x - self.pressed-x, self.absolute-position.x + self.mouse-x);
+                root.drag-at(-1px);
             }
             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                 root.pressed(2);
@@ -1041,6 +1042,12 @@ export component TaskbarWindow inherits Window {
     property <length> pin-w: max(44px, root.ai + 18px);
     /// Przeciągana ikona zasobnika: x kursora (-1 – nic nie przeciągamy).
     property <length> tray-drag-x: -1px;
+    /// Początek i koniec przeciągania ikony zasobnika (taskbar.rs wstrzymuje wtedy zmiany listy).
+    callback tray-drag-state(bool);
+    property <bool> tray-dragging: root.tray-drag-x >= 0;
+    changed tray-dragging => {
+        root.tray-drag-state(self.tray-dragging);
+    }
     in property <string> time;
     in property <string> date;
     // Zasobnik: głośność (0–1), sieć (0 – brak, 1 – Wi-Fi, 2 – kabel), bateria.
@@ -1142,11 +1149,13 @@ export component TaskbarWindow inherits Window {
             height: root.has-start-img ? self.img-h : root.ih;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.r;
-            background: root.has-start-img ? transparent : root.start-open || st-ta.pressed ? Theme.sel : st-ta.has-hover ? Theme.hover : transparent;
+            // Jak przyciski programów – bez tła; otwarty Start i kursor rozjaśniają samą ikonę.
+            background: transparent;
             if !root.has-start-img: Icon {
                 commands: Icons.grid;
-                size: 20px;
+                size: min(26px, root.ai);
                 color: Theme.accent;
+                opacity: root.start-open || st-ta.has-hover ? 1 : 0.85;
             }
             if root.has-start-img: Image {
                 property <int> fh: floor(root.start-img.height / max(1, root.start-frames));
@@ -1230,8 +1239,8 @@ export component TaskbarWindow inherits Window {
                 y: (parent.height - self.height) / 2;
                 width: b.count == 0 ? root.pin-w : parent.each;
                 height: root.ih;
-                border-radius: Theme.r;
-                background: b.active ? Theme.sel : tb-ta.has-hover ? Theme.hover : transparent;
+                // Bez teł i kształtów pod ikoną – stan pokazuje kreska pod spodem (niżej).
+                background: transparent;
                 // Przeciąganie przypiętego: przycisk przygasa, miejsce wybiera puszczenie.
                 property <bool> dragging: tb-ta.pressed && b.pinned && abs(tb-ta.mouse-x - tb-ta.pressed-x) > 8px;
                 property <bool> was-drag;
@@ -1244,7 +1253,9 @@ export component TaskbarWindow inherits Window {
                     Rectangle {
                         width: root.ai;
                         if b.has-img: Image {
-                            y: (parent.height - root.ai) / 2;
+                            // Pod kursorem ikona lekko się unosi (zamiast podświetlonego tła).
+                            y: (parent.height - root.ai) / 2 - (tb-ta.has-hover ? 1px : 0px);
+                            animate y { duration: 120ms; }
                             width: root.ai;
                             height: root.ai;
                             source: b.img;
@@ -1255,23 +1266,6 @@ export component TaskbarWindow inherits Window {
                             size: root.ai * 0.9;
                             color: Theme.dim;
                         }
-                        // Kilka okien programu – licznik w rogu ikony.
-                        if b.count > 1: Rectangle {
-                            x: parent.width - 6px;
-                            y: (parent.height - root.ai) / 2 - 5px;
-                            width: max(14px, cnt.preferred-width + 6px);
-                            height: 14px;
-                            border-radius: 7px;
-                            background: Theme.accent;
-                            cnt := Text {
-                                text: b.count;
-                                font-size: 9.5px;
-                                font-weight: 700;
-                                color: white;
-                                horizontal-alignment: center;
-                                vertical-alignment: center;
-                            }
-                        }
                     }
                     if root.labels && parent.width >= 80px && b.count > 0: Text {
                         vertical-alignment: center;
@@ -1281,6 +1275,18 @@ export component TaskbarWindow inherits Window {
                         font-size: 12px;
                         color: b.minimized ? Theme.faint : Theme.text;
                     }
+                }
+                // Stan programu: uruchomiony – kropka, kilka okien – dłuższa, aktywny – kreska
+                // w kolorze akcentu; przypięty bez okien – kropka tylko pod kursorem.
+                if b.count > 0 || tb-ta.has-hover: Rectangle {
+                    x: (parent.width - self.width) / 2;
+                    y: parent.height - 4px;
+                    width: b.active ? 16px : b.count > 1 ? 10px : 6px;
+                    height: 3px;
+                    border-radius: 1.5px;
+                    background: b.active ? Theme.accent : Theme.dim;
+                    opacity: b.count == 0 ? 0.5 : b.minimized && !b.active ? 0.7 : 1;
+                    animate width { duration: 150ms; }
                 }
                 // Przy oknach podpowiedź zastępują podglądy (jak w Windows).
                 property <bool> hov: tb-ta.has-hover;

@@ -564,7 +564,7 @@ fn render(s: &Shared) {
                 }
             })
             .collect();
-        w.set_icons(ModelRc::new(VecModel::from(icons)));
+        crate::sync_model(w.get_icons(), icons, |m| w.set_icons(m));
     });
 }
 

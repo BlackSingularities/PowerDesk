@@ -116,6 +116,24 @@ thread_local! {
     static STATE: RefCell<Option<Shared>> = const { RefCell::new(None) };
 }
 
+/// Nowa zawartość listy w modelu Slint bez tworzenia elementów od nowa: przy tej samej liczbie
+/// wierszy zmieniamy tylko te, które się różnią. Podmiana całego modelu niszczy elementy razem
+/// ze stanem myszy – przerywała przeciąganie ikon (pulpit, zasobnik) i chowała podpowiedzi.
+pub fn sync_model<T: Clone + PartialEq + 'static>(current: slint::ModelRc<T>, rows: Vec<T>, set: impl FnOnce(slint::ModelRc<T>)) {
+    use slint::Model as _;
+    if let Some(vm) = current.as_any().downcast_ref::<slint::VecModel<T>>() {
+        if vm.row_count() == rows.len() {
+            for (i, r) in rows.into_iter().enumerate() {
+                if vm.row_data(i).as_ref() != Some(&r) {
+                    vm.set_row_data(i, r);
+                }
+            }
+            return;
+        }
+    }
+    set(slint::ModelRc::new(slint::VecModel::from(rows)));
+}
+
 pub fn with_state(f: impl FnOnce(&Shared)) {
     let s = STATE.with(|s| s.borrow().clone());
     if let Some(s) = s {
@@ -1919,7 +1937,7 @@ fn scroll_items(s: &Shared, pane: usize) {
         let b = s.borrow();
         let (top, _, h) = b.viewports[pane];
         let (lo, hi) = b.painted[pane];
-        top - h * 0.3 >= lo && top + h * 1.3 <= hi
+        top - h * 0.5 >= lo && top + h * 1.6 <= hi
     };
     if !skip {
         paint_pane(s, pane);
@@ -1934,7 +1952,9 @@ fn paint_pane(s: &Shared, pane: usize) {
         let b = s.borrow();
         b.panes.get(pane).map(|&tab| {
             let (top, _, h) = b.viewports[pane];
-            let (lo, hi) = (top - h, top + h * 2.0);
+            // Z zapasem (półtora ekranu wyżej, trzy niżej): miniatury galerii zamawiamy, zanim
+            // wjadą na ekran – przy przewijaniu nie dochodzą już na oczach (przycinanie).
+            let (lo, hi) = (top - h * 1.5, top + h * 3.0);
             (lo, hi, b.tabs[tab].visible_in(lo, hi))
         })
     }) else {

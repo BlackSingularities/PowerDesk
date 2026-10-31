@@ -1,5 +1,14 @@
 # Zmiany
 
+## 1.0.12
+
+- Pulpit: przeciąganie ikon działa (także niezaznaczonych) i domyślnie w dowolne miejsce.
+- Zasobnik: ikony chowają się pod strzałkę przeciągnięciem i pokazują nazwę po najechaniu (lista nie odświeża się już w trakcie).
+- Pasek: przyciski programów bez teł i plakietek – stan pokazuje kreska pod ikoną; Start bez tła.
+- Ikona PowerDesk: sama teczka, bez tła.
+- Okno wyboru folderu: „Wybierz folder” z nazwą bieżącego folderu w polu wybiera ten folder.
+- Galeria: miniatury zamawiane z większym wyprzedzeniem.
+
 ## 1.0.11
 
 - Instalator jako jedyny plik wydania (`PowerDesk-Setup-<wersja>.exe`), bez trybu przenośnego: instalacja w Program Files z uprawnieniami administratora, kolejne wersje i aktualizacje z programu w tym samym miejscu; pytanie o start z Windows.

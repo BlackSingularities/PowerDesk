@@ -1,9 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
   <defs>
-    <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#EAF2FF"/>
-      <stop offset="1" stop-color="#C6D9EF"/>
-    </linearGradient>
     <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#f5b81f"/>
       <stop offset="1" stop-color="#e09b0c"/>
@@ -13,8 +9,7 @@
       <stop offset="1" stop-color="#fcc83c"/>
     </linearGradient>
   </defs>
-  <rect width="1024" height="1024" rx="230" fill="url(#surface)"/>
-  <g transform="translate(133 133) scale(.74)">
+  <g>
   <!-- Tylna część z zakładką -->
   <path d="M40 210a70 70 0 0 1 70-70h250a70 70 0 0 1 50 21l60 62h444a70 70 0 0 1 70 70v520a70 70 0 0 1-70 70H110a70 70 0 0 1-70-70z" fill="url(#back)"/>
   <!-- Kartka w środku -->

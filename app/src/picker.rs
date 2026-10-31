@@ -574,6 +574,15 @@ fn decide(p: &Picker, name: &str) -> Act {
             };
         }
         let names = split_names(name);
+        // Pole „Folder” podpowiada nazwę bieżącego folderu (często wyświetlaną po polsku, np.
+        // „Muzyka” dla Music) – dołączona do ścieżki dawała nieistniejące „Music\Muzyka”.
+        // Jedna nazwa bez ukośników, której nie ma w tym folderze: zaznaczony folder albo bieżący.
+        if let [one] = names.as_slice() {
+            let plain = !one.contains(['\\', '/']);
+            if plain && !resolve(one).is_dir() {
+                return Act::Done(vec![one_dir().unwrap_or_else(|| p.dir.clone())]);
+            }
+        }
         let paths: Vec<PathBuf> = names.iter().map(|n| resolve(n)).collect();
         if let Some(miss) = paths.iter().find(|q| !q.is_dir()) {
             return Act::Notice(format!("Nie znaleziono folderu „{}”.", display(miss)));

@@ -87,6 +87,8 @@ thread_local! {
     static TIP_SEQ: Cell<u64> = const { Cell::new(0) };
     /// Ostatnio zamknięte okienko: rodzaj i chwila zamknięcia.
     static CLOSED: Cell<Option<(u8, std::time::Instant)>> = const { Cell::new(None) };
+    /// Trwa przeciąganie ikony zasobnika – listy ikon nie zmieniamy, dopóki jej nie puszczono.
+    static TRAY_DRAG: Cell<bool> = const { Cell::new(false) };
     /// Wysokość paska i ikon programów (piksele logiczne) z ustawień.
     static BAR_H: Cell<f32> = const { Cell::new(48.0) };
     static ICON: Cell<f32> = const { Cell::new(28.0) };
@@ -184,7 +186,17 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
             }
         });
         w.on_tray_app_click(|key, b| tray_click(&key, b));
-        w.on_tray_app_drop(|id, dx, to_arrow| tray_drop_on_bar(&id, dx, to_arrow));
+        w.on_tray_app_drop(|id, dx, to_arrow| {
+            TRAY_DRAG.with(|d| d.set(false));
+            tray_drop_on_bar(&id, dx, to_arrow)
+        });
+        w.on_tray_drag_state(|on| {
+            let was = TRAY_DRAG.with(|d| d.replace(on));
+            // Koniec przeciągania bez upuszczenia (np. Esc) – zaległe zmiany ikon.
+            if was && !on {
+                tray_apps();
+            }
+        });
         w.on_tray_overflow(move |x| open_tray_overflow(n, x));
         let _ = w.show();
         bars.push(Bar { w, origin: (m.x, m.y), mon: (m.width, m.height), pos: (m.x, m.y + m.height), placed: false, blurred: None, wins: Vec::new(), groups: Vec::new(), pins: Vec::new(), fg: 0 });
@@ -1534,6 +1546,9 @@ fn tray_app(i: &powerdesk_core::trayhost::Icon) -> TrayApp {
 /// Ikony programów: przypięte (w kolejności z ustawień) na pasku głównego monitora, reszta
 /// w okienku nad strzałką; „wszystkie na pasku” – bez okienka.
 fn tray_apps() {
+    if TRAY_DRAG.with(|d| d.get()) {
+        return;
+    }
     let icons = powerdesk_core::trayhost::icons();
     let (mut pinned, mut all) = (Vec::new(), false);
     crate::with_state(|s| {
@@ -1550,7 +1565,7 @@ fn tray_apps() {
     BARS.with(|b| {
         for bar in b.borrow().iter() {
             let main = bar.origin == (0, 0);
-            bar.w.set_tray_apps(ModelRc::new(VecModel::from(if main { shown.clone() } else { Vec::new() })));
+            crate::sync_model(bar.w.get_tray_apps(), if main { shown.clone() } else { Vec::new() }, |m| bar.w.set_tray_apps(m));
             bar.w.set_tray_hidden(if main { hidden.len() as i32 } else { 0 });
             bar.w.set_tray_all(main && all);
         }
@@ -1558,7 +1573,7 @@ fn tray_apps() {
     // Otwarte okienko ukrytych – nowa zawartość i wysokość.
     let open = POPUP.with(|p| match &*p.borrow() {
         Some(Popup::Tray(w, bar, x)) => {
-            w.set_apps(ModelRc::new(VecModel::from(hidden.clone())));
+            crate::sync_model(w.get_apps(), hidden.clone(), |m| w.set_apps(m));
             w.set_show_all(all);
             Some((*bar, *x, hidden.len()))
         }
