@@ -343,6 +343,15 @@ pub fn show_properties(hwnd: isize, path: &str) -> bool {
     }
 }
 
+/// Właściwości otwarte na zakładce o tej nazwie (np. „Zabezpieczenia”); nieznana nazwa – pierwsza zakładka.
+pub fn show_properties_page(hwnd: isize, path: &str, page: &str) -> bool {
+    unsafe {
+        let p = HSTRING::from(path);
+        let pg = HSTRING::from(page);
+        SHObjectProperties(Some(HWND(hwnd as *mut _)), SHOP_FILEPATH, &p, &pg).as_bool()
+    }
+}
+
 pub fn open_with(hwnd: isize, path: &str) -> bool {
     unsafe {
         let p = HSTRING::from(path);

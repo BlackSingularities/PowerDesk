@@ -253,6 +253,20 @@ pub fn eject(hwnd: isize, root: &str) -> Result<(), String> {
     crate::shell::invoke_verb(hwnd, root, "eject")
 }
 
+/// Okno formatowania Windows dla dysku o tej literze (np. „E:”).
+pub fn format_dialog(hwnd: isize, letter: &str) {
+    use windows::Win32::UI::Shell::{SHFormatDrive, SHFMT_ID_DEFAULT, SHFMT_OPT_NONE};
+    let Some(c) = letter.chars().next().map(|c| c.to_ascii_uppercase()).filter(|c| c.is_ascii_uppercase()) else { return };
+    unsafe {
+        SHFormatDrive(HWND(hwnd as *mut _), (c as u8 - b'A') as u32, SHFMT_ID_DEFAULT, SHFMT_OPT_NONE);
+    }
+}
+
+/// Panel BitLockera z Panelu sterowania.
+pub fn bitlocker() {
+    let _ = std::process::Command::new("control.exe").args(["/name", "Microsoft.BitLockerDriveEncryption"]).spawn();
+}
+
 /// Oczyszczanie dysku Windows dla tej litery.
 pub fn cleanup(letter: &str) {
     let l = letter.trim_end_matches(['\\', ':']);

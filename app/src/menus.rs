@@ -291,6 +291,16 @@ fn paths(v: &[fsx::Entry]) -> Vec<String> {
 }
 
 /// Menu elementu (FileView.svelte → itemMenu).
+/// Pliki, które Windows zwykle umie wydrukować czasownikiem „print”.
+const PRINTABLE: [&str; 14] = ["pdf", "txt", "rtf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "jpg", "jpeg", "png", "bmp"];
+
+/// Czasownik powłoki na pliku; błąd – powiadomienie („Nie udało się {co}: …”).
+fn verb(s: &Shared, path: &str, name: &str, what: &str) {
+    if let Err(e) = shell::invoke_verb(crate::hwnd(s), path, name) {
+        crate::transfers::toast(s, format!("Nie udało się {what}: {e}"), crate::transfers::Kind::Error, None);
+    }
+}
+
 pub fn item_menu(s: &Shared, x: f32, y: f32) {
     let sel = selection(s);
     if sel.is_empty() {
@@ -335,6 +345,15 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
             v.push(it("Otwórz za pomocą…", "app", move |s| {
                 shell::open_with(crate::hwnd(s), &p);
             }));
+            // Obrazy płyt i dysków wirtualnych – podłączenie jako dysk (jak „Zamontuj” w Eksploratorze).
+            if ["iso", "img", "vhd", "vhdx"].iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
+                let p = e.path.clone();
+                v.push(it("Zamontuj", "archive", move |s| verb(s, &p, "mount", "zamontować")));
+            }
+            if PRINTABLE.iter().any(|x| e.ext.eq_ignore_ascii_case(x)) && !crate::archives::inside(&e.path) {
+                let p = e.path.clone();
+                v.push(it("Drukuj", "open", move |s| verb(s, &p, "print", "wydrukować")));
+            }
             if e.ext.eq_ignore_ascii_case("lnk") {
                 let p = e.path.clone();
                 v.push(it("Otwórz lokalizację pliku", "folder", move |s| shortcut_target(s, &p, false)));
@@ -405,7 +424,17 @@ pub fn item_menu(s: &Shared, x: f32, y: f32) {
     let first = ps[0].clone();
     v.push(it("Pokaż w Eksploratorze", "open", move |_| reveal(&first)));
     v.push(sep());
+    if let Some(e) = one.as_ref().filter(|e| !crate::archives::inside(&e.path)) {
+        let p = e.path.clone();
+        v.push(it("Udostępnij…", "link", move |s| verb(s, &p, "Windows.ModernShare", "udostępnić")));
+    }
     v.push(it("Właściwości", "info", crate::props::open).kbd("Alt+Enter"));
+    if let Some(e) = one.as_ref().filter(|e| !crate::archives::inside(&e.path)) {
+        let p = e.path.clone();
+        v.push(it("Uprawnienia (Zabezpieczenia)…", "settings", move |s| {
+            shell::show_properties_page(crate::hwnd(s), &p, "Zabezpieczenia");
+        }));
+    }
     v.push(sep());
     let p2 = ps.clone();
     v.push(it("Pokaż więcej opcji (menu Windows)", "more", move |s| crate::native_menu(s, &p2, x, y)).kbd("Shift+PPM"));
@@ -793,6 +822,9 @@ pub fn side_menu(s: &Shared, path: String, x: f32, y: f32) {
         if d.kind == "fixed" || d.kind == "removable" {
             let l = d.letter.clone();
             v.push(it("Oczyszczanie dysku", "trash", move |_| drives::cleanup(&l)));
+            let l = d.letter.clone();
+            v.push(it("Formatuj…", "settings", move |s| drives::format_dialog(crate::hwnd(s), &l)).danger());
+            v.push(it("Zarządzaj funkcją BitLocker", "settings", |_| drives::bitlocker()));
         }
         let props = d.path.clone();
         v.push(it("Właściwości", "info", move |s| {
