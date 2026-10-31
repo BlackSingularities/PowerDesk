@@ -38,8 +38,8 @@ jobs:
           $parts = $ver.Split('.')
           $line = "$($parts[0]).$($parts[1])"
           $tags = @(gh release list --limit 200 --json tagName --jq '.[].tagName' 2>$null)
-          $nums = $tags | Where-Object { $_ -match "^v$([regex]::Escape($line))\.(\d+)$" } | ForEach-Object { [int]($_ -replace "^v$([regex]::Escape($line))\.", '') }
-          if ($nums) { $patch = ($nums | Measure-Object -Maximum).Maximum + 1 } else { $patch = [int]$parts[2] }
+          $nums = @($tags | Where-Object { $_ -match "^v$([regex]::Escape($line))\.(\d+)$" } | ForEach-Object { [int]($_ -replace "^v$([regex]::Escape($line))\.", '') })
+          if ($nums.Count -gt 0) { $patch = ($nums | Measure-Object -Maximum).Maximum + 1 } else { $patch = [int]$parts[2] }
           $v = "$line.$patch"
           "version=$v" >> $env:GITHUB_OUTPUT
 
