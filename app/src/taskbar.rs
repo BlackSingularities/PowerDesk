@@ -184,6 +184,10 @@ fn build(s: &Shared, mons: Vec<data::Monitor>) {
         w.on_battery_open(|| sysbar::open_settings("batterysaver"));
         w.on_usb_open(move |x| usb_menu(n, x));
         w.on_calendar_open(move |x| open_calendar(n, x));
+        w.on_kbd_next(|| {
+            powerdesk_core::kbdlayout::next(LAST_APP.with(|l| l.get()));
+            slint::Timer::single_shot(Duration::from_millis(150), refresh);
+        });
         w.on_notices_open(move |x| open_notices(n, x));
         w.on_vd_menu(move |x| vd_menu(n, x));
         w.on_vd_wheel(|d| {
@@ -1814,6 +1818,8 @@ fn refresh() {
         grouping = b.prefs.taskbar_group;
         labels = b.prefs.taskbar_labels;
     });
+    // Język okna, w którym się pisze (pasek nie przejmuje aktywności – ostatni program).
+    let kbd = powerdesk_core::kbdlayout::current(LAST_APP.with(|l| l.get()));
     let (time, date) = (now.format(if seconds { "%H:%M:%S" } else { "%H:%M" }).to_string(), now.format("%d.%m.%Y").to_string());
     BARS.with(|b| {
         // Jeden pasek pokazuje wszystkie okna (także z monitorów bez paska).
@@ -1849,6 +1855,8 @@ fn refresh() {
             }
             bar.w.set_time(time.clone().into());
             bar.w.set_date(date.clone().into());
+            bar.w.set_kbd_short(kbd.as_ref().map_or_else(Default::default, |k| k.short.clone().into()));
+            bar.w.set_kbd_name(kbd.as_ref().map_or_else(Default::default, |k| k.name.clone().into()));
         }
     });
     tray_status();

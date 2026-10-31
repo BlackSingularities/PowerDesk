@@ -1188,6 +1188,10 @@ export component TaskbarWindow inherits Window {
     }
     in property <string> time;
     in property <string> date;
+    /// Język klawiatury aktywnego okna (POL, ENG; puste – jeden układ, bez wskaźnika) i jego pełna nazwa.
+    in property <string> kbd-short;
+    in property <string> kbd-name;
+    callback kbd-next();
     // Zasobnik: głośność (0–1), sieć (0 – brak, 1 – Wi-Fi, 2 – kabel), bateria.
     in property <bool> has-volume;
     in property <float> volume;
@@ -1614,6 +1618,29 @@ export component TaskbarWindow inherits Window {
                 tip: root.notice-count > 0 ? "Powiadomienia (" + root.notice-count + " nowe)" : "Powiadomienia";
                 clicked => {
                     root.notices-open(nt.absolute-position.x);
+                }
+            }
+        }
+
+        // Język klawiatury – klik przełącza na następny układ (jak Win+Spacja).
+        if root.kbd-short != "": Rectangle {
+            height: root.ih;
+            y: (parent.height - self.height) / 2;
+            width: kb.preferred-width + 12px;
+            border-radius: Theme.r;
+            background: kb-ta.has-hover ? Theme.hover : transparent;
+            kb := Text {
+                text: root.kbd-short;
+                font-size: 11.5px;
+                font-weight: 600;
+                color: Theme.text;
+                vertical-alignment: center;
+                horizontal-alignment: center;
+            }
+            kb-ta := TipArea {
+                tip: (root.kbd-name != "" ? root.kbd-name + " · " : "") + "kliknij, by zmienić język (Win+Spacja)";
+                clicked => {
+                    root.kbd-next();
                 }
             }
         }

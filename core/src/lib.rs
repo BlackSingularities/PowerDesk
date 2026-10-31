@@ -11,6 +11,7 @@ pub mod compare;
 pub mod cliphist;
 pub mod shellhook;
 pub mod jumplist;
+pub mod kbdlayout;
 pub mod quick;
 pub mod shellnew;
 pub mod desktop;

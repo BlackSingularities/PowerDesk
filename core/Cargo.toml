@@ -84,6 +84,7 @@ features = [
   "Foundation",
   "Devices_Radios",
   "Win32_Devices_Display",
+  "Win32_Globalization",
   "Data_Pdf",
   "Media_Control",
   "Storage",
