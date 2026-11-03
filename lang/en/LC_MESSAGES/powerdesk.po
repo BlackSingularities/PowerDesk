@@ -30,7 +30,7 @@ msgstr "\n{} free of {}"
 
 #: app/src/termview.rs:128
 msgid "\r\nx1b[2m[proces zakończony – Enter uruchomi nowy]x1b[0m\r\n"
-msgstr ""
+msgstr "\r\nx1b[2m[process ended – press Enter to start a new one]x1b[0m\r\n"
 
 #: app/ui/settings.slint:1377
 msgid " (domyślna)"
@@ -1955,43 +1955,43 @@ msgstr "Drizzle"
 
 #: core/src/gamemode.rs:97
 msgid "NVAPI DeleteProfileSetting: błąd {r}"
-msgstr ""
+msgstr "NVAPI DeleteProfileSetting: error {r}"
 
 #: core/src/gamemode.rs:85
 msgid "NVAPI {what}: błąd {r}"
-msgstr ""
+msgstr "NVAPI {what}: error {r}"
 
 #: core/src/gamemode.rs:78
 msgid "NVAPI: brak CreateSession"
-msgstr ""
+msgstr "NVAPI: CreateSession missing"
 
 #: core/src/gamemode.rs:82
 msgid "NVAPI: brak DeleteProfileSetting"
-msgstr ""
+msgstr "NVAPI: DeleteProfileSetting missing"
 
 #: core/src/gamemode.rs:84
 msgid "NVAPI: brak DestroySession"
-msgstr ""
+msgstr "NVAPI: DestroySession missing"
 
 #: core/src/gamemode.rs:80
 msgid "NVAPI: brak GetBaseProfile"
-msgstr ""
+msgstr "NVAPI: GetBaseProfile missing"
 
 #: core/src/gamemode.rs:77
 msgid "NVAPI: brak Initialize"
-msgstr ""
+msgstr "NVAPI: Initialize missing"
 
 #: core/src/gamemode.rs:79
 msgid "NVAPI: brak LoadSettings"
-msgstr ""
+msgstr "NVAPI: LoadSettings missing"
 
 #: core/src/gamemode.rs:83
 msgid "NVAPI: brak SaveSettings"
-msgstr ""
+msgstr "NVAPI: SaveSettings missing"
 
 #: core/src/gamemode.rs:81
 msgid "NVAPI: brak SetSetting"
-msgstr ""
+msgstr "NVAPI: SetSetting missing"
 
 #: app/src/home.rs:477
 msgid "Na baterii"
@@ -2992,7 +2992,7 @@ msgstr "October"
 
 #: core/src/render.rs:44
 msgid "Pchnąć w tę łódź jeża lub ośm skrzyń fig."
-msgstr ""
+msgstr "The quick brown fox jumps over the lazy dog."
 
 #: app/src/desktop.rs:1136
 msgid "Personalizuj"
@@ -3404,7 +3404,7 @@ msgstr "PowerDesk {have} is already installed in:\n{}\n\nInstall version {} in t
 
 #: core/src/log.rs:65
 msgid "PowerDesk {version}\n{} · {}\nProcesor: {} ({} wątków), RAM: {} MB\nTryb powłoki: {} · zainstalowany: {}\n\n--- dziennik (ostatnie 200 wierszy) ---\n{}"
-msgstr ""
+msgstr "PowerDesk {version}\n{} · {}\nProcessor: {} ({} threads), RAM: {} MB\nShell mode: {} · installed: {}\n\n--- log (last 200 lines) ---\n{}"
 
 #: app/src/setup.rs:117
 msgid "PowerDesk {} zainstalowano w:\n{}\n\nPo zalogowaniu PowerDesk zastępuje Eksplorator: pulpit, pasek zadań i menu Start. Aktualizacje instalują się w tym samym miejscu (Windows zapyta o uprawnienia administratora).\nOdinstalujesz go w Ustawieniach Windows → Aplikacje albo w Ustawieniach PowerDesk → System."
@@ -5718,7 +5718,7 @@ msgstr "Selected {}"
 
 #: core/src/render.rs:40
 msgid "Zażółć gęślą jaźń"
-msgstr ""
+msgstr "Sphinx of black quartz"
 
 #: app/ui/shelf.slint:207
 msgid "Zdejmij z półki"
@@ -5957,7 +5957,7 @@ msgstr "no image in the response"
 
 #: app/src/home.rs:153
 msgid "błąd"
-msgstr ""
+msgstr "error"
 
 #: core/src/sync.rs:656
 msgid "błędy {}"
@@ -6184,7 +6184,7 @@ msgstr "comparing…"
 
 #: app/src/main.rs:381
 msgid "powłoka"
-msgstr ""
+msgstr "shell"
 
 #: app/src/cliphistory.rs:117
 msgid "przed chwilą"
@@ -6265,7 +6265,7 @@ msgstr "print"
 
 #: app/src/main.rs:381
 msgid "z Eksploratorem"
-msgstr ""
+msgstr "with Explorer"
 
 #: app/src/menus.rs:355
 msgid "zamontować"
@@ -6321,7 +6321,7 @@ msgstr "{small_count} smaller files"
 
 #: core/src/sync_core.rs:340
 msgid "{stem} (konflikt {host} {stamp}){ext}"
-msgstr ""
+msgstr "{stem} (conflict {host} {stamp}){ext}"
 
 #: app/src/shelf.rs:225
 msgid "{target} · wybrane: {picked}"
