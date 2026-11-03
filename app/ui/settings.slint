@@ -102,6 +102,7 @@ export global SettingsState {
     // Tapety: tryb (0 – Windows, 1 – pokaz slajdów, 2 – Bing), folder, co ile minut.
     in-out property <bool> vd-button;
     in-out property <bool> taskbar-all;
+    in-out property <bool> shell-only;
     /// Przyciski wszystkich okien na każdym pasku.
     in-out property <bool> taskbar-buttons-all;
     in-out property <bool> zones-on;
@@ -1536,6 +1537,15 @@ export component SettingsView inherits Rectangle {
                         on: SettingsState.taskbar-blur;
                         toggled => {
                             SettingsState.toggle("taskbar-blur");
+                        }
+                    }
+                    ToggleRow {
+                        icon: Icons.desktop;
+                        text: @tr("Tylko nakładki powłoki (bez pulpitu i paska PowerDesk)");
+                        hint: @tr("Pulpit i pasek zadań zostają Windows; PowerDesk dalej otwiera foldery, „Ten komputer”, okna „Otwórz/Zapisz” i inne wywołania");
+                        on: SettingsState.shell-only;
+                        toggled => {
+                            SettingsState.toggle("shell-only");
                         }
                     }
                     ToggleRow {

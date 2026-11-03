@@ -1,5 +1,9 @@
 # Zmiany
 
+## 1.1.2
+
+- Ustawienia → Pasek zadań: „Tylko nakładki powłoki” – pulpit i pasek PowerDesk całkiem wyłączone (wracają Windows, także klawisz Win), a PowerDesk dalej obsługuje foldery, „Ten komputer”, okna „Otwórz/Zapisz” i inne wywołania. Przełącza się od razu, bez restartu.
+
 ## 1.1.1
 
 - Pulpit: upuszczanie plików z innych programów (okna folderów, przeglądarka, poczta) – kopiowanie albo przeniesienie na Pulpit jak w Eksploratorze (Ctrl – kopiuj, Shift – przenieś), ikony stają w miejscu upuszczenia.

@@ -242,6 +242,7 @@ fn render(s: &Shared) {
     g.set_zones_on(p.zones_on);
     g.set_vd_button(p.vd_button);
     g.set_taskbar_all(p.taskbar_all_monitors);
+    g.set_shell_only(p.shell_only);
     g.set_zones_layout(p.zones_layout as i32);
     g.set_wall_minutes(p.wallpaper_minutes as i32);
     g.set_remembered(p.folders.len() as i32);
@@ -516,7 +517,26 @@ pub fn toggle(s: &Shared, key: &str) {
         "taskbar-all" => {
             change(s, |p| p.taskbar_all_monitors = !p.taskbar_all_monitors);
             crate::taskbar::close();
-            crate::taskbar::open(s);
+            if !s.borrow().prefs.shell_only {
+                crate::taskbar::open(s);
+            }
+        }
+        // Pulpit i pasek PowerDesk znikają (wracają Windows) albo wracają od razu, bez restartu.
+        "shell-only" => {
+            change(s, |p| p.shell_only = !p.shell_only);
+            let on = s.borrow().prefs.shell_only;
+            if on {
+                crate::start::close();
+                crate::desktop::close();
+                crate::taskbar::close();
+                powerdesk_core::shellswap::restore();
+                powerdesk_core::startmenu::pause_hook(true);
+            } else {
+                powerdesk_core::startmenu::pause_hook(false);
+                crate::desktop::open(s);
+                crate::taskbar::open(s);
+            }
+            with_ui(s, |g| g.set_shell_only(on));
         }
         "game-power" => {
             change(s, |p| p.game_power = !p.game_power);

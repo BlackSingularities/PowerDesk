@@ -118,6 +118,8 @@ static ON_START: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 /// Win+V – historia schowka PowerDesk zamiast systemowej.
 static ON_CLIPBOARD: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 static WIN_DOWN: AtomicBool = AtomicBool::new(false);
+/// Hak wstrzymany (pasek PowerDesk wyłączony) – klawisze idą prosto do Windows.
+static PAUSED: AtomicBool = AtomicBool::new(false);
 static COMBO: AtomicBool = AtomicBool::new(false);
 /// Skróty z Win obsługiwane przez PowerDesk – (klawisz, Shift). Z Eksploratorem w tle tylko te,
 /// które dotyczą jego ukrytego paska (`ALWAYS`); resztę (Win+I/A/N/R/Tab…) obsługuje on sam.
@@ -144,7 +146,7 @@ fn send_mask() {
 }
 
 unsafe extern "system" fn hook(code: i32, wp: WPARAM, lp: LPARAM) -> LRESULT {
-    if code >= 0 {
+    if code >= 0 && !PAUSED.load(Ordering::SeqCst) {
         let k = &*(lp.0 as *const KBDLLHOOKSTRUCT);
         let injected = k.flags.0 & LLKHF_INJECTED.0 != 0;
         let win = k.vkCode == VK_LWIN.0 as u32 || k.vkCode == VK_RWIN.0 as u32;
@@ -240,6 +242,11 @@ pub fn hook_win_v(on_clipboard: impl Fn() + Send + Sync + 'static) {
 /// Skróty z Win w trybie powłoki (kod klawisza i Shift – zob. ON_SHELL_KEY); wywołać przed `hook_win_key`.
 pub fn hook_shell_keys(on_key: impl Fn(u8, bool) + Send + Sync + 'static) {
     let _ = ON_SHELL_KEY.set(Box::new(on_key));
+}
+
+/// Wstrzymuje albo wznawia hak Win (Win, Win+V i skróty powłoki wracają do Windows).
+pub fn pause_hook(on: bool) {
+    PAUSED.store(on, Ordering::SeqCst);
 }
 
 /// Samo Win (bez innego klawisza) otwiera menu Start PowerDesk. Hak żyje na własnym wątku

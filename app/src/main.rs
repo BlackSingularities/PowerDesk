@@ -478,8 +478,11 @@ fn main() -> Result<(), slint::PlatformError> {
     // Po poprzedniej awarii (plik stanu został) najpierw porządek, potem podmiana od nowa.
     powerdesk_core::shellswap::restore();
     powerdesk_core::shellswap::spawn_guard();
-    desktop::open(&st);
-    taskbar::open(&st);
+    // „Tylko nakładki powłoki” – pulpit i pasek zostają Windows.
+    if !st.borrow().prefs.shell_only {
+        desktop::open(&st);
+        taskbar::open(&st);
+    }
     // Nakładka z wydajnością: skrót Alt+R, a jeśli była włączona – od razu.
     overlay::init();
     // Strefy okien: Shift przy przeciąganiu okna.

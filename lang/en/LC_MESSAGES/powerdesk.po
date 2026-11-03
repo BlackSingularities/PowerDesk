@@ -6595,3 +6595,11 @@ msgstr "✕ target: {r}"
 #: core/src/sync_core.rs:63
 msgid "✕ źródło: {r}"
 msgstr "✕ source: {r}"
+
+#: app/ui/settings.slint
+msgid "Tylko nakładki powłoki (bez pulpitu i paska PowerDesk)"
+msgstr "Shell overlays only (no PowerDesk desktop or taskbar)"
+
+#: app/ui/settings.slint
+msgid "Pulpit i pasek zadań zostają Windows; PowerDesk dalej otwiera foldery, „Ten komputer”, okna „Otwórz/Zapisz” i inne wywołania"
+msgstr "The desktop and taskbar stay Windows'; PowerDesk still opens folders, “This PC”, Open/Save dialogs and other calls"
