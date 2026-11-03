@@ -112,11 +112,14 @@ component Act inherits Rectangle {
     VerticalLayout {
         alignment: center;
         spacing: 4px;
-        Icon {
-            x: (parent.width - self.width) / 2;
-            commands: root.icon;
-            size: 17px;
-            color: root.main ? Theme.on-accent : Theme.text;
+        // Ikona w osobnym polu – sama w układzie ograniczałaby szerokość całego przycisku do swojej.
+        Rectangle {
+            height: 17px;
+            Icon {
+                commands: root.icon;
+                size: 17px;
+                color: root.main ? Theme.on-accent : Theme.text;
+            }
         }
         Label {
             horizontal-alignment: center;
@@ -448,30 +451,7 @@ export component PreviewPane inherits Rectangle {
                 value: r.value;
             }
             for sec in PreviewState.sections: VerticalLayout {
-                spacing: 6px;
-                padding-top: 6px;
-                HorizontalLayout {
-                    spacing: 7px;
-                    Icon {
-                        y: (parent.height - self.height) / 2;
-                        commands: sec.icon;
-                        size: 14px;
-                        color: Theme.dim;
-                    }
-                    Label {
-                        text: sec.title;
-                        font-size: 12px;
-                        font-weight: 600;
-                    }
-                    Rectangle {
-                        horizontal-stretch: 1;
-                        Rectangle {
-                            y: parent.height / 2;
-                            height: 1px;
-                            background: Theme.line;
-                        }
-                    }
-                }
+                spacing: 12px;
                 for r in sec.rows: Row {
                     label: r.label;
                     value: r.value;

@@ -454,22 +454,6 @@ export component ViewerView inherits Rectangle {
                             alignment: start;
                             for sec in ViewerState.sections: VerticalLayout {
                                 spacing: 5px;
-                                padding-bottom: 8px;
-                                HorizontalLayout {
-                                    spacing: 7px;
-                                    Icon {
-                                        y: (parent.height - self.height) / 2;
-                                        commands: sec.icon;
-                                        size: 14px;
-                                        color: #ffffffa6;
-                                    }
-                                    Label {
-                                        text: sec.title;
-                                        font-size: 12px;
-                                        font-weight: 600;
-                                        color: #ffffff;
-                                    }
-                                }
                                 for r in sec.rows: HorizontalLayout {
                                     spacing: 10px;
                                     Text {

@@ -114,6 +114,8 @@ export global HomeState {
     in-out property <string> sys-note;
     callback tool(string);
     callback drive-menu(string, length, length);
+    /// Menu karty Dyski: pierwszy dysk (pusty – brak) i miejsce menu.
+    callback drives-menu(string, length, length);
     callback move-section(string, int);
     callback toggle-section(string);
     callback go(string);
@@ -127,6 +129,9 @@ export global HomeState {
 component Card inherits Rectangle {
     in property <string> title;
     in property <string> note;
+    /// Przycisk z trzema kropkami w prawym górnym rogu – współrzędne menu w oknie.
+    in property <bool> has-menu;
+    callback menu(length, length);
     border-radius: Theme.r-l;
     background: Theme.card;
     border-width: 1px;
@@ -148,8 +153,32 @@ component Card inherits Rectangle {
                 font-size: 11.5px;
                 color: Theme.faint;
             }
+            // Miejsce na przycisk – leży poza układem, żeby nagłówek miał wysokość jak w sąsiednich kartach.
+            if root.has-menu: Rectangle {
+                width: 22px;
+            }
         }
         @children
+    }
+    if root.has-menu: Rectangle {
+        x: parent.width - 36px;
+        y: 10px;
+        width: 26px;
+        height: 26px;
+        border-radius: Theme.r-s;
+        background: dots-ta.has-hover ? Theme.hover : transparent;
+        Icon {
+            commands: Icons.more;
+            size: 16px;
+            color: Theme.dim;
+            transform-rotation: 90deg;
+        }
+        dots-ta := TipArea {
+            tip: @tr("Więcej");
+            clicked => {
+                root.menu(self.absolute-position.x, self.absolute-position.y + self.height);
+            }
+        }
     }
 }
 
@@ -512,6 +541,7 @@ export component HomeView inherits Rectangle {
                         }
                     }
                     Label {
+                        horizontal-alignment: center;
                         text: HomeState.sys-note;
                         font-size: 11.5px;
                         color: Theme.faint;
@@ -523,6 +553,10 @@ export component HomeView inherits Rectangle {
                         width: root.col-w;
                         title: @tr("Dyski");
                         note: HomeState.storage;
+                        has-menu: true;
+                        menu(x, y) => {
+                            HomeState.drives-menu(HomeState.drives.length > 0 ? HomeState.drives[0].path : "", x, y);
+                        }
                         for d in HomeState.drives: LinkRow {
                             icon: d.icon;
                             text: d.name;
@@ -539,22 +573,6 @@ export component HomeView inherits Rectangle {
                             }
                             menu(x, y) => {
                                 HomeState.drive-menu(d.path, x, y);
-                            }
-                        }
-                        HorizontalLayout {
-                            spacing: 6px;
-                            alignment: start;
-                            if HomeState.drives.length > 0: Chip {
-                                text: @tr("Co zajmuje miejsce?");
-                                clicked => {
-                                    HomeState.go("ofp:space|" + HomeState.drives[0].path);
-                                }
-                            }
-                            Chip {
-                                text: @tr("Mapuj dysk sieciowy…");
-                                clicked => {
-                                    HomeState.tool("map");
-                                }
                             }
                         }
                     }

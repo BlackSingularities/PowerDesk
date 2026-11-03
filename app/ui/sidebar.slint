@@ -259,11 +259,11 @@ export component Sidebar inherits Rectangle {
                         spacing: 11px;
                         alignment: root.mini ? center : stretch;
                         // Ikona systemowa (jak w Eksploratorze); liniowa tylko do czasu jej wczytania.
-                        // Stała kolumna 20 px i środek na wysokości nazwy – tekst wszystkich pozycji
-                        // zaczyna się w tej samej linii, także w wierszach dysków z paskiem.
+                        // Stała kolumna 20 px – tekst wszystkich pozycji zaczyna się w tej samej linii;
+                        // ikona wyśrodkowana w pionie względem całego wiersza, także dysku z paskiem.
                         Rectangle {
                             width: 20px;
-                            property <length> top: it.detail != "" && !root.mini ? 8px : (parent.height - 18px) / 2;
+                            property <length> top: (parent.height - 18px) / 2;
                             if it.has-img: Image {
                                 x: 1px;
                                 y: parent.top;

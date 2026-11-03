@@ -1,5 +1,13 @@
 # Zmiany
 
+## 1.1.5
+
+- Panel podglądu: przyciski akcji znów mają pełną szerokość i podpisy.
+- Właściwości bez grupowania: jedna ciągła lista w panelu podglądu, oknie Właściwości i przeglądarce zdjęć.
+- Pasek adresu: właściwa ikona widoków Komputer i Sieć zamiast globusa.
+- Panel boczny: ikony wyśrodkowane w pionie.
+- Komputer: polecenia karty Dyski w menu z trzema kropkami, wyśrodkowana stopka karty Komputer.
+
 ## 1.1.2
 
 - Zamknięcie okna folderów nie resetuje już pulpitu ani paska: naprawiona awaria przy zamykaniu, a zamknięcie okna lub ostatniej karty nie kończy programu, gdy działa pulpit albo pasek PowerDesk.

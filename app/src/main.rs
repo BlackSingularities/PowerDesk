@@ -3279,8 +3279,17 @@ pub fn render_side(s: &Shared) {
     ui.set_side_mini(b.prefs.side_mini);
     ui.set_side_width(b.prefs.side_width.clamp(180.0, 420.0));
     ui.set_side(ModelRc::new(VecModel::from(items_out)));
-    ui.set_folder_icon(thumbs::get(&t.path, (16.0 * scale) as u32, true).unwrap_or_default());
+    // Widoki PowerDesk nie są ścieżkami – system dałby im ikonę adresu internetowego (globus).
+    let addr_icon = match t.path.as_str() {
+        crate::model::HOME => Some(desktop::COMPUTER.to_string()),
+        NET => Some("::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}".to_string()),
+        p if p.starts_with("ofp:") => None,
+        p => Some(p.to_string()),
+    };
+    ui.set_folder_icon(addr_icon.as_deref().and_then(|p| thumbs::get(p, (16.0 * scale) as u32, true)).unwrap_or_default());
     drop(b);
+    // Ikona dochodzi w tle – jej nadejście ma przerysować też pasek adresu.
+    paths.extend(addr_icon);
     s.borrow_mut().side_paths = paths;
 }
 

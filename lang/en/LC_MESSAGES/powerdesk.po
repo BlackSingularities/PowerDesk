@@ -6635,3 +6635,7 @@ msgstr "Dense"
 #: app/src/desktop.rs
 msgid "Luźne"
 msgstr "Loose"
+
+#: app/ui/home.slint
+msgid "Więcej"
+msgstr "More"

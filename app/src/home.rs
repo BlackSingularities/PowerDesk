@@ -693,4 +693,14 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     g.on_tool(move |k| run_tool(&s, &k));
     let s = st.clone();
     g.on_drive_menu(move |p, x, y| crate::menus::side_menu(&s, p.into(), x, y));
+    let s = st.clone();
+    g.on_drives_menu(move |first, x, y| {
+        let mut items = Vec::new();
+        if !first.is_empty() {
+            let target = format!("{}{first}", crate::spaceview::PREFIX);
+            items.push(it(crate::tr("Co zajmuje miejsce?"), "search", move |s| crate::navigate(s, &target, true)));
+        }
+        items.push(it(crate::tr("Mapuj dysk sieciowy…"), "plus", |s| run_tool(s, "map")));
+        crate::menus::show(&s, items, x, y);
+    });
 }

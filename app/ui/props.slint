@@ -371,11 +371,6 @@ export component PropsDialog inherits Rectangle {
                         }
                         for sec in Props.sections: VerticalLayout {
                             spacing: 8px;
-                            padding-top: 10px;
-                            SecHead {
-                                title: sec.title;
-                                icon: sec.icon;
-                            }
                             for r in sec.rows: Row {
                                 label: r.label;
                                 value: r.value;
