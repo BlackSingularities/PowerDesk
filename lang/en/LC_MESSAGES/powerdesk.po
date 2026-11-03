@@ -6603,3 +6603,35 @@ msgstr "Shell overlays only (no PowerDesk desktop or taskbar)"
 #: app/ui/settings.slint
 msgid "Pulpit i pasek zadań zostają Windows; PowerDesk dalej otwiera foldery, „Ten komputer”, okna „Otwórz/Zapisz” i inne wywołania"
 msgstr "The desktop and taskbar stay Windows'; PowerDesk still opens folders, “This PC”, Open/Save dialogs and other calls"
+
+#: app/src/desktop.rs
+msgid "Normalne odstępy"
+msgstr "Normal spacing"
+
+#: app/src/desktop.rs
+msgid "Gęste odstępy"
+msgstr "Dense spacing"
+
+#: app/src/desktop.rs
+msgid "Luźne odstępy"
+msgstr "Loose spacing"
+
+#: app/src/desktop.rs
+msgid "Ctrl+kółko na pulpicie płynnie zmienia rozmiar ikon"
+msgstr "Ctrl+wheel on the desktop smoothly resizes icons"
+
+#: app/src/desktop.rs
+msgid "Odstępy między ikonami"
+msgstr "Icon spacing"
+
+#: app/src/desktop.rs
+msgid "Normalne"
+msgstr "Normal"
+
+#: app/src/desktop.rs
+msgid "Gęste"
+msgstr "Dense"
+
+#: app/src/desktop.rs
+msgid "Luźne"
+msgstr "Loose"

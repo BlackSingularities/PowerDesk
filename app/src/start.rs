@@ -142,6 +142,7 @@ pub fn toggle(x: i32, bottom: i32, scale: f32, light: bool, accent: slint::Color
     });
     w.on_tile_context(|t, x, y| tile_menu(t as usize, x, y));
     w.on_tile_drop(|t, x, y| tile_drop(t as usize, x, y));
+    w.on_tile_drag(|t, x, y| tile_drag(t as usize, x, y));
     w.on_group_rename(|g, name| {
         edit_groups(|gs| {
             if let Some(gr) = gs.get_mut(g as usize) {
@@ -476,11 +477,56 @@ fn launch_tile(i: usize) {
 
 fn tile_drop(i: usize, x: f32, y: f32) {
     let Some(from) = placed(i) else { return };
-    let target = PLACED.with(|p| {
-        let p = p.borrow();
-        tiles::target(&p.0, &p.1, FOLDER.with(|f| f.get()).is_some(), x, y)
-    });
+    let target = drop_target(from, x, y);
     edit_groups(|gs| tiles::drop(gs, from, target));
+}
+
+/// Miejsce upuszczenia kafelka `from`, gdy jego środek jest w punkcie (x, y).
+fn drop_target(from: At, x: f32, y: f32) -> tiles::Target {
+    let mut out = tiles::Target::NewGroup;
+    crate::with_state(|s| {
+        let b = s.borrow();
+        let gs = &b.prefs.start_groups;
+        let movable = tiles::get(gs, from).is_some_and(|p| !p.is_folder() && p.widget.is_empty());
+        let nest = |at: At| movable && tiles::get(gs, at).is_some_and(|d| d.widget.is_empty());
+        out = PLACED.with(|p| {
+            let p = p.borrow();
+            tiles::target(&p.0, &p.1, FOLDER.with(|f| f.get()).is_some(), &nest, x, y)
+        });
+    });
+    out
+}
+
+/// W trakcie przeciągania: obrys miejsca, w którym kafelek wyląduje.
+fn tile_drag(i: usize, x: f32, y: f32) {
+    let Some(from) = placed(i) else { return };
+    let target = drop_target(from, x, y);
+    let spot = PLACED.with(|p| {
+        let p = p.borrow();
+        let size = p.0.get(i).map_or((0.0, 0.0), |d| (d.w, d.h));
+        let beside = |d: &Placed| (d.x + d.w + tiles::GAP, d.y, size.0, size.1);
+        match target {
+            tiles::Target::Into(at) if at != from => p.0.iter().find(|d| d.at == at).map(|d| (d.x, d.y, d.w, d.h)),
+            tiles::Target::Before(at) if at != from => match p.0.iter().find(|d| d.at == at) {
+                Some(d) => Some((d.x, d.y, size.0, size.1)),
+                // Za ostatnim w grupie albo folderze.
+                None => p.0.iter().rfind(|d| d.at.group == at.group && (at.child.is_none() || d.at.tile == at.tile)).map(beside),
+            },
+            tiles::Target::End(g) => p.0.iter().rfind(|d| d.at.group == g && d.at != from).map(beside),
+            _ => None,
+        }
+    });
+    START.with(|st| {
+        let st = st.borrow();
+        let Some(st) = st.as_ref() else { return };
+        st.w.set_drop_show(spot.is_some());
+        if let Some((x, y, w, h)) = spot {
+            st.w.set_drop_x(x);
+            st.w.set_drop_y(y);
+            st.w.set_drop_w(w);
+            st.w.set_drop_h(h);
+        }
+    });
 }
 
 /// Podmenu rozmiaru kafelka (zaznaczony bieżący).

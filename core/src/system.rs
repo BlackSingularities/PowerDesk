@@ -196,6 +196,31 @@ pub fn empty_recycle_bin() {
 }
 
 /// Okno z przezroczystym tłem: DWM łączy kanał alfa okna z tym, co pod spodem (bez rozmycia).
+/// Okno bez stylów belki tytułu: na ramce DWM rozciągniętej na okno (see_through) system rysuje
+/// inaczej przycisk zamknięcia w prawym górnym rogu.
+pub fn strip_caption(hwnd: isize) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::UI::WindowsAndMessaging::{GetWindowLongPtrW, SetWindowLongPtrW, SetWindowPos, GWL_STYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, WS_CAPTION, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_SYSMENU, WS_THICKFRAME};
+    if hwnd == 0 {
+        return;
+    }
+    let h = HWND(hwnd as *mut _);
+    let drop = (WS_CAPTION.0 | WS_SYSMENU.0 | WS_MINIMIZEBOX.0 | WS_MAXIMIZEBOX.0 | WS_THICKFRAME.0) as isize;
+    unsafe {
+        let style = GetWindowLongPtrW(h, GWL_STYLE);
+        if style & drop != 0 {
+            SetWindowLongPtrW(h, GWL_STYLE, style & !drop);
+            let _ = SetWindowPos(h, None, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+        }
+    }
+}
+
+/// Czy wciśnięty jest Ctrl (także gdy okno nie ma fokusu – pulpit dostaje kółko bez fokusu).
+pub fn ctrl_held() -> bool {
+    use windows::Win32::UI::Input::KeyboardAndMouse::{GetAsyncKeyState, VK_CONTROL};
+    unsafe { GetAsyncKeyState(VK_CONTROL.0 as i32) < 0 }
+}
+
 pub fn see_through(hwnd: isize) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Dwm::DwmExtendFrameIntoClientArea;

@@ -1862,6 +1862,7 @@ fn place(bar: &mut Bar) {
     if hwnd == 0 {
         return;
     }
+    powerdesk_core::system::strip_caption(hwnd);
     let scale = bar.w.window().scale_factor();
     let h = (height() * scale).round() as i32;
     bar.pos = (bar.origin.0, bar.origin.1 + bar.mon.1 - h);
@@ -1888,9 +1889,10 @@ fn place(bar: &mut Bar) {
         }
         bar.placed = true;
     }
-    // Okno na cały monitor (gra, film) – pasek pod nim; inaczej na wierzchu.
+    // Okno na cały monitor (gra, film w przeglądarce) – pasek schowany; inaczej na wierzchu
+    // (place_topmost pokazuje go z powrotem).
     if taskwin::covers(taskwin::foreground(), bar.origin.0, bar.origin.1, bar.mon.0, bar.mon.1) {
-        taskwin::place_normal(hwnd);
+        taskwin::hide_native(hwnd);
     } else {
         taskwin::place_topmost(hwnd, bar.pos.0, y, bar.mon.0, h);
     }

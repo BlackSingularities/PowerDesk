@@ -1348,13 +1348,13 @@ export component TaskbarWindow inherits Window {
         y: 0;
         height: 1px;
         background: Theme.line;
-        opacity: root.bg-alpha;
+        opacity: root.bg-alpha * 0.7;
     }
 
     HorizontalLayout {
         padding-left: 8px;
         padding-right: 0px;
-        spacing: 4px;
+        spacing: 6px;
 
         // Start: ikona PowerDesk albo własny obraz z ustawień (klatki: zwykły, pod kursorem,
         // wciśnięty, otwarty Start – jak „kulki” Start z innych programów).
@@ -1364,8 +1364,9 @@ export component TaskbarWindow inherits Window {
             height: root.has-start-img ? self.img-h : root.ih;
             y: (parent.height - self.height) / 2;
             border-radius: Theme.r;
-            // Jak przyciski programów – bez tła; otwarty Start i kursor rozjaśniają samą ikonę.
-            background: transparent;
+            // Własny obraz ma swoje klatki; zwykła ikona – miękkie tło pod kursorem i przy otwartym Starcie.
+            background: !root.has-start-img && (root.start-open || st-ta.has-hover) ? Theme.hover : transparent;
+            animate background { duration: 120ms; }
             if !root.has-start-img: Icon {
                 commands: Icons.grid;
                 size: min(26px, root.ai);
@@ -1454,8 +1455,10 @@ export component TaskbarWindow inherits Window {
                 y: (parent.height - self.height) / 2;
                 width: b.count == 0 ? root.pin-w : parent.each;
                 height: root.ih;
-                // Bez teł i kształtów pod ikoną – stan pokazuje kreska pod spodem (niżej).
-                background: transparent;
+                // Miękkie tło pod kursorem i pod aktywnym oknem; stan dopełnia kreska pod spodem (niżej).
+                border-radius: Theme.r;
+                background: tb-ta.has-hover || (b.active && b.count > 0) ? Theme.hover : transparent;
+                animate background { duration: 120ms; }
                 // Przeciąganie przycisku (przypiętego i uruchomionego): przycisk przygasa, miejsce wybiera puszczenie.
                 property <bool> dragging: tb-ta.pressed && abs(tb-ta.mouse-x - tb-ta.pressed-x) > 8px;
                 property <bool> was-drag;
@@ -1531,7 +1534,7 @@ export component TaskbarWindow inherits Window {
                 if b.active && b.count > 0: Rectangle {
                     x: (parent.width - self.width) / 2;
                     y: parent.height - 4px;
-                    width: 16px;
+                    width: 20px;
                     height: 3px;
                     border-radius: 1.5px;
                     background: Theme.accent;
@@ -1728,6 +1731,7 @@ export component TaskbarWindow inherits Window {
                     text: root.time;
                     horizontal-alignment: right;
                     font-size: 12.5px;
+                    font-weight: 500;
                     color: Theme.text;
                 }
                 if root.show-date: Text {

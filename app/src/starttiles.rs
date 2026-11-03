@@ -266,12 +266,23 @@ pub fn drop(groups: &mut Vec<StartGroup>, from: At, target: Target) {
     cleanup(groups);
 }
 
-/// Co jest pod punktem upuszczenia (x, y w obszarze kafelków). Środek kafelka – folder,
-/// reszta kafelka – miejsce przed nim; poza kafelkami – koniec grupy albo nowa grupa.
-pub fn target(tiles: &[Placed], heads: &[Head], folder: bool, x: f32, y: f32) -> Target {
+/// Co jest pod punktem upuszczenia (x, y w obszarze kafelków – środek przeciąganego kafelka).
+/// Środek kafelka – folder, o ile `nest` na to pozwala (widżety nie tworzą folderów);
+/// reszta kafelka – miejsce przed nim albo za nim, wg połowy, nad którą jest punkt;
+/// poza kafelkami – koniec grupy albo nowa grupa.
+pub fn target(tiles: &[Placed], heads: &[Head], folder: bool, nest: &dyn Fn(At) -> bool, x: f32, y: f32) -> Target {
     if let Some(p) = tiles.iter().find(|p| x >= p.x && x < p.x + p.w + GAP && y >= p.y && y < p.y + p.h + GAP) {
         let inner = x > p.x + p.w * 0.25 && x < p.x + p.w * 0.75 && y > p.y + p.h * 0.25 && y < p.y + p.h * 0.75;
-        return if inner && !folder { Target::Into(p.at) } else { Target::Before(p.at) };
+        if inner && !folder && nest(p.at) {
+            return Target::Into(p.at);
+        }
+        if x <= p.x + p.w / 2.0 {
+            return Target::Before(p.at);
+        }
+        return Target::Before(match p.at.child {
+            Some(c) => At { child: Some(c + 1), ..p.at },
+            None => At { tile: p.at.tile + 1, ..p.at },
+        });
     }
     if folder {
         // Koniec folderu – za ostatnim kafelkiem.
@@ -308,6 +319,15 @@ mod tests {
         drop(&mut gs, At { group: 0, tile: 0, child: None }, Target::Before(At { group: 0, tile: 2, child: None }));
         let names: Vec<_> = gs[0].tiles.iter().map(|t| t.path.as_str()).collect();
         assert_eq!(names, ["b", "a", "c"]);
+    }
+
+    #[test]
+    fn widget_center_goes_beside() {
+        let tiles = [Placed { at: At { group: 0, tile: 0, child: None }, x: 0.0, y: 0.0, w: 100.0, h: 100.0 }];
+        let t = target(&tiles, &[], false, &|_| false, 60.0, 50.0);
+        assert_eq!(t, Target::Before(At { group: 0, tile: 1, child: None }));
+        let t = target(&tiles, &[], false, &|_| true, 60.0, 50.0);
+        assert_eq!(t, Target::Into(At { group: 0, tile: 0, child: None }));
     }
 
     #[test]

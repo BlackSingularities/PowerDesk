@@ -24,13 +24,43 @@ pub const COMPUTER: &str = "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}";
 /// Kosz na pulpicie – ikona z Windows (pusty albo pełny), otwiera Kosz, w menu „Opróżnij Kosz”.
 pub const RECYCLE: &str = "::{645FF040-5081-101B-9F08-00AA002F954E}";
 
-/// Pole siatki i rozmiar ikony (piksele logiczne) dla rozmiaru z ustawień: małe, średnie, duże.
-fn dims(size: u8) -> (f32, f32, f32) {
-    match size {
-        0 => (76.0, 80.0, 32.0),
-        2 => (104.0, 120.0, 64.0),
-        _ => (84.0, 96.0, 48.0),
+/// Pole siatki i rozmiar ikony (piksele logiczne): rozmiar z Ctrl+kółka albo z ustawień
+/// (małe, średnie, duże), odstępy wg zagęszczenia.
+fn dims(size: u8, px: f32, density: u8) -> (f32, f32, f32) {
+    let icon = if px > 0.0 {
+        px
+    } else {
+        match size {
+            0 => 32.0,
+            2 => 64.0,
+            _ => 48.0,
+        }
+    };
+    let f = match density {
+        1 => 0.85,
+        2 => 1.2,
+        _ => 1.0,
+    };
+    (((icon + 36.0).max(72.0) * f).round().max(icon + 8.0), ((icon + 48.0) * f).round().max(icon + 36.0), icon)
+}
+
+/// Ctrl+kółko: płynna zmiana rozmiaru ikon jak w Windows; bez Ctrl zdarzenie idzie dalej.
+fn wheel(s: &Shared, delta: f32) -> bool {
+    if !powerdesk_core::system::ctrl_held() {
+        return false;
     }
+    let notches = (delta / 40.0).round();
+    let step = if notches == 0.0 { 4.0 * delta.signum() } else { 4.0 * notches };
+    {
+        let mut b = s.borrow_mut();
+        let p = &mut b.prefs;
+        let now = dims(p.desktop_icon_size, p.desktop_icon_px, 0).2;
+        p.desktop_icon_px = (now + step).clamp(16.0, 256.0);
+    }
+    render(s);
+    // Zapis dopiero po skończeniu kręcenia.
+    SAVE.with(|t| t.start(slint::TimerMode::SingleShot, Duration::from_millis(500), || crate::with_state(|s| s.borrow().prefs.save())));
+    true
 }
 
 #[derive(Default)]
@@ -65,6 +95,8 @@ thread_local! {
     static D: RefCell<Desk> = RefCell::new(Desk::default());
     /// Pilnowanie: ikony Windows ukryte, okna wpięte (restart Eksploratora je niszczy).
     static WATCH: slint::Timer = slint::Timer::default();
+    /// Odłożony zapis rozmiaru ikon po Ctrl+kółku.
+    static SAVE: slint::Timer = slint::Timer::default();
     /// Podpis ekranu (monitory, DPI, tapeta) z chwili budowy pulpitu.
     static SCREEN: RefCell<String> = const { RefCell::new(String::new()) };
 }
@@ -478,6 +510,8 @@ fn add_widget(s: &Shared, n: usize, kind: &str, x: f32, y: f32) {
 
 fn wire_icons(s: &Shared, w: &DesktopWindow) {
     let s2 = s.clone();
+    w.on_wheel(move |d| wheel(&s2, d));
+    let s2 = s.clone();
     w.on_open(move |i| open_item(&s2, i as usize));
     let s2 = s.clone();
     w.on_select(move |i, ctrl, shift| select(&s2, i, ctrl, shift));
@@ -622,10 +656,10 @@ fn switch_layout(s: &Shared) {
 
 fn render(s: &Shared) {
     switch_layout(s);
-    let (saved, xy, size, free, computer, recycle) = {
+    let (saved, xy, size, free, computer, recycle, icon_px, density) = {
         let b = s.borrow();
         let p = &b.prefs;
-        (p.desktop_pos.clone(), p.desktop_xy.clone(), p.desktop_icon_size, p.desktop_free, p.desktop_computer, p.desktop_recycle)
+        (p.desktop_pos.clone(), p.desktop_xy.clone(), p.desktop_icon_size, p.desktop_free, p.desktop_computer, p.desktop_recycle, p.desktop_icon_px, p.desktop_density)
     };
     D.with(|d| {
         let mut d = d.borrow_mut();
@@ -635,7 +669,7 @@ fn render(s: &Shared) {
             let items = std::mem::take(&mut d.items);
             d.items = with_specials(items, computer, recycle);
         }
-        let cell = dims(size);
+        let cell = dims(size, icon_px, density);
         d.cell = cell;
         d.free = free;
         w.set_cell_w(cell.0);
@@ -658,6 +692,11 @@ fn render(s: &Shared) {
             })
             .collect();
         let px = (cell.2 * w.window().scale_factor()) as u32;
+        // Póki ikona w nowym rozmiarze się robi, zostaje poprzednia, przeskalowana – bez mignięć przy Ctrl+kółku.
+        let old: std::collections::HashMap<String, slint::Image> = {
+            use slint::Model;
+            w.get_icons().iter().filter(|i| i.has_img).map(|i| (i.path.to_string(), i.img)).collect()
+        };
         let icons: Vec<DeskIcon> = d
             .items
             .iter()
@@ -667,7 +706,7 @@ fn render(s: &Shared) {
                 // Zdjęcia i filmy z miniaturą, reszta (skróty, dokumenty) – ikona systemowa.
                 // „Komputer” – ikona z powłoki Windows (ta sama co w Eksploratorze, także zmieniona
                 // w ustawieniach ikon pulpitu): ścieżka „::{CLSID}” działa jak zwykła ścieżka.
-                let img = if virtual_item(&e.path) { crate::thumbs::get(&e.path, px, true) } else { crate::thumbs::get(&e.path, px, !fmt::is_media(e)) };
+                let img = if virtual_item(&e.path) { crate::thumbs::get(&e.path, px, true) } else { crate::thumbs::get(&e.path, px, !fmt::is_media(e)) }.or_else(|| old.get(&e.path).cloned());
                 DeskIcon {
                     name: if d.renaming.as_deref() == Some(e.path.as_str()) { e.name.clone() } else { label(e) }.into(),
                     path: e.path.clone().into(),
@@ -1063,9 +1102,9 @@ fn menu_chosen(s: &Shared, i: usize) {
 /// Menu pustego miejsca na monitorze `win` (0 – główny).
 fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
     let at = (x, y);
-    let (free, size, computer, recycle) = {
+    let (free, size, computer, recycle, custom, density) = {
         let b = s.borrow();
-        (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer, b.prefs.desktop_recycle)
+        (b.prefs.desktop_free, b.prefs.desktop_icon_size, b.prefs.desktop_computer, b.prefs.desktop_recycle, b.prefs.desktop_icon_px > 0.0, b.prefs.desktop_density)
     };
     let can_paste = clip::has_files();
     let mut new = vec![it(crate::tr("Folder"), "folderPlus", move |s| new_item(s, true, at)), it(crate::tr("Dokument tekstowy"), "filePlus", move |s| new_item(s, false, at))];
@@ -1086,9 +1125,22 @@ fn background_menu(s: &Shared, win: usize, x: f32, y: f32) {
             crate::tr("Widok"),
             "grid",
             vec![
-                it(crate::tr("Duże ikony"), "grid", |s| set_desk(s, |p| p.desktop_icon_size = 2)).checked(size == 2),
-                it(crate::tr("Średnie ikony"), "grid", |s| set_desk(s, |p| p.desktop_icon_size = 1)).checked(size == 1),
-                it(crate::tr("Małe ikony"), "grid", |s| set_desk(s, |p| p.desktop_icon_size = 0)).checked(size == 0),
+                it(crate::tr("Duże ikony"), "grid", |s| set_desk(s, |p| {
+                    p.desktop_icon_size = 2;
+                    p.desktop_icon_px = 0.0;
+                })).checked(size == 2 && !custom),
+                it(crate::tr("Średnie ikony"), "grid", |s| set_desk(s, |p| {
+                    p.desktop_icon_size = 1;
+                    p.desktop_icon_px = 0.0;
+                })).checked(size == 1 && !custom),
+                it(crate::tr("Małe ikony"), "grid", |s| set_desk(s, |p| {
+                    p.desktop_icon_size = 0;
+                    p.desktop_icon_px = 0.0;
+                })).checked(size == 0 && !custom),
+                sep(),
+                it(crate::tr("Normalne odstępy"), "grid", |s| set_desk(s, |p| p.desktop_density = 0)).checked(density == 0),
+                it(crate::tr("Gęste odstępy"), "grid", |s| set_desk(s, |p| p.desktop_density = 1)).checked(density == 1),
+                it(crate::tr("Luźne odstępy"), "grid", |s| set_desk(s, |p| p.desktop_density = 2)).checked(density == 2),
                 sep(),
                 it(crate::tr("Wyrównaj ikony do siatki"), "grid", |s| set_desk(s, |p| p.desktop_free = !p.desktop_free)).checked(!free),
                 it(crate::tr("Pokaż „Komputer”"), "pc", |s| set_desk(s, |p| p.desktop_computer = !p.desktop_computer)).checked(computer),

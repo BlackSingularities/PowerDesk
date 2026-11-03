@@ -102,6 +102,12 @@ export component StartWindow inherits Window {
     in-out property <length> drag-y;
     in-out property <length> drag-w;
     in-out property <length> drag-h;
+    /// Obrys miejsca, w którym wyląduje przeciągany kafelek (start.rs).
+    in-out property <bool> drop-show;
+    in property <length> drop-x;
+    in property <length> drop-y;
+    in property <length> drop-w;
+    in property <length> drop-h;
     // Menu podręczne (pozycje i miejsce podaje taskbar.rs).
     in property <[MenuEntry]> menu-entries;
     in property <length> menu-x;
@@ -118,6 +124,8 @@ export component StartWindow inherits Window {
     callback tile-context(int, length, length);
     /// Kafelek przeciągnięty i puszczony w (x, y) obszaru kafelków.
     callback tile-drop(int, length, length);
+    /// W trakcie przeciągania: środek kafelka w obszarze kafelków.
+    callback tile-drag(int, length, length);
     callback group-rename(int, string);
     callback folder-rename(string);
     callback folder-back();
@@ -514,6 +522,7 @@ export component StartWindow inherits Window {
                                 root.drag-y = tiles-fl.y + tiles-fl.content-y + t.y + self.mouse-y - self.pressed-y;
                                 root.drag-w = t.w;
                                 root.drag-h = t.h;
+                                root.tile-drag(i, t.x + t.w / 2 + self.mouse-x - self.pressed-x, t.y + t.h / 2 + self.mouse-y - self.pressed-y);
                             }
                         }
                         clicked => {
@@ -528,7 +537,9 @@ export component StartWindow inherits Window {
                             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.left && root.drag-index == i) {
                                 self.was-drag = true;
                                 root.drag-index = -1;
-                                root.tile-drop(i, t.x + self.mouse-x, t.y + self.mouse-y);
+                                root.drop-show = false;
+                                // Liczy się środek kafelka, nie kursor – duży widżet nie trafia sam w siebie.
+                                root.tile-drop(i, t.x + t.w / 2 + self.mouse-x - self.pressed-x, t.y + t.h / 2 + self.mouse-y - self.pressed-y);
                             }
                             if (e.kind == PointerEventKind.up && e.button == PointerEventButton.right) {
                                 root.tile-context(i, self.absolute-position.x + self.mouse-x, self.absolute-position.y + self.mouse-y);
@@ -555,6 +566,16 @@ export component StartWindow inherits Window {
                             root.tile-note(i, txt);
                         }
                     }
+                }
+                if root.drag-index >= 0 && root.drop-show: Rectangle {
+                    x: root.drop-x;
+                    y: root.drop-y;
+                    width: root.drop-w;
+                    height: root.drop-h;
+                    border-radius: Theme.r;
+                    background: Theme.accent.with-alpha(0.18);
+                    border-width: 1px;
+                    border-color: Theme.accent;
                 }
             }
             // Podgląd przeciąganego kafelka.

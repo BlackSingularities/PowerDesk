@@ -198,6 +198,7 @@ fn render(s: &Shared) {
     g.set_start_frames(p.start_frames as i32);
     g.set_desktop_icon_size(p.desktop_icon_size as i32);
     g.set_desktop_free(p.desktop_free);
+    g.set_desktop_density(p.desktop_density as i32);
     g.set_desktop_computer(p.desktop_computer);
     g.set_desktop_recycle(p.desktop_recycle);
     g.set_shell_mode(powerdesk_core::shellmode::active());
@@ -793,7 +794,15 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
     });
     let s = st.clone();
     g.on_set_desktop_icon_size(move |n| {
-        change(&s, |p| p.desktop_icon_size = n.clamp(0, 2) as u8);
+        change(&s, |p| {
+            p.desktop_icon_size = n.clamp(0, 2) as u8;
+            p.desktop_icon_px = 0.0;
+        });
+        crate::desktop::relayout();
+    });
+    let s = st.clone();
+    g.on_set_desktop_density(move |n| {
+        change(&s, |p| p.desktop_density = n.clamp(0, 2) as u8);
         crate::desktop::relayout();
     });
     let s = st.clone();

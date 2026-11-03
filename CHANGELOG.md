@@ -2,6 +2,11 @@
 
 ## 1.1.2
 
+- Zamknięcie okna folderów nie resetuje już pulpitu ani paska: naprawiona awaria przy zamykaniu, a zamknięcie okna lub ostatniej karty nie kończy programu, gdy działa pulpit albo pasek PowerDesk.
+- Pulpit: czytelniejsze podpisy ikon (Segoe UI, miękki cień), Ctrl+kółko płynnie zmienia rozmiar ikon, do wyboru odstępy: normalne, gęste, luźne.
+- Pasek: miękkie tło pod kursorem i aktywnym oknem, znika w trybie pełnoekranowym (np. film w przeglądarce), usunięty przycisk X z prawego górnego rogu.
+- Start: przeciąganie kafelków liczone od środka kafelka, obrys miejsca upuszczenia, widżet upuszczony na środek innego widżetu staje obok niego.
+- Ustawienia: opcje zależne od innych są wyszarzone.
 - Ustawienia → Pasek zadań: „Tylko nakładki powłoki” – pulpit i pasek PowerDesk całkiem wyłączone (wracają Windows, także klawisz Win), a PowerDesk dalej obsługuje foldery, „Ten komputer”, okna „Otwórz/Zapisz” i inne wywołania. Przełącza się od razu, bez restartu.
 
 ## 1.1.1

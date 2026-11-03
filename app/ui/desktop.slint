@@ -75,6 +75,8 @@ export component DesktopWindow inherits Window {
     callback rename-cancel();
     callback menu-chosen(int);
     callback refresh();
+    /// Kółko nad pulpitem; true – zużyte (Ctrl+kółko zmienia rozmiar ikon).
+    callback wheel(length) -> bool;
 
     /// Pole ikony i jej rozmiar – z ustawień (małe, średnie, duże ikony pulpitu).
     in property <length> cell-w: 84px;
@@ -120,6 +122,12 @@ export component DesktopWindow inherits Window {
 
     // Puste miejsce: klik zdejmuje zaznaczenie, przeciąganie rysuje ramkę, prawy – menu pulpitu.
     bg-ta := TouchArea {
+        scroll-event(e) => {
+            if (root.wheel(e.delta-y)) {
+                return accept;
+            }
+            reject
+        }
         pointer-event(e) => {
             if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
                 root.band-x0 = self.mouse-x;
@@ -169,6 +177,12 @@ export component DesktopWindow inherits Window {
         border-color: #ffffff66;
 
         ic-ta := TouchArea {
+            scroll-event(e) => {
+                if (root.wheel(e.delta-y)) {
+                    return accept;
+                }
+                reject
+            }
             pointer-event(e) => {
                 if (e.kind == PointerEventKind.down && e.button == PointerEventButton.left) {
                     root.just-dragged = false;
@@ -230,6 +244,7 @@ export component DesktopWindow inherits Window {
                     height: root.icon-size;
                     source: it.img;
                     image-fit: contain;
+                    image-rendering: smooth;
                 }
                 if !it.has-img: Icon {
                     commands: it.path == "::{20D04FE0-3AEA-1069-A2D8-08002B30309D}" ? Icons.pc : it.path == "::{645FF040-5081-101B-9F08-00AA002F954E}" ? Icons.trash : it.dir ? Icons.folder : Icons.file;
@@ -237,29 +252,18 @@ export component DesktopWindow inherits Window {
                     color: #ffffff;
                 }
             }
-            // Podpis z miękkim cieniem jak na pulpicie Windows 10/11 – obrys liter wyglądał
-            // na jasnych tapetach jak w Windows XP (postrzępione krawędzie).
+            // Podpis jak na pulpicie Windows: czysta biel Segoe UI na miękkim cieniu z kilku
+            // półprzezroczystych warstw – czytelny na jasnych i ciemnych tapetach, bez ostrego obrysu.
             if !it.renaming: Rectangle {
                 height: it.sel ? lbl.preferred-height : min(lbl.preferred-height, 32px);
-                Text {
-                    x: 0px;
-                    y: 1px;
+                for o in [{ dx: 0px, dy: 1px, a: 0.75 }, { dx: 1px, dy: 1px, a: 0.35 }, { dx: -1px, dy: 1px, a: 0.35 }, { dx: 0px, dy: 2px, a: 0.3 }, { dx: 0px, dy: 0px, a: 0.3 }]: Text {
+                    x: o.dx;
+                    y: o.dy;
                     width: parent.width;
                     height: parent.height;
                     text: it.name;
-                    color: #00000090;
-                    font-size: 12px;
-                    horizontal-alignment: center;
-                    wrap: word-wrap;
-                    overflow: elide;
-                }
-                Text {
-                    x: 1px;
-                    y: 1px;
-                    width: parent.width;
-                    height: parent.height;
-                    text: it.name;
-                    color: #00000060;
+                    color: Colors.black.with-alpha(o.a);
+                    font-family: "Segoe UI";
                     font-size: 12px;
                     horizontal-alignment: center;
                     wrap: word-wrap;
@@ -270,6 +274,7 @@ export component DesktopWindow inherits Window {
                     height: parent.height;
                     text: it.name;
                     color: #ffffff;
+                    font-family: "Segoe UI";
                     font-size: 12px;
                     horizontal-alignment: center;
                     wrap: word-wrap;

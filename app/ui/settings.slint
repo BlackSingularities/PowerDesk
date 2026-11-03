@@ -160,6 +160,9 @@ export global SettingsState {
     in-out property <bool> desktop-computer: true;
     in-out property <bool> desktop-recycle: true;
     callback set-desktop-icon-size(int);
+    /// Odstępy ikon: 0 – normalne, 1 – gęste, 2 – luźne.
+    in-out property <int> desktop-density;
+    callback set-desktop-density(int);
     /// Foldery przy krawędziach pulpitu i liczba monitorów (okien pulpitu).
     in-out property <[EdgeRow]> edge-rows;
     in-out property <int> edge-monitors: 1;
@@ -215,9 +218,12 @@ component ToggleRow inherits Rectangle {
     in property <string> hint;
     in property <string> kbd;
     in property <bool> on;
+    /// Opcja nie działa przy innych ustawieniach – wyszarzona, bez klikania.
+    in property <bool> off;
     callback toggled;
     height: max(48px, row.preferred-height);
     border-radius: Theme.r;
+    opacity: root.off ? 0.4 : 1;
     background: tr-ta.has-hover ? Theme.hover : Theme.card;
     row := HorizontalLayout {
         padding: 10px;
@@ -256,6 +262,7 @@ component ToggleRow inherits Rectangle {
         }
     }
     tr-ta := TouchArea {
+        enabled: !root.off;
         clicked => {
             root.toggled();
         }
@@ -268,8 +275,10 @@ component Choice inherits Rectangle {
     in property <string> text;
     in property <string> hint;
     in property <bool> on;
+    in property <bool> off;
     callback clicked;
     height: 64px;
+    opacity: root.off ? 0.4 : 1;
     horizontal-stretch: 1;
     border-radius: Theme.r;
     border-width: root.on ? 2px : 1px;
@@ -301,6 +310,7 @@ component Choice inherits Rectangle {
         }
     }
     ch-ta := TouchArea {
+        enabled: !root.off;
         clicked => {
             root.clicked();
         }
@@ -1062,6 +1072,7 @@ export component SettingsView inherits Rectangle {
                         for name[k] in [@tr("Małe"), @tr("Średnie"), @tr("Duże")]: Choice {
                             icon: Icons.grid;
                             text: name;
+                            off: SettingsState.shell-only;
                             hint: k == 0 ? @tr("32 px, gęsta siatka") : k == 1 ? @tr("48 px – jak w Windows") : @tr("64 px, wyraźne");
                             on: SettingsState.desktop-icon-size == k;
                             clicked => {
@@ -1069,9 +1080,33 @@ export component SettingsView inherits Rectangle {
                             }
                         }
                     }
+                    Text {
+                        text: @tr("Ctrl+kółko na pulpicie płynnie zmienia rozmiar ikon");
+                        font-family: Theme.font;
+                        font-size: 11.5px;
+                        color: Theme.faint;
+                    }
+                    Label {
+                        text: @tr("Odstępy między ikonami");
+                        font-size: 13px;
+                        font-weight: 600;
+                    }
+                    HorizontalLayout {
+                        spacing: 10px;
+                        for name[k] in [@tr("Normalne"), @tr("Gęste"), @tr("Luźne")]: Choice {
+                            icon: Icons.grid;
+                            text: name;
+                            off: SettingsState.shell-only;
+                            on: SettingsState.desktop-density == k;
+                            clicked => {
+                                SettingsState.set-desktop-density(k);
+                            }
+                        }
+                    }
                     ToggleRow {
                         icon: Icons.grid;
                         text: @tr("Wyrównuj ikony do siatki");
+                        off: SettingsState.shell-only;
                         hint: @tr("Wyłączone – ikona zostaje dokładnie tam, gdzie ją puścisz; miejsca są zapamiętywane");
                         on: !SettingsState.desktop-free;
                         toggled => {
@@ -1081,6 +1116,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.trash;
                         text: @tr("Kosz na pulpicie");
+                        off: SettingsState.shell-only;
                         hint: @tr("Ikona z Windows (pusty albo pełny); prawy przycisk – Opróżnij Kosz");
                         on: SettingsState.desktop-recycle;
                         toggled => {
@@ -1090,6 +1126,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.pc;
                         text: @tr("Ikona „Komputer”");
+                        off: SettingsState.shell-only;
                         hint: @tr("Na pulpicie, z ikoną komputera z Windows – otwiera widok Komputer z dyskami i folderami");
                         on: SettingsState.desktop-computer;
                         toggled => {
@@ -1217,6 +1254,7 @@ export component SettingsView inherits Rectangle {
                         Choice {
                             icon: Icons.image;
                             text: @tr("Z Windows");
+                            off: SettingsState.shell-only;
                             hint: @tr("Jak w Personalizacji");
                             on: SettingsState.wall-mode == 0;
                             clicked => {
@@ -1226,6 +1264,7 @@ export component SettingsView inherits Rectangle {
                         Choice {
                             icon: Icons.gallery;
                             text: @tr("Pokaz slajdów");
+                            off: SettingsState.shell-only;
                             hint: @tr("Zdjęcia z folderu, każdy monitor inne");
                             on: SettingsState.wall-mode == 1;
                             clicked => {
@@ -1235,6 +1274,7 @@ export component SettingsView inherits Rectangle {
                         Choice {
                             icon: Icons.cloud;
                             text: @tr("Zdjęcie dnia");
+                            off: SettingsState.shell-only;
                             hint: @tr("Bing – nowe codziennie");
                             on: SettingsState.wall-mode == 2;
                             clicked => {
@@ -1315,6 +1355,7 @@ export component SettingsView inherits Rectangle {
                         Choice {
                             icon: Icons.sidebar;
                             text: @tr("Ikony z nazwami");
+                            off: SettingsState.shell-only;
                             hint: @tr("Tytuł okna obok ikony");
                             on: SettingsState.taskbar-labels;
                             clicked => {
@@ -1326,6 +1367,7 @@ export component SettingsView inherits Rectangle {
                         Choice {
                             icon: Icons.grid;
                             text: @tr("Same ikony");
+                            off: SettingsState.shell-only;
                             hint: @tr("Wąskie przyciski, jak w Windows 11");
                             on: !SettingsState.taskbar-labels;
                             clicked => {
@@ -1338,6 +1380,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.grid;
                         text: @tr("Automatycznie ukrywaj pasek");
+                        off: SettingsState.shell-only;
                         hint: @tr("Pasek chowa się pod krawędź ekranu i wysuwa, gdy dotkniesz jej kursorem");
                         on: SettingsState.taskbar-autohide;
                         toggled => {
@@ -1347,6 +1390,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.grid;
                         text: @tr("Przyciski na środku paska");
+                        off: SettingsState.shell-only;
                         hint: @tr("Start zostaje po lewej, programy w środku");
                         on: SettingsState.taskbar-center;
                         toggled => {
@@ -1363,6 +1407,7 @@ export component SettingsView inherits Rectangle {
                         for g[k] in [@tr("Zawsze"), @tr("Gdy pasek jest pełny"), @tr("Nigdy")]: Choice {
                             icon: Icons.grid;
                             text: g;
+                            off: SettingsState.shell-only;
                             hint: k == 0 ? @tr("Okna programu pod jednym przyciskiem") : k == 1 ? @tr("Osobno, dopóki się mieszczą") : @tr("Każde okno ma swój przycisk");
                             on: SettingsState.taskbar-group == k;
                             clicked => {
@@ -1414,6 +1459,7 @@ export component SettingsView inherits Rectangle {
                         for st[k] in [@tr("Windows 10"), @tr("Windows 11"), @tr("Klasyczne")]: Choice {
                             icon: Icons.grid;
                             text: st;
+                            off: SettingsState.shell-only;
                             hint: k == 0 ? @tr("Lista aplikacji i kafelki") : k == 1 ? @tr("Na środku, siatka aplikacji") : @tr("Wąska lista jak w Windows 7");
                             on: SettingsState.start-style == k;
                             clicked => {
@@ -1470,6 +1516,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.history;
                         text: @tr("Sekundy w zegarze");
+                        off: SettingsState.shell-only;
                         on: SettingsState.taskbar-seconds;
                         toggled => {
                             SettingsState.toggle("taskbar-seconds");
@@ -1478,6 +1525,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.history;
                         text: @tr("Data pod godziną");
+                        off: SettingsState.shell-only;
                         on: SettingsState.taskbar-date;
                         toggled => {
                             SettingsState.toggle("taskbar-date");
@@ -1486,6 +1534,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.grid;
                         text: @tr("Wszystkie ikony zasobnika na pasku");
+                        off: SettingsState.shell-only;
                         hint: @tr("Wyłączone – wybrane ikony na pasku, reszta pod strzałką; ikonę przeciągniesz na strzałkę albo z okienka na pasek");
                         on: SettingsState.tray-all;
                         toggled => {
@@ -1524,6 +1573,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.desktop;
                         text: @tr("Przezroczysty, gdy widać pulpit");
+                        off: SettingsState.shell-only;
                         hint: @tr("Osobno na każdym monitorze: bez otwartych okien pasek jest przezroczysty");
                         on: SettingsState.taskbar-clear-desktop;
                         toggled => {
@@ -1533,6 +1583,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.eye;
                         text: @tr("Rozmycie pod paskiem");
+                        off: SettingsState.shell-only;
                         hint: @tr("Półprzezroczysty pasek rozmywa tapetę i okna pod sobą (jak w Windows 11)");
                         on: SettingsState.taskbar-blur;
                         toggled => {
@@ -1551,15 +1602,17 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.desktop;
                         text: @tr("Pasek zadań na każdym monitorze");
+                        off: SettingsState.shell-only;
                         hint: @tr("Wyłączone – jeden pasek, tylko na monitorze głównym");
                         on: SettingsState.taskbar-all;
                         toggled => {
                             SettingsState.toggle("taskbar-all");
                         }
                     }
-                    if SettingsState.taskbar-all: ToggleRow {
+                    ToggleRow {
                         icon: Icons.desktop;
                         text: @tr("Przyciski wszystkich okien na każdym pasku");
+                        off: SettingsState.shell-only || !SettingsState.taskbar-all;
                         hint: @tr("Wyłączone – przycisk okna jest na pasku monitora, na którym leży okno (przenosi się razem z oknem)");
                         on: SettingsState.taskbar-buttons-all;
                         toggled => {
@@ -1569,6 +1622,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.grid;
                         text: @tr("Przycisk pulpitów wirtualnych");
+                        off: SettingsState.shell-only;
                         hint: @tr("Numer pulpitu na pasku, lista i nowy pulpit; kółko – sąsiedni pulpit (tylko z Eksploratorem)");
                         on: SettingsState.vd-button;
                         toggled => {
@@ -1610,9 +1664,10 @@ export component SettingsView inherits Rectangle {
                             SettingsState.toggle("autostart");
                         }
                     }
-                    if SettingsState.autostart: ToggleRow {
+                    ToggleRow {
                         icon: Icons.power;
                         text: @tr("Okno folderów przy starcie z Windows");
+                        off: !SettingsState.autostart;
                         hint: @tr("Wyłączone – po zalogowaniu tylko pulpit, pasek i ikona w zasobniku");
                         on: SettingsState.autostart-window;
                         toggled => {
@@ -1740,9 +1795,10 @@ export component SettingsView inherits Rectangle {
                             SettingsState.toggle("update-check");
                         }
                     }
-                    if SettingsState.update-check: ToggleRow {
+                    ToggleRow {
                         icon: Icons.refresh;
                         text: @tr("Pobieraj i instaluj bez pytania");
+                        off: !SettingsState.update-check;
                         hint: @tr("Znaleziona wersja pobiera się w tle (z kontrolą sumy SHA-256) i PowerDesk uruchamia się ponownie. Wyłączone – powiadomienie z przyciskiem „Zaktualizuj”");
                         on: SettingsState.update-auto;
                         toggled => {
@@ -1844,6 +1900,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.panel;
                         text: @tr("Pełna nakładka");
+                        off: !SettingsState.overlay-on;
                         hint: @tr("Z wykresem czasu klatek, RAM i VRAM; wyłączone – tylko FPS, procesor i karta");
                         on: SettingsState.overlay-full;
                         toggled => {
@@ -1860,6 +1917,7 @@ export component SettingsView inherits Rectangle {
                         for c[k] in [@tr("Lewy górny róg"), @tr("Prawy górny róg"), @tr("Lewy dolny róg"), @tr("Prawy dolny róg")]: Choice {
                             icon: Icons.grid;
                             text: c;
+                            off: !SettingsState.overlay-on;
                             on: SettingsState.overlay-corner == k;
                             clicked => {
                                 SettingsState.set-overlay-corner(k);

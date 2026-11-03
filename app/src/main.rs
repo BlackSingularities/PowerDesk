@@ -285,8 +285,11 @@ pub fn show_window(s: &Shared) {
 /// Krzyżyk i Alt+F4 chowają okno do zasobnika; program kończy „Zakończ” z menu ikony.
 /// Gdyby ikona się nie pojawiła, krzyżyk zamyka program – inaczej nie dałoby się go zamknąć.
 fn close_window(s: &Shared) {
-    let to_tray = powerdesk_core::tray::visible() && s.borrow().prefs.close_to_tray;
-    match s.borrow().ui.upgrade() {
+    // Pulpit i pasek PowerDesk działają dalej niezależnie od okna folderów – program kończy tylko „Zakończ”.
+    let to_tray = (powerdesk_core::tray::visible() && s.borrow().prefs.close_to_tray) || desktop::is_open() || taskbar::is_open();
+    // Osobno: pożyczenie stanu w warunku `match` trwałoby przez całe ramiona, a forget_tabs zmienia stan.
+    let ui = s.borrow().ui.upgrade();
+    match ui {
         Some(ui) if to_tray => {
             let _ = ui.hide();
             // Domyślnie zamknięte okno zapomina karty: następne otwarcie (Ustawienia, folder z innego
@@ -1089,7 +1092,7 @@ fn close_tab(s: &Shared, i: usize) {
         }
         if b.tabs.len() == 1 {
             drop(b);
-            let _ = slint::quit_event_loop();
+            close_window(s);
             return;
         }
         let gone = b.tabs.remove(i);

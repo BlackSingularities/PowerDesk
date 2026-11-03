@@ -333,7 +333,13 @@ pub fn covers(hwnd: isize, x: i32, y: i32, width: i32, height: i32) -> bool {
         let mut buf = [0u16; 32];
         let n = GetClassNameW(h(hwnd), &mut buf);
         let class = String::from_utf16_lossy(&buf[..n.max(0) as usize]);
-        if class == "Progman" || class == "WorkerW" {
+        if class == "Progman" || class == "WorkerW" || class == "XamlExplorerHostIslandWindow" {
+            return false;
+        }
+        // Własne okna (pulpit PowerDesk na całym monitorze) to nie pełny ekran.
+        let mut pid = 0u32;
+        GetWindowThreadProcessId(h(hwnd), Some(&mut pid));
+        if pid == std::process::id() {
             return false;
         }
         let mut r = RECT::default();
