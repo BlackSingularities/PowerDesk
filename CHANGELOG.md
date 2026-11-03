@@ -2,6 +2,7 @@
 
 ## 1.1.6
 
+- Powiadomienia i transfery pokazują się zawsze w prawym dolnym rogu pulpitu, nie w rogu okna folderów.
 - Nakładka: nowy wygląd, wykres FPS ze średnią, 1% low i minimum, paski zasobów, tryby kompaktowy i zaawansowany.
 - Nakładka: przesuwanie po przytrzymaniu Ctrl i najechaniu myszą; miejsce jest zapamiętywane.
 - Ustawienia nakładki: krycie tła, odświeżanie, wykres i nazwa programu.

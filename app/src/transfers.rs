@@ -1,7 +1,8 @@
 //! Transfery w tle i to, co je otacza (Overlay.svelte, Dialogs.svelte): pasek transferów z postępem,
 //! wstrzymaniem i anulowaniem, powiadomienia z akcją „Cofnij”, okno konfliktu nazw i potwierdzenia.
-//! Wszystko w oknie aplikacji – żadnych systemowych okienek kopiowania.
+//! Pasek i powiadomienia we własnym oknie w rogu pulpitu – żadnych systemowych okienek kopiowania.
 
+use std::cell::RefCell;
 use std::path::Path;
 use std::time::Duration;
 
@@ -380,7 +381,7 @@ pub fn render(s: &Shared) {
             })
             .collect()
     };
-    ui.set_ops(ModelRc::new(VecModel::from(items)));
+    let ops_model = ModelRc::new(VecModel::from(items));
     let running: Vec<&Progress> = t.ops.iter().filter(|p| p.state == "running").collect();
     ui.set_ops_summary(match running.len() {
         0 => SharedString::new(),
@@ -406,5 +407,77 @@ pub fn render(s: &Shared) {
             action: x.action.as_ref().map(|a| a.0.clone()).unwrap_or_default().into(),
         })
         .collect();
-    ui.set_toasts(ModelRc::new(VecModel::from(toasts)));
+    let toasts_model = ModelRc::new(VecModel::from(toasts));
+    show_stack(s, &ui, ops_model, toasts_model);
+}
+
+thread_local! {
+    /// Okno transferów i powiadomień w rogu pulpitu.
+    static STACK: RefCell<Option<crate::TransferWindow>> = const { RefCell::new(None) };
+}
+
+fn make_stack(s: &Shared) -> Option<crate::TransferWindow> {
+    let w = crate::TransferWindow::new().ok()?;
+    w.on_pause(|id, on| powerdesk_core::ops::pause(id as u64, on));
+    w.on_cancel(|id| powerdesk_core::ops::cancel(id as u64));
+    let s2 = s.clone();
+    w.on_dismiss(move |id| dismiss(&s2, id));
+    let s2 = s.clone();
+    w.on_toast_action(move |id| toast_action(&s2, id));
+    let s2 = s.clone();
+    w.on_toast_close(move |id| close_toast(&s2, id));
+    Some(w)
+}
+
+/// Okno w prawym dolnym rogu pulpitu (głównego monitora), nad paskiem zadań; puste – schowane.
+fn show_stack(s: &Shared, ui: &crate::MainWindow, ops: ModelRc<OpItem>, toasts: ModelRc<ToastItem>) {
+    use slint::Model;
+    let empty = ops.row_count() == 0 && toasts.row_count() == 0;
+    STACK.with(|st| {
+        if st.borrow().is_none() {
+            if empty {
+                return;
+            }
+            *st.borrow_mut() = make_stack(s);
+        }
+        let st = st.borrow();
+        let Some(w) = st.as_ref() else { return };
+        w.set_ops(ops);
+        w.set_toasts(toasts);
+        if empty {
+            // Chowanie po powrocie z obsługi kliknięcia (krzyżyk siedzi w tym oknie).
+            slint::Timer::single_shot(Duration::ZERO, || {
+                STACK.with(|st| {
+                    if let Some(w) = st.borrow().as_ref() {
+                        if w.get_ops().row_count() == 0 && w.get_toasts().row_count() == 0 {
+                            let _ = w.hide();
+                        }
+                    }
+                })
+            });
+            return;
+        }
+        let look = crate::settings::look(ui);
+        let t = w.global::<crate::Theme>();
+        t.set_light(look.light);
+        t.set_accent_override(look.accent);
+        t.set_popup_alpha(look.popup_alpha);
+        let first = !w.window().is_visible();
+        if first {
+            let _ = w.show();
+            let hwnd = crate::window_hwnd(w.window());
+            powerdesk_core::desktop::hide_from_taskbar(hwnd);
+            powerdesk_core::system::strip_caption(hwnd);
+            powerdesk_core::system::see_through(hwnd);
+            powerdesk_core::system::no_frame_border(hwnd);
+            // Kliknięcie w powiadomienie nie zabiera fokusu pracującemu programowi.
+            powerdesk_core::taskwin::no_activate(hwnd);
+        }
+        let scale = w.window().scale_factor();
+        let (pw, ph) = ((w.get_want_w() * scale).ceil() as i32, (w.get_want_h() * scale).ceil() as i32);
+        let (_, _, right, bottom) = powerdesk_core::desktop::primary_work_area();
+        w.window().set_size(slint::PhysicalSize::new(pw as u32, ph as u32));
+        w.window().set_position(slint::PhysicalPosition::new(right - pw, bottom - ph));
+        powerdesk_core::taskwin::keep_topmost(crate::window_hwnd(w.window()));
+    });
 }

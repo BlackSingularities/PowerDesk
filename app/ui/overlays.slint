@@ -218,6 +218,46 @@ export component TransferStack inherits Rectangle {
     }
 }
 
+/// Transfery i powiadomienia we własnym oknie w prawym dolnym rogu pulpitu (transfers.rs) –
+/// widać je w całości i także wtedy, gdy okno folderów jest małe albo schowane.
+export component TransferWindow inherits Window {
+    no-frame: true;
+    always-on-top: true;
+    title: @tr("PowerDesk – powiadomienia");
+    background: transparent;
+    in property <[OpItem]> ops;
+    in property <[ToastItem]> toasts;
+    callback pause(int, bool);
+    callback cancel(int);
+    callback dismiss(int);
+    callback toast-action(int);
+    callback toast-close(int);
+    /// Potrzebna wysokość okna – razem z marginesem.
+    out property <length> want-h: stack.preferred-height + 24px;
+    out property <length> want-w: 404px;
+    stack := TransferStack {
+        x: 12px;
+        y: 12px;
+        ops: root.ops;
+        toasts: root.toasts;
+        pause(id, on) => {
+            root.pause(id, on);
+        }
+        cancel(id) => {
+            root.cancel(id);
+        }
+        dismiss(id) => {
+            root.dismiss(id);
+        }
+        toast-action(id) => {
+            root.toast-action(id);
+        }
+        toast-close(id) => {
+            root.toast-close(id);
+        }
+    }
+}
+
 /// Konflikt nazw w folderze docelowym.
 export struct ConflictRow {
     name: string,

@@ -6,7 +6,7 @@ import { Sidebar, SideItem } from "sidebar.slint";
 import { Toolbar, Crumb, FacetChip, FacetRow, FacetPanel, AddrSugg } from "toolbar.slint";
 import { FileView, VisItem, Column, GroupHead } from "fileview.slint";
 import { MenuPopup, MenuEntry } from "menu.slint";
-import { TransferStack, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog, PromptDialog, Prompt } from "overlays.slint";
+import { TransferWindow, OpItem, ToastItem, ConflictDialog, ConflictRow, ConfirmDialog, PromptDialog, Prompt } from "overlays.slint";
 import { BulkDialog, Bulk, BulkRow } from "bulk.slint";
 import { PropsDialog, Props, PropRow, PropSection, Gauge } from "props.slint";
 import { ShelfPanel, ShelfState, ShelfItem } from "shelf.slint";
@@ -23,7 +23,7 @@ import { TermPanel, TermState, TermLine, TermRun } from "term.slint";
 export { DesktopWindow, DeskIcon } from "desktop.slint";
 export { EdgePanel, EdgeItem } from "edgepanel.slint";
 export { EdgeRow } from "settings.slint";
-export { TaskbarWindow, TaskButton, BarMenuWindow, VolumeWindow, CalendarWindow, CalDay, NetworkWindow, NetRow, AppVol, ThumbWindow, ThumbCard, OutDev, TrayApp, TrayOverflowWindow, TipWindow, TaskViewWindow, TaskCard, NoticeRow, NoticesWindow, NoticeToastWindow } from "taskbar.slint";
+export { TransferWindow, TaskbarWindow, TaskButton, BarMenuWindow, VolumeWindow, CalendarWindow, CalDay, NetworkWindow, NetRow, AppVol, ThumbWindow, ThumbCard, OutDev, TrayApp, TrayOverflowWindow, TipWindow, TaskViewWindow, TaskCard, NoticeRow, NoticesWindow, NoticeToastWindow } from "taskbar.slint";
 export { StartWindow, StartRow, StartTile, StartHead } from "start.slint";
 export { ClipWindow, ClipItem } from "clip.slint";
 
@@ -843,28 +843,6 @@ export component MainWindow inherits Window {
         x: root.width - self.width - 22px;
         y: root.height - self.height - 44px;
     }
-    TransferStack {
-        x: root.width - self.width - 22px - (ShelfState.open && !root.special ? 352px : 0);
-        y: root.height - self.height - 44px;
-        ops: root.ops;
-        toasts: root.toasts;
-        pause(id, on) => {
-            root.op-pause(id, on);
-        }
-        cancel(id) => {
-            root.op-cancel(id);
-        }
-        dismiss(id) => {
-            root.op-dismiss(id);
-        }
-        toast-action(id) => {
-            root.toast-action(id);
-        }
-        toast-close(id) => {
-            root.toast-close(id);
-        }
-    }
-
     if root.conflict-open: ConflictDialog {
         title: root.conflict-title;
         rows: root.conflict-rows;

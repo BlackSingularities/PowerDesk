@@ -157,6 +157,19 @@ pub fn screen_signature() -> String {
     sig
 }
 
+/// Obszar roboczy głównego monitora (lewo, góra, prawo, dół – piksele ekranu, bez paska zadań).
+pub fn primary_work_area() -> (i32, i32, i32, i32) {
+    use windows::Win32::Foundation::POINT;
+    use windows::Win32::Graphics::Gdi::{GetMonitorInfoW, MonitorFromPoint, MONITORINFO, MONITOR_DEFAULTTOPRIMARY};
+    let mut mi = MONITORINFO { cbSize: std::mem::size_of::<MONITORINFO>() as u32, ..Default::default() };
+    unsafe {
+        let m = MonitorFromPoint(POINT { x: 0, y: 0 }, MONITOR_DEFAULTTOPRIMARY);
+        let _ = GetMonitorInfoW(m, &mut mi);
+    }
+    let r = mi.rcWork;
+    (r.left, r.top, r.right, r.bottom)
+}
+
 /// Okno pulpitu bez przycisku na pasku zadań i bez miejsca w Alt+Tab (styl okna narzędziowego).
 pub fn hide_from_taskbar(hwnd: isize) {
     use windows::Win32::Foundation::HWND;
