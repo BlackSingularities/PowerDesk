@@ -1,5 +1,11 @@
 # Zmiany
 
+## 1.1.6
+
+- Nakładka: nowy wygląd, wykres FPS ze średnią, 1% low i minimum, paski zasobów, tryby kompaktowy i zaawansowany.
+- Nakładka: przesuwanie po przytrzymaniu Ctrl i najechaniu myszą; miejsce jest zapamiętywane.
+- Ustawienia nakładki: krycie tła, odświeżanie, wykres i nazwa programu.
+
 ## 1.1.5
 
 - Panel podglądu: przyciski akcji znów mają pełną szerokość i podpisy.

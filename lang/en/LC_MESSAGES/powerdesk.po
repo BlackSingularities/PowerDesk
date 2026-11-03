@@ -6639,3 +6639,43 @@ msgstr "Loose"
 #: app/ui/home.slint
 msgid "Więcej"
 msgstr "More"
+
+#: app/ui/settings.slint
+msgid "Kompaktowy"
+msgstr "Compact"
+
+#: app/ui/settings.slint
+msgid "Zaawansowany"
+msgstr "Advanced"
+
+#: app/ui/settings.slint
+msgid "Jeden wiersz: FPS, CPU i GPU"
+msgstr "One line: FPS, CPU and GPU"
+
+#: app/ui/settings.slint
+msgid "Wykresy, 1% low, CPU, GPU, RAM i VRAM"
+msgstr "Charts, 1% low, CPU, GPU, RAM and VRAM"
+
+#: app/ui/settings.slint
+msgid "Wykres FPS"
+msgstr "FPS chart"
+
+#: app/ui/settings.slint
+msgid "Nazwa programu"
+msgstr "Program name"
+
+#: app/ui/settings.slint
+msgid "Tylko w trybie zaawansowanym"
+msgstr "Advanced mode only"
+
+#: app/ui/settings.slint
+msgid "Odświeżanie"
+msgstr "Refresh rate"
+
+#: app/ui/settings.slint
+msgid "średnio"
+msgstr "average"
+
+#: app/ui/settings.slint
+msgid "Przytrzymaj Ctrl, najedź na nakładkę i przeciągnij ją myszą; wybór rogu wraca do stałego miejsca"
+msgstr "Hold Ctrl, hover the overlay and drag it; choosing a corner returns it to a fixed place"

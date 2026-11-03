@@ -396,6 +396,21 @@ pub fn keep_topmost(hwnd: isize) {
     }
 }
 
+/// Okno, które przy kliknięciu nie zabiera fokusu aktywnemu programowi (przesuwana nakładka).
+pub fn no_activate(hwnd: isize) {
+    use windows::Win32::UI::WindowsAndMessaging::{SetWindowLongPtrW, WS_EX_NOACTIVATE};
+    unsafe {
+        let ex = GetWindowLongPtrW(h(hwnd), GWL_EXSTYLE);
+        SetWindowLongPtrW(h(hwnd), GWL_EXSTYLE, ex | WS_EX_NOACTIVATE.0 as isize);
+    }
+}
+
+/// Czy punkt ekranu leży na którymś monitorze (zapamiętane miejsce po odłączeniu monitora).
+pub fn on_screen(x: i32, y: i32) -> bool {
+    use windows::Win32::Graphics::Gdi::{MonitorFromPoint, MONITOR_DEFAULTTONULL};
+    unsafe { !MonitorFromPoint(POINT { x, y }, MONITOR_DEFAULTTONULL).is_invalid() }
+}
+
 /// Czy okno należy do tego procesu (własne okna PowerDesk).
 pub fn is_own(hwnd: isize) -> bool {
     let mut pid = 0u32;

@@ -1,14 +1,83 @@
 import { Theme } from "theme.slint";
 
-/// Nakładka z wydajnością nad dowolnym programem (Alt+R): FPS i czas klatki z wykresem,
-/// procesor, karta graficzna, pamięć. Przezroczysta, nie łapie myszy (overlay.rs).
+/// Wiersz parametru nakładki: nazwa, wartość i wypełnienie paska (0–1).
+component OverlayMeter inherits VerticalLayout {
+    in property <string> name;
+    in property <string> value;
+    in property <float> level;
+    in property <color> tint;
+    spacing: 3px;
+    HorizontalLayout {
+        Text {
+            horizontal-stretch: 1;
+            text: root.name;
+            font-family: "Segoe UI";
+            font-size: 10.5px;
+            font-weight: 600;
+            color: #ffffff80;
+        }
+        Text {
+            text: root.value;
+            font-family: "Segoe UI";
+            font-size: 11.5px;
+            color: #ffffffee;
+        }
+    }
+    Rectangle {
+        height: 3px;
+        border-radius: 1.5px;
+        background: #ffffff14;
+        Rectangle {
+            x: 0;
+            width: parent.width * clamp(root.level, 0, 1);
+            border-radius: 1.5px;
+            background: root.tint;
+            animate width { duration: 250ms; }
+        }
+    }
+}
+
+/// Mała statystyka pod wykresem.
+component OverlayStat inherits VerticalLayout {
+    in property <string> name;
+    in property <string> value;
+    horizontal-stretch: 1;
+    Text {
+        horizontal-alignment: center;
+        text: root.value == "" ? "–" : root.value;
+        font-family: "Segoe UI";
+        font-size: 13px;
+        font-weight: 600;
+        color: #ffffffee;
+    }
+    Text {
+        horizontal-alignment: center;
+        text: root.name;
+        font-family: "Segoe UI";
+        font-size: 9.5px;
+        color: #ffffff70;
+    }
+}
+
+/// Nakładka z wydajnością nad dowolnym programem (Alt+R): tryb kompaktowy (jeden wiersz) albo
+/// zaawansowany (wykres FPS, czas klatek, zasoby). Przezroczysta i nie łapie myszy – dopiero
+/// Ctrl z kursorem nad nią włącza przesuwanie (overlay.rs).
 export component OverlayWindow inherits Window {
     no-frame: true;
     always-on-top: true;
     title: @tr("PowerDesk – nakładka");
     background: transparent;
-    /// Pełna (wykres i wszystkie wiersze) albo mała (FPS i najważniejsze).
+    /// Zaawansowana albo kompaktowa.
     in property <bool> full: true;
+    in property <bool> show-app: true;
+    in property <bool> show-graph: true;
+    /// Krycie tła 0–1.
+    in property <float> bg-alpha: 0.8;
+    /// Ctrl i kursor nad nakładką – można ją przeciągać.
+    in property <bool> moving;
+    callback drag-start();
+    callback drag-move();
+    callback drag-end();
     in property <string> app;
     in property <string> fps;
     /// Kolor liczby FPS: 0 – brak, 1 – dobrze (≥ 55), 2 – średnio (≥ 30), 3 – słabo.
@@ -16,108 +85,226 @@ export component OverlayWindow inherits Window {
     in property <string> frame;
     /// Czasy ostatnich klatek względem najdłuższej (0–1) – słupki wykresu.
     in property <[float]> hist;
+    /// Wykres FPS: linia i wypełnienie pod nią (polecenia ścieżki w polu 100×40).
+    in property <string> graph-line;
+    in property <string> graph-area;
+    in property <string> fps-avg;
+    in property <string> fps-low;
+    in property <string> fps-min;
     in property <string> cpu;
+    in property <float> cpu-level;
     in property <string> gpu;
+    in property <float> gpu-level;
     in property <string> gpu-temp;
     in property <string> ram;
+    in property <float> ram-level;
     in property <string> vram;
+    in property <float> vram-level;
     /// Komunikat zamiast FPS (np. brak uprawnień do pomiaru).
     in property <string> note;
-    width: 214px;
+    width: root.full ? 240px : 216px;
     height: panel.preferred-height;
 
     property <color> good: #3ddc84;
     property <color> mid: #f5b83d;
     property <color> bad: #ff5c5c;
+    property <color> fps-color: root.fps-level == 1 ? root.good : root.fps-level == 2 ? root.mid : root.fps-level == 3 ? root.bad : #ffffff99;
+    property <string> gpu-line: root.gpu + (root.gpu-temp != "" ? " · " + root.gpu-temp : "");
 
     panel := Rectangle {
-        border-radius: 10px;
-        background: #0b0b0bc8;
+        border-radius: 12px;
+        background: #0c1016.with-alpha(root.bg-alpha);
         border-width: 1px;
-        border-color: #ffffff1c;
-        VerticalLayout {
-            padding: 10px;
-            padding-top: 8px;
-            spacing: 4px;
+        border-color: root.moving ? Theme.accent : #ffffff1f;
+        animate border-color { duration: 120ms; }
+        // Kompaktowa: jeden wiersz.
+        if !root.full: HorizontalLayout {
+            padding-left: 12px;
+            padding-right: 12px;
+            padding-top: 6px;
+            padding-bottom: 6px;
+            spacing: 5px;
+            Text {
+                vertical-alignment: center;
+                text: root.fps == "" ? "–" : root.fps;
+                font-family: "Segoe UI";
+                font-size: 18px;
+                font-weight: 700;
+                color: root.fps-color;
+            }
+            Text {
+                vertical-alignment: center;
+                text: "FPS";
+                font-family: "Segoe UI";
+                font-size: 9.5px;
+                font-weight: 600;
+                color: #ffffff80;
+            }
+            Rectangle {
+                horizontal-stretch: 1;
+            }
+            for it in [{ k: "CPU", v: root.cpu }, { k: "GPU", v: root.gpu }]: HorizontalLayout {
+                spacing: 3px;
+                padding-left: 6px;
+                Text {
+                    vertical-alignment: center;
+                    text: it.k;
+                    font-family: "Segoe UI";
+                    font-size: 9.5px;
+                    font-weight: 600;
+                    color: #ffffff80;
+                }
+                Text {
+                    vertical-alignment: center;
+                    text: it.v;
+                    font-family: "Segoe UI";
+                    font-size: 12px;
+                    color: #ffffffee;
+                }
+            }
+        }
+        // Zaawansowana.
+        if root.full: VerticalLayout {
+            padding: 12px;
+            spacing: 8px;
             HorizontalLayout {
-                spacing: 6px;
+                spacing: 5px;
                 Text {
                     text: root.fps == "" ? "–" : root.fps;
-                    font-size: 26px;
+                    font-family: "Segoe UI";
+                    font-size: 30px;
                     font-weight: 700;
-                    color: root.fps-level == 1 ? root.good : root.fps-level == 2 ? root.mid : root.fps-level == 3 ? root.bad : #ffffff99;
+                    color: root.fps-color;
                 }
                 VerticalLayout {
                     alignment: end;
-                    padding-bottom: 4px;
+                    padding-bottom: 6px;
                     Text {
                         text: "FPS";
-                        font-size: 11px;
+                        font-family: "Segoe UI";
+                        font-size: 10.5px;
                         font-weight: 600;
-                        color: #ffffffaa;
+                        color: #ffffff90;
                     }
                 }
-                Rectangle {
-                    horizontal-stretch: 1;
-                }
                 VerticalLayout {
+                    horizontal-stretch: 1;
                     alignment: center;
                     Text {
                         horizontal-alignment: right;
                         text: root.frame;
+                        font-family: "Segoe UI";
                         font-size: 11.5px;
                         color: #ffffffcc;
                     }
-                    Text {
+                    if root.show-app: Text {
                         horizontal-alignment: right;
                         text: root.app;
+                        font-family: "Segoe UI";
                         font-size: 10px;
-                        color: #ffffff80;
+                        color: #ffffff70;
                         overflow: elide;
-                        width: 100px;
                     }
                 }
             }
             if root.note != "": Text {
                 text: root.note;
                 wrap: word-wrap;
+                font-family: "Segoe UI";
                 font-size: 10.5px;
                 color: root.mid;
             }
+            // Wykres FPS z ostatnich pomiarów; pod nim średnia i spadki.
+            if root.show-graph: Rectangle {
+                height: 48px;
+                border-radius: 6px;
+                background: #ffffff0a;
+                clip: true;
+                if root.graph-area != "": Path {
+                    width: parent.width;
+                    height: parent.height;
+                    viewbox-width: 100;
+                    viewbox-height: 40;
+                    commands: root.graph-area;
+                    fill: @linear-gradient(180deg, root.fps-color.with-alpha(0.4) 0%, root.fps-color.with-alpha(0.02) 100%);
+                }
+                if root.graph-line != "": Path {
+                    width: parent.width;
+                    height: parent.height;
+                    viewbox-width: 100;
+                    viewbox-height: 40;
+                    commands: root.graph-line;
+                    stroke: root.fps-color;
+                    stroke-width: 1.5px;
+                }
+            }
+            HorizontalLayout {
+                OverlayStat {
+                    name: @tr("średnio");
+                    value: root.fps-avg;
+                }
+                OverlayStat {
+                    name: "1% low";
+                    value: root.fps-low;
+                }
+                OverlayStat {
+                    name: "min";
+                    value: root.fps-min;
+                }
+            }
             // Czas klatek – im wyższy słupek, tym dłuższa klatka (przycięcia widać od razu).
-            if root.full: Rectangle {
-                height: 34px;
-                background: #ffffff0d;
+            Rectangle {
+                height: 18px;
                 border-radius: 4px;
+                background: #ffffff0a;
+                clip: true;
                 for v[i] in root.hist: Rectangle {
                     x: i * parent.width / max(1, root.hist.length);
                     width: max(1px, parent.width / max(1, root.hist.length) - 0.5px);
                     height: max(1px, v * (parent.height - 2px));
                     y: parent.height - self.height - 1px;
-                    background: v > 0.75 ? root.bad : v > 0.45 ? root.mid : root.good.with-alpha(0.8);
+                    background: v > 0.75 ? root.bad : v > 0.45 ? root.mid : root.good.with-alpha(0.7);
                 }
             }
-            for row in root.full ? [
-                { k: "CPU", v: root.cpu },
-                { k: "GPU", v: root.gpu + (root.gpu-temp != "" ? "  " + root.gpu-temp : "") },
-                { k: "RAM", v: root.ram },
-                { k: "VRAM", v: root.vram },
-            ] : [
-                { k: "CPU", v: root.cpu },
-                { k: "GPU", v: root.gpu + (root.gpu-temp != "" ? "  " + root.gpu-temp : "") },
-            ]: HorizontalLayout {
-                Text {
-                    width: 42px;
-                    text: row.k;
-                    font-size: 11px;
-                    font-weight: 600;
-                    color: #ffffff88;
+            OverlayMeter {
+                name: "CPU";
+                value: root.cpu;
+                level: root.cpu-level;
+                tint: Theme.accent;
+            }
+            OverlayMeter {
+                name: "GPU";
+                value: root.gpu-line;
+                level: root.gpu-level;
+                tint: Theme.accent;
+            }
+            OverlayMeter {
+                name: "RAM";
+                value: root.ram;
+                level: root.ram-level;
+                tint: #ffffff99;
+            }
+            OverlayMeter {
+                name: "VRAM";
+                value: root.vram;
+                level: root.vram-level;
+                tint: #ffffff99;
+            }
+        }
+        // Przesuwanie: pole łapie mysz tylko wtedy, gdy overlay.rs włączy trafianie (Ctrl nad nakładką).
+        if root.moving: TouchArea {
+            mouse-cursor: MouseCursor.move;
+            pointer-event(e) => {
+                if (e.button == PointerEventButton.left && e.kind == PointerEventKind.down) {
+                    root.drag-start();
                 }
-                Text {
-                    text: row.v;
-                    font-size: 11.5px;
-                    color: #ffffffe6;
-                    overflow: elide;
+                if (e.button == PointerEventButton.left && e.kind == PointerEventKind.up) {
+                    root.drag-end();
+                }
+            }
+            moved => {
+                if (self.pressed) {
+                    root.drag-move();
                 }
             }
         }

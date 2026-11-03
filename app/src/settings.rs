@@ -511,6 +511,8 @@ pub fn toggle(s: &Shared, key: &str) {
             return;
         }
         "overlay-full" => change(s, |p| p.overlay_full = !p.overlay_full),
+        "overlay-app" => change(s, |p| p.overlay_no_app = !p.overlay_no_app),
+        "overlay-graph" => change(s, |p| p.overlay_no_graph = !p.overlay_no_graph),
         "zones" => change(s, |p| p.zones_on = !p.zones_on),
         // Pasek czyta ustawienie przy każdym odświeżeniu (co sekundę).
         "vd-button" => change(s, |p| p.vd_button = !p.vd_button),
@@ -617,6 +619,11 @@ pub fn render_overlay(s: &Shared) {
         let b = s.borrow();
         (crate::overlay::is_open(), b.prefs.overlay_corner as i32, b.prefs.overlay_full, b.prefs.game_power, b.prefs.fps_limit as i32)
     };
+    let (moved, opacity, refresh, no_app, no_graph) = {
+        let b = s.borrow();
+        let p = &b.prefs;
+        (p.overlay_pos.is_some(), crate::overlay::opacity(p) as i32, crate::overlay::refresh_ms(p) as i32, p.overlay_no_app, p.overlay_no_graph)
+    };
     let st = powerdesk_core::fpsmon::state();
     let (text, need) = match st {
         State::Running => (crate::tr("Działa.").to_string(), false),
@@ -628,6 +635,11 @@ pub fn render_overlay(s: &Shared) {
         g.set_overlay_on(on);
         g.set_overlay_corner(corner);
         g.set_overlay_full(full);
+        g.set_overlay_moved(moved);
+        g.set_overlay_opacity(opacity);
+        g.set_overlay_refresh(refresh);
+        g.set_overlay_no_app(no_app);
+        g.set_overlay_no_graph(no_graph);
         g.set_fps_status(text.into());
         g.set_fps_need_access(need);
         g.set_game_power(game);
@@ -713,7 +725,20 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         crate::transfers::toast(&s, crate::tr("Raport skopiowany do schowka – wklej go w zgłoszeniu; obok otwarty folder z dziennikiem"), crate::transfers::Kind::Ok, None);
     });
     let s = st.clone();
-    g.on_set_overlay_corner(move |k| change(&s, |p| p.overlay_corner = k.clamp(0, 3) as u8));
+    g.on_set_overlay_corner(move |k| {
+        // Wybór rogu zastępuje miejsce ustawione myszą.
+        change(&s, |p| {
+            p.overlay_corner = k.clamp(0, 3) as u8;
+            p.overlay_pos = None;
+        });
+    });
+    let s = st.clone();
+    g.on_set_overlay_opacity(move |v| change(&s, |p| p.overlay_opacity = v.clamp(20, 100) as u8));
+    let s = st.clone();
+    g.on_set_overlay_refresh(move |v| {
+        change(&s, |p| p.overlay_refresh = v.clamp(100, 5000) as u32);
+        crate::overlay::restart_timer();
+    });
     let s = st.clone();
     g.on_grant_fps(move || {
         match powerdesk_core::fpsmon::grant_access() {
