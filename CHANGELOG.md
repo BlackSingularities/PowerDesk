@@ -1,8 +1,14 @@
 # Zmiany
 
-## 1.1.6
+## 1.1.8
+
+- Ikona „Ten komputer” na pulpicie Windows otwiera widok Komputer w PowerDesk.
+
+## 1.1.7
 
 - Powiadomienia i transfery pokazują się zawsze w prawym dolnym rogu pulpitu, nie w rogu okna folderów.
+
+## 1.1.6
 - Nakładka: nowy wygląd, wykres FPS ze średnią, 1% low i minimum, paski zasobów, tryby kompaktowy i zaawansowany.
 - Nakładka: przesuwanie po przytrzymaniu Ctrl i najechaniu myszą; miejsce jest zapamiętywane.
 - Ustawienia nakładki: krycie tła, odświeżanie, wykres i nazwa programu.

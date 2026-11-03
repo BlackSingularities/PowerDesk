@@ -160,6 +160,10 @@ pub fn with_state(f: impl FnOnce(&Shared)) {
 fn arg_target(arg: &str) -> Option<(String, Option<String>)> {
     // Dysk z menu Eksploratora przychodzi jako `C:"` ("C:\" – ukośnik zjada cudzysłów).
     let mut a = arg.trim().trim_matches('"').to_string();
+    // Ikona „Ten komputer” z pulpitu Windows (filemgr.rs).
+    if a == crate::model::HOME {
+        return Some((a, None));
+    }
     if a.len() == 2 && a.ends_with(':') {
         a.push('\\');
     }

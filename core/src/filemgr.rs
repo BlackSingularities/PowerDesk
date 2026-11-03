@@ -18,6 +18,11 @@ const MENU_TARGETS: [(&str, &str); 3] = [("Directory", "%1"), ("Drive", "%1"), (
 /// przegląda PowerDesk jak folder, zamiast ukrytego w tle Eksploratora.
 const DEFAULT_TARGETS: [&str; 3] = ["Directory", "Drive", "CompressedFolder"];
 
+/// Polecenie ikony „Ten komputer” (także „Komputer” na pulpicie Windows) – jej domyślne „open”.
+const COMPUTER_OPEN: &str = r"CLSID\{20D04FE0-3AEA-1069-A2D8-08002B30309D}\shell\open";
+/// Argument programu: widok Komputer.
+const COMPUTER_ARG: &str = "ofp:home";
+
 fn command(arg: &str) -> Result<String, String> {
     Ok(format!("\"{}\" \"{arg}\"", exe()?))
 }
@@ -29,13 +34,19 @@ fn points_here(key: &str) -> bool {
 
 /// Foldery, dyski i archiwa ZIP otwierają się w PowerDesk.
 pub fn default_enabled() -> bool {
-    DEFAULT_TARGETS.iter().all(|c| {
+    points_here(&format!(r"{CLASSES}\{COMPUTER_OPEN}\command")) && DEFAULT_TARGETS.iter().all(|c| {
         let shell = format!(r"{CLASSES}\{c}\shell");
         reg(&["query", &shell, "/ve"]).is_ok_and(|o| o.contains(DEFAULT_VERB) && !o.contains(MENU_VERB)) && points_here(&format!(r"{shell}\{DEFAULT_VERB}\command"))
     })
 }
 
 pub fn set_default(on: bool) -> Result<(), String> {
+    let computer = format!(r"{CLASSES}\{COMPUTER_OPEN}");
+    if on {
+        reg(&["add", &format!(r"{computer}\command"), "/ve", "/d", &command(COMPUTER_ARG)?, "/f"])?;
+    } else if reg(&["query", &computer]).is_ok() {
+        reg(&["delete", &computer, "/f"])?;
+    }
     for c in DEFAULT_TARGETS {
         let shell = format!(r"{CLASSES}\{c}\shell");
         let verb = format!(r"{shell}\{DEFAULT_VERB}");
