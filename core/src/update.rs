@@ -11,9 +11,7 @@ use std::path::PathBuf;
 
 use sha2::{Digest, Sha256};
 
-const FEED: &str = "https://redzikowski.com/api/github/repos/BlackSingularities/PowerDesk/releases/latest";
-/// Zapas, gdy portfolio nie odpowiada – publiczne API GitHuba (bez klucza, limit 60 zapytań/h).
-const FEED_GITHUB: &str = "https://api.github.com/repos/BlackSingularities/PowerDesk/releases/latest";
+const FEED: &str = "https://redzikowski.com/api/releases/repos/BlackSingularities/PowerDesk/releases/latest";
 const UA: &str = "PowerDesk";
 
 /// Wersja tego programu (CI podaje numer wydania przy kompilacji).
@@ -72,8 +70,8 @@ pub fn newer(a: &str, b: &str) -> bool {
 
 /// Najnowsze wydanie, jeśli nowsze od tej wersji i ma plik PowerDesk.
 pub fn check() -> Result<Option<Release>, String> {
-    let feed = |url: &str| -> Result<serde_json::Value, String> { get(url, "application/vnd.github+json")?.into_json().map_err(|e| e.to_string()) };
-    let r = feed(FEED).or_else(|_| feed(FEED_GITHUB))?;
+    let feed = |url: &str| -> Result<serde_json::Value, String> { get(url, "application/json")?.into_json().map_err(|e| e.to_string()) };
+    let r = feed(FEED)?;
     let version = r["tag_name"].as_str().unwrap_or_default().trim_start_matches('v').to_string();
     if version.is_empty() || !newer(&version, current()) {
         return Ok(None);
