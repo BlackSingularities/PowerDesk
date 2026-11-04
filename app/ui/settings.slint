@@ -1797,7 +1797,7 @@ export component SettingsView inherits Rectangle {
                     ToggleRow {
                         icon: Icons.refresh;
                         text: @tr("Sprawdzaj aktualizacje automatycznie");
-                        hint: @tr("Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba");
+                        hint: @tr("Minutę po starcie i co 6 godzin");
                         on: SettingsState.update-check;
                         toggled => {
                             SettingsState.toggle("update-check");

@@ -1884,7 +1884,7 @@ msgid "Minutnik"
 msgstr ""
 
 #: app/ui/settings.slint:1705
-msgid "Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba"
+msgid "Minutę po starcie i co 6 godzin"
 msgstr ""
 
 #: app/src/widgettools.rs:94

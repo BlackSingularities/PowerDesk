@@ -1884,8 +1884,8 @@ msgid "Minutnik"
 msgstr "Timer"
 
 #: app/ui/settings.slint:1705
-msgid "Minutę po starcie i co 6 godzin – wydania PowerDesk z GitHuba"
-msgstr "A minute after startup and every 6 hours – PowerDesk releases from GitHub"
+msgid "Minutę po starcie i co 6 godzin"
+msgstr "A minute after startup and every 6 hours"
 
 #: app/src/widgettools.rs:94
 msgid "Minął czas: {total}"
