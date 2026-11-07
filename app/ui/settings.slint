@@ -105,7 +105,7 @@ export global SettingsState {
     in-out property <bool> game-power;
     in-out property <int> fps-limit;
     callback set-fps-limit(int);
-    /// Raport (wersja, system, dziennik) do schowka i folder z dziennikiem.
+    /// Okno „Zgłoś błąd lub sugestię” – wysyłka do redzikowski.com (feedback.rs).
     callback report-problem();
     // Tapety: tryb (0 – Windows, 1 – pokaz slajdów, 2 – Bing), folder, co ile minut.
     in-out property <bool> vd-button;
@@ -2123,11 +2123,11 @@ export component SettingsView inherits Rectangle {
                             background: zp-ta.has-hover ? Theme.press : Theme.card;
                             zp := Label {
                                 horizontal-alignment: center;
-                                text: @tr("Zgłoś problem…");
+                                text: @tr("Zgłoś błąd lub sugestię…");
                                 font-size: 12.5px;
                             }
                             zp-ta := TipArea {
-                                tip: @tr("Kopiuje raport (wersja, system, dziennik) do schowka i otwiera folder z dziennikiem");
+                                tip: @tr("Wyślij autorowi opis błędu albo pomysł na funkcję");
                                 clicked => {
                                     SettingsState.report-problem();
                                 }

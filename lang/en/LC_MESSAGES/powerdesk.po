@@ -4171,6 +4171,12 @@ msgstr "Check again"
 msgid "Sprawdź teraz"
 msgstr "Check now"
 
+msgid "Zgłoś błąd lub sugestię…"
+msgstr "Report a problem or suggest a feature…"
+
+msgid "Wyślij autorowi opis błędu albo pomysł na funkcję"
+msgstr "Send the author a bug description or a feature idea"
+
 #: app/src/facets.rs:151
 msgid "Starsze"
 msgstr "Older"

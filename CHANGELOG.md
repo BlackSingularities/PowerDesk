@@ -1,5 +1,10 @@
 # Zmiany
 
+## 1.1.11
+
+- „Zgłoś błąd lub sugestię…” w ustawieniach otwiera formularz: opis trafia prosto do autora przez redzikowski.com, e-mail jest opcjonalny (wcześniej raport trafiał tylko do schowka).
+- Po nieoczekiwanym zamknięciu PowerDesk przy następnym uruchomieniu proponuje wysłanie raportu o błędzie – tylko za zgodą użytkownika.
+
 ## 1.1.8
 
 - Ikona „Ten komputer” na pulpicie Windows otwiera widok Komputer w PowerDesk.

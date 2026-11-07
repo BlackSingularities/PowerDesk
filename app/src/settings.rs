@@ -717,13 +717,7 @@ pub fn bind(ui: &crate::MainWindow, st: &Shared) {
         change(&s, |p| p.wallpaper_minutes = m.max(1) as u32);
         crate::wallpapers::start_timer();
     });
-    let s = st.clone();
-    g.on_report_problem(move || {
-        let text = powerdesk_core::log::report(powerdesk_core::update::current());
-        let _ = powerdesk_core::clip::set_text(&text);
-        let _ = open::that_detached(powerdesk_core::log::dir());
-        crate::transfers::toast(&s, crate::tr("Raport skopiowany do schowka – wklej go w zgłoszeniu; obok otwarty folder z dziennikiem"), crate::transfers::Kind::Ok, None);
-    });
+    g.on_report_problem(crate::feedback::open_form);
     let s = st.clone();
     g.on_set_overlay_corner(move |k| {
         // Wybór rogu zastępuje miejsce ustawione myszą.

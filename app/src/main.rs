@@ -2,6 +2,7 @@
 //! PowerDesk – natywny interfejs (Slint) nad backendem `powerdesk-core`.
 
 mod archives;
+mod feedback;
 mod bulk;
 mod desktop;
 mod dragdrop;
@@ -343,6 +344,8 @@ pub fn quit(_s: &Shared) {
 
 fn main() -> Result<(), slint::PlatformError> {
     powerdesk_core::log::install_panic_hook();
+    let crash_dir = std::env::var_os("LOCALAPPDATA").map(std::path::PathBuf::from).unwrap_or_else(std::env::temp_dir).join("PowerDesk");
+    feedback::install("powerdesk", "PowerDesk", powerdesk_core::update::current(), crash_dir, || powerdesk_core::lang::current().starts_with("pl"), true);
     // Strażnik: czeka na koniec PowerDesk i po awarii przywraca pulpit i pasek Windows.
     let argv: Vec<String> = std::env::args().collect();
     // Okno „Otwórz”/„Zapisz jako” dla innego programu (biblioteka powerdesk-dialog) – nic więcej.
@@ -505,6 +508,8 @@ fn main() -> Result<(), slint::PlatformError> {
         // Pulpit i pasek powstały wcześniej – okno folderów na wierzch, gdy już ma uchwyt.
         slint::Timer::single_shot(std::time::Duration::from_millis(300), || with_state(|s| powerdesk_core::instance::bring_to_front(hwnd(s))));
     }
+    // Awaria przy poprzednim uruchomieniu: pytanie o wysłanie raportu, gdy pulpit już stoi.
+    slint::Timer::single_shot(std::time::Duration::from_secs(3), feedback::offer_pending_crash);
     // Pętla trwa także przy schowanym oknie – kończy ją dopiero quit().
     slint::run_event_loop_until_quit()
 }
