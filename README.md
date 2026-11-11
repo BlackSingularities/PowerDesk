@@ -1,5 +1,13 @@
 # PowerDesk
 
+<!-- posters:start -->
+<p align="center">
+  <img src="docs/posters/windows.png" alt="PowerDesk – Windows" width="460">
+</p>
+
+<p align="center"><a href="https://redzikowski.com/portfolio/powerdesk">redzikowski.com/portfolio/powerdesk</a></p>
+<!-- posters:end -->
+
 Pulpit, pasek zadań, menu Start i menedżer plików dla Windows 10/11 w jednym programie – natywnie
 w Rust + Slint, bez przeglądarki w środku. Zastępuje Eksplorator Windows (także jako powłoka po
 zalogowaniu) i wcześniejszą aplikację OpenFilePower.
